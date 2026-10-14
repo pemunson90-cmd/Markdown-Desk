@@ -21,7 +21,7 @@ javac --release 11 -d "$OUT/classes" \
  "$ROOT/verification/protection_store/ProtectionStoreCheck.java"
 java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck
 python3 - "$OUT" "$RUN_FIXTURES" <<'PY'
-import os, resource, signal, subprocess, sys
+import os, resource, signal, subprocess, sys, tempfile
 out, fixtures = sys.argv[1:]
 def restrict_writes():
     signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
@@ -29,4 +29,12 @@ def restrict_writes():
 subprocess.run(["java", "-Djava.io.tmpdir=" + fixtures, "-cp", out + "/classes",
                 "com.example.markdowndesk.ProtectionStoreCheck", "write-failure"],
                check=True, preexec_fn=restrict_writes)
+for bound in (0, 4096):
+    root = tempfile.mkdtemp(prefix="completion-write-", dir=fixtures) + "/store"
+    command = ["java", "-Djava.io.tmpdir=" + fixtures, "-cp", out + "/classes", "com.example.markdowndesk.ProtectionStoreCheck"]
+    subprocess.run(command + ["completion-seed", root], check=True)
+    def restrict_completion_writes():
+        signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+        resource.setrlimit(resource.RLIMIT_FSIZE, (bound, bound))
+    subprocess.run(command + ["completion-write-failure", root, str(bound)], check=True, preexec_fn=restrict_completion_writes)
 PY

@@ -100,6 +100,18 @@ public final class HistoryGraphCheck {
         HistoryGraph.Graph metadataOversized=f.graph.scan();check(metadataOversized.pruneBlocked,"oversized native metadata blocks");
         check(metadataOversized.records.stream().filter(r->r.filename.equals(hugeMetadata.getFileName().toString())).allMatch(r->r.envelopeHash==null),"oversized native metadata never hashed or materialized");Files.delete(hugeMetadata);
     }
+    static void completionStages()throws Exception {
+        Fixture f=new Fixture();ProtectionStore.Transaction pending=f.group(false);Path transaction=f.parent.resolve("store").resolve(pending.id+".transaction"),stage=f.parent.resolve("store").resolve(pending.id+".completion-stage");
+        byte[] complete=Files.readAllBytes(transaction);complete[8]=3;byte[] checksum=MessageDigest.getInstance("SHA-256").digest(Arrays.copyOf(complete,complete.length-32));System.arraycopy(checksum,0,complete,complete.length-32,32);
+        HistoryGraph.Graph before=f.graph.scan();long slots=before.records.size()+before.reservedCompletionSlots;
+        Files.write(stage,new byte[0]);HistoryGraph.Graph zero=f.graph.scan();check(zero.pruneBlocked&&zero.reservedCompletionBytes==complete.length&&zero.reservedCompletionSlots==0,"zero stage substitutes reserved slot");check(zero.chargedBytes==before.chargedBytes&&zero.records.size()+zero.reservedCompletionSlots==slots,"zero stage conserved charge");check(zero.diagnostics.stream().anyMatch(d->d.contains("retained stage")),"recognized completion stage diagnostic");
+        Files.write(stage,Arrays.copyOf(complete,50));HistoryGraph.Graph prefix=f.graph.scan();check(prefix.pruneBlocked&&prefix.reservedCompletionBytes==complete.length-50&&prefix.reservedCompletionSlots==0,"prefix reservation proof");check(prefix.chargedBytes==before.chargedBytes&&!zero.fingerprint.equals(prefix.fingerprint),"prefix fingerprint binds hash and length with constant charge");
+        Files.write(stage,complete);HistoryGraph.Graph full=f.graph.scan();check(full.pruneBlocked&&full.reservedCompletionBytes==0&&full.reservedCompletionSlots==0&&full.chargedBytes==before.chargedBytes,"full stage reservation conversion");check(!prefix.fingerprint.equals(full.fingerprint),"full stage fingerprint changed");
+        Map<Path,String> retained=capture(f);check(retained.equals(capture(f))&&full.fingerprint.equals(f.graph.scan().fingerprint),"full stage read-only deterministic scan");
+        byte[] changed=complete.clone();changed[0]^=1;Files.write(stage,changed);HistoryGraph.Graph invalid=f.graph.scan();check(invalid.pruneBlocked&&invalid.reservedCompletionBytes==complete.length&&invalid.reservedCompletionSlots==1,"altered stage no reservation credit");check(!invalid.fingerprint.equals(full.fingerprint),"altered stage full hash fingerprint");
+        Files.write(stage,complete);Files.move(stage,f.parent.resolve("store").resolve(UUID.randomUUID()+".completion-stage"));HistoryGraph.Graph foreign=f.graph.scan();check(foreign.pruneBlocked&&foreign.reservedCompletionBytes==complete.length&&foreign.reservedCompletionSlots==1,"orphan stage no credit");check(!foreign.fingerprint.equals(full.fingerprint),"stage filename fingerprint");
+        Fixture done=new Fixture();ProtectionStore.Transaction t=done.group(true);Path completed=done.parent.resolve("store").resolve(t.id+".complete");Files.copy(completed,done.parent.resolve("store").resolve(t.id+".completion-stage"));HistoryGraph.Graph duplicate=done.graph.scan();check(duplicate.pruneBlocked&&duplicate.reservedCompletionBytes==0&&duplicate.reservedCompletionSlots==0,"completion plus stage inconsistent without double credit");
+    }
     static long growingSize(Fixture f)throws Exception {long n=0;for(Path p:capture(f).keySet())n+=Files.size(p);return n;}
     interface Io {void run()throws IOException;}
     static void rejectIo(Io task)throws IOException {try{task.run();throw new AssertionError("Foreign cache accepted");}catch(IOException expected){checks++;}}
@@ -140,5 +152,5 @@ public final class HistoryGraphCheck {
         check(bounded.usageComplete&&bounded.actualBytes>g.actualBytes,"budget exhaustion still reports complete actual regular-file usage");
         check(headroom[0]==0,"32MiB headroom remains live through metadata exhaustion");
     }
-    public static void main(String[] args)throws Exception {if(args.length>0)memory();else regular();System.out.println("PASS retention graph production fixtures: "+checks+" checks; read-only host evidence only");}
+    public static void main(String[] args)throws Exception {if(args.length>0)memory();else {regular();completionStages();}System.out.println("PASS retention graph production fixtures: "+checks+" checks; read-only host evidence only");}
 }
