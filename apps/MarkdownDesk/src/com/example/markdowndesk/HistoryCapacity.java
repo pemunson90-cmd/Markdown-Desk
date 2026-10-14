@@ -90,6 +90,7 @@ public final class HistoryCapacity {
     public EffectivePolicy reconcile()throws IOException{synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return reconcileLocked();}}}
     private EffectivePolicy reconcileLocked()throws IOException{
         ready=false;HistoryControlStore.Inspection inspection=control.inspect();
+        if(inspection.hasMaintenance())throw new IOException("Maintenance requires dedicated recovery");
         if(inspection.state==HistoryControlStore.State.UNREGISTERED)throw new IOException("Missing registration");
         HistoryControlStore.Registration binding=inspection.registration;
         if(binding==null&&inspection.stages.size()==1&&inspection.stages.get(0).record instanceof HistoryControlStore.Registration)binding=(HistoryControlStore.Registration)inspection.stages.get(0).record;

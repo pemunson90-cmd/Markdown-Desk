@@ -66,9 +66,13 @@ final class HistoryControlStore {
         final long length;
         final String envelopeHash;
         final Record record;
+        final HistoryPruneIntent intent;
         final boolean stage;
         private Entry(String filename,long length,String hash,Record record,boolean stage) {
-            this.filename=filename;this.length=length;envelopeHash=hash;this.record=record;this.stage=stage;
+            this(filename,length,hash,record,stage,null);
+        }
+        private Entry(String filename,long length,String hash,Record record,boolean stage,HistoryPruneIntent intent) {
+            this.filename=filename;this.length=length;envelopeHash=hash;this.record=record;this.stage=stage;this.intent=intent;
         }
     }
     static final class StageDescriptor {
@@ -88,6 +92,8 @@ final class HistoryControlStore {
         final Record latest;
         final List<Entry> entries;
         final List<StageDescriptor> stages;
+        final Entry committedIntent, intentStage;
+        boolean hasMaintenance(){return committedIntent!=null||intentStage!=null;}
         final long actualBytes;
         final int actualEntries;
         final boolean usageComplete, chainComplete;
@@ -97,6 +103,10 @@ final class HistoryControlStore {
             this.state=state;this.registration=registration;this.latest=latest;
             this.entries=Collections.unmodifiableList(new ArrayList<>(entries));
             this.stages=Collections.unmodifiableList(new ArrayList<>(stages));
+            Entry committed=null,pending=null;
+            for(Entry entry:entries){if(HistoryPruneIntent.INTENT_NAME.equals(entry.filename))committed=entry;
+                if(HistoryPruneIntent.STAGE_NAME.equals(entry.filename))pending=entry;}
+            committedIntent=committed;intentStage=pending;
             actualBytes=bytes;actualEntries=count;this.usageComplete=usageComplete;this.chainComplete=chainComplete;
             this.diagnostics=Collections.unmodifiableList(new ArrayList<>(diagnostics));
         }
@@ -217,17 +227,21 @@ final class HistoryControlStore {
                 count++;
                 String name=path.getFileName().toString();boolean stage=name.endsWith(".stage");
                 String committed=stage?name.substring(0,name.length()-6):name;
-                boolean known=knownCommittedName(committed);
+                boolean maintenance=HistoryPruneIntent.INTENT_NAME.equals(committed);
+                boolean known=maintenance||knownCommittedName(committed);
+                HistoryPruneIntent intent=null;
                 long size=0;String hash=null;Record record=null;
                 if(!known){diagnostics.add("control: unknown entry");inventoryValid=false;}
                 try {
                     BasicFileAttributes before=attributes(path);size=before.size();
                     if(!before.isRegularFile()||size<0)throw new IOException("Nonregular control entry");
                     bytes=Math.addExact(bytes,size);
-                    if(size>MAX_RECORD){same(before,attributes(path));diagnostics.add("control: oversized entry");inventoryValid=false;}
+                    int limit=maintenance?HistoryPruneIntent.MAX_BYTES:MAX_RECORD;
+                    if(size>limit){same(before,attributes(path));diagnostics.add("control: oversized entry");inventoryValid=false;}
                     else {
-                        byte[] envelope=read(path,before);hash=hex(sha(envelope));
-                        if(known) {
+                        byte[] envelope=read(path,before,limit);hash=hex(sha(envelope));
+                        if(maintenance){try{intent=HistoryPruneIntent.decode(envelope);}catch(IOException invalid){diagnostics.add("control: invalid intent");inventoryValid=false;}}
+                        else if(known) {
                             try {
                                 record=decode(envelope);
                                 if(!recordMatches(committed,record))throw new IOException("Control filename mismatch");
@@ -238,7 +252,7 @@ final class HistoryControlStore {
                 }catch(IOException|ArithmeticException invalid) {
                     diagnostics.add("control: unreadable entry");usageComplete=false;inventoryValid=false;
                 }
-                Entry entry=new Entry(known?name:null,size,hash,record,stage);entries.add(entry);
+                Entry entry=new Entry(known?name:null,size,hash,record,stage,intent);entries.add(entry);
                 if(!stage&&record instanceof Registration)registration=(Registration)record;
                 if(!stage&&record instanceof Policy) {
                     Policy policy=(Policy)record;
@@ -275,7 +289,7 @@ final class HistoryControlStore {
             diagnostics.add("control: root changed");usageComplete=false;chainComplete=false;inventoryValid=false;
             registration=null;latest=null;
         }
-        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage)pending.add(entry);
+        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage&&!HistoryPruneIntent.STAGE_NAME.equals(entry.filename))pending.add(entry);
         for(Entry entry:pending) {
             boolean provisional=false;
             if(pending.size()==1&&inventoryValid&&usageComplete&&entry.record!=null) {
@@ -291,7 +305,9 @@ final class HistoryControlStore {
         if(!pending.isEmpty())diagnostics.add("control: retained stage");
         entries.sort(Comparator.comparing(entry->entry.filename==null?"":entry.filename));
         stages.sort(Comparator.comparing(stage->stage.filename==null?"":stage.filename));
-        State state=chainComplete&&pending.isEmpty()?State.VALIDATED:State.BLOCKED;
+        boolean maintenance=false;for(Entry entry:entries)if(HistoryPruneIntent.INTENT_NAME.equals(entry.filename)||HistoryPruneIntent.STAGE_NAME.equals(entry.filename))maintenance=true;
+        if(maintenance)diagnostics.add("control: retained maintenance");
+        State state=chainComplete&&pending.isEmpty()&&!maintenance?State.VALIDATED:State.BLOCKED;
         return new Inspection(state,registration,latest,entries,stages,bytes,count,usageComplete,chainComplete,diagnostics);
     }
 
@@ -364,7 +380,10 @@ final class HistoryControlStore {
         return absolute;
     }
     private static byte[] read(Path path,BasicFileAttributes before)throws IOException {
-        if(before.size()<0||before.size()>MAX_RECORD)throw new IOException("Control record limit");
+        return read(path,before,MAX_RECORD);
+    }
+    private static byte[] read(Path path,BasicFileAttributes before,int limit)throws IOException {
+        if(before.size()<0||before.size()>limit)throw new IOException("Control record limit");
         ByteBuffer buffer=ByteBuffer.allocate((int)before.size());
         try(SeekableByteChannel channel=Files.newByteChannel(path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)) {
             while(buffer.hasRemaining()){int n=channel.read(buffer);if(n<0)throw new IOException("Truncated control record");if(n==0)throw new IOException("Control read made no progress");}
