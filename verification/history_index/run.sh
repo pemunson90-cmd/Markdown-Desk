@@ -5,6 +5,7 @@ OUT="$ROOT/verification/build/history-index"
 mkdir -p "$OUT/classes" "$OUT/tmp"
 javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
+ "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java" \

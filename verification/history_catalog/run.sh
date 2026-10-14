@@ -5,6 +5,7 @@ OUT="$ROOT/verification/build/history-catalog"
 mkdir -p "$OUT/classes" "$OUT/tmp"
 javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
+ "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java" \
  "$ROOT/verification/history_catalog/HistoryCatalogCheck.java"
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.HistoryCatalogCheck

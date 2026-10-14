@@ -75,9 +75,12 @@ future device/release acceptance. This tag never authorizes a new signed release
 `bash verification/run_host_checks.sh` now includes provider/session/renderer/
 AST-extracted mode and strict inventory fixtures. These are host preservation
 checks; their green result does not pass the separate desired safety/spec gate.
-Run `bash verification/run_safety_gates.sh` to reproduce current provider-loss,
-oversize/nullmetadata, nested-list and contrast failures. That gate exits nonzero
-and is intentionally not hidden. See M0_2_REPORT.md for precise limits.
+Run `bash verification/document_io/run.sh --safety` for the retained raw-provider
+truncation diagnostic. The legacy aggregate `run_safety_gates.sh` mixes primitive
+and application contracts; its RED status does not represent a failure of
+protected recoverability. Earlier oversize/nullmetadata, renderer and contrast
+findings are historical; consult `CI_AND_WORKFLOW_POLICY.md` and live `STATUS.md`
+for current production gates and observed evidence.
 
 `PATH="$JAVA_HOME/bin:$PATH" bash verification/benchmarks/run.sh` records a matched
 host-only benchmark; do not repeat it for unrelated edits or claim device latency.

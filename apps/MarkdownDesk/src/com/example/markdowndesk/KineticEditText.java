@@ -26,7 +26,7 @@ public class KineticEditText extends EditText {
     private OnTextScaleListener scaleListener;
     private boolean scaling;
     private boolean typewriter;
-    private int[] logicalLineStarts = new int[]{0};
+    private LogicalLineIndex logicalLineStarts;
 
     public interface OnTextScaleListener {
         void onTextScale(float f);
@@ -42,6 +42,7 @@ public class KineticEditText extends EditText {
 
     public KineticEditText(Context context, AttributeSet attributeSet, int i) {
         super(context, attributeSet, i);
+        if (this.logicalLineStarts == null) this.logicalLineStarts = new LogicalLineIndex();
         this.chromePaint = new Paint(1);
         this.currentLine = true;
         this.chromeColor = 1718906212;
@@ -139,25 +140,15 @@ public class KineticEditText extends EditText {
     @Override
     protected void onTextChanged(CharSequence text, int start, int before, int count) {
         super.onTextChanged(text, start, before, count);
-        int lines = 1;
-        for (int i = 0; i < text.length(); i++) if (text.charAt(i) == '\n') lines++;
-        int[] starts = new int[lines];
-        int line = 1;
-        starts[0] = 0;
-        for (int i = 0; i < text.length() && line < lines; i++) {
-            if (text.charAt(i) == '\n') starts[line++] = i + 1;
-        }
-        logicalLineStarts = starts;
+        // TextView can invoke this callback from its constructor, before our fields initialize.
+        if (logicalLineStarts == null) logicalLineStarts = new LogicalLineIndex();
+        logicalLineStarts.changed(text, start, before, count);
     }
 
     private int logicalLineForOffset(int offset) {
-        int lo = 0, hi = logicalLineStarts.length - 1;
-        while (lo <= hi) {
-            int mid = (lo + hi) >>> 1;
-            if (logicalLineStarts[mid] <= offset) lo = mid + 1; else hi = mid - 1;
-        }
-        return Math.max(0, hi);
+        return logicalLineStarts == null ? 0 : logicalLineStarts.lineForOffset(offset);
     }
+
     @Override // android.widget.TextView
     protected void onSelectionChanged(int i, int i2) {
         super.onSelectionChanged(i, i2);
@@ -206,7 +197,7 @@ public class KineticEditText extends EditText {
             int visualLine = iMax++;
             int offset = getLayout().getLineStart(visualLine);
             int logical = logicalLineForOffset(offset);
-            if (logical >= logicalLineStarts.length || logicalLineStarts[logical] != offset) continue;
+            if (logical >= logicalLineStarts.size() || logicalLineStarts.start(logical) != offset) continue;
             float lineBaseline = (getLayout().getLineBaseline(visualLine) + getTotalPaddingTop()) - getScrollY();
             canvas.drawText(Integer.toString(logical + 1), fRound, lineBaseline, this.chromePaint);
         }

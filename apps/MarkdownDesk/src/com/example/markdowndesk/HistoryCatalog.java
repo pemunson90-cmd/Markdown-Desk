@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** Append-only names for existing protected snapshots. No document payloads or deletion. */
 public final class HistoryCatalog {
@@ -37,7 +36,6 @@ public final class HistoryCatalog {
     private static final int MAX_RECORD_BYTES=16384, MAX_LABEL_BYTES=256, MAX_STRING_BYTES=4096;
     private static final int MAX_RECORDS=4096;
     private static final long MAX_METADATA_BYTES=8L*1024*1024;
-    private static final ConcurrentHashMap<String,Object> LOCKS=new ConcurrentHashMap<>();
 
     public static final class Checkpoint {
         public final String id, snapshotId, documentId, snapshotHash, label;
@@ -48,6 +46,8 @@ public final class HistoryCatalog {
         }
     }
 
+    File storageRoot(){return root;}
+    ProtectionStore sourceStore(){return store;}
     private final File root;
     private final ProtectionStore store;
     private final ProtectionStore.Durability durability;
@@ -57,9 +57,10 @@ public final class HistoryCatalog {
     public HistoryCatalog(File root,ProtectionStore store,ProtectionStore.Durability durability) throws IOException {
         if(root==null || store==null || durability==null)throw new IOException("Invalid catalog configuration");
         checkAncestors(root.getAbsoluteFile().toPath());
-        this.root=root.getAbsoluteFile().toPath().normalize().toFile();
+        this.root=HistoryStorage.canonicalRoot(root);
         this.store=store;this.durability=durability;
-        lock=LOCKS.computeIfAbsent(this.root.getPath(),unused->new Object());
+        lock=HistoryStorage.monitorFor(this.root);
+        if(lock!=HistoryStorage.monitorFor(store.storageRoot()))throw new IOException("Catalog and source require same private parent");
         synchronized(lock) {
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
@@ -90,7 +91,7 @@ public final class HistoryCatalog {
             checkAncestors(root.toPath());
             if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable checkpoint exists");
             // Generated paths, CREATE_NEW, and retained failures mirror the private protection protocol.
-            Files.createFile(stage.toPath());
+            HistoryStorage.changed(root);Files.createFile(stage.toPath());
             try(FileOutputStream out=new FileOutputStream(stage)) {
                 out.write(record);out.flush();durability.syncFile(out.getFD());
             }
@@ -118,7 +119,7 @@ public final class HistoryCatalog {
 
     /** Fresh complete immutable checkpoint metadata, avoiding a full rescan for each document. */
     public List<Checkpoint> all() throws IOException {
-        synchronized(lock) {return Collections.unmodifiableList(readAll());}
+        synchronized(lock) {return store.withValidatedSources(this::allAgainstValidatedSnapshots);}
     }
 
     /** Never returns a partial set that a later retention planner could mistake for complete pins. */
@@ -130,6 +131,14 @@ public final class HistoryCatalog {
         }
     }
 
+    List<Checkpoint> allAgainstValidatedSnapshots(ProtectionStore.ValidatedSources sources)throws IOException {
+        sources.require(store);
+        if(!sources.inventory.complete)throw new IOException("Incomplete validated source inventory");
+        Inventory inventory=inventory();durability.syncDirectory(root);List<Checkpoint> result=new ArrayList<>();
+        for(File entry:inventory.files){if(entry.getName().endsWith(".stage"))throw new IOException("Retained checkpoint stage");
+            result.add(decodeAndValidate(entry,readRecord(entry),sources));}
+        return Collections.unmodifiableList(result);
+    }
     private List<Checkpoint> readAll() throws IOException {
         Inventory inventory=inventory();
         durability.syncDirectory(root);
@@ -171,7 +180,8 @@ public final class HistoryCatalog {
     }
 
     private Checkpoint readCheckpoint(File file) throws IOException {return decodeAndValidate(file,readRecord(file));}
-    private Checkpoint decodeAndValidate(File file,byte[] raw) throws IOException {
+    private Checkpoint decodeAndValidate(File file,byte[] raw) throws IOException {return decodeAndValidate(file,raw,null);}
+    private Checkpoint decodeAndValidate(File file,byte[] raw,ProtectionStore.ValidatedSources sources) throws IOException {
         byte[] expected=Arrays.copyOfRange(raw,raw.length-32,raw.length);
         if(!MessageDigest.isEqual(expected,sha(Arrays.copyOf(raw,raw.length-32))))throw new IOException("Checkpoint checksum mismatch");
         try(DataInputStream in=new DataInputStream(new ByteArrayInputStream(raw,0,raw.length-32))) {
@@ -180,7 +190,8 @@ public final class HistoryCatalog {
             Checkpoint checkpoint=new Checkpoint(readString(in,MAX_STRING_BYTES),readString(in,MAX_STRING_BYTES),
                     readString(in,MAX_STRING_BYTES),readString(in,MAX_STRING_BYTES),readString(in,MAX_LABEL_BYTES),in.readLong());
             if(in.available()!=0 || !file.getName().equals(checkpoint.id+".checkpoint"))throw new IOException("Checkpoint identity/framing mismatch");
-            validate(checkpoint);validateSource(checkpoint);return checkpoint;
+            validate(checkpoint);
+            if(sources==null)validateSource(checkpoint);else validateSource(checkpoint,sources.snapshot(store,checkpoint.snapshotId));return checkpoint;
         }
     }
     private byte[] readRecord(File file) throws IOException {
@@ -199,6 +210,9 @@ public final class HistoryCatalog {
     }
     private void validateSource(Checkpoint checkpoint) throws IOException {
         ProtectionStore.Snapshot source=store.snapshot(checkpoint.snapshotId);
+        validateSource(checkpoint,source);
+    }
+    private static void validateSource(Checkpoint checkpoint,ProtectionStore.Snapshot source)throws IOException {
         if(!source.id.equals(checkpoint.snapshotId) || !source.documentId.equals(checkpoint.documentId)
                 || !source.hash.equals(checkpoint.snapshotHash))throw new IOException("Checkpoint source link mismatch");
     }

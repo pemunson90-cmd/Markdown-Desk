@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** Immutable private protection envelopes. No retention, provider writes or mutable index. */
 public final class ProtectionStore {
@@ -41,7 +40,6 @@ public final class ProtectionStore {
     private static final int MAX_ENVELOPE_BYTES = MAX_DOCUMENT_BYTES + 32768;
     private static final int MAX_ENTRIES = 65536;
     private static final byte SNAPSHOT = 1, PREPARED = 2, COMPLETE = 3;
-    private static final ConcurrentHashMap<String, Object> LOCKS = new ConcurrentHashMap<>();
 
     public interface Durability {
         void syncFile(FileDescriptor fd) throws IOException;
@@ -74,6 +72,80 @@ public final class ProtectionStore {
         }
     }
 
+    /** Exact on-disk descriptor; hashes cover the whole serialized envelope, never just payload. */
+    public static final class StoredRecord {
+        public final String rootRole, filename, id, kind, envelopeHash;
+        public final long serializedBytes;
+        StoredRecord(String role,String filename,String id,String kind,long size,String hash){
+            rootRole=role;this.filename=filename;this.id=id;this.kind=kind;serializedBytes=size;envelopeHash=hash;
+        }
+    }
+    public static final class Inventory {
+        public final List<StoredRecord> records;
+        public final List<Snapshot> snapshots;
+        public final List<Transaction> transactions;
+        public final List<String> diagnostics;
+        public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots;
+        public final boolean complete, pruneBlocked, usageComplete;
+        Inventory(HistoryStorage.FilesView files,Map<String,Snapshot> snapshots,Map<String,Transaction> transactions,
+                  List<String> diagnostics,long bytes,long slots){
+            records=java.util.Collections.unmodifiableList(new ArrayList<>(files.records));
+            this.snapshots=java.util.Collections.unmodifiableList(new ArrayList<>(snapshots.values()));
+            this.transactions=java.util.Collections.unmodifiableList(new ArrayList<>(transactions.values()));
+            this.diagnostics=java.util.Collections.unmodifiableList(new ArrayList<>(diagnostics));
+            actualBytes=files.bytes;reservedCompletionBytes=bytes;reservedCompletionSlots=slots;
+            usageComplete=files.usageComplete;complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;
+        }
+    }
+    interface SourceOperation<T> {T run(ValidatedSources sources)throws IOException;}
+    static final class ValidatedSources implements AutoCloseable {
+        private final ProtectionStore owner;
+        private boolean active=true;
+        private final long generation;
+        private final Map<String,Snapshot> snapshots=new java.util.LinkedHashMap<>();
+        private final Map<String,Transaction> transactions=new java.util.LinkedHashMap<>();
+        final HistoryStorage.Budget budget;
+        Inventory inventory;
+        ValidatedSources(ProtectionStore owner,HistoryStorage.Budget budget)throws IOException {this.owner=owner;this.budget=budget;generation=HistoryStorage.generation(owner.root);}
+        void require(ProtectionStore actual)throws IOException {if(!active||owner!=actual||!Thread.holdsLock(owner.lock)||generation!=HistoryStorage.generation(owner.root))throw new IOException("Foreign or expired validated source operation");}
+        Snapshot snapshot(ProtectionStore actual,String id)throws IOException {require(actual);Snapshot snapshot=snapshots.get(id);if(snapshot==null)throw new IOException("Missing validated source");return snapshot;}
+        int validatedSnapshotCount()throws IOException {require(owner);return snapshots.size();}
+        public void close(){active=false;snapshots.clear();transactions.clear();inventory=null;}
+    }
+    File storageRoot(){return root;}
+    long constructorQuotaBytes(){return quotaBytes;}
+    public Inventory inspect()throws IOException {return withValidatedSources(sources->sources.inventory);}
+    <T> T withValidatedSources(SourceOperation<T> operation)throws IOException {
+        return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),operation);
+    }
+    <T> T withValidatedSources(HistoryStorage.Budget budget,SourceOperation<T> operation)throws IOException {
+        synchronized(lock){try(ValidatedSources sources=new ValidatedSources(this,budget)){inspectSources(sources);sources.require(this);T result=operation.run(sources);sources.require(this);return result;}}
+    }
+    private void inspectSources(ValidatedSources sources)throws IOException {
+        HistoryStorage.FilesView files=HistoryStorage.inspect(root,"store",MAX_ENVELOPE_BYTES,MAX_ENTRIES,sources.budget);
+        List<String> diagnostics=new ArrayList<>(files.diagnostics);
+        try{durability.syncDirectory(root);}catch(IOException failure){diagnostics.add("store: directory validation unavailable");}
+        for(StoredRecord record:files.records)if("snapshot".equals(record.kind)&&record.id!=null&&record.envelopeHash!=null){
+            try{Snapshot snapshot=readSnapshot(record.id);sources.budget.charge(1024L+2L*(snapshot.id.length()+snapshot.documentId.length()+
+                (snapshot.uri==null?0:snapshot.uri.length())+(snapshot.title==null?0:snapshot.title.length())+snapshot.role.length()+snapshot.hash.length()));
+                sources.snapshots.put(snapshot.id,snapshot);
+            }catch(HistoryStorage.BudgetExceeded exceeded){diagnostics.add("store: metadata budget");break;}catch(IOException failure){diagnostics.add("store: invalid snapshot");}
+        }
+        long reserved=0,slots=0;
+        for(StoredRecord record:files.records)if("transaction".equals(record.kind)&&record.id!=null&&record.envelopeHash!=null){
+            try{Transaction prepared=readTransaction(record.id,false,sources.snapshots);
+                boolean completed=java.nio.file.Files.exists(file(record.id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
+                if(completed&&!sameTransaction(prepared,readTransaction(record.id,true,sources.snapshots)))throw new IOException("Completion mismatch");
+                sources.budget.charge(1024);Transaction transaction=new Transaction(prepared.id,prepared.original,prepared.attempted,prepared.expectedHash,completed);
+                sources.transactions.put(transaction.id,transaction);
+                long staged=completionStageBytes(transaction,completed);
+                if(!completed){reserved=Math.addExact(reserved,transactionEnvelope(transaction,COMPLETE).length-Math.max(0,staged));slots=Math.addExact(slots,staged<0?1:0);}
+            }catch(HistoryStorage.BudgetExceeded exceeded){diagnostics.add("store: metadata budget");break;}catch(IOException|ArithmeticException failure){diagnostics.add("store: invalid transaction or completion");}
+        }
+        for(StoredRecord record:files.records)if(("complete".equals(record.kind)||"completion-stage".equals(record.kind))&&!sources.transactions.containsKey(record.id))diagnostics.add("store: dangling completion or stage");
+        sources.inventory=new Inventory(files,sources.snapshots,sources.transactions,diagnostics,reserved,slots);
+    }
+
     private final File root;
     private final Durability durability;
     private final long quotaBytes;
@@ -81,9 +153,9 @@ public final class ProtectionStore {
 
     public ProtectionStore(File root, Durability adapter, long quotaBytes) throws IOException {
         if (root==null || adapter==null || quotaBytes<0) throw new IOException("Invalid store configuration");
-        this.root=root.getAbsoluteFile().toPath().normalize().toFile();
+        this.root=HistoryStorage.canonicalRoot(root);
         this.durability=adapter; this.quotaBytes=quotaBytes;
-        lock=LOCKS.computeIfAbsent(this.root.getPath(), unused->new Object());
+        lock=HistoryStorage.monitorFor(this.root);
         synchronized (lock) {
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
@@ -132,6 +204,8 @@ public final class ProtectionStore {
             if (transaction==null) throw new IOException("Missing transaction");
             Transaction stored=readTransaction(transaction.id,false);
             if (!sameTransaction(stored,transaction)) throw new IOException("Transaction provenance mismatch");
+            // Validate every reservation/stage before any completion mutation, including retries.
+            unresolvedReservation();
             File destination=file(transaction.id,".complete");
             if (Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) {
                 readCompletion(stored);
@@ -139,8 +213,11 @@ public final class ProtectionStore {
                 return;
             }
             byte[] envelope=transactionEnvelope(stored,COMPLETE);
-            checkQuota(envelope.length,0,envelope.length);
-            commit(transaction.id+".complete",envelope);
+            long staged=completionStageBytes(stored,false);
+            if(staged>=0&&staged!=envelope.length)throw new IOException("Partial completion stage retained; retry blocked");
+            if(staged<0)checkQuota(envelope.length,0,envelope.length);
+            else checkQuota(0,0,0,0,0);
+            commitCompletion(stored,envelope,staged>=0);
             readCompletion(stored);
         }
     }
@@ -210,6 +287,7 @@ public final class ProtectionStore {
         File destination=new File(root,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Immutable destination exists");
         // CREATE_NEW prevents accidental reuse; failed staging and committed files are retained.
+        HistoryStorage.changed(root);
         Files.createFile(stage.toPath());
         try(FileOutputStream stream=new FileOutputStream(stage)) {
             stream.write(envelope);
@@ -222,44 +300,81 @@ public final class ProtectionStore {
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination))) throw new IOException("Committed envelope validation failed");
     }
 
-    private void checkQuota(long newBytes,long newReservation,long releasedReservation) throws IOException {
-        long total=0;
-        File[] files=entries();
-        for(File f:files) {
-            long size=attributes(f).size();
-            if(size<0 || size>quotaBytes-total) throw new IOException("Protection quota exhausted");
-            total+=size;
+    private void commitCompletion(Transaction transaction,byte[] envelope,boolean staged)throws IOException {
+        entries();
+        File stage=file(transaction.id,".completion-stage"),destination=file(transaction.id,".complete");
+        if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable destination exists");
+        HistoryStorage.changed(root);
+        if(!staged)Files.createFile(stage.toPath());
+        // Append mode opens an exact retained stage without truncating or writing it on retry.
+        try(FileOutputStream stream=new FileOutputStream(stage,staged)) {
+            if(!staged)stream.write(envelope);
+            stream.flush();durability.syncFile(stream.getFD());
         }
-        // A prepared transaction owns a reserved completion slot until it is committed.
-        Reservation reserved=unresolvedReservation();
-        long needed=reserved.bytes-releasedReservation+newBytes+newReservation;
-        if(needed<0 || needed>quotaBytes-total) throw new IOException("Protection quota exhausted");
-        long neededEntries=files.length+reserved.entries+1+(newReservation>0?1:0)-(releasedReservation>0?1:0);
-        if(neededEntries>MAX_ENTRIES) throw new IOException("Protection entry limit exhausted");
+        if(completionStageBytes(transaction,false)!=envelope.length)throw new IOException("Completion stage changed");
+        durability.move(stage,destination);
+        if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic move did not consume completion stage");
+        durability.syncDirectory(root);
+        if(!Arrays.equals(envelope,readEnvelopeBytes(destination)))throw new IOException("Committed completion validation failed");
+    }
+
+    private void checkQuota(long newBytes,long newReservation,long releasedReservation)throws IOException {
+        checkQuota(newBytes,newReservation,releasedReservation,1+(newReservation>0?1:0),releasedReservation>0?1:0);
+    }
+    private void checkQuota(long newBytes,long newReservation,long releasedReservation,long newSlots,long releasedSlots)throws IOException {
+        File[] files=entries();Reservation reserved=unresolvedReservation();
+        try {
+            long total=0;
+            for(File f:files){long size=attributes(f).size();if(size<0)throw new IOException("Invalid protection size");total=Math.addExact(total,size);}
+            if(releasedReservation>reserved.bytes||releasedSlots>reserved.entries)throw new IOException("Unowned completion reservation");
+            long needed=Math.addExact(Math.subtractExact(reserved.bytes,releasedReservation),Math.addExact(newBytes,newReservation));
+            if(Math.addExact(total,needed)>quotaBytes)throw new IOException("Protection quota exhausted");
+            long slots=Math.addExact(Math.subtractExact(reserved.entries,releasedSlots),newSlots);
+            if(Math.addExact(files.length,slots)>MAX_ENTRIES)throw new IOException("Protection entry limit exhausted");
+        }catch(ArithmeticException failure){throw new IOException("Protection accounting overflow",failure);}
     }
 
     private static final class Reservation {long bytes,entries;}
-    private Reservation unresolvedReservation() throws IOException {
-        Reservation reservation=new Reservation();
-        long reserved=0;
-        File[] files=entries();
-        for(File f:files) if(f.getName().endsWith(".transaction")) {
-            Transaction t=readTransaction(idFrom(f,".transaction"),false);
-            boolean done=Files.exists(file(t.id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
-            if(done) readCompletion(t);
-            if(!done) {
-                long size=transactionEnvelope(t,COMPLETE).length;
-                if(size>quotaBytes-reserved) throw new IOException("Protection quota exhausted");
-                reserved+=size;
-                reservation.entries++;
+    private Reservation unresolvedReservation()throws IOException {
+        Reservation reservation=new Reservation();File[] files=entries();
+        try {
+            for(File f:files)if(f.getName().endsWith(".transaction")) {
+                Transaction transaction=readTransaction(idFrom(f,".transaction"),false);
+                boolean done=Files.exists(file(transaction.id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
+                if(done)readCompletion(transaction);
+                long staged=completionStageBytes(transaction,done);
+                if(!done){
+                    reservation.bytes=Math.addExact(reservation.bytes,transactionEnvelope(transaction,COMPLETE).length-Math.max(0,staged));
+                    if(staged<0)reservation.entries=Math.addExact(reservation.entries,1);
+                }
             }
-        }
-        for(File f:files) if(f.getName().endsWith(".complete")) {
-            String id=idFrom(f,".complete");
-            if(!Files.exists(file(id,".transaction").toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Completion without preparation");
-        }
-        reservation.bytes=reserved;
+            for(File f:files) {
+                String extension=f.getName().endsWith(".complete")?".complete":f.getName().endsWith(".completion-stage")?".completion-stage":null;
+                if(extension!=null&&!Files.exists(file(idFrom(f,extension),".transaction").toPath(),LinkOption.NOFOLLOW_LINKS))
+                    throw new IOException("Completion or stage without preparation");
+            }
+        }catch(ArithmeticException failure){throw new IOException("Protection reservation overflow",failure);}
         return reservation;
+    }
+
+    /** -1 means absent. Only an exact prefix can occupy this preparation's reservation. */
+    private long completionStageBytes(Transaction transaction,boolean completed)throws IOException {
+        File stage=file(transaction.id,".completion-stage");
+        if(!Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))return -1;
+        if(completed)throw new IOException("Completion and retained stage both exist");
+        byte[] expected=transactionEnvelope(transaction,COMPLETE);
+        BasicFileAttributes before=attributes(stage);long size=before.size();
+        if(!before.isRegularFile()||size<0||size>expected.length)throw new IOException("Invalid completion stage size");
+        ByteBuffer bytes=ByteBuffer.allocate((int)size);
+        try(SeekableByteChannel channel=Files.newByteChannel(stage.toPath(),StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)) {
+            while(bytes.hasRemaining())if(channel.read(bytes)<0)throw new IOException("Truncated completion stage");
+            if(channel.read(ByteBuffer.allocate(1))!=-1)throw new IOException("Completion stage grew");
+        }
+        BasicFileAttributes after=attributes(stage);
+        if(!after.isRegularFile()||after.size()!=size||!Objects.equals(before.fileKey(),after.fileKey())
+                ||!before.lastModifiedTime().equals(after.lastModifiedTime()))throw new IOException("Completion stage changed");
+        if(!Arrays.equals(bytes.array(),Arrays.copyOf(expected,(int)size)))throw new IOException("Completion stage differs from reservation");
+        return size;
     }
 
     private File[] entries() throws IOException {
@@ -336,6 +451,7 @@ public final class ProtectionStore {
         byte[] expectedChecksum=checksum.digest();
         File stage=file(UUID.randomUUID().toString(),".stage"),destination=file(snapshot.id,".snapshot");
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Immutable destination exists");
+        HistoryStorage.changed(root);
         Files.createFile(stage.toPath());
         try(FileOutputStream out=new FileOutputStream(stage)) {
             out.write(prefix);out.write(payload);out.write(expectedChecksum);out.flush();durability.syncFile(out.getFD());
@@ -440,13 +556,15 @@ public final class ProtectionStore {
             return new SnapshotData(new Snapshot(this,id,doc,uri,title,revision,role,timestamp,length,hash),bytes,expectedChecksum);
         }
     }
-    private Transaction readTransaction(String id,boolean completion) throws IOException {
+    private Transaction readTransaction(String id,boolean completion) throws IOException {return readTransaction(id,completion,null);}
+    private Transaction readTransaction(String id,boolean completion,Map<String,Snapshot> validated) throws IOException {
         try(DataInputStream in=readBody(file(id,completion?".complete":".transaction"),completion?COMPLETE:PREPARED)) {
             String storedId=readString(in),originalId=readString(in),attemptedId=readString(in),expectedHash=readString(in);
             int originalLength=in.readInt();String originalHash=readString(in);int attemptedLength=in.readInt();String attemptedHash=readString(in);
             String documentId=readString(in);long revision=in.readLong();
             if(!id.equals(storedId) || in.available()!=0) throw new IOException("Invalid transaction envelope");
-            Snapshot source=readSnapshot(originalId),edit=readSnapshot(attemptedId);validatePair(source,edit,expectedHash);
+            Snapshot source=validated==null?readSnapshot(originalId):validated.get(originalId),edit=validated==null?readSnapshot(attemptedId):validated.get(attemptedId);
+            if(source==null||edit==null)throw new IOException("Missing validated transaction source");validatePair(source,edit,expectedHash);
             if(originalLength!=source.byteCount || attemptedLength!=edit.byteCount || !source.hash.equals(originalHash)
                     || !edit.hash.equals(attemptedHash) || !source.documentId.equals(documentId) || source.revision!=revision) throw new IOException("Transaction link mismatch");
             return new Transaction(id,source,edit,expectedHash,completion);

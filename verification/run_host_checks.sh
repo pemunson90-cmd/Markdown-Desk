@@ -31,8 +31,9 @@ bash verification/contrast/run.sh --gate
 bash verification/recovery_loader/run.sh
 bash verification/status_behavior/run.sh test
 bash verification/statistics/run.sh
+bash verification/line_index/run.sh
 
-bash verification/save_lifecycle/run.sh
+bash verification/save_lifecycle/run.sh --safety
 
 # Actual immutable protection + coordinator fixtures (model/probes stay separate).
 bash verification/protection_store/run.sh
@@ -45,3 +46,4 @@ bash verification/history_catalog/run.sh
 bash verification/history_index/run.sh
 bash verification/history_diff/run.sh
 bash verification/private_archive/run.sh all
+bash verification/history_retention/run.sh

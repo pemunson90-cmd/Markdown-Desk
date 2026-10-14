@@ -61,3 +61,53 @@ replacement. TalkBack, font scaling and measured touch bounds are device checks.
 Attach only deliberately reviewed synthetic evidence. Canonical signing and
 incremental-install tests require original private signing inputs locally and
 separate release preparation; neither this checklist nor host results clear them.
+
+## Integrated candidate acceptance record — not selected, NOT RUN
+
+Prepare this record once a canonical signed candidate and the required synthetic
+fixtures/provider harness are available. Do not repeat the baseline run for each
+backend checkpoint. Candidate selection and observed device results are separate
+from host/build evidence; this document selects no artifact or release.
+
+| Run field | Recorded value |
+| --- | --- |
+| Candidate source commit | Not selected |
+| Candidate APK SHA-256 / versionName / versionCode | Not selected |
+| Candidate signer SHA-256 / signature verification | NOT RUN |
+| Installed baseline package / version / signer | NOT RUN |
+| Device / Android / One UI / date | NOT RUN |
+| Provider / fixture hashes / harness version | NOT RUN |
+| Keyboard / IME / system font / TalkBack conditions | NOT RUN |
+
+Use only synthetic files and drafts, with expected original and attempted bytes
+recorded before failure cases. Keep existing personal tabs/settings and install
+history intact. A prepared test provider must expose controlled partial-write,
+readback and permission failures; ordinary picker success cannot establish those
+cases. Observe actual device behavior and attach reviewed evidence references in
+the final column. Unsupported cases remain NOT RUN with the missing prerequisite.
+
+| Case | Device scenario and required observation | Result | Evidence / conditions |
+| --- | --- | --- | --- |
+| SAF-1 | Save and reopen through actual local and available third-party SAF providers; exact Unicode/BOM/CRLF bytes survive, including the 8MiB boundary and rejected oversized input. | NOT RUN | — |
+| SAF-2 | Revoke a synthetic document grant before read/save; surface the failure, preserve dirty edits and protected evidence, and avoid adopting a failed destination. | NOT RUN | — |
+| SAF-3 | Externally edit the synthetic source before save and during the prepared final-check race; observe conflict handling, consent bound to the captured revision/hash, and remaining provider-race limits. | NOT RUN | — |
+| SAF-4 | Inject truncate/partial write, flush/close failure and readback mismatch; report failure/uncertainty and recover the exact original plus attempted bytes, with no automatic rollback. | NOT RUN | — |
+| REC-1 | Restore each protected version to a newly selected copy, verify exact bytes, reject the original source destination and preserve newer dirty edits and existing tabs. | NOT RUN | — |
+| REC-2 | Kill the candidate process at prepared private-commit and provider-write boundaries, then reopen twice; inspect retained stages/transactions and recover both versions without an inferred successful save. | NOT RUN | — |
+| REC-3 | Restart with synthetic dirty/session/legacy recovery state, a full 12-tab workspace and one deliberately invalid private record; expose recoverable drafts and diagnostics without hiding independent protection. | NOT RUN | — |
+| SPACE-1 | Exercise actual low storage and logical quota exhaustion separately; failed protection blocks provider writer opening, preserves existing bytes and gives an actionable error. Retry after space remediation. | NOT RUN | — |
+| SPACE-2 | Once quota controls exist: lower quota below usage, reopen and retry; retain every file, report over-quota state and verify completion uses only its exact reserved credit. Controls are currently unimplemented. | NOT RUN | Requires implemented quota controls |
+| SPACE-3 | Once pruning exists: preview/confirm only eligible exact groups; named/pinned/unresolved/orphan/newest/sole-local groups survive. Interrupt pruning and replay twice; changed/corrupt proofs cause zero unauthorized deletion. Pruning is currently unimplemented. | NOT RUN | Requires implemented planner/executor |
+| UPG-1 | Verify original signer, matching package and increasing versionCode before an incremental install over the existing signed app; no uninstall or data clear. Existing documents, grants, drafts, tabs and preferences survive. No candidate is selected. | NOT RUN | Requires canonical signed candidate |
+| EDIT-1 | Software and available hardware keyboards: typing, Unicode composition, selection/cursor, cut/copy/paste, undo/redo and find/replace retain expected text and focus; typewriter behavior remains usable. | NOT RUN | — |
+| UI-1 | Folded/unfolded, portrait/landscape and keyboard shown/hidden: Write/Read/Split, Focus/View entry/exit, locks/read-only Save As, divider drag and accessible adjustment preserve context and reachable controls. | NOT RUN | — |
+| UI-2 | Open/switch/close/restore 12 synthetic tabs; check full-slot behavior, names, selection, dirty state and recovery without losing a tab or silently replacing content. | NOT RUN | — |
+| UI-3 | All nine themes, large font and TalkBack: readable header/dialog/Save/tabs/selected states, accessible names and measured touch bounds; Appearance changes in place and retains scroll. | NOT RUN | — |
+| UI-4 | Inspect all 25 approved splash assets on device for intact artwork, scaling and launch behavior; repeat orientation/Fold transitions under the actual selection conditions. | NOT RUN | — |
+| PERF-1 | Matched 10k/100k/500k-word and boundary fixtures: repeated cold open, typing, search, tab switch, render and save measurements with method/distribution and device memory observations. | NOT RUN | — |
+
+Record PASS or FAIL only for the observed row and conditions; preserve failures,
+missing prerequisites and exact evidence references. This package requests no
+new phone session now. Android app-UID durability, sudden power loss, actual
+providers, Fold behavior and incremental upgrade remain uncleared until observed;
+host process-kill and unsigned-build results cannot fill this matrix.

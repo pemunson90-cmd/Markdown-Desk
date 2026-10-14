@@ -21,6 +21,7 @@ public final class HistoryIdentity {
         final String id,historyId,namespace,alias,oldId;
         Record(String id,String historyId,String namespace,String alias,String oldId){this.id=id;this.historyId=historyId;this.namespace=namespace;this.alias=alias;this.oldId=oldId;}
     }
+    File storageRoot(){return io.root;}
     private final HistoryMetadataIO io;
     public HistoryIdentity(File metadataRoot,ProtectionStore.Durability durability)throws IOException {
         io=new HistoryMetadataIO(metadataRoot,".identity",0x4d444849,durability);

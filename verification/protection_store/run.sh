@@ -5,8 +5,13 @@ OUT="$ROOT/verification/build/protection-store"
 mkdir -p "$OUT/classes" "$OUT/tmp"
 javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
- "$ROOT/verification/protection_store/ProtectionStoreCheck.java"
+ "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
+ "$ROOT/verification/protection_store/ProtectionStoreCheck.java" \
+ "$ROOT/verification/protection_store/CompletionReservationCheck.java" \
+ "$ROOT/verification/protection_store/CompletionRestartProbe.java"
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck
+java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.CompletionReservationCheck
+python3 "$ROOT/verification/protection_store/run_completion_restart.py" "$OUT"
 python3 - "$OUT" <<'PY'
 import os, resource, signal, subprocess, sys
 out = sys.argv[1]

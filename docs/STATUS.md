@@ -1,5 +1,54 @@
 # Current project status
 
+## Resume reconciliation — 2026-10-14
+
+- Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
+  and preserved draft PR #13 at `0918e76` on `codex/m1-safe-retention`.
+  The earlier audited `c42de9d` remains its ancestor. One local worktree;
+  no pre-existing Markdown Desk checkout or uncommitted work was available
+  in this attached environment. Other agents/environments may hold unpublished
+  work; this observation does not establish their status or why an agent stopped.
+- Current branch resumes PR #13. Existing graph tests rerun with JDK17:
+  `bash verification/history_retention/run.sh` PASS, 81 functional and
+  6 constrained-memory checks. Historical full-suite/build evidence below is
+  attributed to its original commits, not this fresh run.
+- Completion reservation/staging safety (`809d41b`) and incremental logical-line
+  indexing (`90f258e`) are implemented and independently reviewed. Shared quota/policy admission,
+  safe planner/journal/executor and runtime controls remain incomplete.
+- Fresh integration at `90f258ee05ddaadf58739327f4d4399ed0153cc4`:
+  `python3 verification/check_clean_rebuild.py` **PASS**, required full host
+  suite once from clean committed source and two audited unsigned builds with
+  matching SHA-256 `e45934a0a12a5f1787fdd66ffd31b64bb6595b2dce32885c507980f9767bba28`.
+  Package 2.2.5/code18, min26/target35 and all25assets preserved; no signing.
+- New completion coverage: 7cases/86assertions and six actual retry SIGKILL
+  boundaries, each inspected/retried in fresh JVMs; immutable v1 bytes retained.
+  One exact transaction-bound stage spends its byte/slot reservation once.
+  Partial/changed/foreign/duplicate stages fail closed; no automatic removal,
+  reduced-quota exemption, dynamic quota or shared admission claimed yet.
+- New line indexing: 46,564assertions/3,000seeded edits and matched benchmark
+  of exact extracted callbacks on existing 10k/100k/500k-word fixtures.
+  Valid insertion reads inserted chars only; deletion reads none. Remaining
+  offset shifts cost O(following lines); full resets scan once.
+  See `verification/line_index/README.md`; Android typing/IME latency NOT RUN.
+- Exact next work: finish opt-in persisted four-root policy/shared admission
+  and tested reduced-quota completion, then pure safe planner and journaled
+  executor from ADR-002. Independent affected-line syntax implementation is
+  underway with conservative full fallback for multiline marker documents.
+  Neither ongoing slice is included in the `90f258e` integration evidence.
+- GitHub branch API reports main `protected=false`; rulesets list is empty.
+  Administration mutation is unavailable through the installed GitHub connector;
+  the shell GitHub API call is denied by the current proxy. No protection claim.
+  Retain review-ready hosted required checks and do not merge without them.
+- Four fully merged historical remote branches were removed after verifying
+  their tips are reachable from main: baseline audit, M0 safety, M0 performance
+  and M1 foundation. Their commits remain in main. Active retention branch
+  and all work here are preserved; no worktree was removed.
+- Targeted tracked-content scan: 282 files, zero private-key/GitHub-token/AWS-key
+  pattern matches; no tracked key/archive/APK names. This is a scoped scan,
+  not proof that every historical artifact is public-safe.
+- Installed platform-tools reports zero connected devices. Physical Android,
+  SAF, IME, Fold, TalkBack and canonical signed upgrade remain **NOT RUN**.
+
 ## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merged/tagged
 
 As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d516`, source tag `v2.2.5-baseline`; completed
@@ -34,7 +83,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m1-history-foundation`. The separately reviewed issue #3/#4 slice
+`codex/m1-safe-retention`. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -81,7 +130,7 @@ Merged foundation evidence (production save/UI paths unchanged by the new backen
   source at `727112133d556f44c68cdb11b95afade8a4880c6`.
 - Production store19cases/96assertions plus3real OS write-limit assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
-- Activity save lifecycle34cases/233assertions including actual strict codec;
+- Activity save lifecycle34cases/233assertions including actual strict codec (previously six Save As cases required the separate `--safety` invocation; the current runner now includes all34);
   recovery13cases/179assertions plus7actual UI callback/dialog assertions.
 - Production SIGKILL/restart suite PASS at16 actual store/coordinator boundaries:
   snapshot/preparation/completion file-sync, move and directory-sync; provider
@@ -139,8 +188,22 @@ All four backends are registered in the required host runner. They are not wired
 into Activity actions and do not implement pruning, combined quota, private-state
 import/adoption or the full M1 user flow. Retained stages/corruption fail visibly;
 no implicit cleanup or partial pin set. Calls must remain off the UI thread;
-shared graph locking and duplicate-checkpoint validation costs need resolution
-before runtime integration.
+shared graph locking and operation-scoped source validation are implemented in the next reviewed slice below. Shared admission and runtime integration remain pending.
+
+Current retention slice, independently reviewed at `f244e0e` (Task3A1):
+
+- One canonical-private-parent monitor coordinates store/catalog/identity/index;
+  mixed/aliased roots are rejected. Existing constructor quotas, native record
+  formats and write admission remain unchanged.
+- Read-only inventory and complete-envelope hashes bind exact metadata, edges,
+  staged/corrupt inputs, byte/slot completion reservations and policy choices.
+  All snapshots remain protected; there is no pruning or shared-admission API.
+- A bounded operation-scoped validated-source cache avoids repeated checkpoint
+  payload hashing; generation checks before and after callbacks reject mutation.
+  Independent review caught and fixed a stale proof and an API33-only sink.
+- Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
+  store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
+  cases/233assertions PASS locally after required-runner registration. Clean committed-source host suite PASS at `904d7bfb9dcf8a9721930aae745c79df4eef2814`; two genuinely unsigned builds PASS and match SHA-256 `4caf117b90159dbbbb9ba1585551769d0a95c77d42f44cd29366195edecc6856`. No signatures/credentials or device acceptance.
 
 Integration evidence and next executable work:
 
@@ -151,10 +214,9 @@ Integration evidence and next executable work:
    `e612e3b0e875ce07fbfe1f69980458f2c7ebdaa6`: required host suite once from
    clean source; two unsigned builds match SHA-256
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
-   Independent integration review approved; deliberate hosted validation pending.
+   Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   shared lock/validated inventory/combined quotas/read-only graph before any
-   destructive executor. Crash-safe deletion, verified export, strict import and
+   finish clean integration of shared lock/validated inventory/read-only graph, then implement combined admission and reservation-bound completion staging before any destructive executor. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded
