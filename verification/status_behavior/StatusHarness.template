@@ -78,11 +78,17 @@ final class StatusHarness extends Activity {
     Preview preview;
     /* EXTRACTED_FIELDS */
     final TextWatcher watcher = /* EXTRACTED_WATCHER */;
+    // This fixture isolates statistics; actual syntax state/scheduling runs in verification/syntax.
+    static final class SyntaxBoundary {
+        void changed(CharSequence text, int start, int before, int count) {}
+    }
+    final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
     void continueMarkdownLine(Editable value) {}
     void updateTabsUi() {}
     void scheduleRecovery() {}
     void schedulePreview() {}
     void scheduleHighlight() {}
+    void scheduleHighlightEdit() {}
     void scheduleSession() {}
     void changed(String text, boolean suppress) {
         editor.text = new CountedText(text);
