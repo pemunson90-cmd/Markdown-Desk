@@ -3,6 +3,7 @@ package com.example.markdowndesk;
 import android.graphics.Color;
 import android.text.Editable;
 import android.text.style.BackgroundColorSpan;
+import android.text.style.CharacterStyle;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import java.util.regex.Matcher;
@@ -76,6 +77,10 @@ public final class MarkdownSyntaxHighlighter {
         public void apply(Editable text, boolean nextDark) {
             if (target != text || !initialized || dark != nextDark || length != text.length()) full = true;
             if (!full && !dirty) return;
+            // A full pass puts owned styles after existing equal-priority styles.
+            // Search/IME styles can be added without a text callback, so retained
+            // syntax on untouched lines would otherwise have different precedence.
+            if (!full && hasForeignStyle(text)) full = true;
             int start = 0, end = text.length();
             if (!full) {
                 start = dirtyStart;
@@ -100,6 +105,14 @@ public final class MarkdownSyntaxHighlighter {
             full = false;
             dirty = false;
         }
+    }
+
+    private static boolean hasForeignStyle(Editable text) {
+        for (CharacterStyle span : text.getSpans(0, text.length(), CharacterStyle.class)) {
+            if (!(span instanceof SyntaxColorSpan) && !(span instanceof SyntaxStyleSpan)
+                    && !(span instanceof SyntaxBackgroundSpan)) return true;
+        }
+        return false;
     }
 
     private static boolean hasGlobalMarker(CharSequence text, int start, int end) {

@@ -37,6 +37,24 @@ public final class SyntaxCheck {
   void apply(Text t,boolean dark)throws Exception{if(state==null)MarkdownSyntaxHighlighter.apply(t,dark);else invoke(apply,t,dark);}
  }
  static List<String> precedence(Text text,int at){List<String> result=new ArrayList<>();for(Mark m:text.spans)if(m.span.getClass().getName().contains("$Syntax")&&m.start<=at&&m.end>at){int value=m.span instanceof ForegroundColorSpan?((ForegroundColorSpan)m.span).getForegroundColor():m.span instanceof BackgroundColorSpan?((BackgroundColorSpan)m.span).getBackgroundColor():((StyleSpan)m.span).getStyle();result.add(m.span.getClass().getSimpleName()+":"+value);}return result;}
+ static final class ComposingCharacterStyle extends CharacterStyle {}
+ static List<String> styledPrecedence(Text text,int at){List<String> result=new ArrayList<>();for(Mark m:text.spans)if(m.span instanceof CharacterStyle&&m.start<=at&&m.end>at){int value=m.span instanceof ForegroundColorSpan?((ForegroundColorSpan)m.span).getForegroundColor():m.span instanceof BackgroundColorSpan?((BackgroundColorSpan)m.span).getBackgroundColor():m.span instanceof StyleSpan?((StyleSpan)m.span).getStyle():0;result.add(m.span.getClass().getSimpleName()+":"+value+":"+m.flags);}return result;}
+ static void foreignPrecedence()throws Exception{
+  // replaceOne edits one code occurrence, then updateSearchCount re-adds search
+  // backgrounds on remaining occurrences before the pending highlight runs.
+  for(int kind=0;kind<4;kind++){
+   Engine e=new Engine();Text a=new Text("`code`\n`code`\nplain\n"),b=new Text(a.text.toString());e.apply(a,false);BaselineSyntaxHighlighter.apply(b,false);
+   edit(e,a,b,1,4,"word",false,false);
+   Object foreign=kind==0?new BackgroundColorSpan(456):kind==1?new ForegroundColorSpan(123):kind==2?new StyleSpan(3):new ComposingCharacterStyle();
+   int flags=kind>=2?289:33; // Same priority, including an IME composing style.
+   a.setSpan(foreign,8,12,flags);b.setSpan(foreign,8,12,flags);
+   e.apply(a,false);BaselineSyntaxHighlighter.apply(b,false);equal(a,b);
+   check(styledPrecedence(a,9).equals(styledPrecedence(b,9)),"foreign render precedence differs on unchanged line: "+styledPrecedence(a,9)+" vs "+styledPrecedence(b,9));
+   check(a.mark(foreign)!=null&&a.getSpanStart(foreign)==8&&a.getSpanEnd(foreign)==12&&a.getSpanFlags(foreign)==flags,"foreign span identity/range/flags changed");
+   a.removeSpan(foreign);b.removeSpan(foreign);Object retained=a.spans.get(0).span;a.reads=0;
+   edit(e,a,b,16,1,"x",true,false);check(a.mark(retained)!=null,"local updates resume after foreign style removal");
+  }
+ }
  static void equal(Text actual,Text oracle){check(actual.syntax().equals(oracle.syntax()),"incremental spans differ from full apply\n"+actual.syntax()+"\n"+oracle.syntax());Set<Integer> boundaries=new TreeSet<>();for(Mark m:oracle.spans)if(m.span.getClass().getName().contains("$Syntax")){boundaries.add(m.start);boundaries.add(m.end);}for(int at:boundaries)check(precedence(actual,at).equals(precedence(oracle,at)),"overlapping span precedence differs at "+at);}
  static void edit(Engine e,Text a,Text b,int at,int before,String inserted,boolean flush,boolean dark)throws Exception{a.replace(at,before,inserted);b.replace(at,before,inserted);e.changed(a,at,before,inserted.length());if(flush){String bytes=a.text.toString();Map<Object,int[]> foreign=new IdentityHashMap<>();for(Mark m:a.spans)if(!m.span.getClass().getName().contains("$Syntax"))foreign.put(m.span,new int[]{m.start,m.end,m.flags});e.apply(a,dark);check(bytes.contentEquals(a.text),"highlight mutated text");for(Map.Entry<Object,int[]> entry:foreign.entrySet()){Mark m=a.mark(entry.getKey());int[] range=entry.getValue();check(m!=null&&m.start==range[0]&&m.end==range[1]&&m.flags==range[2],"highlight changed composition/user span");}BaselineSyntaxHighlighter.apply(b,dark);equal(a,b);}}
  static void regular()throws Exception{
@@ -64,5 +82,5 @@ public final class SyntaxCheck {
   for(String token:new String[]{"<!--", "```", "~~~"}){String original=token.substring(0,1)+"X"+token.substring(1)+"\nbody\n-->\n";a=new Text(original);b=new Text(original);e.reset();e.apply(a,false);BaselineSyntaxHighlighter.apply(b,false);edit(e,a,b,1,1,"",false,false);edit(e,a,b,0,token.length(),"",true,false);}
   System.out.println("Syntax production adapter PASS: "+checks+" checks; host Editable model, not Android IME acceptance");
  }
- public static void main(String[] args)throws Exception{regular();}
+ public static void main(String[] args)throws Exception{foreignPrecedence();regular();}
 }
