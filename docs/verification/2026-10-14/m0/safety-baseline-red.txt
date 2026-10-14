@@ -1,0 +1,43 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+FAIL SAFETY oversized write must reject before provider access: java.lang.AssertionError: oversized write must reject before provider call: rejected=false, descriptor opens=1, output opens=1, retained length=8388609
+FAIL SAFETY UTF8 BOM oversized write must reject before provider access: java.lang.AssertionError: oversized write must reject before provider call: rejected=false, descriptor opens=1, output opens=1, retained length=8388609
+FAIL SAFETY null descriptor must not mark metadata writable: java.lang.AssertionError: null rw descriptor reported writable=true
+FAIL SAFETY failed truncated output must preserve original: java.lang.AssertionError: original destroyed: retained bytes=re
+FAIL SAFETY rejected write immediately after truncate must preserve original: java.lang.AssertionError: original destroyed: retained length=0
+DocumentIO host fixtures: 0 passed, 5 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CONTRAST Paper      body/canvas    14.68:1 AA
+CONTRAST Paper      muted/canvas   4.82:1 AA
+CONTRAST Paper      link/canvas    3.94:1 BELOW-AA
+CONTRAST Midnight   body/canvas    16.49:1 AA
+CONTRAST Midnight   muted/canvas   7.65:1 AA
+CONTRAST Midnight   link/canvas    8.02:1 AA
+CONTRAST Sepia      body/canvas    10.58:1 AA
+CONTRAST Sepia      muted/canvas   4.51:1 AA
+CONTRAST Sepia      link/canvas    4.81:1 AA
+CONTRAST Forest     body/canvas    15.79:1 AA
+CONTRAST Forest     muted/canvas   8.06:1 AA
+CONTRAST Forest     link/canvas    7.85:1 AA
+CONTRAST Bubblegum  body/canvas    13.17:1 AA
+CONTRAST Bubblegum  muted/canvas   4.65:1 AA
+CONTRAST Bubblegum  link/canvas    3.03:1 BELOW-AA
+CONTRAST Amethyst   body/canvas    16.88:1 AA
+CONTRAST Amethyst   muted/canvas   9.31:1 AA
+CONTRAST Amethyst   link/canvas    6.29:1 AA
+CONTRAST Black Rose body/canvas    16.77:1 AA
+CONTRAST Black Rose muted/canvas   7.82:1 AA
+CONTRAST Black Rose link/canvas    5.56:1 AA
+CONTRAST Ocean      body/canvas    17.08:1 AA
+CONTRAST Ocean      muted/canvas   8.82:1 AA
+CONTRAST Ocean      link/canvas    9.12:1 AA
+CONTRAST Arcade     body/canvas    18.01:1 AA
+CONTRAST Arcade     muted/canvas   8.33:1 AA
+CONTRAST Arcade     link/canvas    13.03:1 AA
+PASS 368 renderer/palette assertions; 9 palettes x 5 reading sizes; contrast observations above
+KNOWN FAIL nested list; reproduction in verification/build/renderer-golden/nested-list-known-failure.txt
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Exception in thread "main" java.lang.AssertionError: nested list body expected <<ul data-source-offset="0"><li>parent<ul><li>child</li></ul></li><li>sibling</li></ul>>, got <<ul data-source-offset="0"><li>parent</li><li>child</li><li>sibling</li></ul>>
+	at com.example.markdowndesk.NestedListKnownFailure.main(NestedListKnownFailure.java:9)
+FAIL safety/spec gate: do not claim M0 complete or production readiness

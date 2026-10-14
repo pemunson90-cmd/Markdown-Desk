@@ -1,8 +1,8 @@
 # Current project status
 
-## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merge pending
+## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merged/tagged
 
-As of **2026-10-14**, branch `codex/issue-1-baseline-audit`, draft
+As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d516`, source tag `v2.2.5-baseline`; completed
 [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9):
 
 - Exact 2.2.5 archive received; SHA-256
@@ -26,16 +26,29 @@ As of **2026-10-14**, branch `codex/issue-1-baseline-audit`, draft
 - Focus/View and other existing modes retained exactly; runtime phone/Fold and
   provider/upgrade acceptance **NOT RUN**. No connected device.
 - **Independent PM signed-baseline verification completed** using the archived original 2.2.5 APK (no signing secrets): APK SHA-256 `ec5e790343b45a56f2580f3f5ec97eae3fb3096e10e012e58eb76bc89e683601`, canonical signer SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, v2/v3 verified, manifest 2.2.5/code18, ZIP/alignment and 25 splashes passed. Evidence is attributed to the PM's separate check in [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9#issuecomment-6164996417), **not** to the Codex host run.
-- PM approved merging the **unchanged-source baseline** after final document reconciliation; physical Fold/SAF/IME/TalkBack/upgrade acceptance remains **NOT RUN** and must gate future production releases. No new signed release, tag, merge, feature development or hosted CI run has occurred yet.
+- PM approved merging the **unchanged-source baseline** after final document reconciliation; physical Fold/SAF/IME/TalkBack/upgrade acceptance remains **NOT RUN** and must gate future production releases. PR #9 is merged and source-only tag `v2.2.5-baseline` is pushed; issue #1 is closed. No new signed release or hosted CI run.
 
 See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-## Next — continuous campaign
+## Active continuous campaign — M0 safety and measurement
 
-1. Complete this documentation reconciliation, confirm current PR state and implement the PM-approved **baseline source-import merge** of PR #9; tag `v2.2.5-baseline` without issuing a new APK release. The source import does not require retroactive Fold/device acceptance.
-2. Immediately start [issue #2](https://github.com/pemunson90-cmd/Markdown-Desk/issues/2) behavioral regression tests and then move through the next eligible tasks in the [M0–M7 roadmap](ROADMAP.md). **Do not stop after a single issue** unless a real external gate blocks all independent work.
-3. Keep runtime device/SAF/Fold/upgrade checks explicitly NOT RUN until performed. Do not bypass private signing or device acceptance for user-facing releases.
-4. Apply the standing orchestration/local-first workflow in [AGENTS.md](../AGENTS.md), updating this status with actual results and the next runnable task at every coherent checkpoint.
+- Branch: `codex/m0-safety-regressions`, based on merged/tagged source baseline.
+- Issue #2: host provider/UTF8/BOM/size and session/recovery fixtures and independent renderer/mode-method fixtures integrated:39provider,
+  568session/recovery,368renderer/palette,99mode/lock assertions pass; six
+  inventory audit tests pass. Actual Android boundaries are simulated.
+- Issue #3: deterministic10k/100k/500k-word and8MiB host benchmarks recorded;
+  full UI/device/Fold timing remains NOT RUN.
+- Runtime source remains unchanged in this slice; test doubles cannot establish
+  real SAF, UI/Focus/keyboard, phone/Fold or process-death acceptance.
+- Desired-safety/spec gate is RED:5provider probes, nested-list rendering and
+  16text-contrast pairs fail. See M0_2_REPORT.md; do not bypass these defects.
+- Current next action: publish reviewed tests-only checkpoint, then execute
+  test-first8MiBwrite preflight/nullmetadata fix and bounded contrast fixes.
+  ADR-001 safe-save design prepared; owner atomic-versus-recoverability
+  product guarantee decision is pending while independent M0 work continues.
+- M0 is not complete and no M1–M7 implementation/release is claimed. Continue
+  independent eligible work while hardware-dependent checks remain NOT RUN.
+
 
 Historical Library versions/SDK/recovery archives are a secondary provenance
 request, not retrieved/uploaded in this session. Exact 2.2.5 source and historical

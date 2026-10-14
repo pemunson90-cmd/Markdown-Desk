@@ -13,7 +13,7 @@ This is a **reusable session entry point**, not a one-issue task order.
 
 If task execution is interrupted by context, runtime or limits, commit a clean checkpoint and record the exact next command/task in `STATUS.md`. If an approval/hardware/private-key gate blocks a specific task, continue independent work without bypassing that gate.
 
-**Current note (2026-10-14):** Source import on [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9) passed local unsigned builds and host tests; archived signed APK verification was independently recorded by PM on PR. Confirm live status and merge/tag as applicable, then work through [issue #2](https://github.com/pemunson90-cmd/Markdown-Desk/issues/2) and remaining milestones. Update this dated note when no longer current.
+**Current note (2026-10-14):** [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9) is merged; `v2.2.5-baseline` records the exact-source baseline and issue #1 is closed. Active work is issue #2 host behavioral safety tests and issue #3 host benchmarks. Device/release acceptance remains separate. Always consult live `STATUS.md` for the latest branch/task.
 
 ## Short prompt for new Codex sessions
 

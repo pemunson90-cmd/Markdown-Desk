@@ -54,5 +54,6 @@ A completed import of unchanged source is not a new app release. Host builds are
 - Document all behavior changed/preserved/deferred in code review; do not conflate compile, host, emulator, phone and Fold results. `docs/RELEASE_GATES.md` controls production readiness.
 - Reuse existing non-Gradle `build.sh` (`javac`, `aapt2`, D8, `zipalign`, `apksigner`) unless measured benefits and an approved ADR warrant a migration. The canonical signed path requires four private environment variables named in build scripts; never print their values.
 
-## Current kickoff
-PR #9 is the verified 2.2.5 source-import candidate. The PM has independently verified the archived signed APK and recorded baseline merge clearance on PR #9; physical Fold/SAF/upgrade acceptance remains pending for future releases. Confirm actual PR state, reconcile its live documentation, merge/tag after applicable gates, then **continue issue #2 and the remaining M0–M7 roadmap**. This kickoff paragraph must be updated/removed once the repo state advances; `docs/STATUS.md` is authoritative.
+## Current campaign checkpoint
+
+PR #9 merged the verified source baseline; `v2.2.5-baseline` is a source-only provenance tag, not a new APK release. Issue #1 is complete. Resume active M0 behavioral safety tests and benchmarks from `docs/STATUS.md`, then continue eligible M1–M7 slices. Physical Fold/SAF/upgrade acceptance remains a user-facing release gate, not a reason to halt independent local tests/design work.

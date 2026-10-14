@@ -68,3 +68,15 @@ It was not executed here. Signing credentials must remain outside this public
 repository and hosted CI. Never use a generated replacement/debug key to make
 these validation artifacts installable. The PM-cleared source-only baseline may be merged/tagged independently of
 future device/release acceptance. This tag never authorizes a new signed release.
+
+## M0 regression and safety commands
+
+`bash verification/run_host_checks.sh` now includes provider/session/renderer/
+AST-extracted mode and strict inventory fixtures. These are host preservation
+checks; their green result does not pass the separate desired safety/spec gate.
+Run `bash verification/run_safety_gates.sh` to reproduce current provider-loss,
+oversize/nullmetadata, nested-list and contrast failures. That gate exits nonzero
+and is intentionally not hidden. See M0_2_REPORT.md for precise limits.
+
+`PATH="$JAVA_HOME/bin:$PATH" bash verification/benchmarks/run.sh` records a matched
+host-only benchmark; do not repeat it for unrelated edits or claim device latency.
