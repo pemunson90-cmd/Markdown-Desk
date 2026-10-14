@@ -28,8 +28,18 @@ Active independent work:
   `codex/preview-integration`. Existing180ms debounce and HTML are preserved.
   One active render/delivery plus one replaceable snapshot must reject stale
   results immediately after edits, suppressed loads, layout changes and shutdown.
-  Scoped tests and independent review remain pending. Host extraction boundaries
-  are being updated separately; no preview performance result is claimed yet.
+  Preview source `2020ec4` passed402focused checks, renderer goldens and SDK37
+  Java compilation; independent review passed18controlled concurrency checks.
+  Integration at `08179fa` preserves identical reviewed production bytes.
+  Updated host boundaries passed57status,39,137syntax plus scheduler,42SplitUI
+  and8divider checks, and402preview checks. The new preview runner is required.
+  Matched10k/100k/500k fixture bursts held worker/delivery queues to1/1 versus
+  baseline8/8; capture timings are mixed and renderer timings were not repeated.
+  These are host queue observations, not typing/device latency or peak memory.
+- The same review found an independent statistics completion backlog: repeated
+  scans while main delivery is held can retain many request/result callbacks.
+  A separate helper-only repair is in progress, preserving250ms debounce and
+  exact counts, and will join this coherent bounded-worker integration.
 
 Next: verify and integrate the preview change while implementing reviewed durable
 pins; then intent publication and explicit journaled retention, backup/import and
