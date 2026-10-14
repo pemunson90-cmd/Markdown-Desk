@@ -1,0 +1,86 @@
+package com.example.markdowndesk;
+import java.util.*;
+import java.util.concurrent.*;
+class Activity { protected void onDestroy() {} }
+final class PreviewHarness extends Activity {
+    static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
+    static boolean background;
+    static void mainOnly() { if (background) throw new AssertionError("UI access on worker"); }
+    static final class QueueExecutor extends AbstractExecutorService {
+        final ArrayDeque<Runnable> tasks = new ArrayDeque<>(); boolean stopped;
+        public void execute(Runnable task) { if (stopped) throw new RejectedExecutionException(); tasks.add(task); }
+        public void shutdown() { stopped = true; }
+        public List<Runnable> shutdownNow() { stopped = true; List<Runnable> pending = new ArrayList<>(tasks); tasks.clear(); return pending; }
+        public boolean isShutdown() { return stopped; }
+        public boolean isTerminated() { return stopped && tasks.isEmpty(); }
+        public boolean awaitTermination(long timeout, TimeUnit unit) { return isTerminated(); }
+        void next() { background = true; try { tasks.remove().run(); } finally { background = false; } }
+        void drain() { while (!tasks.isEmpty()) next(); }
+    }
+    static final class Executors { static QueueExecutor newSingleThreadExecutor() { return new QueueExecutor(); } }
+    static final class Handler {
+        final ArrayDeque<Runnable> delayed = new ArrayDeque<>(), posted = new ArrayDeque<>();
+        void post(Runnable task) { posted.add(task); }
+        void postDelayed(Runnable task, long delay) { mainOnly(); if (delay != 180) throw new AssertionError("Cadence changed"); delayed.add(task); }
+        void removeCallbacks(Runnable task) { mainOnly(); delayed.remove(task); posted.remove(task); }
+        void removeCallbacksAndMessages(Object unused) { mainOnly(); delayed.clear(); posted.clear(); }
+        void runDelayed() { while (!delayed.isEmpty()) delayed.remove().run(); }
+        void runPosted() { while (!posted.isEmpty()) posted.remove().run(); }
+    }
+    interface Editable extends CharSequence {}
+    interface TextWatcher {
+        void beforeTextChanged(CharSequence text, int start, int count, int after);
+        void onTextChanged(CharSequence text, int start, int before, int count);
+        void afterTextChanged(Editable text);
+    }
+    static final class Text implements CharSequence {
+        final String value; int copies;
+        Text(String value) { this.value = value; }
+        public int length() { return value.length(); }
+        public char charAt(int i) { return value.charAt(i); }
+        public CharSequence subSequence(int a, int b) { return value.subSequence(a, b); }
+        public String toString() { mainOnly(); copies++; return new String(value.toCharArray()); }
+    }
+    static final class Editor {
+        Text text = new Text("hello");
+        CharSequence getText() { mainOnly(); return text; }
+    }
+    static final class Preview {
+        int y, loads; boolean destroyed; String html;
+        int getScrollY() { mainOnly(); return y; }
+        void loadDataWithBaseURL(String url, String value, String mime, String charset, String history) {
+            mainOnly(); if (destroyed) throw new AssertionError("load after destroy");
+            if (!url.equals("https://markdown.local/") || !mime.equals("text/html") || !charset.equals("UTF-8") || history != null) throw new AssertionError("load arguments changed");
+            html = value; loads++;
+        }
+        void destroy() { mainOnly(); destroyed = true; }
+    }
+    static final class DocumentTab { final String id; boolean dirty; DocumentTab(String id) { this.id = id; } }
+    final Handler main = new Handler();
+    final QueueExecutor io = new QueueExecutor();
+    Editor editor = new Editor(); Preview preview = new Preview();
+    final List<DocumentTab> tabs = new ArrayList<>(List.of(new DocumentTab("A"), new DocumentTab("B")));
+    int activeTab, mode = MODE_PREVIEW, previewRestoreY;
+    boolean previewReady, suppressChanges, dirty, finishing;
+    float previewFontSp = 18f;
+    UiTheme.Palette palette = UiTheme.palette(0, false);
+    Runnable previewRunnable;
+    /* FIELDS */
+    final TextWatcher watcher = /* WATCHER */;
+    static final class SyntaxBoundary { void changed(CharSequence text, int start, int before, int count) {} }
+    final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
+    void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
+    void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
+    void stopStatistics() {} boolean isFinishing() { mainOnly(); return finishing; }
+    QueueExecutor worker() { return (QueueExecutor) renderIo; }
+    void changed(String text, boolean suppressed) {
+        editor.text = new Text(text); suppressChanges = suppressed;
+        watcher.onTextChanged(editor.text, 0, 0, text.length()); suppressChanges = false;
+    }
+    void layout() { /* LAYOUT */ }
+    void settle() {
+        main.runDelayed();
+        while (!worker().tasks.isEmpty() || !main.posted.isEmpty()) { worker().drain(); main.runPosted(); }
+    }
+    /* METHODS */
+}
