@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Desired-safety assertions: these remain red until their real defects are fixed.
+# Manual mixed diagnostic: raw provider hazards and product checks have distinct contracts.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 failed=0
@@ -15,6 +15,7 @@ bash verification/renderer_golden/run.sh || failed=1
 java -cp verification/build/renderer-golden com.example.markdowndesk.NestedListKnownFailure || failed=1
 bash verification/contrast/run.sh --gate || failed=1
 if [[ "$failed" != 0 ]]; then
- echo 'FAIL safety/spec gate: do not claim M0 complete or production readiness'
+ echo 'FAIL mixed safety diagnostic: inspect primitive hazards and product failures separately'
+ echo 'Required production recoverability is checked by verification/run_host_checks.sh; no device/release acceptance implied'
 fi
 exit "$failed"

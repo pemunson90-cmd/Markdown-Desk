@@ -20,7 +20,7 @@ javac --release 11 -cp "$JSON_JAR" -d "$OUT/splash" "${STUBS[@]}" apps/MarkdownD
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/splash:$JSON_JAR" SplashStoreTest
 # Optional browser proxy: node verification/reader_layout.cjs (not a host gate).
 
-# Behavioral preservation suite; known safety/spec failures are a separate red gate.
+# Required behavior/recoverability; raw provider hazards stay a separate manual diagnostic.
 bash verification/document_io/run.sh
 bash verification/session_recovery/run.sh
 bash verification/renderer_golden/run.sh
@@ -41,3 +41,7 @@ bash verification/save_coordinator/run.sh
 bash verification/save_coordinator/run_memory.sh
 bash verification/protection_restart/run.sh
 bash verification/split_resize/run.sh
+bash verification/history_catalog/run.sh
+bash verification/history_index/run.sh
+bash verification/history_diff/run.sh
+bash verification/private_archive/run.sh all
