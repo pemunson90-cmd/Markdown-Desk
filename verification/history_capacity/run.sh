@@ -2,6 +2,14 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MODE="${1:-codec}"
+case "$MODE" in
+ codec|policy|admission|integration) ;;
+ all)
+  for group in codec policy admission integration; do bash "$0" "$group"; done
+  python3 "$ROOT/verification/history_capacity/run_restart.py"
+  exit ;;
+ *) echo 'Usage: run.sh [codec|policy|admission|integration|all]' >&2; exit 2 ;;
+esac
 if [[ "$MODE" != codec ]]; then
  SRC="$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk"
  OUT="$ROOT/verification/build/history-capacity"

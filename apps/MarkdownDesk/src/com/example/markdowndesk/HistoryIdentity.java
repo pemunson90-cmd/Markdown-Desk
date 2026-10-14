@@ -25,15 +25,15 @@ public final class HistoryIdentity {
     private final HistoryMetadataIO io;
     public HistoryIdentity(File metadataRoot,ProtectionStore.Durability durability)throws IOException {
         io=new HistoryMetadataIO(metadataRoot,".identity",0x4d444849,durability);
-        synchronized(io.lock){if(!HistoryStorage.controlled(io.root))readAll();}
+        synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(io.root)){if(!HistoryStorage.controlled(io.root))readAll();}}
     }
     public String resolve(String exactUri,String tabId)throws IOException {
         String namespace=HistoryMetadataIO.empty(exactUri)?"TAB":"URI",alias="URI".equals(namespace)?exactUri:tabId;
         validAlias(alias);
-        synchronized(io.lock){
+        synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(io.root,3)){
             List<Record> records=readAll();Record found=binding(records,namespace,alias);if(found!=null)return found.historyId;
             String id=UUID.randomUUID().toString();append(new Record(id,id,namespace,alias,""));return id;
-        }
+        }}
     }
     /**
      * Controller precondition: invoke ONLY after SaveCoordinator.save returns verified success,
@@ -43,14 +43,14 @@ public final class HistoryIdentity {
      */
     public String forkAfterVerifiedSaveAs(String oldHistoryId,String destinationUri)throws IOException {
         HistoryMetadataIO.id(oldHistoryId);validAlias(destinationUri);
-        synchronized(io.lock){
+        synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(io.root,3)){
             List<Record> records=readAll();if(byId(records,oldHistoryId)==null)throw new IOException("Unknown Save As origin history");
             Record target=binding(records,"URI",destinationUri);
             if(target==null){String id=UUID.randomUUID().toString();append(new Record(id,id,"URI",destinationUri,oldHistoryId));return id;}
             if(target.historyId.equals(oldHistoryId))return target.historyId;
             for(Record record:records)if(record.historyId.equals(target.historyId)&&record.oldId.equals(oldHistoryId))return target.historyId;
             append(new Record(UUID.randomUUID().toString(),target.historyId,"FORK",destinationUri,oldHistoryId));return target.historyId;
-        }
+        }}
     }
     public Descriptor lookup(String historyId)throws IOException {
         HistoryMetadataIO.id(historyId);

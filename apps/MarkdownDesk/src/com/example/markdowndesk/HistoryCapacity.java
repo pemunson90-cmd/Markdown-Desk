@@ -59,7 +59,9 @@ public final class HistoryCapacity {
             List<HistoryControlStore.Role> roles=new ArrayList<>();for(int i=0;i<4;i++)roles.add(new HistoryControlStore.Role(i+1,candidate.roots.get(i).getName()));
             byte[] bytes=HistoryControlStore.encodeRegistration(UUID.randomUUID(),store.constructorQuotaBytes(),roles,initial.quotaBytes,initial.automaticCount);
             Usage usage=candidate.ledger(inspection);if(!usage.usageComplete||usage.mutationBlocked)throw new IOException("Incomplete registration inventory");
+            admitControl(inspection,Math.multiplyExact(bytes.length,2L),2);
             HistoryStorage.capacity(store.storageRoot(),candidate);HistoryStorage.changed(store.storageRoot());
+            candidate.publishAt(candidate.parent,HistoryControlStore.ENROLLMENT_NAME,bytes,false);
             Files.createDirectory(candidate.controlRoot.toPath());durability.syncDirectory(candidate.parent);durability.syncDirectory(candidate.controlRoot);
             candidate.publish(HistoryControlStore.REGISTRATION_NAME,bytes,false);candidate.reconcileLocked();return candidate;
         }}
@@ -89,6 +91,9 @@ public final class HistoryCapacity {
     private EffectivePolicy reconcileLocked()throws IOException{
         ready=false;HistoryControlStore.Inspection inspection=control.inspect();
         if(inspection.state==HistoryControlStore.State.UNREGISTERED)throw new IOException("Missing registration");
+        HistoryControlStore.Registration binding=inspection.registration;
+        if(binding==null&&inspection.stages.size()==1&&inspection.stages.get(0).record instanceof HistoryControlStore.Registration)binding=(HistoryControlStore.Registration)inspection.stages.get(0).record;
+        validateEnrollment(inspection,binding);
         if(!inspection.stages.isEmpty()){
             if(inspection.stages.size()!=1||inspection.stages.get(0).state!=HistoryControlStore.StageState.PROVISIONAL)throw new IOException("Invalid retained control stage");
             HistoryControlStore.StageDescriptor stage=inspection.stages.get(0);
@@ -99,45 +104,81 @@ public final class HistoryCapacity {
             publish(stage.filename.substring(0,stage.filename.length()-6),bytes,true);inspection=control.inspect();
         }
         if(inspection.state!=HistoryControlStore.State.VALIDATED||inspection.registration==null)throw new IOException("Control authority invalid");
-        validateBundle(inspection.registration);Usage usage=ledger(inspection);if(!usage.usageComplete||usage.mutationBlocked)throw new IOException("Capacity inventory incomplete");
+        validateBundle(inspection.registration);validateEnrollment(inspection);Usage usage=ledger(inspection);if(!usage.usageComplete||usage.mutationBlocked)throw new IOException("Capacity inventory incomplete");
         // Constructors under durable opt-in are read-only; reconciliation restores their sync guarantee.
-        for(HistoryControlStore.Entry entry:inspection.entries)syncExisting(new File(controlRoot,entry.filename),read(new File(controlRoot,entry.filename)));
+        for(HistoryControlStore.Entry entry:inspection.entries){File file=new File(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)?parent:controlRoot,entry.filename);syncExisting(file,read(file));}
         durability.syncDirectory(parent);for(File root:roots)durability.syncDirectory(root);durability.syncDirectory(controlRoot);
         HistoryControlStore.Inspection verified=control.inspect();if(verified.state!=HistoryControlStore.State.VALIDATED||!verified.latest.envelopeHash.equals(inspection.latest.envelopeHash))throw new IOException("Control changed during reconciliation");
-        acknowledged=new EffectivePolicy(verified.latest);ready=true;HistoryStorage.capacity(store.storageRoot(),this);HistoryStorage.changed(store.storageRoot());return acknowledged;
+        validateEnrollment(verified);acknowledged=new EffectivePolicy(verified.latest);ready=true;HistoryStorage.capacity(store.storageRoot(),this);HistoryStorage.changed(store.storageRoot());return acknowledged;
     }
     private void validateBundle(HistoryControlStore.Registration registration)throws IOException{
         if(registration.bootstrapQuotaBytes!=store.constructorQuotaBytes())throw new IOException("Conflicting bootstrap hint");
         for(int i=0;i<4;i++)if(!registration.roles.get(i).basename.equals(roots.get(i).getName()))throw new IOException("Conflicting registered roles");
     }
-    private boolean authorityMatches(HistoryControlStore.Inspection inspection){return ready&&acknowledged!=null&&HistoryStorageCapacityIdentity()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
-    private boolean HistoryStorageCapacityIdentity(){try{return HistoryStorage.capacity(store.storageRoot())==this;}catch(IOException failure){return false;}}
+    private void validateEnrollment(HistoryControlStore.Inspection inspection)throws IOException{validateEnrollment(inspection,inspection.registration);}
+    private void validateEnrollment(HistoryControlStore.Inspection inspection,HistoryControlStore.Registration binding)throws IOException{
+        if(binding==null)throw new IOException("Missing enrollment registration");
+        for(HistoryControlStore.Entry entry:inspection.entries)if(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)&&entry.record instanceof HistoryControlStore.Registration&&entry.envelopeHash.equals(binding.envelopeHash))return;
+        throw new IOException("Missing durable enrollment binding");
+    }
+    EffectivePolicy graphPolicy(HistoryControlStore.Inspection inspection,File... graphRoots){return roots.equals(Arrays.asList(graphRoots))&&authorityMatches(inspection)?acknowledged:null;}
+    private boolean authorityMatches(HistoryControlStore.Inspection inspection){try{validateEnrollment(inspection);}catch(IOException invalid){return false;}return ready&&acknowledged!=null&&isCurrentAuthority()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
+    private boolean isCurrentAuthority(){try{return HistoryStorage.capacity(store.storageRoot())==this;}catch(IOException failure){return false;}}
     private void requireReady()throws IOException{if(!authorityMatches(control.inspect())){ready=false;throw new IOException("History authority requires reconciliation");}}
     void requireWriter(File root)throws IOException{HistoryStorage.requireMutation(root);if(!roots.contains(root))throw new IOException("Unregistered history writer");requireReady();}
+    void requireStoreHandle(File root)throws IOException{if(!roots.get(0).equals(root))throw new IOException("Foreign protection policy handle");}
+    void requireRole(File root,int role)throws IOException{requireWriter(root);if(role<1||role>4||!roots.get(role-1).equals(root))throw new IOException("Foreign history writer role");}
     private Usage ledger(HistoryControlStore.Inspection inspection)throws IOException{
-        long actual=0,reserved=0,slots=0;boolean complete=true;List<String> diagnostics=new ArrayList<>();
+        long actual=0,reserved=0,slots=0;boolean complete=true;List<String> diagnostics=new ArrayList<>(inspection.diagnostics);
         ProtectionStore.Inventory inventory=store.inspect();actual=inventory.actualBytes;reserved=inventory.reservedCompletionBytes;slots=inventory.reservedCompletionSlots;complete=inventory.usageComplete;
         for(String diagnostic:inventory.diagnostics)if(!diagnostic.endsWith("retained stage")){diagnostics.add(diagnostic);complete=false;}
         HistoryStorage.Budget budget=new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET);
         for(int i=1;i<4;i++){
             String role=i==1?"catalog":i==2?"identity":"index";HistoryStorage.FilesView files=HistoryStorage.inspect(roots.get(i),role,HistoryMetadataIO.MAX_RECORD,HistoryMetadataIO.MAX_ENTRIES,budget);
             actual=add(actual,files.bytes);complete&=files.usageComplete;
-            if(files.bytes>HistoryMetadataIO.MAX_BYTES){diagnostics.add("capacity: metadata root byte limit");complete=false;}
-            for(String diagnostic:files.diagnostics)if(!diagnostic.endsWith("retained stage")){diagnostics.add(diagnostic);complete=false;}
+            if(files.bytes>HistoryMetadataIO.MAX_BYTES)diagnostics.add("capacity: metadata root byte limit");
+            // Optional native size/semantic damage is not missing accounting. Its
+            // own writer and graph still reject it; mandatory protection charges it.
+            for(String diagnostic:files.diagnostics){diagnostics.add(diagnostic);
+                if(!diagnostic.endsWith("retained stage")&&!diagnostic.endsWith("oversized entry"))complete=false;
+            }
         }
         return new Usage(actual,reserved,slots,inspection,complete,!complete,acknowledged==null?Long.MAX_VALUE:acknowledged.quotaBytes,diagnostics);
+    }
+    void admit(File root,long additionalBytes,long additionalReservedBytes,int additionalSlots,int additionalReservedSlots)throws IOException {
+        requireWriter(root);if(additionalBytes<0||additionalReservedBytes<0||additionalSlots<0||additionalReservedSlots<0)throw new IOException("Invalid capacity request");
+        Usage usage=inspect();if(usage.mutationBlocked||!usage.usageComplete)throw new IOException("Incomplete history capacity proof");
+        if(add(usage.dataChargedBytes,add(additionalBytes,additionalReservedBytes))>acknowledged.quotaBytes)throw new IOException("Shared history quota exhausted");
+        checkRootCapacity(root,additionalBytes,additionalSlots,additionalReservedSlots,usage.completionReservedSlots);
+    }
+    void admitCompletion(ProtectionStore.CompletionConversion conversion)throws IOException {
+        requireWriter(store.storageRoot());conversion.require(store);Usage usage=inspect();
+        if(usage.mutationBlocked||!usage.usageComplete)throw new IOException("Incomplete completion capacity proof");
+        // Exact freshly validated native conversion has zero net byte/slot growth. No other write receives this exception.
+        checkRootCapacity(store.storageRoot(),0,0,0,usage.completionReservedSlots);conversion.require(store);
+    }
+    private void checkRootCapacity(File root,long bytes,int slots,int reservedSlots,long completionSlots)throws IOException {
+        int position=roots.indexOf(root);if(position<0)throw new IOException("Unregistered capacity root");String role=position==0?"store":position==1?"catalog":position==2?"identity":"index";
+        HistoryStorage.FilesView files=HistoryStorage.inspect(root,role,position==0?ProtectionStore.MAX_DOCUMENT_BYTES+32768L:HistoryMetadataIO.MAX_RECORD,
+            position==0?65536:HistoryMetadataIO.MAX_ENTRIES,new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
+        if(!files.usageComplete)throw new IOException("Incomplete root accounting");long occupied=add(files.records.size(),position==0?completionSlots:0);
+        if(add(occupied,add(slots,reservedSlots))>(position==0?65536:HistoryMetadataIO.MAX_ENTRIES))throw new IOException("History root entry capacity exhausted");
+        if(position!=0&&add(files.bytes,bytes)>HistoryMetadataIO.MAX_BYTES)throw new IOException("History metadata root byte capacity exhausted");
     }
     private static void admitControl(HistoryControlStore.Inspection inspection,long bytes,int entries)throws IOException{
         if(!inspection.usageComplete||add(inspection.actualBytes,bytes)>HistoryControlStore.MAX_BYTES||add(inspection.actualEntries,entries)>HistoryControlStore.MAX_ENTRIES)throw new IOException("Shared control allowance exhausted");
     }
     private void publish(String name,byte[] expected,boolean reuse)throws IOException{
-        HistoryStorage.requireMutation(store.storageRoot());File stage=new File(controlRoot,HistoryControlStore.stageFilename(name)),destination=new File(controlRoot,name);
+        publishAt(controlRoot,name,expected,reuse);
+    }
+    private void publishAt(File directory,String name,byte[] expected,boolean reuse)throws IOException{
+        HistoryStorage.requireMutation(store.storageRoot());File stage=new File(directory,name+".stage"),destination=new File(directory,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable control destination exists");
         HistoryStorage.changed(store.storageRoot());
         if(reuse)syncExisting(stage,expected);
         else{Files.createFile(stage.toPath());try(FileOutputStream stream=new FileOutputStream(stage)){stream.write(expected);stream.flush();BasicFileAttributes before=attributes(stage);durability.syncFile(stream.getFD());same(stage,before);}}
         if(!Arrays.equals(expected,read(stage)))throw new IOException("Control stage changed before move");
-        durability.move(stage,destination);if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Control move retained stage");durability.syncDirectory(controlRoot);
+        durability.move(stage,destination);if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Control move retained stage");durability.syncDirectory(directory);
         if(!Arrays.equals(expected,read(destination)))throw new IOException("Committed control validation failed");
     }
     private void syncExisting(File file,byte[] expected)throws IOException{

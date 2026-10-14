@@ -76,8 +76,8 @@ public final class HistoryCatalog {
     }
 
     public Checkpoint name(String snapshotId,String label) throws IOException {
-        synchronized(lock) {
-            validateId(snapshotId);validateLabel(label);
+        synchronized(lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,2)){
+            HistoryStorage.requireRole(store.storageRoot(),1);validateId(snapshotId);validateLabel(label);
             Inventory inventory=inventory();
             // Invalid committed metadata cannot silently become a partial history.
             for(File entry:inventory.files)if(entry.getName().endsWith(".checkpoint"))readCheckpoint(entry);
@@ -92,7 +92,8 @@ public final class HistoryCatalog {
             checkAncestors(root.toPath());
             if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable checkpoint exists");
             // Generated paths, CREATE_NEW, and retained failures mirror the private protection protocol.
-            HistoryStorage.changed(root);Files.createFile(stage.toPath());
+            if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admit(root,record.length,0,1,0);
+            HistoryStorage.requireMutation(root);HistoryStorage.changed(root);Files.createFile(stage.toPath());
             try(FileOutputStream out=new FileOutputStream(stage)) {
                 out.write(record);out.flush();durability.syncFile(out.getFD());
             }
@@ -104,7 +105,7 @@ public final class HistoryCatalog {
             byte[] committed=readRecord(destination);
             if(!Arrays.equals(record,committed))throw new IOException("Committed checkpoint differs");
             return decodeAndValidate(destination,committed);
-        }
+        }}
     }
 
     /** Validates the complete catalog before filtering, so another document's corruption remains visible. */

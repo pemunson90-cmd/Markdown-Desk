@@ -27,7 +27,11 @@ public final class HistoryGraph {
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots, chargedBytes;
         public final boolean complete, pruneBlocked, usageComplete;
         public final String fingerprint;
-        public final HistoryPolicy policy;
+        /** Compatibility profile only; it grants no registered mutation authority. */
+        public final HistoryPolicy policy,desiredProfile;
+        public final HistoryCapacity.EffectivePolicy effectivePolicy;
+        public final long controlActualBytes;
+        public final int controlActualEntries;
         private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
             records=freeze(builder.records);snapshots=freeze(builder.snapshots);transactions=freeze(builder.transactions);
             checkpoints=freeze(builder.checkpoints);identities=freeze(builder.identities);ownerships=freeze(builder.ownerships);
@@ -35,7 +39,8 @@ public final class HistoryGraph {
             unindexedTransactionIds=freezeSet(builder.unindexed);protectedSnapshotIds=freezeSet(builder.protectedSources);
             diagnostics=freeze(builder.diagnostics);actualBytes=builder.actual;reservedCompletionBytes=builder.reserved;
             reservedCompletionSlots=builder.slots;chargedBytes=builder.charged;usageComplete=builder.usageComplete;
-            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;this.fingerprint=fingerprint;this.policy=policy;
+            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;this.fingerprint=fingerprint;this.policy=policy;desiredProfile=policy;
+            effectivePolicy=builder.effective;controlActualBytes=builder.control==null?0:builder.control.actualBytes;controlActualEntries=builder.control==null?0:builder.control.actualEntries;
         }
     }
     private static final class Builder {
@@ -48,6 +53,7 @@ public final class HistoryGraph {
         final List<String> diagnostics=new ArrayList<>();
         final Set<String> pins=new TreeSet<>(),orphans=new TreeSet<>(),unresolved=new TreeSet<>(),unindexed=new TreeSet<>(),protectedSources=new TreeSet<>();
         long actual,reserved,slots,charged;boolean usageComplete=true;
+        HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;
     }
     private final ProtectionStore store;
     private final HistoryCatalog catalog;
@@ -71,10 +77,20 @@ public final class HistoryGraph {
             HistoryStorage.siblings(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
             HistoryStorage.Budget budget=new HistoryStorage.Budget(metadataBudget);
             return store.withValidatedSources(budget,sources->{
-                Builder builder=new Builder();ProtectionStore.Inventory inventory=sources.inventory;
+                Builder builder=new Builder();
+                try{
+                    if(HistoryStorage.controlled(store.storageRoot())){
+                        builder.control=new HistoryControlStore(store.storageRoot().getParentFile()).inspect();
+                        builder.diagnostics.addAll(builder.control.diagnostics);builder.usageComplete&=builder.control.usageComplete;
+                        HistoryCapacity capacity=HistoryStorage.capacity(store.storageRoot());
+                        builder.effective=capacity==null?null:capacity.graphPolicy(builder.control,store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
+                        if(builder.effective==null)builder.diagnostics.add("graph: authority requires reconciliation");
+                    }
+                }catch(IOException invalid){builder.diagnostics.add("graph: control unavailable");builder.usageComplete=false;}
+                ProtectionStore.Inventory inventory=sources.inventory;
                 builder.records.addAll(inventory.records);builder.snapshots.addAll(inventory.snapshots);builder.transactions.addAll(inventory.transactions);
                 builder.diagnostics.addAll(inventory.diagnostics);builder.actual=inventory.actualBytes;builder.reserved=inventory.reservedCompletionBytes;
-                builder.slots=inventory.reservedCompletionSlots;builder.usageComplete=inventory.usageComplete;
+                builder.slots=inventory.reservedCompletionSlots;builder.usageComplete&=inventory.usageComplete;
                 boolean metadataValid=true;
                 for(String role:Arrays.asList("catalog","identity","index")){
                     File root="catalog".equals(role)?catalog.storageRoot():"identity".equals(role)?identity.storageRoot():index.storageRoot();
@@ -114,6 +130,13 @@ public final class HistoryGraph {
             for(File root:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))text(out,root.getName());
             out.writeLong(store.constructorQuotaBytes());out.writeBoolean(policy!=null);
             if(policy!=null){out.writeLong(policy.quotaBytes);out.writeInt(policy.automaticCount);}
+            out.writeBoolean(builder.control!=null);
+            if(builder.control!=null){
+                out.writeLong(builder.control.actualBytes);out.writeInt(builder.control.actualEntries);out.writeBoolean(builder.control.usageComplete);text(out,builder.control.state.name());
+                for(HistoryControlStore.Entry entry:builder.control.entries){text(out,entry.filename);out.writeLong(entry.length);text(out,entry.envelopeHash);out.writeBoolean(entry.stage);}
+            }
+            out.writeBoolean(builder.effective!=null);
+            if(builder.effective!=null){text(out,builder.effective.bundleId);out.writeLong(builder.effective.generation);text(out,builder.effective.controlRecordHash);out.writeLong(builder.effective.quotaBytes);out.writeInt(builder.effective.automaticCount);}
             out.writeLong(builder.actual);out.writeLong(builder.reserved);out.writeLong(builder.slots);out.writeBoolean(builder.usageComplete);
             out.writeInt(builder.records.size());
             for(ProtectionStore.StoredRecord record:builder.records){text(out,record.rootRole);text(out,record.filename);text(out,record.id);text(out,record.kind);out.writeLong(record.serializedBytes);text(out,record.envelopeHash);}

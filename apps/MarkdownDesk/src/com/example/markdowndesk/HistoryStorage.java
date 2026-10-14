@@ -29,7 +29,16 @@ final class HistoryStorage {
     }
     static HistoryCapacity capacity(File root)throws IOException{return ((State)monitorFor(root)).capacity;}
     static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
-    static boolean controlled(File root)throws IOException{return Files.exists(new File(canonicalRoot(root).getParentFile(),HistoryControlStore.ROOT_NAME).toPath(),LinkOption.NOFOLLOW_LINKS);}
+    static boolean controlled(File root)throws IOException {
+        File canonical=canonicalRoot(root);
+        for(String name:Arrays.asList(HistoryControlStore.ENROLLMENT_NAME,HistoryControlStore.ENROLLMENT_STAGE)){
+            try{Files.readAttributes(new File(canonical.getParentFile(),name).toPath(),BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);return true;}
+            catch(NoSuchFileException absent){/* genuine absence only */}
+        }
+        Path control=new File(canonical.getParentFile(),HistoryControlStore.ROOT_NAME).toPath();
+        try{Files.readAttributes(control,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);return true;}
+        catch(NoSuchFileException absent){if(capacity(root)!=null)throw new IOException("Registered control root disappeared",absent);return false;}
+    }
     static final class MutationScope implements AutoCloseable {
         private State state;
         MutationScope(State state){this.state=state;}
@@ -44,6 +53,14 @@ final class HistoryStorage {
         MutationScope scope=administration(root);
         try{if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History control requires explicit open");authority.requireWriter(root);}return scope;}
         catch(IOException|RuntimeException failure){scope.close();throw failure;}
+    }
+    static MutationScope mutation(File root,int role)throws IOException{
+        MutationScope scope=mutation(root);
+        try{requireRole(root,role);return scope;}catch(IOException|RuntimeException failure){scope.close();throw failure;}
+    }
+    static void requireRole(File root,int role)throws IOException{
+        requireMutation(root);
+        if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History role requires explicit open");authority.requireRole(root,role);}
     }
     static void requireMutation(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.mutator!=Thread.currentThread())throw new IOException("History mutation scope required");

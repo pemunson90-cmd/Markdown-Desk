@@ -157,6 +157,12 @@ public final class ProtectionStore {
     private final long quotaBytes;
     private final Object lock;
 
+    /**
+     * Before enrollment, each handle enforces its constructor quota. Explicit
+     * registration replaces enforcement for every handle of the registered roots.
+     * Reopening a registered store must use the persisted bootstrap quota hint;
+     * this hint never resets or overrides the durable effective policy.
+     */
     public ProtectionStore(File root, Durability adapter, long quotaBytes) throws IOException {
         if (root==null || adapter==null || quotaBytes<0) throw new IOException("Invalid store configuration");
         this.root=HistoryStorage.canonicalRoot(root);
@@ -178,7 +184,7 @@ public final class ProtectionStore {
     }
 
     public Snapshot putSnapshot(String documentId, String uri, String title, long revision, byte[] bytes, String role) throws IOException {
-        synchronized (lock) {
+        synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,1)){
             validateMetadata(documentId, uri, title, revision, role);
             if (bytes==null || bytes.length>MAX_DOCUMENT_BYTES) throw new IOException("Snapshot byte limit exceeded");
             byte[] captured=bytes.clone();
@@ -188,11 +194,11 @@ public final class ProtectionStore {
             checkQuota(prefix.length+captured.length+32L,0);
             commitSnapshot(snapshot,prefix,captured);
             return readSnapshot(snapshot.id);
-        }
+        }}
     }
 
     public Transaction prepare(Snapshot original, Snapshot attempted, String expectedHash) throws IOException {
-        synchronized (lock) {
+        synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,1)){
             if (original==null || attempted==null) throw new IOException("Missing protection snapshots");
             Snapshot source=readSnapshot(original.id), edit=readSnapshot(attempted.id);
             validatePair(source,edit,expectedHash);
@@ -203,14 +209,14 @@ public final class ProtectionStore {
             checkQuota(envelope.length,transactionEnvelope(transaction,COMPLETE).length);
             commit(transaction.id+".transaction",envelope);
             return readTransaction(transaction.id,false);
-        }
+        }}
     }
 
     // The common monitor serializes threads. This guard only rejects recursive completion of
     // the same deterministic stage, including callbacks through another store handle.
     private static final java.util.Set<File> ACTIVE_COMPLETIONS=java.util.concurrent.ConcurrentHashMap.newKeySet();
     public void complete(Transaction transaction) throws IOException {
-        synchronized (lock) {
+        synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,1)){
             if (transaction==null) throw new IOException("Missing transaction");
             File stage=file(transaction.id,".completion-stage");
             if(!ACTIVE_COMPLETIONS.add(stage))throw new IOException("Recursive completion of the same stage");
@@ -222,15 +228,16 @@ public final class ProtectionStore {
                 if(completed)readCompletion(stored);
                 byte[] envelope=transactionEnvelope(stored,COMPLETE);
                 CompletionProof proof=completionProof(stored,completed,envelope);
-                // Completion converts its existing reservation. It receives no reduced-quota exemption.
+                // Registered completion converts a freshly validated existing reservation at zero charged growth. Legacy constructor quotas remain unchanged.
                 if(completed){durability.syncDirectory(root);return;}
-                checkCapacity(0,0,0);
+                if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admitCompletion(new CompletionConversion(this,stored.id,envelope.length,proof.stagedBytes));
+                else checkCapacity(0,0,0);
                 if(proof.stagedBytes>=0&&proof.stagedBytes!=envelope.length)
                     throw new IOException("Partial completion stage retained; retry blocked");
                 commitCompletion(stage,destination,envelope,proof.stagedBytes>=0);
                 readCompletion(stored);
             }finally{ACTIVE_COMPLETIONS.remove(stage);}
-        }
+        }}
     }
 
     private void commitCompletion(File stage,File destination,byte[] envelope,boolean reuse)throws IOException {
@@ -322,7 +329,7 @@ public final class ProtectionStore {
     }
 
     private void commit(String name, byte[] envelope) throws IOException {
-        entries();
+        HistoryStorage.requireMutation(root);entries();
         File stage=file(UUID.randomUUID().toString(),".stage");
         File destination=new File(root,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Immutable destination exists");
@@ -340,7 +347,23 @@ public final class ProtectionStore {
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination))) throw new IOException("Committed envelope validation failed");
     }
 
+    public void setQuotaBytes(long quotaBytes)throws IOException {
+        synchronized(lock){HistoryCapacity authority=HistoryStorage.capacity(root);if(authority==null||!HistoryStorage.controlled(root))throw new IOException("Shared quota requires registration");
+            authority.requireStoreHandle(root);authority.setPolicy(new HistoryPolicy(quotaBytes,authority.policy().automaticCount));}
+    }
+    static final class CompletionConversion {
+        private final ProtectionStore owner;private final String transactionId;private final long expectedBytes,stageBytes,generation;
+        private CompletionConversion(ProtectionStore owner,String id,long expected,long staged)throws IOException{this.owner=owner;transactionId=id;expectedBytes=expected;stageBytes=staged;generation=HistoryStorage.generation(owner.root);}
+        void require(ProtectionStore actual)throws IOException{
+            if(actual==null||!actual.root.equals(owner.root)||generation!=HistoryStorage.generation(owner.root))throw new IOException("Foreign or expired completion conversion");
+            HistoryStorage.requireMutation(owner.root);Transaction stored=owner.readTransaction(transactionId,false);
+            if(Files.exists(owner.file(transactionId,".complete").toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Conversion already completed");
+            byte[] expected=owner.transactionEnvelope(stored,COMPLETE);CompletionProof proof=owner.completionProof(stored,false,expected);
+            if(expected.length!=expectedBytes||proof.stagedBytes!=stageBytes||(stageBytes>=0&&stageBytes!=expectedBytes))throw new IOException("Invalid completion conversion proof");
+        }
+    }
     private void checkQuota(long newBytes,long newReservation)throws IOException {
+        if(HistoryStorage.controlled(root)){HistoryStorage.capacity(root).admit(root,newBytes,newReservation,1,newReservation>0?1:0);return;}
         checkCapacity(newBytes,newReservation,1+(newReservation>0?1:0));
     }
     private void checkCapacity(long newBytes,long newReservation,long newSlots)throws IOException {
@@ -471,7 +494,7 @@ public final class ProtectionStore {
     }
 
     private void commitSnapshot(Snapshot snapshot,byte[] prefix,byte[] payload) throws IOException {
-        entries();
+        HistoryStorage.requireMutation(root);entries();
         MessageDigest checksum=shaDigest();checksum.update(prefix);checksum.update(payload);
         byte[] expectedChecksum=checksum.digest();
         File stage=file(UUID.randomUUID().toString(),".stage"),destination=file(snapshot.id,".snapshot");
