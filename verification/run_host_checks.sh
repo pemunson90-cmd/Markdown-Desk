@@ -53,4 +53,5 @@ bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
 bash verification/history_capacity/run.sh all
 
+bash verification/history_pins/run.sh
 bash verification/history_maintenance/run.sh

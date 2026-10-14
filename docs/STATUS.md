@@ -28,13 +28,17 @@ Latest verified source:
   unsigned SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
   It publishes/deletes nothing; synthetic partial states are not executor crash proof.
 
-Active integration is `codex/m1-operation-foundations`. Independent ownership:
+Active integration is `codex/m1-operation-foundations`, [draft PR #18](https://github.com/pemunson90-cmd/Markdown-Desk/pull/18). Independent ownership:
 
-- `codex/durable-history-pins`: codec/discovery `478eb42` has909scoped assertions
-  plus old control14cases/209checks. Lifecycle and mandatory planner freeze are
-  in progress, with exact-source persistence review pending. One existing control
-  allowance funds retained BEGIN/CLOSE pairs and terminal reservations. Partial
-  stages remain preserved/blocked; reservation does not guarantee cancellation.
+- `codex/durable-history-pins`: corrected source `092c12b` (codec `478eb42`),
+  carried unchanged at `a9e58e1`, is integrated with independent approval.
+  Worker909codec/332lifecycle/4streamed-manifest checks and20SIGKILL boundaries
+  with42fresh JVM reopens passed. Independent review reproduced and repaired
+  reservation-before-policy-promotion, closed-audit/maintenance restart and
+  known-evidence omission defects, including capacity guards. One shared control
+  allowance retains BEGIN/CLOSE pairs and terminal reservations; every planner
+  mode freezes while pins are active/unreconciled. Partial stages stay blocked;
+  no cancellation availability or arbitrary fresh-process omission detection.
 - `codex/private-state-codec`: approved pure streaming schema over current source
   fields and eight actual allowlisted settings. Source `3cd61fc` is integrated
   byte-identically at `9c157c0`: worker848functional+99streaming assertions and
@@ -49,7 +53,8 @@ Active integration is `codex/m1-operation-foundations`. Independent ownership:
   Automatic execution waits for typed per-root capacity-demand proofs. Existing
   pure previews do not authorize deletion.
 
-Next: review and integrate pins/private-state validation, then journaled retention,
+Next: run the combined clean host/unsigned gate for reviewed pins/private-state
+validation, then required hosted validation before source merge. Continue journaled retention,
 operation quiescence/partial-stage resolution, persisted export manifests, strict
 import/adoption and runtime history. Continue eligible M2–M7 without treating a PR
 as campaign completion. No destructive executor or full M1 workflow is enabled.
