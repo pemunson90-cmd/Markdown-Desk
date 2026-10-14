@@ -50,7 +50,10 @@ newest same-history anchors, labels, pins, stages and unresolved data stay prote
 Hosted run38643656351 on `016f7a6` failed: the syntax runner used `rg`, absent
 on the independent runner, so stub discovery returned no files and compilation
 stopped. No application source changed. PR14 returned to draft; portable `find`
-with an explicit nonempty-stub guard is being checked locally without `rg`.
+with an explicit nonempty-stub guard passed all39,137syntax and scheduler checks
+in a restricted PATH with `rg` absent. The first restricted-PATH probe lacked
+`dirname` and failed its setup; the corrected probe above completed. Production
+source/unsigned APK inputs are unchanged from `b67995d`.
 Next: publish this scoped portability repair, then one new required hosted check
 for changed inputs; merge only the verified exact head. No force-push. An inert bounded intent
 codec is reviewed at `7c422a2`:73 native and103 bounded-heap checks plus planner
