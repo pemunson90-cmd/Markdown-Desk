@@ -33,8 +33,12 @@ final class HistoryMaintenanceRecovery {
         HistoryStorage.siblings(roots.toArray(new File[0]));parent=roots.get(0).getParentFile();controlRoot=new File(parent,HistoryControlStore.ROOT_NAME);monitor=HistoryStorage.monitorFor(roots.get(0));
     }
     static RecoveryView open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        Object monitor=HistoryStorage.monitorFor(store.storageRoot());
+        synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return openLocked(store,catalog,identity,index,durability);}}
+    }
+    static RecoveryView openLocked(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
         HistoryMaintenanceRecovery recovery=new HistoryMaintenanceRecovery(store,catalog,identity,index,durability);
-        synchronized(recovery.monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){
             HistoryControlStore.Inspection control=recovery.authority(null);
             recovery.registrationHash=control.registration.envelopeHash;
             HistoryTombstoneView candidate=new HistoryTombstoneView(recovery,control.committedIntent.intent);
@@ -48,18 +52,21 @@ final class HistoryMaintenanceRecovery {
             HistoryGraph.Graph finalGraph=recovery.validate(candidate); // no callback-capable path after this point
             HistoryStorage.installView(store.storageRoot(),candidate);
             return new RecoveryView(finalGraph,candidate.intent.envelopeHash);
-        }}
     }
     HistoryTombstoneView validateInstalled(HistoryTombstoneView view)throws IOException {
         if(!Thread.holdsLock(monitor)||view.owner!=this)throw new IOException("Invalid maintenance capability");
         validate(view);return view;
     }
-    private HistoryControlStore.Inspection authority(HistoryTombstoneView expected)throws IOException {
+    private HistoryControlStore.Inspection authority(HistoryTombstoneView expected)throws IOException {return authority(expected,null);}
+    private HistoryControlStore.Inspection authority(HistoryTombstoneView expected,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        if(expected!=null&&expected.owner!=this)throw new IOException("Foreign maintenance capability");
+        if(retirement!=null)retirement.require(expected);
         HistoryStorage.siblings(roots.toArray(new File[0]));
         HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();
-        if(HistoryPins.pruneBlocked(store.storageRoot(),control))throw new IOException("Maintenance blocked by operation pins");
+        if(retirement==null){if(HistoryPins.pruneBlocked(store.storageRoot(),control))throw new IOException("Maintenance blocked by operation pins");}
+        else{HistoryPins.requireRetained(store.storageRoot(),control);if(!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty())throw new IOException("Terminal state blocked by operation pins");}
         if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()
-                ||control.intentStage!=null||control.committedIntent==null||control.committedIntent.intent==null)
+                ||control.intentStage!=null||(retirement==null?(control.committedIntent==null||control.committedIntent.intent==null):control.committedIntent!=null))
             throw new IOException("Incomplete maintenance authority");
         for(String diagnostic:control.diagnostics)if(!diagnostic.equals("control: retained maintenance"))throw new IOException("Invalid maintenance control inventory");
         HistoryControlStore.Registration registration=control.registration;
@@ -68,20 +75,31 @@ final class HistoryMaintenanceRecovery {
         boolean enrolled=false;
         for(HistoryControlStore.Entry entry:control.entries)if(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)&&registration.envelopeHash.equals(entry.envelopeHash)&&entry.record instanceof HistoryControlStore.Registration)enrolled=true;
         if(!enrolled)throw new IOException("Missing maintenance enrollment");
-        HistoryPruneIntent intent=control.committedIntent.intent;HistoryPruneIntent.PolicyBinding policy=intent.policy;
+        HistoryPruneIntent intent=retirement==null?control.committedIntent.intent:expected.intent;HistoryPruneIntent.PolicyBinding policy=intent.policy;
         if(!policy.bundleId.equals(control.latest.bundleId.toString())||policy.generation!=control.latest.generation||!policy.envelopeHash.equals(control.latest.envelopeHash)
                 ||policy.quotaBytes!=control.latest.quotaBytes||policy.automaticCount!=control.latest.automaticCount
                 ||(expected!=null&&!expected.intent.envelopeHash.equals(intent.envelopeHash)))throw new IOException("Changed maintenance intent/policy binding");
         return control;
     }
-    private HistoryGraph.Graph validate(HistoryTombstoneView view)throws IOException {
-        authority(view);
-        for(Map.Entry<File,BasicFileAttributes> entry:controlIdentities.entrySet())if(!same(entry.getValue(),attributes(entry.getKey())))throw new IOException("Maintenance control replaced");
+    private HistoryGraph.Graph validate(HistoryTombstoneView view)throws IOException {return validate(view,null);}
+    HistoryGraph.Graph validateTerminal(HistoryTombstoneView view,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {return validate(view,retirement);}
+    HistoryControlStore.Inspection terminalControl(HistoryTombstoneView view,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        HistoryControlStore.Inspection control=authority(view,retirement);validateIdentities(view,retirement);return control;
+    }
+    private void validateIdentities(HistoryTombstoneView view,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        for(Map.Entry<File,BasicFileAttributes> entry:controlIdentities.entrySet()){
+            if(retirement!=null&&entry.getKey().equals(new File(controlRoot,HistoryPruneIntent.INTENT_NAME)))continue;
+            if(!same(entry.getValue(),attributes(entry.getKey())))throw new IOException("Maintenance control replaced");
+        }
         for(Map.Entry<File,BasicFileAttributes> entry:directoryIdentities.entrySet()){BasicFileAttributes now=attributes(entry.getKey()),before=entry.getValue();
             if(!now.isDirectory()||!Objects.equals(before.fileKey(),now.fileKey())||!before.creationTime().equals(now.creationTime()))throw new IOException("Maintenance role directory replaced");}
+    }
+    private HistoryGraph.Graph validate(HistoryTombstoneView view,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        authority(view,retirement);validateIdentities(view,retirement);
         for(HistoryPruneIntent.Member member:view.intent.members){
             File file=memberFile(member);BasicFileAttributes before;
             try{before=attributes(file);}catch(NoSuchFileException absent){continue;}
+            if(retirement!=null)throw new IOException("Retired closure member reappeared");
             BasicFileAttributes original=memberIdentities.get(member.key());
             if(original==null||!same(original,before))throw new IOException("Maintenance member replaced");
             exact(file,member,before);
@@ -106,7 +124,7 @@ final class HistoryMaintenanceRecovery {
                     &&Objects.equals(proof.tabId,descriptor.tabId)&&proof.origins.equals(new HashSet<>(descriptor.origins)))found=true;
             if(!found)throw new IOException("Changed maintenance routing");
         }
-        authority(view);return graph;
+        authority(view,retirement);return graph;
     }
     private static HistoryPruneIntent.Group group(HistoryPruneIntent intent,HistoryPruneIntent.Member member)throws IOException {
         for(HistoryPruneIntent.Group group:intent.groups)for(HistoryPruneIntent.Member candidate:group.records)if(candidate.key().equals(member.key()))return group;
