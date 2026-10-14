@@ -75,7 +75,8 @@ Current observed host evidence:
   467renderer/palette +12list +14,020divider assertions;126mode +43labels
   +4,963Appearance assertions;57status +93latest-statistics assertions;
   42Split UI +8ratio assertions;10inventory checker tests. New issue #3/#4
-  scoped suites PASS; combined clean-checkout integration validation pending.
+  scoped suites PASS. Combined required host suite PASS from clean committed
+  source at `727112133d556f44c68cdb11b95afade8a4880c6`.
 - Production store19cases/96assertions plus3real OS write-limit assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
 - Activity save lifecycle34cases/233assertions including actual strict codec;
@@ -113,15 +114,21 @@ New bounded repairs, independently reviewed with no blocking findings:
   These are statistics-path host measurements, not Android typing latency.
   See [measurement](benchmarks/M0_3_DEBOUNCED_STATISTICS.md).
 
-Next executable work:
+Integration evidence and next executable work:
 
-1. Run required host checks from one clean committed checkout, build/audit two
-   identical unsigned artifacts, then publish the integrated issue #3/#4 review
-   boundary. Avoid repeating the full suite on the unchanged second checkout.
-2. Continue the next independent history catalog/diff/retention backend slices
-   against the verified protection implementation. Optional runtime enablement
-   still needs explicit prerequisite reconciliation; no physical milestone or
-   user-facing release is claimed from host evidence.
+1. Clean committed-source verification **PASS** at
+   `727112133d556f44c68cdb11b95afade8a4880c6`: required host suite once from
+   the first fresh checkout, two independently built/audited unsigned APKs match
+   SHA-256 `d07d660df8438f5f0ff16a6b5b2439c12bffe7bb7b0986b3e7e79fee968ecee9`.
+   Signing inputs stripped; package2.2.5/code18, min26/target35, all25assets retained.
+   Final integration review approved with no blocking findings. Publish one
+   deliberate review-ready CI boundary, then merge only if required checks pass.
+2. The [history/retention plan](superpowers/plans/2026-10-14-history-retention.md)
+   is ready against the actual production foundation. Durable checkpoint metadata
+   and bounded diff backends are being implemented in separate worktrees, with
+   no Activity/save-path changes. Continue review and integration of verified work.
+   Optional runtime enablement still needs explicit prerequisite reconciliation;
+   no physical milestone or user-facing release is claimed from host evidence.
 3. Keep actual device/SAF/Fold/IME/TalkBack and signed-upgrade acceptance pending
    while executing eligible local work. No replacement signing key or credentials
    in Git/CI.
