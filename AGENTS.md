@@ -23,6 +23,7 @@ Stop and request input only for a genuine external dependency, a new material pr
 - **GitHub Actions and external tools are exceptions, not the default workbench.** Invoke them when required by branch protections, portability/independent-runner verification, hardware/test infrastructure unavailable locally, or a specific integration/release gate. Do not trigger Actions for every trivial edit, duplicate local tests in CI without value, or use web/API round trips to inspect files already in the checkout.
 - Avoid unnecessary agent calls, repeated broad repository scans, duplicate benchmark runs, verbose logs in context, and needless PR/issue fragmentation. Capture short reproducible commands and evidence once, then reuse it until inputs change.
 - Offline-first builds/tests where practical. Never send signing material or personal content to hosted CI/PRs/issues.
+- **CI and safety classification:** follow [docs/CI_AND_WORKFLOW_POLICY.md](docs/CI_AND_WORKFLOW_POLICY.md). Draft PR work uses local tests; review-ready PRs trigger hosted validation. Keep generic-provider destructive-write probes visibly RED as raw hazard evidence, while actual protected transaction/recovery behavior must pass required production-path tests. Neither test class may silently replace or excuse the other.
 
 ## Continuous implementation loop
 1. Resolve the **current** checked-out branch/PR/issue and current status; consult `docs/STATUS.md` before planning. Inspect modified files, not the full project from scratch every turn.
