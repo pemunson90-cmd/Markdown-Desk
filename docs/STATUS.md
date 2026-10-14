@@ -19,8 +19,10 @@
   Administration mutation is unavailable through the installed GitHub connector;
   the shell GitHub API call is denied by the current proxy. No protection claim.
   Retain review-ready hosted required checks and do not merge without them.
-- Four historical remote branches are fully reachable from main; retention
-  branch is active. Do not remove an active branch or unpublished local work.
+- Four fully merged historical remote branches were removed after verifying
+  their tips are reachable from main: baseline audit, M0 safety, M0 performance
+  and M1 foundation. Their commits remain in main. Active retention branch
+  and all work here are preserved; no worktree was removed.
 - Targeted tracked-content scan: 282 files, zero private-key/GitHub-token/AWS-key
   pattern matches; no tracked key/archive/APK names. This is a scoped scan,
   not proof that every historical artifact is public-safe.
