@@ -7,6 +7,8 @@ Run with JDK17's bin directory on PATH:
 
 ```sh
 bash verification/protection_store/run.sh
+# Scoped real filesystem faults only:
+bash verification/protection_store/run.sh physical
 bash verification/protection_store/run_adapter.sh
 # Optional standalone bounded-heap store/restore probe:
 bash verification/protection_store/run_memory.sh
@@ -25,7 +27,7 @@ entry capacity, disk-backed handle revalidation and legacy v1 envelope reading.
 ignored `SIGXFSZ`. This exercises an actual failed filesystem write, retained
 partial stage and restart of the previous snapshot (3 assertions). Python3 and
 Linux `resource` are required for that test. Temporary artifacts stay under
-ignored `verification/build/protection-store`. Each run cleans only its newly generated synthetic fixture directory after checks; product records are never cleaned by these tests.
+ignored `verification/build/protection-store`. Restricted child output is relayed through pipes so file-size limits cannot silence assertions/errors in redirected logs. Each run cleans only its newly generated synthetic fixture directory after checks; product records are never cleaned by these tests.
 
 The adapter suite has 27 assertions. Its labelled `android.system.Os` boundary
 double performs real host file/directory sync and atomic rename, and injects

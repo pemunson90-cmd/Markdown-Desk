@@ -19,22 +19,32 @@ javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/verification/protection_store/ProtectionStoreCheck.java"
-java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck
+case "${1:-all}" in
+ all) java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck ;;
+ physical) ;; # Only existing real filesystem-failure assertions.
+ *) echo 'Usage: run.sh [all|physical]' >&2; exit 2 ;;
+esac
 python3 - "$OUT" "$RUN_FIXTURES" <<'PY'
 import os, resource, signal, subprocess, sys, tempfile
 out, fixtures = sys.argv[1:]
+def run_child(command, preexec_fn=None):
+    # RLIMIT_FSIZE also applies to inherited regular-file logs. Pipes preserve
+    # assertion/error output when the host runner itself redirects to a file.
+    result = subprocess.run(command, preexec_fn=preexec_fn, capture_output=True, text=True)
+    print(result.stdout, end='')
+    print(result.stderr, end='', file=sys.stderr)
+    result.check_returncode()
 def restrict_writes():
     signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
     resource.setrlimit(resource.RLIMIT_FSIZE, (4096, 4096))
-subprocess.run(["java", "-Djava.io.tmpdir=" + fixtures, "-cp", out + "/classes",
-                "com.example.markdowndesk.ProtectionStoreCheck", "write-failure"],
-               check=True, preexec_fn=restrict_writes)
+run_child(["java", "-Djava.io.tmpdir=" + fixtures, "-cp", out + "/classes",
+                "com.example.markdowndesk.ProtectionStoreCheck", "write-failure"], restrict_writes)
 for bound in (0, 4096):
     root = tempfile.mkdtemp(prefix="completion-write-", dir=fixtures) + "/store"
     command = ["java", "-Djava.io.tmpdir=" + fixtures, "-cp", out + "/classes", "com.example.markdowndesk.ProtectionStoreCheck"]
-    subprocess.run(command + ["completion-seed", root], check=True)
+    run_child(command + ["completion-seed", root])
     def restrict_completion_writes():
         signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
         resource.setrlimit(resource.RLIMIT_FSIZE, (bound, bound))
-    subprocess.run(command + ["completion-write-failure", root, str(bound)], check=True, preexec_fn=restrict_completion_writes)
+    run_child(command + ["completion-write-failure", root, str(bound)], restrict_completion_writes)
 PY

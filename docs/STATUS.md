@@ -171,8 +171,7 @@ are now required. Independent pure planner review approved `6f02af3` (integrated
 `11fdf74`):81 functional +5 memory checks, bounded exact proofs with no partial
 plans or deletion. Current count remains a protected floor; future pressure mode
 requires its own tests. Read-only control codec `786745c` (integrated `85d2bc2`)
-passes14cases/209assertions at64MiB; it publishes/adopts no policy. Combined clean
-integration evidence for these latest source changes is pending below.
+passes14cases/209assertions at64MiB; it publishes/adopts no policy. Combined clean committed-source verification PASS at `a18e148912eb2b2c62876886a922999758fbba40`: full required host suite once (including all19restart boundaries), two audited unsigned builds matching SHA-256 `52996f927fc40f73a5b70cb7e09011ddd6aa477be81fe65e1b949b41537f99d0`. A subsequent runner-only log-transport fix passed all3/11/11physical assertions with redirected output; production bytecode is unchanged. Deliberate hosted validation remains pending before PR13 merge.
 
 Integration evidence and next executable work:
 
@@ -185,7 +184,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   finish the combined graph/completion/planner/control-codec integration gate, then implement explicit durable registration, complete all-writer admission and effective policy before any destructive executor. Crash-safe deletion, verified export, strict import and
+   complete review-ready hosted validation for PR13, then integrate explicit durable registration, complete all-writer admission and effective policy before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded
