@@ -9,10 +9,12 @@ import java.util.*;
 public final class HistoryPinsCheck {
     static int checks;
     static void check(boolean condition,String reason){checks++;if(!condition)throw new AssertionError(reason);}
-    static final class Disk implements ProtectionStore.Durability {
-        public void syncFile(FileDescriptor fd)throws IOException{fd.sync();}
-        public void move(File a,File b)throws IOException{Files.move(a.toPath(),b.toPath(),StandardCopyOption.ATOMIC_MOVE);}
-        public void syncDirectory(File directory)throws IOException{try(FileChannel channel=FileChannel.open(directory.toPath(),StandardOpenOption.READ)){channel.force(true);}}
+    static class Disk implements ProtectionStore.Durability {
+        Hook hook;interface Hook{void call(String event,File file)throws IOException;}
+        void event(String name,File file)throws IOException{if(hook!=null)hook.call(name,file);}
+        public void syncFile(FileDescriptor fd)throws IOException{event("file-before",null);fd.sync();event("file-after",null);}
+        public void move(File a,File b)throws IOException{event("move-before",a);Files.move(a.toPath(),b.toPath(),StandardCopyOption.ATOMIC_MOVE);event("move-after",b);}
+        public void syncDirectory(File directory)throws IOException{event("dir-before",directory);try(FileChannel channel=FileChannel.open(directory.toPath(),StandardOpenOption.READ)){channel.force(true);}event("dir-after",directory);}
     }
     static final class Fixture {
         final Path parent=Files.createTempDirectory("history-pins-");final Disk disk=new Disk();
