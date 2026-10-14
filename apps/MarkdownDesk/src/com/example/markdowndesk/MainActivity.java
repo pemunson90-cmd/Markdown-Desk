@@ -124,7 +124,8 @@ public class MainActivity extends Activity {
     private PreviewWebView preview;
     private Button previewModeButton;
     private boolean previewReady;
-    private int previewRenderToken;
+    private long previewRevision;
+    private boolean previewStopped;
     private int previewRestoreY;
     private Runnable previewRunnable;
     private Runnable previewSyncRunnable;
@@ -156,6 +157,8 @@ public class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService renderIo = Executors.newSingleThreadExecutor();
+    private final LatestPreview previewWork = new LatestPreview(this.renderIo,
+            runnable -> this.main.post(runnable), this::acceptPreview);
     private final ExecutorService statisticsIo = Executors.newSingleThreadExecutor();
     private final LatestStatistics statistics = new LatestStatistics(this.statisticsIo,
             runnable -> this.main.post(runnable), this::acceptStatistics);
@@ -236,12 +239,12 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity
     protected void onDestroy() {
         stopStatistics();
+        stopPreview();
         this.main.removeCallbacksAndMessages(null);
         if (this.preview != null) {
             this.preview.destroy();
         }
         this.io.shutdown();
-        this.renderIo.shutdown();
         super.onDestroy();
     }
 
@@ -428,6 +431,7 @@ public class MainActivity extends Activity {
 
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                MainActivity.this.invalidatePreview();
                 MainActivity.this.invalidateStatistics();
                 MainActivity.this.syntaxHighlight.changed(charSequence, i, i2, i3);
                 if (MainActivity.this.suppressChanges) {
@@ -1221,6 +1225,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void rebuildBody() {
+        invalidatePreview();
         if (this.body == null) {
             return;
         }
@@ -3406,41 +3411,52 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void schedulePreview() {
-        if (this.mode == 0 || this.preview == null || this.editor == null) {
-            return;
-        }
-        if (this.previewRunnable != null) {
-            this.main.removeCallbacks(this.previewRunnable);
-        }
-        this.previewRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda63
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.renderPreview();
-            }
+        invalidatePreview();
+        if (this.previewStopped || this.mode == MODE_EDIT || this.preview == null || this.editor == null) return;
+        this.previewRunnable = () -> {
+            this.previewRunnable = null;
+            renderPreview();
         };
         this.main.postDelayed(this.previewRunnable, 180L);
     }
 
+    private void invalidatePreview() {
+        this.previewRevision++;
+        this.previewWork.invalidate();
+        if (this.previewRunnable != null) this.main.removeCallbacks(this.previewRunnable);
+        this.previewRunnable = null;
+    }
+
+    private String previewDocumentId() {
+        return this.activeTab >= 0 && this.activeTab < this.tabs.size()
+                ? this.tabs.get(this.activeTab).id : "";
+    }
+
     /* JADX INFO: Access modifiers changed from: private */
     public void renderPreview() {
-        if (this.mode == MODE_EDIT) return;
+        invalidatePreview();
+        if (this.previewStopped || this.mode == MODE_EDIT || this.preview == null || this.editor == null) return;
         if (this.previewReady) this.previewRestoreY = this.preview.getScrollY();
         this.previewReady = false;
-        final int token = ++this.previewRenderToken;
-        final String source = this.editor.getText().toString();
-        final UiTheme.Palette renderPalette = this.palette;
-        final float readSize = this.previewFontSp;
-        this.renderIo.execute(new Runnable() {
-            @Override public void run() {
-                final String html = MarkdownRenderer.render(source, renderPalette, readSize);
-                MainActivity.this.main.post(new Runnable() {
-                    @Override public void run() {
-                        if (token != MainActivity.this.previewRenderToken || MainActivity.this.preview == null || MainActivity.this.isFinishing()) return;
-                        MainActivity.this.preview.loadDataWithBaseURL("https://markdown.local/", html, "text/html", "UTF-8", null);
-                    }
-                });
-            }
-        });
+        // Capture on main only, after debounce (or an explicit view/appearance render).
+        this.previewWork.request(new LatestPreview.Request(previewDocumentId(), this.previewRevision,
+                this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode));
+    }
+
+    private void acceptPreview(LatestPreview.Result result) {
+        LatestPreview.Request request = result.request;
+        if (this.previewStopped || this.preview == null || this.editor == null || this.isFinishing()
+                || request.revision != this.previewRevision || !request.documentId.equals(previewDocumentId())
+                || request.palette != this.palette || Float.compare(request.fontSp, this.previewFontSp) != 0
+                || request.mode != this.mode || this.mode == MODE_EDIT) return;
+        this.preview.loadDataWithBaseURL("https://markdown.local/", result.html, "text/html", "UTF-8", null);
+    }
+
+    private void stopPreview() {
+        this.previewStopped = true;
+        invalidatePreview();
+        this.previewWork.close();
+        this.renderIo.shutdownNow();
     }
 
     /* JADX INFO: Access modifiers changed from: private */

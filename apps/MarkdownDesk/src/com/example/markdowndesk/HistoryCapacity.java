@@ -17,11 +17,13 @@ public final class HistoryCapacity {
     }
     public static final class Usage {
         public final long dataActualBytes,completionReservedBytes,completionReservedSlots,dataChargedBytes,controlActualBytes;
-        public final int controlActualEntries;
+        public final int controlActualEntries,controlReservedEntries;
+        public final long controlReservedBytes;
         public final boolean usageComplete,mutationBlocked,overQuota;
         public final List<String> diagnostics;
         private Usage(long actual,long reserved,long slots,HistoryControlStore.Inspection control,boolean complete,boolean blocked,long quota,List<String> diagnostics)throws IOException{
             dataActualBytes=actual;completionReservedBytes=reserved;completionReservedSlots=slots;
+            controlReservedBytes=control.pins.reservedBytes;controlReservedEntries=control.pins.reservedEntries;
             dataChargedBytes=add(actual,reserved);controlActualBytes=control.actualBytes;controlActualEntries=control.actualEntries;
             usageComplete=complete&&control.usageComplete;mutationBlocked=blocked||!usageComplete;overQuota=dataChargedBytes>quota;
             this.diagnostics=Collections.unmodifiableList(new ArrayList<>(diagnostics));
@@ -89,7 +91,9 @@ public final class HistoryCapacity {
     }
     public EffectivePolicy reconcile()throws IOException{synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return reconcileLocked();}}}
     private EffectivePolicy reconcileLocked()throws IOException{
-        ready=false;HistoryControlStore.Inspection inspection=control.inspect();
+        ready=false;HistoryControlStore.Inspection inspection=control.inspect();HistoryPins.requireRetained(store.storageRoot(),inspection);
+        if(!inspection.pins.valid||!inspection.pins.stages.isEmpty())throw new IOException("Pins require explicit reconciliation");
+        admitControl(inspection,0,0); // Retained policy stages already occupy their physical slot/bytes.
         if(inspection.hasMaintenance())throw new IOException("Maintenance requires dedicated recovery");
         if(inspection.state==HistoryControlStore.State.UNREGISTERED)throw new IOException("Missing registration");
         HistoryControlStore.Registration binding=inspection.registration;
@@ -110,7 +114,7 @@ public final class HistoryCapacity {
         for(HistoryControlStore.Entry entry:inspection.entries){File file=new File(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)?parent:controlRoot,entry.filename);syncExisting(file,read(file));}
         durability.syncDirectory(parent);for(File root:roots)durability.syncDirectory(root);durability.syncDirectory(controlRoot);
         HistoryControlStore.Inspection verified=control.inspect();if(verified.state!=HistoryControlStore.State.VALIDATED||!verified.latest.envelopeHash.equals(inspection.latest.envelopeHash))throw new IOException("Control changed during reconciliation");
-        validateEnrollment(verified);acknowledged=new EffectivePolicy(verified.latest);ready=true;HistoryStorage.capacity(store.storageRoot(),this);HistoryStorage.changed(store.storageRoot());return acknowledged;
+        HistoryPins.requireRetained(store.storageRoot(),verified);validateEnrollment(verified);acknowledged=new EffectivePolicy(verified.latest);ready=true;HistoryStorage.capacity(store.storageRoot(),this);HistoryStorage.changed(store.storageRoot());return acknowledged;
     }
     private void validateBundle(HistoryControlStore.Registration registration)throws IOException{
         if(registration.bootstrapQuotaBytes!=store.constructorQuotaBytes())throw new IOException("Conflicting bootstrap hint");
@@ -123,7 +127,7 @@ public final class HistoryCapacity {
         throw new IOException("Missing durable enrollment binding");
     }
     EffectivePolicy graphPolicy(HistoryControlStore.Inspection inspection,File... graphRoots){return roots.equals(Arrays.asList(graphRoots))&&authorityMatches(inspection)?acknowledged:null;}
-    private boolean authorityMatches(HistoryControlStore.Inspection inspection){try{validateEnrollment(inspection);}catch(IOException invalid){return false;}return ready&&acknowledged!=null&&isCurrentAuthority()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
+    private boolean authorityMatches(HistoryControlStore.Inspection inspection){try{HistoryPins.requireRetained(store.storageRoot(),inspection);validateEnrollment(inspection);}catch(IOException invalid){return false;}return ready&&acknowledged!=null&&isCurrentAuthority()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
     private boolean isCurrentAuthority(){try{return HistoryStorage.capacity(store.storageRoot())==this;}catch(IOException failure){return false;}}
     private void requireReady()throws IOException{if(!authorityMatches(control.inspect())){ready=false;throw new IOException("History authority requires reconciliation");}}
     void requireWriter(File root)throws IOException{HistoryStorage.requireMutation(root);if(!roots.contains(root))throw new IOException("Unregistered history writer");requireReady();}
@@ -167,7 +171,7 @@ public final class HistoryCapacity {
         if(position!=0&&add(files.bytes,bytes)>HistoryMetadataIO.MAX_BYTES)throw new IOException("History metadata root byte capacity exhausted");
     }
     private static void admitControl(HistoryControlStore.Inspection inspection,long bytes,int entries)throws IOException{
-        if(!inspection.usageComplete||add(inspection.actualBytes,bytes)>HistoryControlStore.MAX_BYTES||add(inspection.actualEntries,entries)>HistoryControlStore.MAX_ENTRIES)throw new IOException("Shared control allowance exhausted");
+        if(!inspection.usageComplete||!inspection.pins.valid||add(add(inspection.actualBytes,inspection.pins.reservedBytes),bytes)>HistoryControlStore.MAX_BYTES||add(add(inspection.actualEntries,inspection.pins.reservedEntries),entries)>HistoryControlStore.MAX_ENTRIES)throw new IOException("Shared control allowance exhausted");
     }
     private void publish(String name,byte[] expected,boolean reuse)throws IOException{
         publishAt(controlRoot,name,expected,reuse);

@@ -1,0 +1,6 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Exception in thread "main" java.lang.AssertionError: held main queue must retain only one completion: expected 1, got 1000
+	at com.example.markdowndesk.StatisticsDeliveryCheck.eq(StatisticsDeliveryCheck.java:10)
+	at com.example.markdowndesk.StatisticsDeliveryCheck.heldDelivery(StatisticsDeliveryCheck.java:21)
+	at com.example.markdowndesk.StatisticsDeliveryCheck.main(StatisticsDeliveryCheck.java:28)

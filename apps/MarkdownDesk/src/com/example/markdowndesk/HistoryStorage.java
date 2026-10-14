@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -29,6 +29,13 @@ final class HistoryStorage {
     }
     static HistoryCapacity capacity(File root)throws IOException{return ((State)monitorFor(root)).capacity;}
     static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
+    static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
+    static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}
+    static ProtectionStore.StoredRecord snapshotRecord(File root,String id)throws IOException {
+        Path path=root.toPath().resolve(id+".snapshot");BasicFileAttributes before=attrs(path);
+        if(!before.isRegularFile()||before.size()<45||before.size()>ProtectionStore.MAX_DOCUMENT_BYTES+32768L)throw new IOException("Invalid pin source envelope");
+        return new ProtectionStore.StoredRecord("store",id+".snapshot",id,"snapshot",before.size(),hash(path,before));
+    }
     static HistoryTombstoneView readView(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
         if(state.tombstones!=null)return state.tombstones.revalidate();

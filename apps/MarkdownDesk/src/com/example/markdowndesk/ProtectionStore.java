@@ -117,7 +117,19 @@ public final class ProtectionStore {
     }
     File storageRoot(){return root;}
     long constructorQuotaBytes(){return quotaBytes;}
+    /** Pin-only exact standalone snapshot proof: no graph completeness or callback dependency. */
+    StoredRecord pinSource(String id)throws IOException {
+        HistoryStorage.requireMutation(root);File source=file(id,".snapshot");BasicFileAttributes before=attributes(source);
+        readSnapshot(id);StoredRecord record=HistoryStorage.snapshotRecord(root,id);requireUnchanged(source,before);return record;
+    }
     public Inventory inspect()throws IOException {return withValidatedSources(sources->sources.inventory);}
+    /** Pin terminal validation only: caller owns the parent lease; no durability callback. */
+    Inventory pinInventory()throws IOException {
+        HistoryStorage.requireMutation(root);
+        try(ValidatedSources sources=new ValidatedSources(this,new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),null)){
+            inspectSources(sources,false);sources.require(this);return sources.inventory;
+        }
+    }
     <T> T withValidatedSources(SourceOperation<T> operation)throws IOException {
         return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),operation);
     }
@@ -127,12 +139,13 @@ public final class ProtectionStore {
     <T> T withValidatedSources(HistoryStorage.Budget budget,HistoryTombstoneView view,SourceOperation<T> operation)throws IOException {
         synchronized(lock){try(ValidatedSources sources=new ValidatedSources(this,budget,view)){inspectSources(sources);sources.require(this);T result=operation.run(sources);sources.require(this);return result;}}
     }
-    private void inspectSources(ValidatedSources sources)throws IOException {
+    private void inspectSources(ValidatedSources sources)throws IOException {inspectSources(sources,true);}
+    private void inspectSources(ValidatedSources sources,boolean syncDirectory)throws IOException {
         HistoryStorage.FilesView files=HistoryStorage.inspect(root,"store",MAX_ENVELOPE_BYTES,MAX_ENTRIES,sources.budget);
         files.physicalEntries=files.records.size();
         if(sources.view!=null)sources.view.filter("store",files);
         List<String> diagnostics=new ArrayList<>(files.diagnostics);
-        try{if(sources.view==null)durability.syncDirectory(root);}catch(IOException failure){diagnostics.add("store: directory validation unavailable");}
+        try{if(syncDirectory&&sources.view==null)durability.syncDirectory(root);}catch(IOException failure){diagnostics.add("store: directory validation unavailable");}
         for(StoredRecord record:files.records)if("snapshot".equals(record.kind)&&record.id!=null&&record.envelopeHash!=null){
             try{Snapshot snapshot=readSnapshot(record.id);sources.budget.charge(1024L+2L*(snapshot.id.length()+snapshot.documentId.length()+
                 (snapshot.uri==null?0:snapshot.uri.length())+(snapshot.title==null?0:snapshot.title.length())+snapshot.role.length()+snapshot.hash.length()));
