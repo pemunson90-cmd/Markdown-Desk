@@ -11,14 +11,19 @@ physical acceptance and production release remain separate gates.
 Implement a package-private HistoryMaintenanceExecutor over the exact existing
 store/catalog/identity/index bundle and its acknowledged HistoryCapacity. No
 Activity, provider, save coordinator, native envelope or policy-format rewrite.
-A pure caller profile is never deletion authority. Require all of:
+The first executor implements SELECTED deletion only and rejects both automatic
+modes. Pressure execution waits for a typed per-root admission-demand protocol;
+aggregate reclaimed entries cannot prove a requesting root has capacity. A pure
+caller profile is never deletion authority. Require all of:
 
-- Current canonical four-root registration/enrollment and acknowledged policy.
+- Current installed capacity handle, readiness, canonical four-root registration/
+  enrollment and exact acknowledged bundle ID/generation/control hash/quota/count.
 - Fresh complete pruning graph and exact re-derived plan/proof/selection/demand.
 - Plan policy equal to acknowledged effective quota/count, not merely a preview.
 - No active/unreconciled operation pin, unknown control input or retained stage.
-- Explicit authorization bound to exact proof fingerprint and selected IDs;
-  automatic pressure additionally binds the exact current capacity request.
+- Explicit authorization bound to exact SELECTED proof fingerprint and IDs, with
+  zero capacity demand. Rebuild the planning profile from effective authority,
+  rerun selected planning and compare canonical proofs before publication.
 - Complete control accounting, including every terminal reservation, and room in
   the same1MiB/256 allowance for the complete64KiB/256-member bounded intent.
 
@@ -61,27 +66,48 @@ on the complete tombstone projection, not on transient physical ordering.
 Never free physical bytes/slots for a member still present; never invent pending
 transactions or completion reservations from an explained removed preparation.
 
-After all listed members are absent, validate surviving graph/anchors again,
-sync every affected data directory, remove only the exact committed intent,
-then sync its control directory. Clear the installed view only through a
-lease-aware exact-intent helper after verified retirement, and explicitly
-reconcile ordinary authority before future writes. If intent removal or its
-final sync is uncertain, keep mutation blocked until a fresh no-intent or
-exact-intent reconciliation. Restart may see absent intent only after data
-removals were synced; restored intent remains idempotently replayable.
+After all listed members are absent, enter a shared mutation-blocking retirement
+state retaining the exact installed intent capability. Validate surviving graph/
+anchors, sync all affected data directories, then freshly validate callback-free
+closure absence, survivor proof, control/registration/policy and inode identities.
+Unlink only the exact committed intent, sync its control directory, freshly
+validate the no-intent terminal state, clear only that exact installed view, and
+reconcile capacity through a lease-requiring internal helper before new writes.
+No injectable callback may intervene between final victim validation and unlink.
+
+Current APIs cannot do this by calling ordinary reconciliation: readView demands
+an intent while an installed projection exists. Add an explicit lease-aware
+terminal validator that inspects survivors without recursively revalidating the
+missing-intent view. It must retain closure and anchor proof, reject conflicting
+control inputs/root replacements, and establish directory durability before
+clearing exactly the matching view. Never use unconditional installView(null).
+Public recovery open and reconcile remain wrappers over internal helpers which
+require an existing lease rather than acquiring nested administration.
+
+If intent removal/final sync is uncertain, retain the retirement capability and
+block writes. Same-process retry or a second handle must validate either the
+exact still-present intent for replay, or the verified no-intent terminal state.
+Fresh-process absence is safe only because all member removals were synced before
+intent unlink; a restored intent remains idempotently replayable.
 
 ## Meaningful verification before runtime enablement
 
 - [ ] Independent review of this plan against the completed pin API and actual
       recovery locking; resolve publication retry and final retirement states.
 - [ ] RED production executor fixtures: stale policy/profile, changed preview,
-      selected IDs, demands, anchors, members, active pins and unknown stages
+      selected IDs, unsupported automatic demands, anchors, members, active pins
+      and unknown stages
       cause zero unlinks; same-history newest anchors survive.
 - [ ] Actual OS write-limit/ENOSPC-like publication failure before intent commit
       causes zero unlinks and retains source/stage evidence.
 - [ ] Functional whole-group and selected-checkpoint deletion; all survivors'
       exact original/attempted bytes, catalog/index readers, physical charges and
       reservations remain correct after each interrupted physical prefix.
+- [ ] Superseded authority handle and policy A→B→A with equal final values reject
+      stale authorization; exact generation/hash still bind the plan.
+- [ ] Final control-sync failure with same-process retry and second-handle open;
+      intent-unlink failure with present/absent outcomes; last data-directory sync
+      callback changes a survivor and causes zero subsequent unlinks.
 - [ ] Callback/reentrant/second-handle tests at sync/move/unlink boundaries,
       same-byte inode replacement and no callbacks after final validation.
 - [ ] Child JVM SIGKILL before/after intent sync, move, directory sync, each
@@ -97,3 +123,16 @@ A host filesystem SIGKILL test is not sudden-power-loss or Android app-UID/SAF
 proof. No physical Fold, signing, upgrade, export/import or M1 completion claim.
 Partial pin-stage resolution, exact persisted export manifest and operation
 quiescence remain runtime prerequisites for pin-consuming user operations.
+
+## Later automatic pressure prerequisite
+
+Bind a typed demand to registered role, additional physical bytes/slots and
+completion-reserved bytes/slots. Recompute actual deficits, prove selected
+bytesByRoot/entriesByRoot satisfy every per-root metadata/store limit as well as
+shared quota, and recheck ordinary admission after verified retirement. Until
+that protocol and root-deficit tests pass, reject automatic executor modes; the
+existing pure previews remain available without execution authority.
+
+Independent plan review at463983b identified terminal-state, typed-demand and
+exact-authority gaps above. This revision addresses the selected-only contract;
+re-review against completed pin source is still required before code.
