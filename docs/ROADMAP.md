@@ -18,7 +18,7 @@ Native editing; Markdown rendered Reading mode; Write/Read/Split layouts; **exis
 - Immutable document snapshots independent of crash-recovery drafts. Automatic policy (configurable), named checkpoints, per-document history list, diff preview, explicit restore-to-new-copy before replace.
 - Quota/retention with safe pruning; conflict recovery and simulated failed, interrupted, and external-provider writes.
 - Backup/export and restore of app-private session/preferences/history separately from user-owned documents; migration tests.
-- Exit: injection tests prove no original document destruction on common failure paths; lost-work rehearsal and successful restore across process death.
+- Exit: injection tests prove durable byte-exact recoverability of the observed original and submitted edit before destructive provider writes, fail-closed protection, and explicit restore to a new copy (ADR-001). Generic providers may truncate the source URI on failure; universal atomic URI preservation is not promised. Lost-work rehearsal and successful restore across process death remain required.
 
 ### M2 — Performance and architecture
 - Incremental stats, affected-range syntax processing and throttled/debounced preview updates; avoid all-text scans on each keystroke where possible.

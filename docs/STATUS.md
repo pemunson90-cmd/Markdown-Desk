@@ -1,5 +1,34 @@
 # Current project status
 
+## Resume reconciliation — 2026-10-14
+
+- Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
+  and preserved draft PR #13 at `0918e76` on `codex/m1-safe-retention`.
+  The earlier audited `c42de9d` remains its ancestor. One local worktree;
+  no pre-existing Markdown Desk checkout or uncommitted work was available
+  in this attached environment. Other agents/environments may hold unpublished
+  work; this observation does not establish their status or why an agent stopped.
+- Current branch resumes PR #13. Existing graph tests rerun with JDK17:
+  `bash verification/history_retention/run.sh` PASS, 81 functional and
+  6 constrained-memory checks. Historical full-suite/build evidence below is
+  attributed to its original commits, not this fresh run.
+- Completion reservation/staging safety and incremental logical-line indexing
+  are active independent implementation slices. Shared quota/policy admission,
+  safe planner/journal/executor and runtime controls remain incomplete.
+- GitHub branch API reports main `protected=false`; rulesets list is empty.
+  Administration mutation is unavailable through the installed GitHub connector;
+  the shell GitHub API call is denied by the current proxy. No protection claim.
+  Retain review-ready hosted required checks and do not merge without them.
+- Four fully merged historical remote branches were removed after verifying
+  their tips are reachable from main: baseline audit, M0 safety, M0 performance
+  and M1 foundation. Their commits remain in main. Active retention branch
+  and all work here are preserved; no worktree was removed.
+- Targeted tracked-content scan: 282 files, zero private-key/GitHub-token/AWS-key
+  pattern matches; no tracked key/archive/APK names. This is a scoped scan,
+  not proof that every historical artifact is public-safe.
+- Installed platform-tools reports zero connected devices. Physical Android,
+  SAF, IME, Fold, TalkBack and canonical signed upgrade remain **NOT RUN**.
+
 ## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merged/tagged
 
 As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d516`, source tag `v2.2.5-baseline`; completed
