@@ -67,10 +67,18 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
   descriptions; Focus Enter/Exit/selected state tracks existing behavior; Save
   action/state descriptions follow Saving/Copy/Save/Saved precedence.
   Static accessibility audit records remaining divider/target/device gaps.
-- Safe-save preparation:20model-contract tests pass, explicitly not production
-  persistence/durability proof; no existing provider assertion weakened.
-- Current next action: prepare real storage durability adapter/fault cases and remaining
-  accessibility/UI seams under
+- Safe-save preparation:20model-contract tests and4real host filesystem probe
+  methods pass. Host file+directory fsync/rename and SIGKILL/restart observed;
+  this is not power-loss/Android/production durability proof. No existing
+  provider assertion weakened.
+- Remaining recovery boundary:with a valid full12-tab session, an unmatched
+  legacy draft is forwarded by the loader but not surfaced by the actual UI
+  callback. Its protection/reconciliation still needs a coordinator/UI test;
+  passing loader collectors do not establish recovery acceptance.
+- Current next action: implement/test a reviewed Android durability adapter
+  seam and recovery reconciliation after prerequisite/sequencing review;
+  independently continue remaining accessible names/selection and divider
+  operation tests. Measure actual Android targets/phone/Fold when available under
   ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
   both original and attempted edit durably, fail closed if protection fails,
   restore only to a new copy. This is recoverability, not unchanged provider URI.
@@ -83,3 +91,7 @@ Historical Library versions/SDK/recovery archives are a secondary provenance
 request, not retrieved/uploaded in this session. Exact 2.2.5 source and historical
 records shipped inside its archive are now accessible in Git; protect unrelated
 private recovery/signing material from any later publication.
+
+Local Library directory contains0files in this workspace; no older version/SDK
+archives were available there to inventory or publish. The installed SDK remains
+local tooling, not a provenance archive upload. No connected Android device.

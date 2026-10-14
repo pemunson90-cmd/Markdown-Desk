@@ -89,3 +89,43 @@ and a provider read/write adapter. Only that coordinator may reach destructive
 provider open after validated preparation and recheck. Keep MainActivity wiring,
 Save As identity, independent startup recovery and explicit picker restoration
 as subsequent reviewed slices; do not claim this model clears their gates.
+
+## Separate real-filesystem feasibility probe
+
+```bash
+bash verification/save_protection/run_probe.sh
+```
+
+Observed 2026-10-14 on this Linux host (`overlayfs`): **4 unittest methods passed**, exit 0.
+Actual host file `fsync`, same-directory `rename`, directory-descriptor `fsync`
+and committed JSON envelope SHA-256/length validation succeeded. Synthetic bytes
+only; temporary files stay under `verification/build/save-protection/probe-tmp/`
+and are removed after each fixture. Log:
+`verification/build/save-protection/filesystem-probe-results.txt`.
+
+A real child process was SIGKILLed at staged, file-synced, renamed,
+directory-synced and validated boundaries. Fresh child validation found no
+committed envelope before rename and a valid envelope after rename on this
+running host. **Process termination preserves the running kernel and its caches;
+this does not test power loss, reboot, storage hardware or prove persistence of
+a rename without directory sync.** Staged bytes before rename remain uncommitted.
+The observed result does not authorize omitting either sync operation.
+
+Four explicitly injected adapter faults (file sync, rename, directory sync and
+validation) prevent the probe's synthetic provider write. These are injected
+exceptions, not observed ENOSPC/permission/kernel sync failures. Separately,
+missing/truncated envelopes and changed payload/hash/length are rejected by a
+fresh validation process. This bounded probe is not a transaction store or
+production implementation and leaves the original-URI preservation red probes
+unchanged.
+
+The minimal Android adapter must expose actual file-descriptor flush/fsync,
+same-directory atomic commit, open/fsync/close of the private directory, strict
+post-commit envelope validation and propagated failure at each boundary. It must
+fail closed when the Android API/filesystem cannot provide required durability
+operations, close descriptors on every error, use unique generated staging names,
+and provide restart scanning of committed records and orphan stages. Confirm
+Android API26+ directory-sync behavior on real devices/providers; do not infer
+support from this Python/Linux result or from existing `AtomicCommit.replace`.
+Real Android process-kill, storage error, reboot/power-loss assumptions and SAF
+acceptance remain separate **NOT RUN** gates. M1 sequencing is unchanged.
