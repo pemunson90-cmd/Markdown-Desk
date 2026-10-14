@@ -54,8 +54,9 @@ No source payload is opened by the manifest class. The only persisted names are
 four bounded registered role basenames, never arbitrary paths or document URIs.
 
 An old frozen Graph plus old matching control Inspection can still produce the
-same old mapping after current policy/files change. That is intentional provenance,
-not a freshness check. A future atomic capture/pin adapter must establish current
+manifest for old evidence after current policy/files change. That is intentional provenance,
+not a freshness check. Calling `freeze` again generates IDs again; retries must read
+the persisted manifest to preserve its mapping. A future atomic capture/pin adapter must establish current
 bundle, role, policy and source validity before use. A valid manifest checksum is
 framing integrity, not authenticity or permission to export/delete/adopt data.
 
