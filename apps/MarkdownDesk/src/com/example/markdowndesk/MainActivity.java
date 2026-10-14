@@ -111,6 +111,7 @@ public class MainActivity extends Activity {
     private LinearLayout readTools;
     private LinearLayout header;
     private Runnable highlightRunnable;
+    private final MarkdownSyntaxHighlighter.State syntaxHighlight = new MarkdownSyntaxHighlighter.State();
     private View launchSplash;
     private Runnable launchSplashDismissRunnable;
     private boolean launchSplashEnabled;
@@ -428,6 +429,7 @@ public class MainActivity extends Activity {
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
                 MainActivity.this.invalidateStatistics();
+                MainActivity.this.syntaxHighlight.changed(charSequence, i, i2, i3);
                 if (MainActivity.this.suppressChanges) {
                     return;
                 }
@@ -442,7 +444,7 @@ public class MainActivity extends Activity {
                 }
                 MainActivity.this.scheduleRecovery();
                 MainActivity.this.schedulePreview();
-                MainActivity.this.scheduleHighlight();
+                MainActivity.this.scheduleHighlightEdit();
                 MainActivity.this.scheduleSession();
             }
         });
@@ -3443,6 +3445,11 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void scheduleHighlight() {
+        this.syntaxHighlight.reset();
+        scheduleHighlightEdit();
+    }
+
+    private void scheduleHighlightEdit() {
         if (this.editor == null) {
             return;
         }
@@ -3460,7 +3467,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$scheduleHighlight$69() {
-        MarkdownSyntaxHighlighter.apply(this.editor.getText(), this.dark);
+        this.syntaxHighlight.apply(this.editor.getText(), this.dark);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
