@@ -25,14 +25,15 @@ final class HistoryMetadataIO {
         ancestors(root.getAbsoluteFile().toPath());
         this.root=HistoryStorage.canonicalRoot(root);this.extension=extension;this.magic=magic;this.durability=durability;
         lock=HistoryStorage.monitorFor(this.root);
-        synchronized(lock){
+        synchronized(lock){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(this.root)){
+            if(HistoryStorage.constructorReadOnly(this.root,(".identity".equals(extension)?3:4),null))return;
             ancestors(this.root.toPath());File parent=this.root.getParentFile();
             if(parent==null||!Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)||!parent.getCanonicalFile().equals(parent))
                 throw new IOException("History metadata parent is not canonical directory");
             if(!Files.exists(this.root.toPath(),LinkOption.NOFOLLOW_LINKS))Files.createDirectory(this.root.toPath());
             if(!Files.isDirectory(this.root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Invalid history metadata directory");
             durability.syncDirectory(parent);durability.syncDirectory(this.root);inventory();
-        }
+        }}
     }
     private static final class Inventory {final List<File> files=new ArrayList<>();long bytes;}
     private Inventory inventory()throws IOException {

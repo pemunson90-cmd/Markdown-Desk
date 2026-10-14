@@ -162,7 +162,8 @@ public final class ProtectionStore {
         this.root=HistoryStorage.canonicalRoot(root);
         this.durability=adapter; this.quotaBytes=quotaBytes;
         lock=HistoryStorage.monitorFor(this.root);
-        synchronized (lock) {
+        synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.administration(this.root)){
+            if(HistoryStorage.constructorReadOnly(this.root,1,quotaBytes))return;
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
             if (parent==null || !Files.isDirectory(parent.toPath(), LinkOption.NOFOLLOW_LINKS))
@@ -173,7 +174,7 @@ public final class ProtectionStore {
             durability.syncDirectory(parent);
             durability.syncDirectory(this.root);
             entries();
-        }
+        }}
     }
 
     public Snapshot putSnapshot(String documentId, String uri, String title, long revision, byte[] bytes, String role) throws IOException {

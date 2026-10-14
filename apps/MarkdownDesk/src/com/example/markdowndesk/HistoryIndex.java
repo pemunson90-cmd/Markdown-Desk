@@ -73,7 +73,7 @@ public final class HistoryIndex {
             throw new IOException("Index dependencies require same private parent and source");
         this.store=store;this.catalog=catalog;this.identity=identity;
         io=new HistoryMetadataIO(root,".index",0x4d444858,durability);
-        synchronized(io.lock){readAll(sources());}
+        synchronized(io.lock){if(!HistoryStorage.controlled(io.root))readAll(sources());}
     }
     /**
      * Use the native URI bound to historyId, never a content hash to infer identity.

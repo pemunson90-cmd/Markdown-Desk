@@ -25,7 +25,7 @@ public final class HistoryIdentity {
     private final HistoryMetadataIO io;
     public HistoryIdentity(File metadataRoot,ProtectionStore.Durability durability)throws IOException {
         io=new HistoryMetadataIO(metadataRoot,".identity",0x4d444849,durability);
-        synchronized(io.lock){readAll();}
+        synchronized(io.lock){if(!HistoryStorage.controlled(io.root))readAll();}
     }
     public String resolve(String exactUri,String tabId)throws IOException {
         String namespace=HistoryMetadataIO.empty(exactUri)?"TAB":"URI",alias="URI".equals(namespace)?exactUri:tabId;

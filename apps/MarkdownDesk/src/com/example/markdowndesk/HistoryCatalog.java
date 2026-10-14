@@ -61,7 +61,8 @@ public final class HistoryCatalog {
         this.store=store;this.durability=durability;
         lock=HistoryStorage.monitorFor(this.root);
         if(lock!=HistoryStorage.monitorFor(store.storageRoot()))throw new IOException("Catalog and source require same private parent");
-        synchronized(lock) {
+        synchronized(lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.administration(this.root)){
+            if(HistoryStorage.constructorReadOnly(this.root,2,null))return;
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
             if(parent==null || !Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)
@@ -71,7 +72,7 @@ public final class HistoryCatalog {
             // Retry durability even when a failed prior construction left the directory behind.
             durability.syncDirectory(parent);durability.syncDirectory(this.root);
             inventory();
-        }
+        }}
     }
 
     public Checkpoint name(String snapshotId,String label) throws IOException {
