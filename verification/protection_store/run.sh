@@ -15,7 +15,7 @@ shutil.rmtree(fixture)
 CLEANUP
 }
 trap cleanup_fixtures EXIT
-javac --release 11 -d "$OUT/classes" \
+javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/verification/protection_store/ProtectionStoreCheck.java" \

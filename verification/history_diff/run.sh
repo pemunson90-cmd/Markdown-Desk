@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/verification/build/history-diff"
 mkdir -p "$OUT/classes" "$OUT/tmp"
-javac --release 11 -d "$OUT/classes" \
+javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryDiff.java" \
