@@ -105,15 +105,11 @@ changed**. Evidence is scoped as follows:
 
 ## Remaining gates / missing inputs
 
-- Signed baseline APK unavailable: historical APK digest and public certificate
-  fingerprint are recorded but **not independently verified in this session**.
-  Do not provide private signing keys; baseline verification needs only the APK.
+- **Signed baseline APK independently verified by PM outside the Codex run**, using the archived original 2.2.5 APK and Android inspection tools; no signing credentials used. APK SHA-256 `ec5e790343b45a56f2580f3f5ec97eae3fb3096e10e012e58eb76bc89e683601` matches the pinned reference; v2 and v3 signatures verify with the single canonical signer certificate SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Package/version/min/target, 25 splash images and zipalign passed. See [PM evidence on PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9#issuecomment-6164996417). This is separately attributed evidence, **not a claim that Codex executed these APK checks**.
 - Emulator, actual phone/Fold acceptance and signed in-place upgrade checks NOT RUN.
   No connected device and no canonical signer used. No latency/memory benchmarks.
 - Screenshot/browser layout proxy and GitHub-hosted CI NOT RUN.
-- Independent read-only code review completed with no critical/important implementation defects.
-  Final release gatekeeper approval remains pending; keep PR draft, no merge,
-  no `v2.2.5-baseline` tag and no shipping APK. Issue #2/features remain untouched.
+- Independent read-only code review completed with no critical/important implementation defects. **PM approved the M0.1 unchanged-source baseline import for merge**, subject to reconciling live documents, then creating the `v2.2.5-baseline` provenance tag. Physical Fold, provider and upgrade acceptance remain unrun and are release gates for later behavior-changing APKs, not blockers to this Git import. No shipping APK is authorized by this review.
 
 ## Independent review and deferred minor
 
