@@ -8,7 +8,10 @@
   no pre-existing Markdown Desk checkout or uncommitted work was available
   in this attached environment. Other agents/environments may hold unpublished
   work; this observation does not establish their status or why an agent stopped.
-- Current branch resumes PR #13. Existing graph tests rerun with JDK17:
+- PR #13 merged at `6afd3a1491f5eb4d53ad6ede509e83070e8f076c` after
+  required hosted run38630847829 **PASS** on `e4839d2`. Current working branch
+  is `codex/m1-capacity-syntax`; all ongoing source edits were preserved through
+  the tree-identical fast-forward. Existing graph tests rerun with JDK17:
   `bash verification/history_retention/run.sh` PASS, 81 functional and
   6 constrained-memory checks. Historical full-suite/build evidence below is
   attributed to its original commits, not this fresh run.
@@ -83,7 +86,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m1-safe-retention`. The separately reviewed issue #3/#4 slice
+`codex/m1-capacity-syntax`. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not

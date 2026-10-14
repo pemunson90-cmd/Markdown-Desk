@@ -13,7 +13,7 @@ This is a **reusable session entry point**, not a one-issue task order.
 
 If task execution is interrupted by context, runtime or limits, commit a clean checkpoint and record the exact next command/task in `STATUS.md`. If an approval/hardware/private-key gate blocks a specific task, continue independent work without bypassing that gate.
 
-**Current note (2026-10-14):** PRs #9–#12 are merged; the source-only `v2.2.5-baseline` remains protected. Draft [PR #13](https://github.com/pemunson90-cmd/Markdown-Desk/pull/13) holds the retention foundation. Consult live `STATUS.md` and inspect remote heads before continuing so existing work is preserved. Device/release acceptance remains separate.
+**Current note (2026-10-14):** PRs #9–#13 are merged; the source-only `v2.2.5-baseline` remains protected. [PR #13](https://github.com/pemunson90-cmd/Markdown-Desk/pull/13) holds the merged retention foundation and line indexing. Consult live `STATUS.md` and inspect remote heads before continuing so existing work is preserved. Device/release acceptance remains separate.
 
 ## Short prompt for new Codex sessions
 

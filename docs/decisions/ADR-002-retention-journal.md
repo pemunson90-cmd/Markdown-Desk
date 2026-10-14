@@ -38,7 +38,7 @@ Add HistoryPruner.planAutomatic(requiredBytes,requiredEntries) and planSelected(
 
 Only freshly validated INDEXED_VERIFIED complete groups with unambiguous same-history ownership qualify; unindexed completions remain protected. Group closure includes completion, preparation, exclusive original/attempted snapshots, ownership .index and any explicitly selected checkpoint records. Shared snapshots or additional incoming references make the group ineligible in this first executor. Identity/provenance records are never pruned.
 
-Protect unresolved transactions, unowned/orphan snapshots, every stage, named groups, explicit keep/export/restore pins and sole local recoverable groups. Automatic retention keeps the newest indexed pair per history and the configured newest count; oldest eligible persisted sequences go first. Timestamps and equal content do not establish identity/order. Unknown/corrupt/dangling inputs block all pruning; never auto-clean them.
+Protect unresolved transactions, unowned/orphan snapshots, every stage, named groups, explicit keep/export/restore pins and sole local recoverable groups. Automatic retention always keeps the newest indexed pair per history. The configured count is a desired maximum subject to quota, not a protected minimum: count-only maintenance retains that many recent groups (at least the newest pair), while capacity pressure may reclaim older otherwise-eligible automatic groups within that count. Oldest eligible persisted sequences go first. Timestamps and equal content do not establish identity/order. Unknown/corrupt/dangling inputs block all pruning; never auto-clean them.
 
 Explicit selection can remove a named group only when ALL its checkpoint pins are selected and another fully validated local group of the SAME history survives. Export receipts are not local survivors. In this first slice even explicit selection cannot delete the newest indexed group per history: it is the fixed anchor. This also retains the global maximum index sequence, preventing current max(active)+1 allocation from reusing sequences after deletion. Removing this restriction requires a separately durable monotonic high-water protocol first.
 
@@ -78,3 +78,15 @@ partial or altered stages are retained and block retry. Exact full stages can
 retry sync/move/validation without new stage allocation. v1 committed wire bytes
 remain unchanged. Host tests and six SIGKILL retry boundaries pass; persistent
 shared capacity, dynamic quota and reduced-quota exemptions remain separate.
+
+
+2026-10-14 planning clarification: `planAutomatic(requiredBytes,requiredEntries)`
+requests minimum capacity to reclaim, with entries meaning protection-store slots.
+The caller computes the deficit from fresh combined charged usage, peak additional
+write demand and per-root limits; the planner does not guess provider/save demand.
+Plans report freed entries per root. Zero/zero is count-only maintenance.
+The desired-count/quota priority follows ADR-001's "subject to global quota":
+a hard minimum of20 would make repeated8MiB saves impossible at the default64MiB.
+Named, unresolved, orphan, shared and newest/sole-local groups remain protected.
+A planner result alone never authorizes an unlink or proves repeated saves work;
+executor, admission integration and interruption tests remain required.
