@@ -40,18 +40,21 @@ Active integration: `codex/history-execution-export`.
   IDs despite sharing a native UUID. Retries must read persisted mapping.
   This pure artifact proves no current filesystem freshness, atomic capture, pin
   publication or verified export; its default runner is registered for next gate.
-- `codex/journaled-retention` is implementing the reviewed SELECTED-only executor
-  and replay. Completed-pin compatibility review approved shared retirement state,
-  exact authority, lease-aware helpers and no-intent terminal validation. Actual
-  deletion/fault/SIGKILL source remains unverified. Automatic execution waits for
-  typed per-root capacity-demand proofs; pure previews grant no deletion authority.
-- Source-backed history controller/UI plan is in progress: list, captured named
+- Selected retention executor `367ca34` (source `c36b093`) is integrated unchanged.
+  Worker 747 behavioral and 22 memory checks passed, with 44 crash/OS-limit/
+  corruption fixtures and 88 fresh JVM reopens. Independent 25 boundary checks
+  and the reproduced bootstrap-admission defect passed after its repair. It
+  requires exact acknowledged capacity, durable intent, per-victim fresh proofs
+  and shared terminal retirement; no runtime caller or automatic execution.
+  Retained intent stages remain blocked. Its default runner is now required.
+- Independently approved controller `43f7094` is on separate
+  `codex/history-ui-integration`; guarded Activity integration is in progress: list, captured named
   revisions, bounded locked diff, startup authority and verified-save indexing.
-  No new history UI is enabled. Optional metadata must not negate successful saves;
+  No new history UI is integrated or verified yet. Optional metadata must not negate successful saves;
   legacy recovery remains separately presented.
 
-Next: verify selected execution and integrate it with the frozen manifest at one
-clean host/unsigned checkpoint, then required hosted validation. Continue the
+Next: run one clean host/two-unsigned-build checkpoint for the reviewed selected
+executor and frozen manifest, then required hosted validation. Continue the
 history controller and narrow UI integration, runtime quiescence/terminal repair,
 persisted export capture, strict import/adoption and the remaining M0–M7 campaign.
 No full M1 workflow or milestone completion is claimed.
