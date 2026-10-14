@@ -15,9 +15,8 @@ main = "com.example.markdowndesk.RestartProbe"
 points = [f"durable-{i}" for i in range(1, 13)] + [
     "provider-open", "provider-partial", "provider-written", "readback"
 ]
-for point in points:
-    with tempfile.TemporaryDirectory(prefix="protected-restart-") as root:
-        child = subprocess.Popen(["java", "-cp", classpath, main, "save", root],
+def kill_at(root, mode, point):
+        child = subprocess.Popen(["java", "-cp", classpath, main, mode, root],
                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, text=True, bufsize=1)
         try:
@@ -37,12 +36,28 @@ for point in points:
                         raise RuntimeError(f"unexpected boundary: {marker}")
                     child.stdin.write("continue\n")
                     child.stdin.flush()
-            subprocess.run(["java", "-cp", classpath, main, "verify", root, point],
-                           check=True, timeout=10)
         finally:
             if child.poll() is None:
                 child.kill()
                 child.wait(timeout=10)
             for stream in (child.stdin, child.stdout, child.stderr):
                 stream.close()
-print("PASS 16 production SIGKILL/restart boundaries; host process death, Android/power loss NOT RUN")
+
+def verify(root, point, mode="verify"):
+    subprocess.run(["java", "-cp", classpath, main, mode, root, point], check=True, timeout=10)
+
+if "--completion-retry" in sys.argv[2:]:
+    for boundary in range(1, 4):
+        with tempfile.TemporaryDirectory(prefix="completion-retry-restart-") as root:
+            kill_at(root, "save", "durable-10")
+            verify(root, "durable-10")
+            kill_at(root, "completion-retry", f"durable-{boundary}")
+            verify(root, f"durable-{boundary}", "verify-retry")
+            verify(root, f"durable-{boundary}", "verify-retry")
+    print("PASS 3 transaction-bound completion retry SIGKILL boundaries, each reopened twice")
+else:
+    for point in points:
+        with tempfile.TemporaryDirectory(prefix="protected-restart-") as root:
+            kill_at(root, "save", point)
+            verify(root, point)
+    print("PASS 16 production SIGKILL/restart boundaries; host process death, Android/power loss NOT RUN")
