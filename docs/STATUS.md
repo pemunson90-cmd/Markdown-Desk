@@ -34,7 +34,9 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
 The owner renewed the instruction to finish the entire app continuously; do not
-hand back after a successful task or PR checkpoint.
+hand back after a successful task or PR checkpoint. Remote PM changes were
+fast-forwarded through `d8d595a`; the updated AGENTS/CI policy and
+[PR #10 engineering instruction](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10#issuecomment-6171465179) govern this checkpoint.
 
 Implemented locally, independently reviewed:
 
@@ -74,35 +76,47 @@ Current observed host evidence:
   Android adapter double27assertions. Coordinator35cases/157assertions.
 - Activity save lifecycle34cases/233assertions including actual strict codec;
   recovery13cases/179assertions plus7actual UI callback/dialog assertions.
-- Full desired-safety command still exits1 on the same2unprotected low-level
-  provider truncation assertions. Production transaction/recovery assertions
-  pass separately. These outcomes are both preserved; there is no atomic URI
-  guarantee or overall green/M0 completion claim.
-- Independent CI run38581669811 passes the full behavioral preservation step
-  and fails desired safety on the same2primitive assertions; protected
-  transaction/recovery cases pass. No overall hosted green claim.
+- Production SIGKILL/restart suite PASS at16 actual store/coordinator boundaries:
+  snapshot/preparation/completion file-sync, move and directory-sync; provider
+  truncation/partial/full write and read-back. A fresh JVM validates exact original
+  and attempted bytes, transaction state and retained staging. This proves host
+  process-interruption behavior, not Android app-UID or sudden-power-loss durability.
+- The raw-provider diagnostic remains genuinely RED on two destructive-write
+  assertions, unchanged. The aggregate safety command mixes contracts and is
+  not the selected product recoverability gate. Required production recoverability
+  tests must be GREEN; no universal atomic-URI guarantee is claimed.
+- Historical independent CI run38581669811 passed preservation and failed the
+  old mixed safety step on those primitive hazards. The PM workflow now runs
+  required production host checks only when review-ready; skipped draft jobs
+  are not evidence of a passing hosted check. Updated hosted validation pending.
 - Unsigned JDK17/SDK37.0/build-tools36.0.0 build PASS; package2.2.5/code18,
   min26/target35 and25asset bytes preserved. Two fresh committed-source builds at `c326b61` PASS and match SHA-256
   `059587cbf2feb5df1b3a4183a20b7ae5a993aaabbc8d38b56a9d489f06e28b23`. No credentials, replacement key or signed release produced.
 
-Next required work:
+Next executable work:
 
-1. Publish reviewed source/evidence to the existing draft PR and verify independent CI.
+1. Restart/adapter/recovery code review is complete with no blocking findings.
+   Integrated required host suite PASS including the16 new restart cases.
+   Update the existing PR and invoke one deliberate review-ready hosted check.
    Matched host protection timing/space is recorded in
    [measurement](benchmarks/M0_PROTECTED_SAVE_HOST.md); no device budget claimed.
-2. Obtain actual Galaxy Z Fold7 device context/ADB or owner-run baseline checks.
-   Model is confirmed; guided on-phone steps were prepared after owner asked
-   what to do.
-   Android/One UI/installed-app version numbers are requested before tailored
-   checks. No ADB access or owner test results supplied yet. Current
-   Codex ADB has no connected device. See [device checklist](M0_DEVICE_ACCEPTANCE.md)
-   and `verification/device_context.py`; matched synthetic fixtures are available
-   locally under ignored `verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`.
-3. Complete M0 physical baseline/UI/durability evidence and reconcile the selected
-   recoverability guarantee with roadmap acceptance, keeping primitive limits
-   visible. Do not claim a physical, milestone or release gate passed from host
-   doubles. Preserve M0→M1 sequencing before optional history/retention, then
-   continue M1–M7 without a checkpoint handoff.
+2. Parallel local issue #3 statistics performance and issue #4 selected-control
+   accessibility work is active in isolated worktrees based on `d8d595a`.
+   Review bounded changes independently before integrating; save/recovery code
+   remains in the reviewed protection boundary. Continue eligible local work
+   rather than waiting for unrelated physical acceptance.
+3. Prepare the next history/retention/backup slice against the actual protection
+   store. Physical M0/M1 acceptance is still open; no completed milestone or
+   user-facing release is claimed from local host results.
+
+Owner-reported target: **Samsung Galaxy Z Fold7, Android16, One UI8.0**.
+The owner reported installed app version “2.25”; the exact installed package
+version/code remains unverified (protected source is2.2.5/code18). No ADB access
+or owner-run test results supplied yet; Codex has no connected device.
+See [device checklist](M0_DEVICE_ACCEPTANCE.md) and `verification/device_context.py`.
+Matched synthetic fixtures remain local under ignored
+`verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`. Physical Fold/SAF/IME/
+TalkBack/upgrade and Android filesystem durability remain distinct NOT RUN gates.
 
 Named history/diff/configurable retention, private backup/restore and M2–M7
 features are not complete. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death

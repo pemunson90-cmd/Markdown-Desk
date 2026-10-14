@@ -38,4 +38,5 @@ bash verification/protection_store/run.sh
 bash verification/protection_store/run_adapter.sh
 bash verification/save_coordinator/run.sh
 bash verification/save_coordinator/run_memory.sh
+bash verification/protection_restart/run.sh
 bash verification/split_resize/run.sh
