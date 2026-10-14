@@ -2,8 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 out="$PWD/verification/build/malformed-renderer"
-javac_bin="${JAVAC:-/workspace/.command-library-env/jdk-17.0.16+8/bin/javac}"
-java_bin="${JAVA:-/workspace/.command-library-env/jdk-17.0.16+8/bin/java}"
+javac_bin="${JAVAC:-javac}"
+java_bin="${JAVA:-java}"
 mkdir -p "$out/classes"
 "$javac_bin" --release 11 -d "$out/classes" \
   verification/stubs/android/graphics/drawable/GradientDrawable.java \

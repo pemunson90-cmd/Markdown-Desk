@@ -85,3 +85,11 @@ not establish Android provider fsync or durability guarantees. Faulting fallback
 providers explicitly model destructive `wt` open and partial writes; no result
 claims all providers behave that way. Phone/Fold/provider/device acceptance is
 **NOT RUN**.
+
+## Current M0 repair checkpoint
+
+The failure list above records the original tests-only baseline. At runtime
+checkpoint `8462f79`, oversized UTF-8/BOM/ASCII preflight and null-descriptor
+writability are repaired: `--safety` now reports3pass/2fail. The two destructive
+partial/zero-byte writes still fail unchanged-original assertions. The ordinary
+39assertion preservation suite passes. No provider/device acceptance is implied.

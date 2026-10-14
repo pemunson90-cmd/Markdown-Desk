@@ -53,7 +53,11 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 - Independent review and two fresh committed-source builds PASS at `8462f79`.
   Unsigned APK SHA-256: `e19e10d8e1c85324b4cca2bbb7d142734a5d926f87aebfdb56f53662d8dd5d9e`.
   JDK17/SDK37.0/build-tools36.0.0 reused; no dependency downloads in clean rebuild.
-  Pinned host CI is pushed for portability evidence; no hosted run observed yet.
+  Independent CI run38564454893 failed in status-test tooling: a hard-coded
+  local Java path; desired safety step was skipped. Scripts now use PATH and
+  locally pass; independent rerun pending. No hosted green claim.
+- Safe-save preparation:20model-contract tests pass, explicitly not production
+  persistence/durability proof; no existing provider assertion weakened.
 - Current next action: prepare executable pre-write protection acceptance cases
   and audit remaining accessibility/UI seams; then implement/review protection under
   ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
