@@ -1,5 +1,32 @@
 # Current project status
 
+## Current checkpoint — quota/syntax/planner integration
+
+- Verified main: `6afd3a1`, PR #13 merged after hosted run38630847829 PASS.
+- Active `codex/m1-capacity-syntax`, [draft PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14).
+  Committed syntax `c2cd90c`, shared quota `1171338`, pure planner `6d55d9a`.
+- Targeted checks PASS: syntax39,081 + production watcher/scheduler; shared quota
+  18cases/91checks +17actual host SIGKILL boundaries; planner427regular +19
+  constrained-memory assertions. Reviews found and repaired initial-registration
+  parent-sync, fresh-stage retry, graph-root binding and planner batching/ordering
+  gaps. Host Editable relocation is a model, not Android IME proof.
+- Combined `python3 verification/check_clean_rebuild.py` is running on clean
+  committed `6d55d9a`; full host/two-build evidence and review-ready CI are pending.
+  Earlier `90f258e` full evidence remains attributed to that exact revision.
+- Shared capacity is opt-in only; legacy constructor paths remain unchanged.
+  Pure planner performs no deletion. No runtime quota/history control acceptance,
+  private-backup adoption or M1 completion is claimed.
+- Exact next action: complete the current combined gate, record its actual result,
+  update PR #14 and run hosted validation when ready. Then implement explicit
+  maintenance registration/accounting from [ADR-003](decisions/ADR-003-retention-maintenance.md),
+  durable pins and journaled projection/replay before wiring runtime pruning.
+  A separate maintenance prerequisite is beginning; it is outside `6d55d9a` proof.
+- Four initial merged remote branches and merged retention branch were cleaned
+  safely; current draft branch/main and all committed history are preserved.
+  Main remains unprotected; connector administration is unavailable (403).
+- No connected device or signing inputs: Android/SAF/IME/Fold/TalkBack/canonical
+  signed upgrade remain NOT RUN. Use the single candidate matrix already prepared.
+
 ## Resume reconciliation — 2026-10-14
 
 - Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
