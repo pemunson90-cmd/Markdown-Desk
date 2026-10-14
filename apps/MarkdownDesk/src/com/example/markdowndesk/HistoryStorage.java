@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -29,6 +29,24 @@ final class HistoryStorage {
     }
     static HistoryCapacity capacity(File root)throws IOException{return ((State)monitorFor(root)).capacity;}
     static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
+    static HistoryTombstoneView readView(File root)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
+        if(state.tombstones!=null)return state.tombstones.revalidate();
+        Path control=canonicalRoot(root).getParentFile().toPath().resolve(HistoryControlStore.ROOT_NAME);
+        BasicFileAttributes directory;
+        try{directory=Files.readAttributes(control,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);}
+        catch(NoSuchFileException absent){return null;}
+        if(!directory.isDirectory())throw new IOException("Invalid history control root");
+        for(String name:Arrays.asList(HistoryPruneIntent.INTENT_NAME,HistoryPruneIntent.STAGE_NAME)){
+            try{Files.readAttributes(control.resolve(name),BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);}
+            catch(NoSuchFileException absent){continue;}
+            throw new IOException("Maintenance requires validated read projection");
+        }
+        return null;
+    }
+    static void installView(File root,HistoryTombstoneView view)throws IOException {
+        requireMutation(root);changed(root);((State)monitorFor(root)).tombstones=view;
+    }
     static boolean controlled(File root)throws IOException {
         File canonical=canonicalRoot(root);
         for(String name:Arrays.asList(HistoryControlStore.ENROLLMENT_NAME,HistoryControlStore.ENROLLMENT_STAGE)){
@@ -97,7 +115,7 @@ final class HistoryStorage {
     }
     static final class FilesView {
         final List<ProtectionStore.StoredRecord> records=new ArrayList<>();
-        final List<String> diagnostics=new ArrayList<>();long bytes;boolean usageComplete=true;
+        final List<String> diagnostics=new ArrayList<>();long bytes;int physicalEntries;boolean usageComplete=true;
     }
     static FilesView inspect(File root,String role,long maxFile,int maxEntries,Budget budget)throws IOException {
         FilesView view=new FilesView();

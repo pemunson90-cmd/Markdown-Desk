@@ -9,7 +9,8 @@ import java.util.*;
 /**
  * Pure future journal framing. No filesystem access, publication, tombstone or deletion authority.
  * Supplied policy/authorization bindings are immutable evidence, not acknowledged runtime authority.
- * The current control parser deliberately does not recognize these future names.
+ * Control discovery recognizes fixed intent names; ordinary policy reconciliation
+ * cannot promote their stages or grant publication/deletion authority.
  */
 final class HistoryPruneIntent {
     static final String INTENT_NAME="prune.intent", STAGE_NAME="prune.intent.stage";

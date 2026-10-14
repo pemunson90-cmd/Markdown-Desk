@@ -87,6 +87,7 @@ public final class ProtectionStore {
         public final List<Transaction> transactions;
         public final List<String> diagnostics;
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots;
+        public final int occupiedEntries;
         public final boolean complete, pruneBlocked, usageComplete;
         Inventory(HistoryStorage.FilesView files,Map<String,Snapshot> snapshots,Map<String,Transaction> transactions,
                   List<String> diagnostics,long bytes,long slots){
@@ -94,7 +95,7 @@ public final class ProtectionStore {
             this.snapshots=java.util.Collections.unmodifiableList(new ArrayList<>(snapshots.values()));
             this.transactions=java.util.Collections.unmodifiableList(new ArrayList<>(transactions.values()));
             this.diagnostics=java.util.Collections.unmodifiableList(new ArrayList<>(diagnostics));
-            actualBytes=files.bytes;reservedCompletionBytes=bytes;reservedCompletionSlots=slots;
+            actualBytes=files.bytes;occupiedEntries=files.physicalEntries;reservedCompletionBytes=bytes;reservedCompletionSlots=slots;
             usageComplete=files.usageComplete;complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;
         }
     }
@@ -106,8 +107,9 @@ public final class ProtectionStore {
         private final Map<String,Snapshot> snapshots=new java.util.LinkedHashMap<>();
         private final Map<String,Transaction> transactions=new java.util.LinkedHashMap<>();
         final HistoryStorage.Budget budget;
+        final HistoryTombstoneView view;
         Inventory inventory;
-        ValidatedSources(ProtectionStore owner,HistoryStorage.Budget budget)throws IOException {this.owner=owner;this.budget=budget;generation=HistoryStorage.generation(owner.root);}
+        ValidatedSources(ProtectionStore owner,HistoryStorage.Budget budget,HistoryTombstoneView view)throws IOException {this.owner=owner;this.budget=budget;this.view=view;generation=HistoryStorage.generation(owner.root);}
         void require(ProtectionStore actual)throws IOException {if(!active||owner!=actual||!Thread.holdsLock(owner.lock)||generation!=HistoryStorage.generation(owner.root))throw new IOException("Foreign or expired validated source operation");}
         Snapshot snapshot(ProtectionStore actual,String id)throws IOException {require(actual);Snapshot snapshot=snapshots.get(id);if(snapshot==null)throw new IOException("Missing validated source");return snapshot;}
         int validatedSnapshotCount()throws IOException {require(owner);return snapshots.size();}
@@ -120,12 +122,17 @@ public final class ProtectionStore {
         return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),operation);
     }
     <T> T withValidatedSources(HistoryStorage.Budget budget,SourceOperation<T> operation)throws IOException {
-        synchronized(lock){try(ValidatedSources sources=new ValidatedSources(this,budget)){inspectSources(sources);sources.require(this);T result=operation.run(sources);sources.require(this);return result;}}
+        synchronized(lock){return withValidatedSources(budget,HistoryStorage.readView(root),operation);}
+    }
+    <T> T withValidatedSources(HistoryStorage.Budget budget,HistoryTombstoneView view,SourceOperation<T> operation)throws IOException {
+        synchronized(lock){try(ValidatedSources sources=new ValidatedSources(this,budget,view)){inspectSources(sources);sources.require(this);T result=operation.run(sources);sources.require(this);return result;}}
     }
     private void inspectSources(ValidatedSources sources)throws IOException {
         HistoryStorage.FilesView files=HistoryStorage.inspect(root,"store",MAX_ENVELOPE_BYTES,MAX_ENTRIES,sources.budget);
+        files.physicalEntries=files.records.size();
+        if(sources.view!=null)sources.view.filter("store",files);
         List<String> diagnostics=new ArrayList<>(files.diagnostics);
-        try{durability.syncDirectory(root);}catch(IOException failure){diagnostics.add("store: directory validation unavailable");}
+        try{if(sources.view==null)durability.syncDirectory(root);}catch(IOException failure){diagnostics.add("store: directory validation unavailable");}
         for(StoredRecord record:files.records)if("snapshot".equals(record.kind)&&record.id!=null&&record.envelopeHash!=null){
             try{Snapshot snapshot=readSnapshot(record.id);sources.budget.charge(1024L+2L*(snapshot.id.length()+snapshot.documentId.length()+
                 (snapshot.uri==null?0:snapshot.uri.length())+(snapshot.title==null?0:snapshot.title.length())+snapshot.role.length()+snapshot.hash.length()));
@@ -272,6 +279,7 @@ public final class ProtectionStore {
     public Transaction validate(Transaction transaction) throws IOException {
         synchronized (lock) {
             if(transaction==null) throw new IOException("Missing transaction");
+            HistoryTombstoneView view=HistoryStorage.readView(root);if(view!=null)view.requireVisible("store",transaction.id+".transaction");
             entries();
             Transaction stored=readTransaction(transaction.id,false);
             if(!sameTransaction(stored,transaction)) throw new IOException("Transaction provenance mismatch");
@@ -282,12 +290,14 @@ public final class ProtectionStore {
     }
 
     public Snapshot snapshot(String id) throws IOException {
-        synchronized(lock) {entries();durability.syncDirectory(root);return readSnapshot(id);}
+        synchronized(lock) {HistoryTombstoneView view=HistoryStorage.readView(root);if(view!=null)view.requireVisible("store",id+".snapshot");
+            entries();if(view==null)durability.syncDirectory(root);return readSnapshot(id);}
     }
 
     private byte[] snapshotBytes(Snapshot snapshot) throws IOException {
         synchronized(lock) {
             entries();
+            HistoryTombstoneView view=HistoryStorage.readView(root);if(view!=null)view.requireVisible("store",snapshot.id+".snapshot");
             SnapshotData data=readSnapshotData(snapshot.id,true);
             if(!sameSnapshot(snapshot,data.snapshot)) throw new IOException("Snapshot provenance mismatch");
             return data.bytes;
@@ -297,6 +307,9 @@ public final class ProtectionStore {
     /** Enumerates snapshots independently of transaction records, including orphan attempts. */
     public List<Snapshot> snapshots() throws IOException {
         synchronized (lock) {
+            HistoryTombstoneView view=HistoryStorage.readView(root);
+            if(view!=null)return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),view,sources->{
+                if(!sources.inventory.complete)throw new IOException("Incomplete maintenance sources");return sources.inventory.snapshots;});
             File[] files=entries();
             durability.syncDirectory(root);
             List<Snapshot> result=new ArrayList<>();
@@ -308,6 +321,9 @@ public final class ProtectionStore {
     /** Invalid committed records or referenced snapshots fail explicitly. Staging is never deleted. */
     public List<Transaction> transactions() throws IOException {
         synchronized (lock) {
+            HistoryTombstoneView view=HistoryStorage.readView(root);
+            if(view!=null)return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),view,sources->{
+                if(!sources.inventory.complete)throw new IOException("Incomplete maintenance sources");return sources.inventory.transactions;});
             File[] files=entries();
             durability.syncDirectory(root);
             Map<String,Transaction> result=new HashMap<>();
@@ -616,6 +632,24 @@ public final class ProtectionStore {
             if(originalLength!=source.byteCount || attemptedLength!=edit.byteCount || !source.hash.equals(originalHash)
                     || !edit.hash.equals(attemptedHash) || !source.documentId.equals(documentId) || source.revision!=revision) throw new IOException("Transaction link mismatch");
             return new Transaction(id,source,edit,expectedHash,completion);
+        }
+    }
+    /** Maintenance-only framing/reference validation; never resolves intentionally removed sources. */
+    void validateRemoved(HistoryPruneIntent.Member member,HistoryPruneIntent.Group group)throws IOException {
+        if(member.kind==HistoryPruneIntent.Kind.SNAPSHOT){
+            Snapshot snapshot=readSnapshot(member.id);String expectedRole=group.originalSnapshotId.equals(member.id)?"original":group.attemptedSnapshotId.equals(member.id)?"attempted":null;
+            if(!snapshot.role.equals(expectedRole))throw new IOException("Invalid removed snapshot role");return;
+        }
+        boolean completion=member.kind==HistoryPruneIntent.Kind.COMPLETE;
+        if(!completion&&member.kind!=HistoryPruneIntent.Kind.TRANSACTION)throw new IOException("Invalid removed store kind");
+        try(DataInputStream in=readBody(file(member.id,completion?".complete":".transaction"),completion?COMPLETE:PREPARED)){
+            String id=readString(in),original=readString(in),attempted=readString(in),expected=readString(in);
+            int a=in.readInt();String ah=readString(in);int b=in.readInt();String bh=readString(in);
+            String document=readString(in);long revision=in.readLong();
+            if(!member.id.equals(id)||!group.transactionId.equals(id)||!group.originalSnapshotId.equals(original)||!group.attemptedSnapshotId.equals(attempted)
+                    ||a<0||a>MAX_DOCUMENT_BYTES||b<0||b>MAX_DOCUMENT_BYTES||ah==null||!ah.matches("[0-9a-f]{64}")
+                    ||bh==null||!bh.matches("[0-9a-f]{64}")||!ah.equals(expected)||document==null||document.isEmpty()||revision<0||in.available()!=0)
+                throw new IOException("Invalid removed transaction references");
         }
     }
     private void readCompletion(Transaction transaction) throws IOException {

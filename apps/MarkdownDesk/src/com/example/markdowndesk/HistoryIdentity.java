@@ -59,8 +59,11 @@ public final class HistoryIdentity {
     }
     /** Complete validated immutable metadata, suitable for background indexing; no document bytes. */
     public List<Descriptor> descriptors()throws IOException {
+        synchronized(io.lock){return descriptors(HistoryStorage.readView(io.root));}
+    }
+    List<Descriptor> descriptors(HistoryTombstoneView view)throws IOException {
         synchronized(io.lock){
-            List<Record> records=readAll();List<Descriptor> result=new ArrayList<>();
+            List<Record> records=readAll(view);List<Descriptor> result=new ArrayList<>();
             for(Record record:records)if(!"FORK".equals(record.namespace)){
                 Set<String> origins=new LinkedHashSet<>();
                 for(Record other:records)if(other.historyId.equals(record.historyId)&&!other.oldId.isEmpty())origins.add(other.oldId);
@@ -73,9 +76,10 @@ public final class HistoryIdentity {
             HistoryMetadataIO.string(out,record.namespace);HistoryMetadataIO.string(out,record.alias);HistoryMetadataIO.string(out,record.oldId);});
         io.commit(record.id,bytes,()->{});readAll();
     }
-    private List<Record> readAll()throws IOException {
+    private List<Record> readAll()throws IOException {return readAll(null);}
+    private List<Record> readAll(HistoryTombstoneView view)throws IOException {
         List<Record> records=new ArrayList<>();Set<String> aliases=new HashSet<>();Set<String> ids=new HashSet<>();
-        for(File file:io.files())try(DataInputStream in=io.body(file)){
+        for(File file:io.files(view))try(DataInputStream in=io.body(file)){
             Record record=new Record(HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),HistoryMetadataIO.string(in));
             HistoryMetadataIO.id(record.id);HistoryMetadataIO.id(record.historyId);validAlias(record.alias);
             if(!record.oldId.isEmpty())HistoryMetadataIO.id(record.oldId);

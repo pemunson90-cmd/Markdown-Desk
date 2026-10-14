@@ -53,6 +53,7 @@ public final class HistoryIndex {
         }
     }
     private static final class Sources {
+        HistoryTombstoneView view;
         final Map<String,ProtectionStore.Transaction> groups=new LinkedHashMap<>();
         final Map<String,ProtectionStore.Snapshot> snapshots=new LinkedHashMap<>();
         final Map<String,List<HistoryCatalog.Checkpoint>> names=new HashMap<>();
@@ -134,8 +135,8 @@ public final class HistoryIndex {
     private Sources sources()throws IOException {return store.withValidatedSources(this::sources);}
     private Sources sources(ProtectionStore.ValidatedSources validated)throws IOException {
         validated.require(store);if(!validated.inventory.complete)throw new IOException("Incomplete source inventory");
-        Sources sources=new Sources();
-        for(HistoryIdentity.Descriptor descriptor:identity.descriptors())sources.histories.put(descriptor.id,descriptor);
+        Sources sources=new Sources();sources.view=validated.view;
+        for(HistoryIdentity.Descriptor descriptor:identity.descriptors(validated.view))sources.histories.put(descriptor.id,descriptor);
         for(ProtectionStore.Transaction transaction:validated.inventory.transactions){
             if(sources.groups.put(transaction.id,transaction)!=null)throw new IOException("Duplicate source transaction");
         }
@@ -154,13 +155,28 @@ public final class HistoryIndex {
     }
     private List<Ownership> readAll(Sources sources)throws IOException {
         List<Ownership> records=new ArrayList<>();Set<String> groups=new HashSet<>();Set<Long> sequences=new HashSet<>();
-        for(File file:io.files())try(DataInputStream in=io.body(file)){
+        for(File file:io.files(sources.view))try(DataInputStream in=io.body(file)){
             Ownership record=new Ownership(HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),in.readLong(),new Metadata(in),new Metadata(in));
             if(in.available()!=0||!file.getName().equals(record.id+".index"))throw new IOException("History index framing mismatch");
             HistoryMetadataIO.id(record.id);HistoryMetadataIO.id(record.historyId);HistoryMetadataIO.id(record.transactionId);
             if(record.sequence<=0||!sequences.add(record.sequence)||!groups.add(record.transactionId))throw new IOException("Duplicate/conflicting history sequence or ownership");
             validate(record,sources);records.add(record);
         }return records;
+    }
+    void validateRemoved(HistoryPruneIntent.Member member,HistoryPruneIntent.Group group)throws IOException {
+        File file=new File(io.root,member.id+".index");
+        try(DataInputStream in=io.body(file)){
+            Ownership record=new Ownership(HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),HistoryMetadataIO.string(in),in.readLong(),new Metadata(in),new Metadata(in));
+            if(in.available()!=0||!member.id.equals(record.id)||!group.ownershipId.equals(record.id)||!group.historyId.equals(record.historyId)
+                    ||!group.transactionId.equals(record.transactionId)||group.sequence!=record.sequence||!group.originalSnapshotId.equals(record.original.id)
+                    ||!group.attemptedSnapshotId.equals(record.attempted.id))throw new IOException("Invalid removed ownership references");
+            validateRemovedMetadata(record.original,"original");validateRemovedMetadata(record.attempted,"attempted");
+        }
+    }
+    private static void validateRemovedMetadata(Metadata value,String role)throws IOException {
+        HistoryMetadataIO.id(value.id);
+        if(value.documentId.isEmpty()||!role.equals(value.role)||!value.hash.matches("[0-9a-f]{64}")||value.size<0||value.size>ProtectionStore.MAX_DOCUMENT_BYTES
+                ||value.revision<0||value.timestamp<0)throw new IOException("Invalid removed ownership metadata");
     }
     private static void validate(Ownership record,Sources sources)throws IOException {
         ProtectionStore.Transaction transaction=sources.groups.get(record.transactionId);HistoryIdentity.Descriptor descriptor=history(sources,record.historyId);

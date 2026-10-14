@@ -1,5 +1,50 @@
 # Current project status
 
+## Current checkpoint — maintenance recovery, 2026-10-14
+
+Main is `da52d8ba7e48a1c5342479ac2a90643d532ddbe5`: reconciled PR #14 merged
+at exact head `78bf1e5` after required hosted run38644425462 passed. Earlier
+hosted run38643656351 failed on missing `rg`; portable stub discovery was tested
+locally with `rg` absent before the passing changed-input run. No failed/skipped
+run is counted as passing. PR #15 remains merged at `2ae2930`.
+
+The source integration at `b67995d` passed the full clean required host suite and
+two audited unsigned builds matching SHA-256
+`2a7e843fa00802789874a577083b18b17a336f0c28c9992cecbb2839cf632e69`.
+Subsequent changes were documentation and host-runner portability only; app
+bytecode/identity/assets are unchanged. Existing v1 data is not migrated or
+rewritten. Shared four-root authority, typed all-writer admission, exact completion
+conversion, explicit pure pressure mode, syntax parity and inert intent framing
+are independently reviewed. None enables runtime pruning/history controls.
+
+Active source work is `codex/maintenance-projection`, with integration branch
+`codex/maintenance-integration`. The no-unlink design and RED discovery fixture
+are committed at `00c9d58`; typed intent discovery at `8ee480a` and reader/projection
+work are being reviewed. Candidate projection remains internal until stable
+control/intent and every survivor validate. Logical deletion closure must not
+remove physical charges or invent completion reservations. Installed filtering
+is revalidated per read, including same-byte replacement. A review caught the
+uninstalled-view public-read fallback; its correction passed19independent focused
+checks. Exact source review approved `9dde0b1` (tree-identical to reviewed `d8f4769`
+after canonical author metadata correction), with typed discovery `c6d7e8c`.
+Worker evidence:65cases/578assertions, codec73/103, an8MiB member at128MiB
+heap/32MiB held, and7synthetic interruption states reopened in14fresh JVMs.
+These are read-only projection observations, not executor SIGKILL/unlink proof.
+Combined integration gate **PASS** at `98577d5a45e001911454fa6dbcbff03135aa5ba1`:
+full required host suite once from clean committed source and two audited unsigned
+builds matching SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
+Package2.2.5/code18/min26/target35 and all25assets preserved; no signing inputs.
+Required hosted validation is pending before source merge.
+
+Next: publish the verified recovery slice and complete its required hosted gate. Durable pins,
+intent publication and unlink/replay execution remain separate prerequisites;
+continue backup/import, runtime history and eligible M2–M7 work afterward.
+No milestone, installable APK, physical Fold7/Android16/OneUI8, SAF/IME/TalkBack,
+power-loss, signing or upgrade acceptance is claimed. Raw-provider hazards remain
+unchanged separate RED diagnostics. All25artwork assets stay owner-approved.
+
+## Merged PR #14 integration evidence — historical checkpoint
+
 ## Current integration checkpoint — shared authority and syntax, 2026-10-14
 
 Main is `2ae2930`: PR #15 merged after required hosted run38635569038 passed on
@@ -194,7 +239,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/capacity-syntax-integration`, preparing the reconciled [draft PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14). PR #15 is merged; current evidence is recorded above. Draft skipped CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
+`codex/maintenance-integration`, collecting the independently owned recovery projection. PRs #14/#15 are merged; current evidence is recorded above. Draft skipped CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -344,7 +389,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   finish review-ready hosted validation for the locally verified reconciled PR14, then implement journaled maintenance before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
+   finish intent-aware recovery projection, then durable pins and journaled maintenance before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded

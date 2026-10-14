@@ -16,6 +16,9 @@ CLEANUP
 }
 trap cleanup_fixtures EXIT
 SRC="$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk"
-javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/classes" "$SRC/HistoryPruneIntent.java" "$ROOT/verification/history_maintenance/IntentCodecCheck.java"
+javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/classes" "$SRC/HistoryPruneIntent.java" "$SRC/HistoryMaintenanceRecovery.java" "$ROOT/verification/history_maintenance/IntentCodecCheck.java" "$ROOT/verification/history_maintenance/MaintenanceRecoveryCheck.java" "$ROOT/verification/history_maintenance/MaintenanceRestartProbe.java"
 java -Xmx128m -Djava.io.tmpdir="$FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.IntentCodecCheck
 java -Xmx128m -Djava.io.tmpdir="$FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.IntentCodecCheck memory
+java -Xmx128m -Djava.io.tmpdir="$FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.MaintenanceRecoveryCheck
+java -Xmx128m -Djava.io.tmpdir="$FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.MaintenanceRecoveryCheck memory
+python3 "$ROOT/verification/history_maintenance/run_restart.py"
