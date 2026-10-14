@@ -42,7 +42,13 @@ Active independent work:
   counts. Worker29delivery+94existing assertions and independent22concurrency
   checks passed; baseline100held callbacks became1in the independent probe.
   Posted closures retain counts/keys, not full source. Both bounded workers are
-  independently approved; the combined clean host/unsigned gate is next.
+  independently approved. Combined clean gate PASS at
+  `f0527060da0fefbbeda3ffb82dad323db4d45a69`: required host suite once, then
+  two audited unsigned builds matching SHA-256
+  `eb1a95566fb8520c2de317e4c187bfec7fa166dda7e481bdc1bac414c442ac07`.
+  No signing inputs or downloads; identity/assets preserved. Scoped tracked-file
+  credential scan348files/0matches is a pattern check, not a whole-history proof.
+  Required hosted validation is pending before this performance source merge.
 
 Next: verify and integrate the preview change while implementing reviewed durable
 pins; then intent publication and explicit journaled retention, backup/import and
