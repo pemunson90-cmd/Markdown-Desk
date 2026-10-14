@@ -53,8 +53,12 @@ final class HistoryMetadataIO {
         result.files.sort(Comparator.comparing(File::getName));return result;
     }
     List<File> files()throws IOException {
-        Inventory inventory=inventory();durability.syncDirectory(root);
+        return files(null);
+    }
+    List<File> files(HistoryTombstoneView view)throws IOException {
+        Inventory inventory=inventory();if(view==null)durability.syncDirectory(root);
         for(File file:inventory.files)if(file.getName().endsWith(".stage"))throw new IOException("Uncommitted history metadata retained; enumeration blocked");
+        if(view!=null)inventory.files.removeIf(file->view.contains(extension.equals(".identity")?"identity":"index",file.getName()));
         return inventory.files;
     }
     byte[] encode(Writer writer)throws IOException {

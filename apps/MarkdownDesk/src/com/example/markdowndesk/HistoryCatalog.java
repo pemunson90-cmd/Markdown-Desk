@@ -136,12 +136,13 @@ public final class HistoryCatalog {
     List<Checkpoint> allAgainstValidatedSnapshots(ProtectionStore.ValidatedSources sources)throws IOException {
         sources.require(store);
         if(!sources.inventory.complete)throw new IOException("Incomplete validated source inventory");
-        Inventory inventory=inventory();durability.syncDirectory(root);List<Checkpoint> result=new ArrayList<>();
+        Inventory inventory=inventory();if(sources.view==null)durability.syncDirectory(root);List<Checkpoint> result=new ArrayList<>();
         for(File entry:inventory.files){if(entry.getName().endsWith(".stage"))throw new IOException("Retained checkpoint stage");
-            result.add(decodeAndValidate(entry,readRecord(entry),sources));}
+            if(sources.view==null||!sources.view.contains("catalog",entry.getName()))result.add(decodeAndValidate(entry,readRecord(entry),sources));}
         return Collections.unmodifiableList(result);
     }
     private List<Checkpoint> readAll() throws IOException {
+        if(HistoryStorage.readView(root)!=null)return all();
         Inventory inventory=inventory();
         durability.syncDirectory(root);
         List<Checkpoint> result=new ArrayList<>();
@@ -184,6 +185,10 @@ public final class HistoryCatalog {
     private Checkpoint readCheckpoint(File file) throws IOException {return decodeAndValidate(file,readRecord(file));}
     private Checkpoint decodeAndValidate(File file,byte[] raw) throws IOException {return decodeAndValidate(file,raw,null);}
     private Checkpoint decodeAndValidate(File file,byte[] raw,ProtectionStore.ValidatedSources sources) throws IOException {
+        Checkpoint checkpoint=decodeRemoved(file,raw);
+        if(sources==null)validateSource(checkpoint);else validateSource(checkpoint,sources.snapshot(store,checkpoint.snapshotId));return checkpoint;
+    }
+    private Checkpoint decodeRemoved(File file,byte[] raw)throws IOException {
         byte[] expected=Arrays.copyOfRange(raw,raw.length-32,raw.length);
         if(!MessageDigest.isEqual(expected,sha(Arrays.copyOf(raw,raw.length-32))))throw new IOException("Checkpoint checksum mismatch");
         try(DataInputStream in=new DataInputStream(new ByteArrayInputStream(raw,0,raw.length-32))) {
@@ -193,8 +198,14 @@ public final class HistoryCatalog {
                     readString(in,MAX_STRING_BYTES),readString(in,MAX_STRING_BYTES),readString(in,MAX_LABEL_BYTES),in.readLong());
             if(in.available()!=0 || !file.getName().equals(checkpoint.id+".checkpoint"))throw new IOException("Checkpoint identity/framing mismatch");
             validate(checkpoint);
-            if(sources==null)validateSource(checkpoint);else validateSource(checkpoint,sources.snapshot(store,checkpoint.snapshotId));return checkpoint;
+            return checkpoint;
         }
+    }
+    void validateRemoved(HistoryPruneIntent.Member member,HistoryPruneIntent.Group group)throws IOException {
+        File file=file(member.id,".checkpoint");Checkpoint checkpoint=decodeRemoved(file,readRecord(file));
+        boolean reference=false;for(HistoryPruneIntent.Reference edge:group.references)if(edge.source().equals(member.key())&&edge.target().equals("store/"+checkpoint.snapshotId+".snapshot"))reference=true;
+        if(!group.checkpointIds.contains(checkpoint.id)||!reference)
+            throw new IOException("Invalid removed checkpoint reference");
     }
     private byte[] readRecord(File file) throws IOException {
         checkAncestors(root.toPath());

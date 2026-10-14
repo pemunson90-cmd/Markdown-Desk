@@ -1,40 +1,71 @@
-# Inert history prune-intent codec
+# Bounded history maintenance recovery projection
 
 Run with the installed JDK17:
 
 ```sh
-PATH="$JAVA_HOME/bin:$PATH" bash verification/history_maintenance/run.sh
+PATH="/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH" bash verification/history_maintenance/run.sh
 ```
 
-This host fixture uses actual native store/catalog/identity/index writes and fresh
-production graph/planner scans. It checks pressure, floor and selected proof
-round trips, full native envelope hashes/lengths, fixed anchors, URI/TAB identity
-routing and Save As provenance, explicit authorization, immutable copies, repaired
-checksum attacks on framing/roles/UUIDs/duplicate members/reference closure/anchor
-order/capacity/count0/UTF8, and the complete 64KiB envelope limit. The memory process
-uses an 8MiB native source with a 128MiB heap and 32MiB retained headroom, then grows
-a native selected proof until framing and authority overhead make the complete
-intent exceed 64KiB while its preview proof still fits. Payload bytes never enter
-the intent. The fixture checks that native v1 bytes remain unchanged.
+This host suite exercises the actual native store, catalog, identity, index,
+graph, control and inert intent codec. It covers discovery, isolated candidate
+validation, read-only installation, every public reader boundary, physical
+accounting, hostile native references, authority drift and synthetic interrupted
+removals. The restart driver opens seven intact/partial/all-absent fixtures in two
+fresh JVMs each and compares exact survivors and all disk hashes. These are
+synthetic retained-intent fixtures, **not** executor, unlink or SIGKILL acceptance.
 
-`HistoryPruneIntent` is package-private and has no runtime caller or filesystem
-operation. `create` receives an immutable validated graph snapshot, an exact
-preview, separate immutable policy binding, explicit exact authorization and a
-supplied unaffected fingerprint. It requires the graph/profile/policy and preview
-fingerprint/selected IDs to match. The binding is codec evidence: supplying it is
-not acknowledgement of durable policy or permission to delete. The unaffected
-fingerprint is carried unchanged; computing and validating the future graph with
-the complete deletion closure excluded belongs to reviewed maintenance integration.
-Checksums establish byte integrity, not the origin of authorization.
+`HistoryControlStore` recognizes only `history_control/prune.intent` and
+`prune.intent.stage`, retaining typed evidence independently of the policy chain.
+Both names, enrollment/marker stages, registration and policy share the existing
+1MiB/256-entry administrative allowance. Registration and policy remain capped at
+16KiB; complete intent framing is capped at64KiB/256members. Ordinary reconciliation
+rejects either intent name before any control-stage promotion. Public readers
+reject active intent/stage evidence until dedicated recovery succeeds, including
+malformed, unreadable, symlink and directory artifacts.
 
-The future names are `history_control/prune.intent` and
-`history_control/prune.intent.stage`. The existing control parser still treats
-these as unknown entries and its 16KiB registration/policy cap remains unchanged.
-This slice implements no maintenance open/discovery, live pin authority,
-publication, tombstone-aware readers, replay, executor, sync or unlink. The
-separately planned 1MiB/256-entry control allowance and durable policy/controller
-prerequisites remain necessary before any future integration. No device or
-process-death deletion acceptance is claimed.
+Package-private `HistoryMaintenanceRecovery.open(store,catalog,identity,index,
+durability)` acquires the parent monitor and existing mutation lease. It validates
+exact registered roots, bootstrap hint, enrollment, current policy, committed
+intent, all still-present removed members, anchors, identities and survivors.
+Only `NoSuchFileException` explains a removed member's absence. Native removed
+reference parsers verify framing, checksums and exact proof edges even when the
+referenced source is already absent. Unknown files and all retained stages block.
+
+The candidate flows explicitly through internal source/metadata reader overloads;
+it never becomes provisional global authority. After validation, control files
+are synced through read-only descriptors and parent/role/control directories are
+synced. A fresh callback-free validation follows the **last** callback before
+installation. Reentrant ordinary reads remain blocked and nested writers fail.
+Failures preserve the existing installed capability and capacity acknowledgement.
+The opener never enables writers, publishes files, promotes stages or unlinks.
+
+The installed `HistoryTombstoneView` is a filtering capability, not a validation
+cache. Each public read rebinds to the current control chain/intent and rebuilds a
+fresh survivor proof. Every present removed member is checked against its exact
+length/full-envelope SHA256 and captured file identity before it can be hidden.
+Same-byte replacements of members, controls or registered directories invalidate
+the capability. Exact members may become genuinely absent. Logical inventories,
+reservations, direct lookups, catalog pins and index lists consistently exclude
+the entire validated closure; actual bytes and occupied slots still report disk
+usage. No mixed physical-record/logical-transaction graph is constructed.
+
+`unaffectedFingerprint(graph, closure)` uses one canonical
+`history-maintenance-unaffected-v1` domain before intent creation and after partial
+removal: ordered registered role names, sorted surviving native envelope
+descriptors, surviving semantic edges, identities/provenance and outstanding
+reservations. It excludes the **entire** closure regardless of physical presence,
+desired profile, constructor hint, physical usage and all transient control or
+maintenance usage. Stable policy authority binds separately in the intent.
+
+Boundary coverage includes a valid intent larger than16KiB, exact256-entry control
+usage including enrollment, overflow/oversized sparse input, and streamed8MiB
+native members with a128MiB heap and32MiB retained headroom. The original codec
+suite retains pressure/floor/selected proof roundtrips, repaired-checksum attacks,
+canonical framing/identity validation and the complete64KiB limit. Native v1
+bytes are checked unchanged. No Activity/provider/coordinator/archive integration,
+intent publication, pins, deletion executor or runtime activation is included.
+Physical Android/SAF/Fold/TalkBack, sudden power loss, signing and upgrade gates
+remain **NOT RUN**.
 
 The v1 big-endian envelope has a 12-byte header (`MDHP` magic, int version1,
 int body length), a bounded body, and SHA256 of header plus body. Total size,

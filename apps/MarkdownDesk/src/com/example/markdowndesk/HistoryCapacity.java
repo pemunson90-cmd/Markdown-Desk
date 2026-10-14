@@ -13,7 +13,7 @@ public final class HistoryCapacity {
         public final String bundleId,controlRecordHash;
         public final long generation,quotaBytes;
         public final int automaticCount;
-        private EffectivePolicy(HistoryControlStore.Record record){bundleId=record.bundleId.toString();generation=record.generation;controlRecordHash=record.envelopeHash;quotaBytes=record.quotaBytes;automaticCount=record.automaticCount;}
+        EffectivePolicy(HistoryControlStore.Record record){bundleId=record.bundleId.toString();generation=record.generation;controlRecordHash=record.envelopeHash;quotaBytes=record.quotaBytes;automaticCount=record.automaticCount;}
     }
     public static final class Usage {
         public final long dataActualBytes,completionReservedBytes,completionReservedSlots,dataChargedBytes,controlActualBytes;

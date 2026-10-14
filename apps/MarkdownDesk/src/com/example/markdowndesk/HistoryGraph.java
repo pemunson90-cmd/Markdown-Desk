@@ -15,6 +15,8 @@ public final class HistoryGraph {
     }
     public static final class Graph {
         public final List<ProtectionStore.StoredRecord> records;
+        final List<String> registeredRoleNames;
+        public final int occupiedEntries;
         public final List<ProtectionStore.Snapshot> snapshots;
         public final List<ProtectionStore.Transaction> transactions;
         public final List<HistoryCatalog.Checkpoint> checkpoints;
@@ -33,6 +35,7 @@ public final class HistoryGraph {
         public final long controlActualBytes;
         public final int controlActualEntries;
         private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
+            registeredRoleNames=freeze(builder.roleNames);occupiedEntries=builder.occupied;
             records=freeze(builder.records);snapshots=freeze(builder.snapshots);transactions=freeze(builder.transactions);
             checkpoints=freeze(builder.checkpoints);identities=freeze(builder.identities);ownerships=freeze(builder.ownerships);
             pinnedSnapshotIds=freezeSet(builder.pins);orphanSnapshotIds=freezeSet(builder.orphans);unresolvedTransactionIds=freezeSet(builder.unresolved);
@@ -52,6 +55,7 @@ public final class HistoryGraph {
         final List<Ownership> ownerships=new ArrayList<>();
         final List<String> diagnostics=new ArrayList<>();
         final Set<String> pins=new TreeSet<>(),orphans=new TreeSet<>(),unresolved=new TreeSet<>(),unindexed=new TreeSet<>(),protectedSources=new TreeSet<>();
+        final List<String> roleNames=new ArrayList<>();int occupied;
         long actual,reserved,slots,charged;boolean usageComplete=true;
         HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;
     }
@@ -73,38 +77,45 @@ public final class HistoryGraph {
         monitor=HistoryStorage.monitorFor(store.storageRoot());
     }
     public Graph scan()throws IOException {
+        synchronized(monitor){return scan(HistoryStorage.readView(store.storageRoot()));}
+    }
+    Graph scan(HistoryTombstoneView view)throws IOException {
         synchronized(monitor){
             HistoryStorage.siblings(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
             HistoryStorage.Budget budget=new HistoryStorage.Budget(metadataBudget);
-            return store.withValidatedSources(budget,sources->{
+            return store.withValidatedSources(budget,view,sources->{
                 Builder builder=new Builder();
+                for(File role:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))builder.roleNames.add(role.getName());
                 try{
                     if(HistoryStorage.controlled(store.storageRoot())){
                         builder.control=new HistoryControlStore(store.storageRoot().getParentFile()).inspect();
-                        builder.diagnostics.addAll(builder.control.diagnostics);builder.usageComplete&=builder.control.usageComplete;
+                        if(view==null)builder.diagnostics.addAll(builder.control.diagnostics);builder.usageComplete&=builder.control.usageComplete;
                         HistoryCapacity capacity=HistoryStorage.capacity(store.storageRoot());
                         builder.effective=capacity==null?null:capacity.graphPolicy(builder.control,store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
+                        if(view!=null)builder.effective=new HistoryCapacity.EffectivePolicy(builder.control.latest);
                         if(builder.effective==null)builder.diagnostics.add("graph: authority requires reconciliation");
                     }
                 }catch(IOException invalid){builder.diagnostics.add("graph: control unavailable");builder.usageComplete=false;}
                 ProtectionStore.Inventory inventory=sources.inventory;
+                builder.occupied=inventory.occupiedEntries;
                 builder.records.addAll(inventory.records);builder.snapshots.addAll(inventory.snapshots);builder.transactions.addAll(inventory.transactions);
                 builder.diagnostics.addAll(inventory.diagnostics);builder.actual=inventory.actualBytes;builder.reserved=inventory.reservedCompletionBytes;
                 builder.slots=inventory.reservedCompletionSlots;builder.usageComplete&=inventory.usageComplete;
                 boolean metadataValid=true;
                 for(String role:Arrays.asList("catalog","identity","index")){
                     File root="catalog".equals(role)?catalog.storageRoot():"identity".equals(role)?identity.storageRoot():index.storageRoot();
-                    HistoryStorage.FilesView view=HistoryStorage.inspect(root,role,HistoryMetadataIO.MAX_RECORD,HistoryMetadataIO.MAX_ENTRIES,budget);
-                    builder.records.addAll(view.records);builder.diagnostics.addAll(view.diagnostics);builder.usageComplete&=view.usageComplete;
-                    try{builder.actual=Math.addExact(builder.actual,view.bytes);
+                    HistoryStorage.FilesView files=HistoryStorage.inspect(root,role,HistoryMetadataIO.MAX_RECORD,HistoryMetadataIO.MAX_ENTRIES,budget);
+                    builder.occupied+=files.records.size();if(view!=null)view.filter(role,files);
+                    builder.records.addAll(files.records);builder.diagnostics.addAll(files.diagnostics);builder.usageComplete&=files.usageComplete;
+                    try{builder.actual=Math.addExact(builder.actual,files.bytes);
                         // Covers decoded strings, maps, reference lists, immutable copies and fingerprint buffers.
-                        budget.charge(Math.addExact(Math.multiplyExact(view.bytes,8),view.records.size()*2048L));
+                        budget.charge(Math.addExact(Math.multiplyExact(files.bytes,8),files.records.size()*2048L));
                     }catch(IOException|ArithmeticException exceeded){builder.diagnostics.add(role+": metadata budget or accounting limit");metadataValid=false;}
-                    metadataValid&=view.diagnostics.isEmpty()&&view.usageComplete;
+                    metadataValid&=files.diagnostics.isEmpty()&&files.usageComplete;
                 }
                 if(metadataValid&&inventory.complete){
                     try{builder.checkpoints.addAll(catalog.allAgainstValidatedSnapshots(sources));
-                        builder.identities.addAll(identity.descriptors());
+                        builder.identities.addAll(identity.descriptors(view));
                         for(HistoryIndex.Ownership record:index.ownershipsAgainst(sources))builder.ownerships.add(new Ownership(record));
                     }catch(IOException invalid){builder.diagnostics.add("graph: invalid metadata links");}
                 }else builder.diagnostics.add("graph: incomplete metadata proof");
