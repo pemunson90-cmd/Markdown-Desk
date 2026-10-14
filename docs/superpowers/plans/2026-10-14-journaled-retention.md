@@ -12,7 +12,7 @@ Implement a package-private HistoryMaintenanceExecutor over the exact existing
 store/catalog/identity/index bundle and its acknowledged HistoryCapacity. No
 Activity, provider, save coordinator, native envelope or policy-format rewrite.
 The first executor implements SELECTED deletion only and rejects both automatic
-modes. Pressure execution waits for a typed per-root admission-demand protocol;
+modes, including replay of retained automatic-mode intents. Pressure execution waits for a typed per-root admission-demand protocol;
 aggregate reclaimed entries cannot prove a requesting root has capacity. A pure
 caller profile is never deletion authority. Require all of:
 
@@ -135,4 +135,6 @@ existing pure previews remain available without execution authority.
 
 Independent plan review at463983b identified terminal-state, typed-demand and
 exact-authority gaps above. This revision addresses the selected-only contract;
-re-review against completed pin source is still required before code.
+independent revised-plan review approved bdd95ed, with SELECTED-only enforcement
+required for replay too. Compatibility review against completed pin source is
+still required before code.
