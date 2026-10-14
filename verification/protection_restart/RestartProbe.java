@@ -49,8 +49,18 @@ public final class RestartProbe {
                     "Synthetic.md",7,EDITED,EditorTools.sha256(ORIGINAL),null,false),provider);
             throw new AssertionError("Parent should kill before save returns");
         }
+        if("completion-retry".equals(args[0])) {
+            List<ProtectionStore.Transaction> pending=store.transactions();
+            require(pending.size()==1&&!pending.get(0).verified,"one pending retry source");
+            File stage=root.resolve("protection").resolve(pending.get(0).id+".completion-stage").toFile();
+            require(stage.isFile(),"retry reuses transaction-bound stage");
+            disk.armed=true;store.complete(pending.get(0));
+            throw new AssertionError("Parent should kill before explicit completion retry returns");
+        }
         String point=args[2];
-        int durable=point.startsWith("durable-")?Integer.parseInt(point.substring(8)):0;
+        boolean retry="verify-retry".equals(args[0]);
+        int retryBoundary=retry?Integer.parseInt(point.substring("durable-".length())):0;
+        int durable=retry?(retryBoundary==1?10:12):point.startsWith("durable-")?Integer.parseInt(point.substring(8)):0;
         boolean mutated=point.startsWith("provider-")||point.equals("readback")||durable>=10;
         byte[] expected=point.equals("provider-open")?new byte[0]:point.equals("provider-partial")?
                 Arrays.copyOf(EDITED,2):mutated?EDITED:ORIGINAL;
@@ -71,6 +81,15 @@ public final class RestartProbe {
             require(Arrays.equals(ORIGINAL,transaction.original.bytes()),"original survives interrupted save");
             require(Arrays.equals(EDITED,transaction.attempted.bytes()),"edit survives interrupted save");
             require(transaction.verified==(durable>=11),"completion only after exact readback and record commit");
+        }
+        if(retry) {
+            ProtectionStore.Transaction transaction=transactions.get(0);
+            Path stage=root.resolve("protection").resolve(transaction.id+".completion-stage");
+            require(Files.exists(stage)==(retryBoundary==1),"only the existing stage survives before retry move");
+            ProtectionStore.Inventory inventory=store.inspect();
+            require(inventory.reservedCompletionBytes==0&&inventory.reservedCompletionSlots==0,
+                    "full stage or completed record spends reservation exactly once");
+            require(inventory.records.size()==4,"retry creates no extra anonymous stage or record");
         }
         // Re-enumerating must not delete interrupted staging or immutable records.
         long before;

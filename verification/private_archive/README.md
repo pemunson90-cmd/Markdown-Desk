@@ -1,7 +1,7 @@
 # Private archive codec: local preparation only
 
-`PrivateArchive` is an independent Java11 streaming backend. It is not registered
-in the host runner or exposed by Activity. It neither exports provider destinations
+`PrivateArchive` is a Java11 streaming backend registered in the host runner,
+without Activity exposure. It neither exports provider destinations
 nor imports, promotes, prunes or changes live state. This slice does not establish
 M1 completion, a successful backup receipt, or device acceptance.
 
@@ -12,8 +12,9 @@ PATH=/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH bash verification/p
 ```
 
 `codec` selects framing/fault/resource checks; `memory` selects the constrained
-heap and total-length checks. The runner compiles the actual production class
-with `javac --release 11`, without Android doubles or external dependencies.
+heap and total-length checks. The runner compiles the actual production codec
+and history persistence classes with `javac --release 11`, without Android doubles
+or external dependencies. The codec target also verifies a native ownership envelope.
 Generated classes/temporary synthetic archives stay in ignored `verification/build`.
 Small corrupt fixtures use arrays only in tests; large fixtures never materialize
 a document or archive in memory.
@@ -51,6 +52,15 @@ Concatenated archives fail the trailing-byte check.
 | 6 | Session tab | 8,388,608 + 32,768 |
 | 7 | Recovery | 8,388,608 + 32,768 |
 | 8 | Preferences | 65,536 |
+| 9 | Ownership index | 65,536 |
+
+`INDEX` (ID9) carries the complete native `HistoryIndex` `.index` envelope,
+including its metadata framing and checksum, as opaque bounded metadata. The
+archive magic, version1 and existing IDs1–8 are unchanged. Readers that predate
+ID9 reject archives containing it as an unknown category; old archives remain
+readable. This category enables later adapters to preserve ownership/order records
+but supplies no typed decoder, reference remapping, graph validation or adoption.
+Complete-history export/import roundtrip still requires those separate workflows.
 
 The complete accepted stream is capped at 1,073,741,824 bytes, including terminal,
 with at most 65,536 entries. A separate 16,777,216-byte metadata index budget
@@ -104,7 +114,7 @@ cannot observe an error occurring after its caller flushes/closes an output.
 
 ## Evidence and limits
 
-Tests cover all eight categories and exact BOM/CRLF/Unicode bytes, true zero-record
+Tests cover all nine categories and exact BOM/CRLF/Unicode bytes, true zero-record
 archives, every truncation byte in a small fixture, independently forged framing,
 valid metadata changes covered by terminal digest, invalid UUIDs, unknown magic/
 version/type/marker, overflow/oversize declarations, duplicate IDs, payload/terminal
@@ -114,6 +124,15 @@ close failures on both passes, enumeration/open/read/output failures, changed
 sources, sink begin/write/finish errors and suppressed cleanup failures. Each
 output-failure position leaves an archive that cannot verify. A missing or bad
 terminal can follow completed staging callbacks and still prevents a summary.
+
+The INDEX target writes a real ownership record through production
+`ProtectionStore`, `HistoryIdentity`, `HistoryCatalog` and `HistoryIndex`, streams
+the complete `.index` envelope through the codec, checks exact output bytes and
+matching summaries, and reopens the unchanged native ownership record. It also
+checks independent IDs1–9 frames, the exact64KiB metadata cap, rejection of
+oversized/overflow lengths before opening sources or staging sinks, unknown types,
+and payload/terminal faults. This proves envelope framing preservation only; it
+does not reconstruct a history graph from the archive or import the received bytes.
 
 The memory target uses `-Xmx128m`, retains 32MiB of filled arrays throughout,
 roundtrips 20 generated near-limit snapshot entries (168,427,380 payload bytes)

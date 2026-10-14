@@ -1,6 +1,46 @@
 # Current project status
 
-## Resume reconciliation — 2026-10-14
+## Current integration checkpoint — 2026-10-14
+
+Remote [PR #13](https://github.com/pemunson90-cmd/Markdown-Desk/pull/13)
+merged independently at `6afd3a1` after hosted run38630847829 passed on `e4839d2`.
+Reviewed work absent from that merge is preserved with all remote fixtures in
+[PR #15](https://github.com/pemunson90-cmd/Markdown-Desk/pull/15), branch
+`codex/reconciled-retention-editor`: stronger native completion durability,
+read-only control codec, pure no-deletion planner, INDEX framing and dense-editor fix.
+
+Clean committed-source verification **PASS** at `0621202`: required full host
+suite once, two audited unsigned builds matching SHA-256
+`2957c32061cb072fda8bb3bcbf640ba2768113f2cfef2cbb663c5fc77f16f216`.
+Published `8ad0c2b` has the identical source tree; only unpublished author emails
+were protected after GitHub's privacy rejection. No published history was rewritten.
+The combined gate includes both environments' completion tests and all required
+production recovery paths. Raw-provider hazard assertions remain separate and unchanged.
+
+Review reproduced heap failures opening an 8MiB LF-only document and pasting
+almost all its lines. Exact two-pass reset/large-paste allocation and capped
+array slack now pass 46,564 assertions/3,000 edits plus eight LF-dense checks
+at 128MiB heap/32MiB held. Independent reviewer reproduced the formerly failing
+paste and confirmed the fix. Historical `90f258e` timings below predate the fix;
+Android Editable/IME/Fold acceptance remains NOT RUN.
+
+Draft [PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14) is a
+parallel environment's capacity/syntax implementation. Review of its capacity
+commit `1171338` reproduced blocked-policy completion, callback reentrant writes,
+equal-byte unsynced policy-inode acknowledgement and fresh-process legacy fallback
+when its sole enrollment directory is missing. Its alternate control allowance
+also conflicts with ADR-002. Do not integrate that authority as verified.
+The separate `codex/shared-history-capacity` controller is completing all-writer
+hooks, durable enrollment evidence, effective graph policy and restart tests;
+partial tests are not acceptance. Independent runtime-syntax review and explicit
+pure quota-pressure planning continue in separate owned worktrees.
+
+Next: required hosted validation for PR #15 once final docs/privacy checks finish;
+complete and review one coherent capacity authority before enabling it, reconcile
+verified PR #14 syntax, then journaled retention, verified backup/import and history UI.
+No installable release or milestone/device/signing acceptance is claimed.
+
+## Independent-environment snapshot — historical evidence, 2026-10-14
 
 - Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
   and preserved draft PR #13 at `0918e76` on `codex/m1-safe-retention`.
@@ -8,7 +48,7 @@
   no pre-existing Markdown Desk checkout or uncommitted work was available
   in this attached environment. Other agents/environments may hold unpublished
   work; this observation does not establish their status or why an agent stopped.
-- Current branch resumes PR #13. Existing graph tests rerun with JDK17:
+- This separately observed snapshot predates the combined reconciliation below. That snapshot resumed PR #13. Existing graph tests rerun with JDK17:
   `bash verification/history_retention/run.sh` PASS, 81 functional and
   6 constrained-memory checks. Historical full-suite/build evidence below is
   attributed to its original commits, not this fresh run.
@@ -49,6 +89,14 @@
 - Installed platform-tools reports zero connected devices. Physical Android,
   SAF, IME, Fold, TalkBack and canonical signed upgrade remain **NOT RUN**.
 
+The independent `90f258e` build above does not cover the latest combined source.
+Reconciliation retains the more thoroughly reviewed `b511fee` completion path
+(inode checks, read-only stage retry and same-target recursion guard), plus all
+independent completion fixtures and line-index work. Root review reproduced a
+bounded-heap regressions in the new line index; the reviewed correction above
+requires fresh combined validation before the follow-up becomes review-ready. No work or
+historical evidence is discarded; no force-push is used.
+
 ## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merged/tagged
 
 As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d516`, source tag `v2.2.5-baseline`; completed
@@ -83,7 +131,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m1-safe-retention`. The separately reviewed issue #3/#4 slice
+`codex/reconciled-retention-editor`, [PR #15](https://github.com/pemunson90-cmd/Markdown-Desk/pull/15). PR #13 merged independently; the current combined evidence is recorded above. Draft skipped CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -128,7 +176,7 @@ Merged foundation evidence (production save/UI paths unchanged by the new backen
   42Split UI +8ratio assertions;10inventory checker tests. New issue #3/#4
   scoped suites PASS. Combined required host suite PASS from clean committed
   source at `727112133d556f44c68cdb11b95afade8a4880c6`.
-- Production store19cases/96assertions plus3real OS write-limit assertions;
+- Production store31cases/272assertions plus3real OS snapshot write-limit assertions and11zero-prefix/11partial-prefix completion assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
 - Activity save lifecycle34cases/233assertions including actual strict codec (previously six Save As cases required the separate `--safety` invocation; the current runner now includes all34);
   recovery13cases/179assertions plus7actual UI callback/dialog assertions.
@@ -201,9 +249,26 @@ Current retention slice, independently reviewed at `f244e0e` (Task3A1):
 - A bounded operation-scoped validated-source cache avoids repeated checkpoint
   payload hashing; generation checks before and after callbacks reject mutation.
   Independent review caught and fixed a stale proof and an API33-only sink.
-- Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
+- Scoped tests PASS:94 functional +6 constrained-memory checks (including completion staging); affected native
   store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
   cases/233assertions PASS locally after required-runner registration. Clean committed-source host suite PASS at `904d7bfb9dcf8a9721930aae745c79df4eef2814`; two genuinely unsigned builds PASS and match SHA-256 `4caf117b90159dbbbb9ba1585551769d0a95c77d42f44cd29366195edecc6856`. No signatures/credentials or device acceptance.
+
+Additional local framing prerequisite: explicit INDEX wire ID9 preserves IDs1–8
+and framing version;68 assertions pass using a byte-identical real production
+ownership envelope plus category/size/integrity faults. This does not implement
+full history export/import. Completion-stage tests observed RED on the old anonymous-stage implementation,
+then GREEN against the reviewed prerequisite `b511fee` (integrated `a53127e`).
+One deterministic stage conserves its exact completion byte/slot reservation;
+full matching stages may retry without rewriting, partial/changed stages cannot.
+Current constructor quotas and v1 envelope bytes remain unchanged; no reduced-
+quota exemption. Review reproduced and fixed fresh-stage inode substitution before
+move; same-target recursion and generation invalidation are checked. Original16
+restart boundaries plus3full-stage retry SIGKILL boundaries (each reopened twice)
+are now required. Independent pure planner review approved `6f02af3` (integrated
+`11fdf74`):81 functional +5 memory checks, bounded exact proofs with no partial
+plans or deletion. Current count remains a protected floor; future pressure mode
+requires its own tests. Read-only control codec `786745c` (integrated `85d2bc2`)
+passes14cases/209assertions at64MiB; it publishes/adopts no policy. Combined clean committed-source verification PASS at `a18e148912eb2b2c62876886a922999758fbba40`: full required host suite once (including all19restart boundaries), two audited unsigned builds matching SHA-256 `52996f927fc40f73a5b70cb7e09011ddd6aa477be81fe65e1b949b41537f99d0`. A subsequent runner-only log-transport fix passed all3/11/11physical assertions with redirected output; production bytecode is unchanged. This historical local evidence predates the independent PR13 merge and current reconciliation above.
 
 Integration evidence and next executable work:
 
@@ -216,7 +281,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   finish clean integration of shared lock/validated inventory/read-only graph, then implement combined admission and reservation-bound completion staging before any destructive executor. Crash-safe deletion, verified export, strict import and
+   complete review-ready hosted validation for PR15, then integrate explicit durable registration, complete all-writer admission and effective policy before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded

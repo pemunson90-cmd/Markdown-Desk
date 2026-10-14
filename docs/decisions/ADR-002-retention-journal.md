@@ -12,7 +12,25 @@ Task3A1 introduces package-private HistoryStorage rooted at the trusted canonica
 
 Replace store/catalog/HistoryMetadataIO per-root monitors with the SAME parent monitor, including constructors, identity and index operations. Nested calls are reentrant; no private monitor may precede it. Task3A1 preserves existing per-handle constructor quotas and per-root entry/byte limits. Task3A2 will preserve policy/reservations in a registry keyed by canonical root: opening another handle cannot reset policy/reservations. Constructor quotas initialize an unconfigured store only; conflicting later configuration fails rather than silently replacing it.
 
-Inventory, existing stage creation/commit, naming and indexing run under this monitor in Task3A1. Shared admission, policy changes, operation pins and pruning will use it in later slices. Admission plus publication is one operation; publication becomes successful only after file sync, move, directory sync and fresh validation. A policy change linearizes under the same monitor. Persist selected policy with bounded validated metadata before acknowledging it; a failed policy commit preserves the previous effective policy and its retained stage blocks optional mutation.
+Inventory, existing stage creation/commit, naming and indexing run under this monitor in Task3A1. Shared admission, policy changes, operation pins and pruning will use it in later slices. Admission plus publication is one operation; publication becomes successful only after file sync, move, directory sync and fresh validation. A policy change linearizes under the same monitor. Persist selected policy with bounded validated metadata before acknowledging it. A pre-publication failure retains the previous committed policy and its stage blocks optional mutation. Rename followed by failed directory sync/readback is uncertain publication: preserve prior records, block mutations and require explicit durable reconciliation. Do not claim the old policy remains authoritative after restart or silently fall back to legacy admission.
+
+### Future opt-in authority and availability
+
+Registered startup distinguishes existing read-only handles from policy-ready
+writers. Existing canonical role roots may be opened without creating directories
+before explicit control reconciliation; constructors reject nested writes without
+requiring effective policy, avoiding a constructor/open cycle. No new/unlisted
+managed root may be created once control storage exists. The subsequent controller
+validates registration, policy and a capacity ledger before enabling writers.
+
+Capacity authority is separate from deletion proof: known retained anonymous or
+optional metadata stages are fully charged and block pruning, but do not by
+themselves make actual usage unknowable. Mandatory protection/admission uses
+complete nofollow actual-file accounting and exact native completion reservations.
+Invalid native references, unknown/nonregular physical entries, incomplete usage
+or uncertain control authority still block. Optional metadata writers may reject
+their own malformed state; optional indexing cannot retroactively negate a
+verified save. No pruning is authorized by byte accounting alone.
 
 ## Task3A1: implemented read-only graph; Task3A2: planned shared admission
 
@@ -44,9 +62,23 @@ Explicit selection can remove a named group only when ALL its checkpoint pins ar
 
 Bind plans to full graph fingerprint, exact member envelope lengths/hashes, reference closure, selected labels, anchor IDs/hashes/ownership/routing and policy. A changed pin, survivor, identity, source, sequence or policy invalidates the preview. Product confirmation authorizes only that exact selection; it does not grant generic deletion or overwrite permission.
 
+### Future pressure mode; current preview remains unchanged
+
+The current pure planner treats the configured count as a protected floor. At
+64MiB that intentionally cannot reclaim one of roughly three paired8MiB groups
+while count20 is selected. Before runtime automatic pruning, add a separately
+tested pressure mode treating count20 as the desired upper target: retain up to20
+when capacity permits, and under quota pressure remove eligible oldest indexed
+groups down to the fixed newest same-history anchor. Count0 still disables
+automatic retention. Named, pending, orphan, unindexed, shared and live-pinned
+sources remain protected. Bind the mode and actual requested capacity into the
+preview/intent proof; do not silently reinterpret existing floor previews.
+Expose blocked capacity, quota increase and explicit review/export options. This
+planned refinement grants no current deletion authority.
+
 ## Third slice: bounded journal and executor, separately reviewed
 
-Only after planner review add execute(DeletePlan), resume(), journal codec and tombstone-aware readers. Maintenance has a separately accounted 1MiB/256-entry allowance for small intents/stages only; it cannot fund payloads or ordinary metadata. Allow one active prune intent, at most 256 members/64KiB including proof. Reject larger plans for explicit replanning into bounded operations. ENOSPC before durable intent means zero unlinks.
+Only after planner review add execute(DeletePlan), resume(), journal codec and tombstone-aware readers. Registration/policy and later maintenance share one separately accounted 1MiB/256-entry control allowance for bounded administrative records/intents/stages only; it cannot fund payloads or ordinary metadata. Allow one active prune intent, at most 256 members/64KiB including proof. Reject larger plans for explicit replanning into bounded operations. ENOSPC before durable intent means zero unlinks.
 
 Under the common lock, rescan and compare the exact preview; validate every member and survivor; commit a versioned checksummed intent by stage sync, atomic move and directory sync. The intent contains member root roles/UUIDs/types/lengths/envelope hashes, removed reference closure, immutable identity/ownership proof and surviving anchor references. No arbitrary paths or duplicate members. Only this durable validated intent linearizes deletion authorization.
 
@@ -68,13 +100,17 @@ Run targeted retention/store/coordinator/catalog suites after affected changes, 
 
 Task4 later needs a pinned, repeatable bounded serialized-record stream adapter for PrivateArchive.SourceEntry. The current codec alone does not validate history source graphs or authorize provider writes. Keep export destination protection and streaming access in that separate reviewed slice; no generic unprotected overwrite escape.
 
-Execution split: implement shared monitor/inventory/read-only graph/cache first, retaining existing constructor quotas and commit wire protocol. Implement shared admission, mutable quota and reservation-bound completion staging only after that slice is reviewed. The framing codec currently has no ownership INDEX wire type; define its serialization explicitly before the export/import adapter claims full history round-trip.
+Execution split: Task3A1 implements shared monitor/inventory/read-only graph/cache, retaining existing constructor quotas and commit wire protocol. The [shared-capacity plan](../superpowers/plans/2026-10-14-shared-history-capacity.md) defines subsequent opt-in registration, effective durable policy, all-writer admission and reconciliation. Its control allowance cannot fund document payloads or ordinary history metadata. The next prerequisite implements deterministic completion staging and quota-independent reservations while retaining those constructor quotas and denying an over-quota completion exemption. Implement shared admission, mutable quota and reservation-bound completion staging only after that slice is reviewed. The framing codec now assigns ownership INDEX the explicit wire ID9 under the bounded metadata cap, preserving prior IDs and framing version. Native ownership envelope framing is tested; typed graph reconstruction and full history round-trip remain pending export/import adapters.
 
+Task4 framing IDs must be independent generated UUIDv4 values bound in the export
+manifest to typed native identities. Preparation and completion share a native
+transaction UUID but require distinct archive entry UUIDs. Persist mappings across
+hash/write/retry passes; remap shared native identity separately on import. Export
+validated configuration via typed preferences, never restore old control
+registration/policy authority as effective local policy.
 
-2026-10-14 completion prerequisite checkpoint (`809d41b`): deterministic
-transaction-bound stages replace anonymous completion stages for new completion
-attempts. Exact prefix bytes occupy only the validated preparation reservation;
-partial or altered stages are retained and block retry. Exact full stages can
-retry sync/move/validation without new stage allocation. v1 committed wire bytes
-remain unchanged. Host tests and six SIGKILL retry boundaries pass; persistent
-shared capacity, dynamic quota and reduced-quota exemptions remain separate.
+Independent completion checkpoint `809d41b` observed7cases/86assertions and six
+before/after retry SIGKILL cases in its environment. Its test fixtures are retained
+in reconciliation; the live producer uses reviewed `b511fee` with stronger fresh/
+reused-stage inode checks and read-only retries. These are source checkpoints,
+not shared-policy or physical-device acceptance.
