@@ -1,38 +1,44 @@
 # Current project status
 
-## M0.1 / issue #1 — started, blocked (2026-10-14)
+## M0.1 / issue #1 — imported; host/build gates pass, final gates pending
 
-- Repository: `pemunson90-cmd/Markdown-Desk` (public).
-- Audit base commit: `60f3acbdfca399e99f5f1754a4d66b3fddd1f4b4`.
-- Working branch: `codex/issue-1-baseline-audit`.
-- Read `AGENTS.md`, kickoff, roadmap, import protocol and release gates.
-- Repository contains nine tracked planning/configuration files; no app source,
-  manifest, build script or host-test runner. Source import is **not complete**.
-- Exact `MarkdownDesk-2.2.5-source.zip` is absent from attached workspace files.
-  This session has no callable ChatGPT Library retrieval tool and no attached
-  artifact reference. Requested the exact archive; stopped import/build work
-  under the kickoff's explicit missing-source stop condition.
-- Reused the configured Android environment for the audit. JDK 17.0.16+8 works
-  through `JAVA_HOME/bin`; existing SDK contains platform 37.0 and build-tools
-  36.0.0, not the required 36.1.0. No toolchain replacements installed.
-- No source reconstruction, application changes, signing key generation,
-  version bump, baseline tag, CI setup or release artifact publication.
-- Existing functionality (including Focus/View) remains untouched but **not
-  verified**. No app exists in this checkout to exercise.
+As of **2026-10-14**, branch `codex/issue-1-baseline-audit`, draft
+[PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9):
 
-See [M0.1 audit](M0_1_AUDIT.md) for executed checks and missing inputs.
+- Exact 2.2.5 archive received; SHA-256
+  `f57fe34ac489eb1f651fd1f6fe840ffddf189f4322c4bdc32b3ad285c187e6ef` verified.
+- 89 files audited/imported; all runtime Java/shared bridge/resources/manifest
+  and 25 splash images byte-identical. Four documented build/test scaffold edits;
+  their archive originals retained. No feature/runtime/version changes.
+- **Artwork publication separately cleared by owner** for all 25 bundled images.
+  Private signing files, archive ZIP, generated binaries and caches excluded.
+- PM correction applied: SDK37.0/build-tools36.0.0 are compatible and tested;
+  36.1.0 was historical release tooling, not a hard minimum. Reused installed
+  JDK17 with its bin directory on PATH; no SDK/JDK/key replacement.
+- Genuinely unsigned build/audit PASS, with all signing inputs removed.
+- Host suite PASS: supplied guards/syntax, 27 renderer cases, 49 SplashStore
+  assertions, 15 independent functional fixtures. Original stale SplashStore
+  expectation failure and missing host JSON dependency are documented/resolved
+  in test scaffolding; production source unchanged.
+- Two fresh committed-source builds produced byte-identical unsigned APKs:
+  `bd9f99cb99acfe8b584f47c2f6edb1418c7deb70148d5f5087c3f6bb3f638d57`.
+  Compiled package `com.example.markdowndesk`, 2.2.5/code18, min26/target35.
+- Focus/View and other existing modes retained exactly; runtime phone/Fold and
+  provider/upgrade acceptance **NOT RUN**. No connected device.
+- Baseline signed APK digest/certificate validation remains pending (APK missing).
+  No release APK, baseline tag, merge, feature development or hosted CI run.
 
-## Next actions after inputs arrive
+See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-1. Audit exact archive integrity, paths, checksums and public asset clearance.
-2. Import approved source bytes with relative layout intact; record inventory
-   and SHA-256 provenance before any build/test scaffolding changes.
-3. Reuse JDK 17 and the existing SDK; resolve required 36.1.0 tools, then establish
-   clean unsigned builds and run supplied host checks. No release signer needed.
-4. Verify manifest/payload and preservation of existing modes, themes and splash
-   assets; distinguish host, emulator and physical Fold evidence.
-5. Complete issue #1 gates before tagging `v2.2.5-baseline` or starting issue #2.
+## Next
 
-Older versions and SDK archives are a secondary provenance request. None were
-retrieved from Library or uploaded; historical/recovery archives require privacy
-and redistribution review before publication to this public repository.
+1. Independent source/build review completed without critical/important implementation findings; final gatekeeper approval remains pending.
+2. Obtain baseline signed APK for public-certificate/digest validation, without
+   signing secrets. Record actual device/Fold/upgrade acceptance separately.
+3. Keep PR #9 draft until required gates pass; then decide baseline tagging/merge.
+4. Do not start issue #2 or later roadmap work in this task.
+
+Historical Library versions/SDK/recovery archives are a secondary provenance
+request, not retrieved/uploaded in this session. Exact 2.2.5 source and historical
+records shipped inside its archive are now accessible in Git; protect unrelated
+private recovery/signing material from any later publication.

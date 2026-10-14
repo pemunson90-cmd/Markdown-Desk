@@ -1,81 +1,128 @@
-# M0.1 initial audit — 2026-10-14
+# M0.1 baseline import audit — 2026-10-14
 
-Issue: https://github.com/pemunson90-cmd/Markdown-Desk/issues/1
+Issue [#1](https://github.com/pemunson90-cmd/Markdown-Desk/issues/1), draft
+[PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9).
+Base: `60f3acbdfca399e99f5f1754a4d66b3fddd1f4b4`.
+Implementation verified by two clean builds:
+`ec9937df8a5a4f77ad427c3a02a2606a72885dce`.
+Branch: `codex/issue-1-baseline-audit`.
 
-Base commit: `60f3acbdfca399e99f5f1754a4d66b3fddd1f4b4`.
+## Provenance and publication
+
+- Exact attachment: `MarkdownDesk-2.2.5-source.zip`, SHA-256
+  `f57fe34ac489eb1f651fd1f6fe840ffddf189f4322c4bdc32b3ad285c187e6ef`:
+  **matches owner/PM expected digest**.
+- ZIP CRC/integrity check: PASS. No absolute/traversal paths, symlinks or duplicate
+  import paths; 89 regular files. All 88 entries in supplied SHA256SUMS passed;
+  SHA256SUMS itself is separately hashed in the complete inventory.
+- `apps/`, `shared/`, `verification/` retain relative layout. Four archive root
+  files moved byte-for-byte to `docs/provenance/2.2.5/`, keeping project README.
+  [inventory.json](provenance/2.2.5/inventory.json) records every mapping/size/hash.
+- **Artwork publication gate: CLEARED separately by owner on 2026-10-14.**
+  Owner explicitly selected “All 25 are cleared for public publication.” All 25
+  original WebP files are included without substitutions or conversions.
+- Examined archive names and text source/resources/build/test material for
+  private keys, credential values, personal documents, recovery/caches and
+  embedded endpoints. No signing file or credential value found. The source
+  contains signing variable names and public certificate pins, not private keys.
+  The manifest requests no INTERNET or broad-storage permissions. This is a
+  bounded archive review, not a guarantee about all historical Library material.
+- ZIP itself, host dependency JAR, generated HTML/classes/APKs, caches and test
+  temporary files are excluded from Git. No original signer was accessed or
+  generated. No older versions/recovery archives were retrieved or uploaded.
+
+## Exact source comparison / permitted scaffolding differences
+
+85 of 89 imported files are byte-identical, including all 18 application Java
+files, three shared Java bridge files, manifest/resources and all 25 splashes.
+Four build/test files differ; all four archive originals remain byte-identical
+under `docs/provenance/2.2.5/original-scaffolding/`:
+
+1. `apps/MarkdownDesk/build.sh`: explicit unsigned path; no signing credentials
+   or signer needed; asset completeness preflight; deterministic ZIP metadata.
+2. `verification/compile_unsigned.sh`: delegates to real manifest-aware unsigned
+   path rather than enforcing SDK35 and packaging stale 2.2.4/code17 identity.
+3. `verification/run_host_checks.sh`: isolated ignored outputs, live-Appearance,
+   pinned JSON dependency, existing SplashStore tests and independent fixtures.
+4. `apps/MarkdownDesk/test/SplashStoreTest.java`: correct stale expected count
+   20 to 24 after disabling one of 25, plus exclusion assertion. **No app fix.**
+
+New verification scripts/checks and build/provenance docs are separate scaffolding.
+The inventory audit proves baseline bytes, including retained original scaffolds;
+it does not claim the four active scaffolds are unchanged.
 
 ## Actually executed
 
-- Cloned repository and inspected all tracked paths using `git ls-files`.
-  Nine files, all planning/configuration; no application source.
-- Searched attached workspace filenames for ZIP/APK, Android jar, build scripts
-  and Markdown Desk artifacts. No exact 2.2.5 source ZIP or baseline APK found.
-  `library-files`, `shared` and `scratch` expose no matching artifacts.
-- Inspected managed environment readiness and network policy: connected;
-  package-manager hosts allowed through the configured proxy; no secret bindings.
-- Ran `java -version`: shell PATH selects OpenJDK 21.0.12.1.
-  Ran `javac -version`: failed, command not found on PATH.
-- Ran `"$JAVA_HOME/bin/java" -version` and `"$JAVA_HOME/bin/javac" -version`:
-  Temurin 17.0.16+8 and javac 17.0.16, respectively (success).
-- Listed `"$ANDROID_HOME/platforms"` and `"$ANDROID_HOME/build-tools"`:
-  only `android-37.0` and `36.0.0`. Read installed `source.properties` to
-  corroborate API 37.0/revision 2 and build-tools 36.0.0.
-- Ran `"$ANDROID_HOME/build-tools/36.0.0/aapt2" version`:
-  `Android Asset Packaging Tool (aapt) 2.20-13193326` (success).
-- Ran `"$ANDROID_HOME/build-tools/36.0.0/d8" --version`:
-  `D8 8.10.9-dev`, build `a7ad18a70460b799d0482e497c109a75bf7f91de`
-  (success).
-- Ran `"$ANDROID_HOME/platform-tools/adb" devices -l`: empty device list.
+- Original supplied host runner on raw extracted archive: PASS layout guards,
+  syntax parse of 31 Java files, renderer output (nine themes × three sizes).
+  Separate supplied live-Appearance guards/contrast check: PASS.
+- Test-first unsigned check against original `build.sh`: failed for missing
+  canonical keystore, as expected. New unsigned path then compiled and passed.
+- Initial audit assertion failed due to aapt2 reporting `minSdkVersion` rather
+  than legacy `sdkVersion`; compiled XML confirmed 26 and test parsing corrected.
+- First expanded host run failed because standalone JVM lacks `org.json`;
+  pinned host-only Android JSON dependency resolved this harness dependency.
+- Unchanged SplashStore fixture: **47 passed, 1 failed** (stale expected20).
+  [Original failure log](verification/2026-10-14/original-splash-failure.txt).
+  Corrected test-only fixture: **49 passed, 0 failed**.
+- Current host suite: PASS inventory, layout/Appearance static guards, syntax,
+  27 renderer cases, 49 SplashStore assertions and 15 independent functional
+  search/replace, statistics/hash and app-private atomic-file assertions.
+- Unsigned Android resource link, Java11 type compilation, D8, packaging and
+  alignment: PASS using existing JDK17 / platform37.0 / build-tools36.0.0.
+  Compilation reports existing deprecation/unchecked API notes; no compile errors.
+- Compiled manifest: package `com.example.markdowndesk`, version **2.2.5/code18**,
+  minSdk **26**, targetSdk **35**, compileSdk **37**. No permission/version changes.
+- APK audit: signature verification fails as expected for genuinely unsigned APK;
+  no signature entries/signing block; nonempty DEX; all 25 splash bytes match.
+- Two fresh `git archive` builds, distinct paths, pre-provisioned inputs only:
+  **identical APK SHA-256**
+  `bd9f99cb99acfe8b584f47c2f6edb1418c7deb70148d5f5087c3f6bb3f638d57`.
+  APK size: **5,083,736 bytes**. No dependency downloads in either clean run;
+  network isolation was not independently enforced. Git status was clean after
+  source commit and clean rebuild; normal build outputs remain ignored.
+- `adb devices -l`: no attached device. No JDK/SDK reinstallation or key generation.
 
-These are environment checks, not an Android application build or functional
-verification. No dependencies were installed and no signing keys were accessed
-or generated. The build will need to select `JAVA_HOME/bin` explicitly rather
-than rely on the current PATH.
+[Commands/tool pins](BUILD.md). Current execution logs and compiled manifest are
+under [verification/2026-10-14](verification/2026-10-14/). Archive's HOST_RESULTS,
+SDK35_RESULTS and RELEASE225_RESULTS files are historical evidence, not these runs.
 
-## Missing inputs / blockers
+## Existing behavior disposition
 
-1. Exact `MarkdownDesk-2.2.5-source.zip`, including `apps/`, `shared/` and
-   `verification/`. No archive digest or extracted inventory can be reported
-   without it. ChatGPT Library access is unavailable through this session's tools.
-2. Explicit public-distribution clearance for bundled artwork and other assets,
-   especially all 25 splashes, before source publication. Asset review has not
-   occurred; no placeholders or asset omissions were introduced.
-3. Required build-tools 36.1.0 is not installed. Resolve using the existing SDK
-   after source inspection; do not claim 36.0.0 is equivalent. Platform 37.0
-   meets the documented 35+ range but has not been validated against this source.
-4. Signed baseline APK for independent checksum/certificate verification, kept
-   outside this public repo. Private signing keys and credentials are not inputs
-   for this unsigned-build task.
-5. Device/emulator access for runtime checks and an actual Fold for owner
-   acceptance; neither is established by host tool availability.
+All runtime source is preserved byte-for-byte; **no runtime behavior deliberately
+changed**. Evidence is scoped as follows:
 
-## Verification not run
+| Behavior | Evidence in this session | Runtime gate |
+| --- | --- | --- |
+| Native editing; Write/Read/Split; Focus/View hides chrome | Exact Java preserved and Android compilation | NOT RUN |
+| Split divider, tabs/12-tab semantics, scrolling, orientation/Fold, eye/lock controls | Exact source; existing layout guards only | NOT RUN |
+| Markdown rendering, nine themes, font sizes and Appearance | 27 real renderer cases; static redraw/contrast guards | UI/visual acceptance NOT RUN |
+| 25 splash options, toggles/import/remove/restore/random | Exact APK assets; 49 host assertions using stubs | Actual decoding/UI NOT RUN |
+| Outline, command palette, typewriter, lock | Exact source | NOT RUN |
+| Literal/regex find/replace, word/line statistics | 15 combined independent host fixtures | UI/IME cases NOT RUN |
+| SAF open/save, external edits, read-back, document fidelity | Exact source; only app-private atomic-file semantics tested | Provider/data safety NOT RUN |
+| Session/recovery, HTML/share/PDF | Exact source | Process-death/export/device NOT RUN |
 
-- Archive integrity, SHA256SUMS, source inventory or byte-for-byte import comparison.
-- Source/privacy/asset audit and public publication decision.
-- `verification/run_host_checks.sh` (runner absent).
-- `apps/MarkdownDesk/build.sh` and clean/offline unsigned rebuild (source absent).
-- Compiled manifest inspection: package, 2.2.5/code 18, minSdk 26, targetSdk 35.
-- Baseline APK digest/certificate validation. Values in import documentation are
-  historical release records, not independently confirmed in this session.
-- Functional, emulator, phone/Fold, data safety, upgrade and benchmark checks.
+## Remaining gates / missing inputs
 
-## Behavior and release disposition
+- Signed baseline APK unavailable: historical APK digest and public certificate
+  fingerprint are recorded but **not independently verified in this session**.
+  Do not provide private signing keys; baseline verification needs only the APK.
+- Emulator, actual phone/Fold acceptance and signed in-place upgrade checks NOT RUN.
+  No connected device and no canonical signer used. No latency/memory benchmarks.
+- Screenshot/browser layout proxy and GitHub-hosted CI NOT RUN.
+- Independent read-only code review completed with no critical/important implementation defects.
+  Final release gatekeeper approval remains pending; keep PR draft, no merge,
+  no `v2.2.5-baseline` tag and no shipping APK. Issue #2/features remain untouched.
 
-No application files were changed. Verification of native editing, Markdown
-Reading, Write/Read/Split, Focus/View, split divider, tabs/12-tab semantics,
-outline, command palette, find/replace/regex, font sizing, statistics, typewriter,
-SAF open/save, external edits/read-back, session/recovery, lock protection,
-HTML/share/PDF, nine themes, 25 splashes, orientation/Fold layouts and eye/lock
-controls is deferred until exact source and test access exist. None is claimed
-as runtime-verified. No migration or installed-user-data effects are introduced
-by this documentation-only change. No release, baseline tag or merge is proposed.
+## Independent review and deferred minor
 
-## Historical provenance request
+Read-only reviewer checked `ec9937df8a5a4f77ad427c3a02a2606a72885dce` against
+base, independently compared the ZIP and runtime files, and confirmed no extra
+runtime files and no signing-path defect. Its important documentation finding
+(obsolete absent-source/tooling status) is resolved by this final status update.
 
-No Library artifacts were accessible or uploaded. Historical versions, SDKs and
-recovery bundles are not interchangeable with the authoritative 2.2.5 source.
-Preserve their original bytes and record filename, version, origin and SHA-256
-when supplied. Audit public redistribution rights and private material first;
-never publish private signer/recovery material or personal notes. Local SDK ZIPs
-belong to the configured environment and are not evidence of project history.
+Deferred minor: `check_baseline_inventory.py` checks every listed file's digest
+but does not reject newly added runtime paths. This exact import has none, as
+independently checked. Future runtime additions require source diff review and
+must not rely solely on this inventory checker for baseline parity.

@@ -5,10 +5,10 @@
 - Version: **2.2.5**, versionCode **18**, minSdk **26**, targetSdk **35**.
 - Release certificate SHA-256: `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`.
 - Signed 2.2.5 APK SHA-256 recorded by release: `ec5e790343b45a56f2580f3f5ec97eae3fb3096e10e012e58eb76bc89e683601`.
-- Source archive: `MarkdownDesk-2.2.5-source.zip`; supplied in the ChatGPT conversation/Library. Import exact source, preserve filenames and asset bytes, and compare SHA256SUMS as applicable. This repo initially has no verified application source; docs in Git are not a substitute for source import.
+- Source archive: `MarkdownDesk-2.2.5-source.zip`; supplied in the ChatGPT conversation/Library. Import exact source, preserve filenames and asset bytes, and compare SHA256SUMS as applicable. This repo initially had no verified application source; see `docs/M0_1_AUDIT.md` for the verified import on PR #9.
 - Main code path in archive: `MarkdownDesk-2.2.5/apps/MarkdownDesk/`. Shared editor bridge: `MarkdownDesk-2.2.5/shared/editor_bridge/`. Tests/tools: `MarkdownDesk-2.2.5/verification/`. Preserve relative path relationships.
 - Run `verification/run_host_checks.sh`; it currently covers syntax/layout and selected renderer behavior, and must be extended with actual behavioral tests.
-- Build path: `apps/MarkdownDesk/build.sh`, Android platform 35+ (actual release used platform 36), build-tools 36.1.0 (a Library copy exists), JDK 17+, Java 11 target.
+- Build path: `apps/MarkdownDesk/build.sh`, Android platform 35+ (actual release used platform 36), build-tools 35+ (historical release: 36.1.0; M0.1 tested: 36.0.0), JDK 17+, Java 11 target.
 - 2.2.5 was compiled, aligned and signed in chat with the canonical identity; **physical Fold acceptance for 2.2.5 has not been established**.
 
 ## Library usage

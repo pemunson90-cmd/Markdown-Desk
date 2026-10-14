@@ -4,7 +4,7 @@ A local-first Markdown writing and reading app for Android, phones and foldables
 
 **Current installed release reference:** 2.2.5 (`com.example.markdowndesk`, versionCode 18). **Professional Edition is a roadmap**, not an existing release.
 
-> This repository is being bootstrapped. Planning documents and engineering tasks are committed; the authoritative 2.2.5 application source must still be imported from `MarkdownDesk-2.2.5-source.zip` before any implementation work. Do not mistake a passing plan review for an APK build.
+> Exact 2.2.5 source is imported on the baseline branch with verified unsigned builds and host checks. [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9) remains draft pending remaining gates; no new release or device acceptance is claimed. See [status](docs/STATUS.md) and [build commands](docs/BUILD.md).
 
 ## For Codex
 1. Read [AGENTS.md](AGENTS.md) and [the roadmap](docs/ROADMAP.md).

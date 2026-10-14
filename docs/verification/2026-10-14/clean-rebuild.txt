@@ -1,0 +1,177 @@
+PASS baseline inventory: 89 archive files, 85 unchanged imports, 4 documented scaffolding originals preserved
+PASS static layout guards: scrolling Appearance, all nine themes, external Done, existing scrolling gallery, centered utility icons, configuration callbacks, 25 splash assets, release identity
+PASS live Appearance regression guards: all 9 theme/title/control redraw paths, retained scroll, 4.5:1+ text contrast, v2.2.5 identity
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS Java 11 syntax parse: 31 files (not Android type-check or APK compilation)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS actual renderer output: 9 themes x 3 reading sizes; heading ceilings and Markdown samples
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS independent host behavior fixtures: 15 search/replace, statistics/hash and app-private atomic-file checks; NOT SAF/device acceptance
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+defaults
+  pass  25 bundled images ship
+  pass  all enabled on a fresh install
+  pass  every id is unique
+  pass  every bundled source points at the asset folder
+  pass  nothing removed to start
+toggling
+  pass  disabling one drops it from enabled()
+  pass  disabled image alone leaves the rotation
+  pass  disabled state survives a reread
+  pass  all() still lists it
+  pass  re-enabling restores it
+bulk switches
+  pass  all off leaves none enabled
+  pass  all off keeps the gallery intact
+  pass  random() returns nothing when none are on
+  pass  all on restores every image
+removing and restoring bundled images
+  pass  removed image leaves the gallery
+  pass  removedCount tracks it
+  pass  removed image is not in the rotation
+  pass  restore brings it back
+  pass  restored image is enabled
+importing
+  pass  import returns an item
+  pass  import is not bundled
+  pass  import is enabled by default
+  pass  label cleans up the file name
+  pass  bytes land in a private file
+  pass  file keeps the source extension
+  pass  gallery grows by one
+  pass  rotation grows by one
+  pass  import survives a reread
+  pass  two imports coexist
+  pass  imports get distinct ids
+  pass  imports get distinct files
+  pass  imports can be switched off
+  pass  switching off does not delete the file
+deleting an import
+  pass  deleted import leaves the gallery
+  pass  deleted import's file is gone
+  pass  the other import is untouched
+  pass  deleting an import does not touch removedCount
+  pass  restore does not resurrect deleted imports
+rejecting bad input
+  pass  a non-image import throws
+  pass  a rejected import adds nothing
+  pass  a rejected import leaves no file behind
+  pass  an oversized import throws
+  pass  an oversized import leaves no file behind
+random selection
+  pass  never repeats the previous image back to back
+  pass  every enabled image gets chosen
+  pass  spread stays reasonable (min 130, max 195 of ~160)
+  pass  a single enabled image is always chosen
+corrupt preferences
+  pass  bad preferences do not crash all()
+  pass  bad preferences are cleared
+
+49 passed, 0 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Built UNSIGNED validation artifact (not installable as a release): /workspace/.command-library-env/tmp/markdown-clean-rebuild-9t4d26xy/first checkout/apps/MarkdownDesk/build/MarkdownDesk-2.2.5-UNSIGNED.apk
+package: name='com.example.markdowndesk' versionCode='18' versionName='2.2.5' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+minSdkVersion:'26'
+targetSdkVersion:'35'
+PASS genuinely unsigned APK: no signing credentials, no signatures, aligned, exact identity, all 25 assets byte-identical
+APK SHA-256: bd9f99cb99acfe8b584f47c2f6edb1418c7deb70148d5f5087c3f6bb3f638d57
+PASS baseline inventory: 89 archive files, 85 unchanged imports, 4 documented scaffolding originals preserved
+PASS static layout guards: scrolling Appearance, all nine themes, external Done, existing scrolling gallery, centered utility icons, configuration callbacks, 25 splash assets, release identity
+PASS live Appearance regression guards: all 9 theme/title/control redraw paths, retained scroll, 4.5:1+ text contrast, v2.2.5 identity
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS Java 11 syntax parse: 31 files (not Android type-check or APK compilation)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS actual renderer output: 9 themes x 3 reading sizes; heading ceilings and Markdown samples
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS independent host behavior fixtures: 15 search/replace, statistics/hash and app-private atomic-file checks; NOT SAF/device acceptance
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+defaults
+  pass  25 bundled images ship
+  pass  all enabled on a fresh install
+  pass  every id is unique
+  pass  every bundled source points at the asset folder
+  pass  nothing removed to start
+toggling
+  pass  disabling one drops it from enabled()
+  pass  disabled image alone leaves the rotation
+  pass  disabled state survives a reread
+  pass  all() still lists it
+  pass  re-enabling restores it
+bulk switches
+  pass  all off leaves none enabled
+  pass  all off keeps the gallery intact
+  pass  random() returns nothing when none are on
+  pass  all on restores every image
+removing and restoring bundled images
+  pass  removed image leaves the gallery
+  pass  removedCount tracks it
+  pass  removed image is not in the rotation
+  pass  restore brings it back
+  pass  restored image is enabled
+importing
+  pass  import returns an item
+  pass  import is not bundled
+  pass  import is enabled by default
+  pass  label cleans up the file name
+  pass  bytes land in a private file
+  pass  file keeps the source extension
+  pass  gallery grows by one
+  pass  rotation grows by one
+  pass  import survives a reread
+  pass  two imports coexist
+  pass  imports get distinct ids
+  pass  imports get distinct files
+  pass  imports can be switched off
+  pass  switching off does not delete the file
+deleting an import
+  pass  deleted import leaves the gallery
+  pass  deleted import's file is gone
+  pass  the other import is untouched
+  pass  deleting an import does not touch removedCount
+  pass  restore does not resurrect deleted imports
+rejecting bad input
+  pass  a non-image import throws
+  pass  a rejected import adds nothing
+  pass  a rejected import leaves no file behind
+  pass  an oversized import throws
+  pass  an oversized import leaves no file behind
+random selection
+  pass  never repeats the previous image back to back
+  pass  every enabled image gets chosen
+  pass  spread stays reasonable (min 141, max 175 of ~160)
+  pass  a single enabled image is always chosen
+corrupt preferences
+  pass  bad preferences do not crash all()
+  pass  bad preferences are cleared
+
+49 passed, 0 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Built UNSIGNED validation artifact (not installable as a release): /workspace/.command-library-env/tmp/markdown-clean-rebuild-9t4d26xy/second checkout/apps/MarkdownDesk/build/MarkdownDesk-2.2.5-UNSIGNED.apk
+package: name='com.example.markdowndesk' versionCode='18' versionName='2.2.5' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+minSdkVersion:'26'
+targetSdkVersion:'35'
+PASS genuinely unsigned APK: no signing credentials, no signatures, aligned, exact identity, all 25 assets byte-identical
+APK SHA-256: bd9f99cb99acfe8b584f47c2f6edb1418c7deb70148d5f5087c3f6bb3f638d57
+PASS two clean committed-source builds: revision ec9937df8a5a4f77ad427c3a02a2606a72885dce
+Unsigned APK SHA-256: bd9f99cb99acfe8b584f47c2f6edb1418c7deb70148d5f5087c3f6bb3f638d57
+No dependency downloads performed; existing SDK/JDK and pre-provisioned host JAR only.
