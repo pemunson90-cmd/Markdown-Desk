@@ -57,6 +57,7 @@ final class HistoryMaintenanceRecovery {
     private HistoryControlStore.Inspection authority(HistoryTombstoneView expected)throws IOException {
         HistoryStorage.siblings(roots.toArray(new File[0]));
         HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();
+        if(HistoryPins.pruneBlocked(store.storageRoot(),control))throw new IOException("Maintenance blocked by operation pins");
         if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()
                 ||control.intentStage!=null||control.committedIntent==null||control.committedIntent.intent==null)
             throw new IOException("Incomplete maintenance authority");

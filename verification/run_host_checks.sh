@@ -48,8 +48,10 @@ bash verification/history_catalog/run.sh
 bash verification/history_index/run.sh
 bash verification/history_diff/run.sh
 bash verification/private_archive/run.sh all
+bash verification/private_state/run.sh
 bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
 bash verification/history_capacity/run.sh all
 
+bash verification/history_pins/run.sh
 bash verification/history_maintenance/run.sh
