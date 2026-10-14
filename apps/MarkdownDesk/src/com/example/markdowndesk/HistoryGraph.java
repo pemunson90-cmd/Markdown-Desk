@@ -25,7 +25,8 @@ public final class HistoryGraph {
         public final Set<String> protectedSnapshotIds;
         public final List<String> diagnostics;
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots, chargedBytes;
-        public final boolean complete, pruneBlocked, usageComplete;
+        public final boolean complete, pruneBlocked, usageComplete, maintenanceEnrolled;
+        public final long maintenanceActualBytes,maintenanceOccupiedEntries,reservedPruneBytes,reservedPruneSlots;
         public final String fingerprint;
         public final HistoryPolicy policy;
         private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
@@ -35,6 +36,8 @@ public final class HistoryGraph {
             unindexedTransactionIds=freezeSet(builder.unindexed);protectedSnapshotIds=freezeSet(builder.protectedSources);
             diagnostics=freeze(builder.diagnostics);actualBytes=builder.actual;reservedCompletionBytes=builder.reserved;
             reservedCompletionSlots=builder.slots;chargedBytes=builder.charged;usageComplete=builder.usageComplete;
+            maintenanceEnrolled=builder.maintenanceEnrolled;maintenanceActualBytes=builder.maintenanceBytes;maintenanceOccupiedEntries=builder.maintenanceEntries;
+            reservedPruneBytes=maintenanceEnrolled?HistoryStorage.PRUNE_RESERVE_BYTES:0;reservedPruneSlots=maintenanceEnrolled?HistoryStorage.PRUNE_RESERVE_SLOTS:0;
             complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;this.fingerprint=fingerprint;this.policy=policy;
         }
     }
@@ -47,7 +50,7 @@ public final class HistoryGraph {
         final List<Ownership> ownerships=new ArrayList<>();
         final List<String> diagnostics=new ArrayList<>();
         final Set<String> pins=new TreeSet<>(),orphans=new TreeSet<>(),unresolved=new TreeSet<>(),unindexed=new TreeSet<>(),protectedSources=new TreeSet<>();
-        long actual,reserved,slots,charged;boolean usageComplete=true;
+        long actual,reserved,slots,charged,maintenanceBytes,maintenanceEntries;boolean usageComplete=true,maintenanceEnrolled;
     }
     private final ProtectionStore store;
     private final HistoryCatalog catalog;
@@ -86,6 +89,9 @@ public final class HistoryGraph {
                     for(ProtectionStore.StoredRecord record:HistoryStorage.policyRecords(store.storageRoot())){
                         budget.charge(1024L+record.filename.length()*2L);builder.records.add(record);builder.actual=Math.addExact(builder.actual,record.serializedBytes);
                     }
+                    HistoryStorage.Maintenance maintenance=HistoryStorage.maintenance(store.storageRoot(),configured,budget);
+                    builder.maintenanceEnrolled=maintenance.enrolled;builder.maintenanceBytes=maintenance.bytes;builder.maintenanceEntries=maintenance.entries;
+                    builder.records.addAll(maintenance.records);builder.diagnostics.addAll(maintenance.diagnostics);builder.usageComplete&=maintenance.usageComplete;
                     if(HistoryStorage.policyBlocked(store.storageRoot()))builder.diagnostics.add("policy: pending publication or recovery");
                 }catch(IOException|ArithmeticException invalid){builder.diagnostics.add("policy: invalid capacity proof");builder.usageComplete=false;}
                 boolean metadataValid=true;
@@ -128,6 +134,8 @@ public final class HistoryGraph {
             out.writeLong(store.constructorQuotaBytes());out.writeBoolean(effectivePolicy!=null);
             if(effectivePolicy!=null){out.writeLong(effectivePolicy.quotaBytes);out.writeInt(effectivePolicy.automaticCount);}
             out.writeLong(builder.actual);out.writeLong(builder.reserved);out.writeLong(builder.slots);out.writeBoolean(builder.usageComplete);
+            // Preserve legacy graph fingerprints; v2 policy hashes plus this section bind maintenance proof.
+            if(builder.maintenanceEnrolled){text(out,"maintenance-v1");out.writeLong(builder.maintenanceBytes);out.writeLong(builder.maintenanceEntries);out.writeLong(HistoryStorage.PRUNE_RESERVE_BYTES);out.writeInt(HistoryStorage.PRUNE_RESERVE_SLOTS);}
             out.writeInt(builder.records.size());
             for(ProtectionStore.StoredRecord record:builder.records){text(out,record.rootRole);text(out,record.filename);text(out,record.id);text(out,record.kind);out.writeLong(record.serializedBytes);text(out,record.envelopeHash);}
             // The exact envelope hashes bind all source fields, checkpoint labels, FORK edges and persisted ownership sequences.

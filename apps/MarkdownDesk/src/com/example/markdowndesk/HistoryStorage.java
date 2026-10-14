@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;boolean enrolled,recoveryRequired,uncertain,publishing;ProtectionStore store;Configuration previous;String pendingHash;}
+    private static final class State {long generation;boolean enrolled,recoveryRequired,uncertain,publishing,enrolling;ProtectionStore store;Configuration previous;String pendingHash;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -99,9 +99,13 @@ final class HistoryStorage {
     private static final int POLICY_MAGIC=0x4d444851, POLICY_RECORD_MAX=4096, POLICY_ENTRIES=256;
     private static final long POLICY_BYTES=65536;
     private static final String[] ROLES={"store","catalog","identity","index"};
+    static final String MAINTENANCE_ROOT="history_maintenance";
+    static final long MAINTENANCE_BYTES=1024L*1024, PRUNE_RESERVE_BYTES=65536;
+    static final int MAINTENANCE_ENTRIES=256, PRUNE_RESERVE_SLOTS=1;
     static final class Configuration {
-        final String[] names;final long initialQuota,quota,sequence;final int automaticCount;final String hash;
-        Configuration(String[] names,long initialQuota,long quota,int count,long sequence,String hash){this.names=names.clone();this.initialQuota=initialQuota;this.quota=quota;automaticCount=count;this.sequence=sequence;this.hash=hash;}
+        final String[] names;final long initialQuota,quota,sequence;final int automaticCount;final String hash,maintenance;
+        Configuration(String[] names,long initialQuota,long quota,int count,long sequence,String hash){this(names,initialQuota,quota,count,sequence,hash,null);}
+        Configuration(String[] names,long initialQuota,long quota,int count,long sequence,String hash,String maintenance){this.names=names.clone();this.initialQuota=initialQuota;this.quota=quota;automaticCount=count;this.sequence=sequence;this.hash=hash;this.maintenance=maintenance;}
     }
     private static final class Ledger {
         final File root;final List<ProtectionStore.StoredRecord> records=new ArrayList<>();
@@ -109,8 +113,8 @@ final class HistoryStorage {
         Ledger(File root){this.root=root;}
     }
     static final class Capacity {
-        final Configuration configuration;final long actualBytes,reservedBytes,reservedSlots;final boolean blocked;
-        Capacity(Configuration config,long bytes,long reserved,long slots,boolean blocked){configuration=config;actualBytes=bytes;reservedBytes=reserved;reservedSlots=slots;this.blocked=blocked;}
+        final Configuration configuration;final long actualBytes,reservedBytes,reservedSlots;final boolean blocked;final Maintenance maintenance;
+        Capacity(Configuration config,long bytes,long reserved,long slots,boolean blocked,Maintenance maintenance){configuration=config;actualBytes=bytes;reservedBytes=reserved;reservedSlots=slots;this.blocked=blocked||maintenance.blocked();this.maintenance=maintenance;}
         long chargedBytes()throws IOException{return add(actualBytes,reservedBytes);}
     }
     private static State state(File root)throws IOException {
@@ -126,8 +130,10 @@ final class HistoryStorage {
     private static byte[] policyBytes(Configuration config,String previous)throws IOException {
         ByteArrayOutputStream buffer=new ByteArrayOutputStream();
         try(DataOutputStream out=new DataOutputStream(buffer)){
-            out.writeInt(POLICY_MAGIC);out.writeInt(1);out.writeLong(config.sequence);out.writeLong(config.initialQuota);out.writeLong(config.quota);out.writeInt(config.automaticCount);out.writeUTF(previous);
-            for(String name:config.names)out.writeUTF(name);out.write(digest().digest(buffer.toByteArray()));
+            out.writeInt(POLICY_MAGIC);out.writeInt(config.maintenance==null?1:2);out.writeLong(config.sequence);out.writeLong(config.initialQuota);out.writeLong(config.quota);out.writeInt(config.automaticCount);out.writeUTF(previous);
+            for(String name:config.names)out.writeUTF(name);
+            if(config.maintenance!=null){out.writeUTF(config.maintenance);out.writeLong(MAINTENANCE_BYTES);out.writeInt(MAINTENANCE_ENTRIES);out.writeLong(PRUNE_RESERVE_BYTES);out.writeInt(PRUNE_RESERVE_SLOTS);}
+            out.write(digest().digest(buffer.toByteArray()));
         }
         return buffer.toByteArray();
     }
@@ -146,12 +152,19 @@ final class HistoryStorage {
     private static Configuration decodePolicy(byte[] bytes,Configuration previous)throws IOException {
         if(bytes.length<80||!MessageDigest.isEqual(Arrays.copyOfRange(bytes,bytes.length-32,bytes.length),digest().digest(Arrays.copyOf(bytes,bytes.length-32))))throw new IOException("Policy integrity mismatch");
         try(DataInputStream in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-32))){
-            if(in.readInt()!=POLICY_MAGIC||in.readInt()!=1)throw new IOException("Unsupported policy record");
+            if(in.readInt()!=POLICY_MAGIC)throw new IOException("Unsupported policy record");
+            int version=in.readInt();if(version!=1&&version!=2)throw new IOException("Unsupported policy version");
             long sequence=in.readLong(),initial=in.readLong(),quota=in.readLong();int count=in.readInt();String prior=in.readUTF();String[] names=new String[4];
             for(int i=0;i<4;i++){names[i]=in.readUTF();if(!names[i].matches("[A-Za-z0-9_-]{1,128}")||names[i].equals(CAPACITY_ROOT))throw new IOException("Invalid registered root name");}
+            String maintenance=null;
+            if(version==2){maintenance=in.readUTF();
+                if(!MAINTENANCE_ROOT.equals(maintenance)||Arrays.asList(names).contains(maintenance)||maintenance.equals(CAPACITY_ROOT)
+                    ||in.readLong()!=MAINTENANCE_BYTES||in.readInt()!=MAINTENANCE_ENTRIES||in.readLong()!=PRUNE_RESERVE_BYTES||in.readInt()!=PRUNE_RESERVE_SLOTS)throw new IOException("Invalid maintenance binding");
+            }
+            if(previous!=null&&previous.maintenance!=null&&!previous.maintenance.equals(maintenance))throw new IOException("Maintenance registration cannot regress");
             if(in.available()!=0||new HashSet<>(Arrays.asList(names)).size()!=4||initial<0||sequence!=(previous==null?0:previous.sequence+1)
                 ||!prior.equals(previous==null?"":previous.hash)||(previous!=null&&(initial!=previous.initialQuota||!Arrays.equals(names,previous.names))))throw new IOException("Invalid policy chain");
-            validatePolicy(quota,count);return new Configuration(names,initial,quota,count,sequence,hex(digest().digest(bytes)));
+            validatePolicy(quota,count);return new Configuration(names,initial,quota,count,sequence,hex(digest().digest(bytes)),maintenance);
         }
     }
     private static Ledger ledger(File source)throws IOException {
@@ -172,7 +185,7 @@ final class HistoryStorage {
         }
         result.effective=state.uncertain||state.publishing?state.previous:result.latest;
         if(state.uncertain&&(result.latest==null||state.pendingHash==null||!result.latest.hash.equals(state.pendingHash)))throw new IOException("Uncertain policy publication changed");
-        result.blocked=result.stage!=null||result.effective==null||state.uncertain||state.publishing||state.recoveryRequired;
+        result.blocked=result.stage!=null||result.effective==null||state.uncertain||state.publishing||state.enrolling||state.recoveryRequired;
         return result;
     }
     static void checkRoot(File root,String role,Long constructorQuota)throws IOException {
@@ -213,9 +226,10 @@ final class HistoryStorage {
     static Configuration currentPolicy(File root)throws IOException {Ledger ledger=ledger(root);if(ledger==null||ledger.effective==null)throw new IOException("History capacity is not configured");return ledger.effective;}
     static void setPolicy(File root,long quota,int count,ProtectionStore.Durability durability)throws IOException {
         validatePolicy(quota,count);Ledger ledger=ledger(root);if(ledger==null||ledger.effective==null)throw new IOException("History capacity is not configured");
-        State state=state(root);if(state.uncertain||state.publishing)throw new IOException("History policy recovery required");
+        State state=state(root);if(state.uncertain||state.publishing||state.enrolling)throw new IOException("History policy recovery required");
+        if(maintenance(root,ledger.effective,new Budget(METADATA_BUDGET)).blocked())throw new IOException("Pending maintenance blocks policy mutation");
         Configuration previous=ledger.effective;
-        Configuration next=new Configuration(previous.names,previous.initialQuota,quota,count,previous.sequence+1,"");
+        Configuration next=new Configuration(previous.names,previous.initialQuota,quota,count,previous.sequence+1,"",previous.maintenance);
         if(state.recoveryRequired){
             // An explicit identical request may resume an exact stage after process death.
             // Generic recoverPolicy never guesses whether a staged setting was intended.
@@ -228,8 +242,13 @@ final class HistoryStorage {
         publishPolicy(root,next,durability);
     }
     static void recoverPolicy(File root,ProtectionStore.Durability durability)throws IOException {
-        if(state(root).publishing)throw new IOException("Policy publication is in progress");
+        if(state(root).publishing||state(root).enrolling)throw new IOException("Policy publication is in progress");
         Ledger ledger=ledger(root);if(ledger==null||ledger.latest==null||ledger.stage!=null)throw new IOException("No complete policy publication to recover");
+        if(ledger.latest.maintenance!=null){
+            File maintenance=canonicalRoot(new File(root.getParentFile(),ledger.latest.maintenance));
+            if(!Files.isDirectory(maintenance.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Missing maintenance root");
+            durability.syncDirectory(root.getParentFile());durability.syncDirectory(maintenance);
+        }
         durability.syncDirectory(ledger.root);Ledger checked=ledger(root);
         if(checked.latest==null||!checked.latest.hash.equals(ledger.latest.hash))throw new IOException("Policy changed during recovery");
         changed(root);State state=state(root);state.uncertain=false;state.pendingHash=null;state.previous=null;state.recoveryRequired=false;state.enrolled=true;
@@ -284,13 +303,15 @@ final class HistoryStorage {
     static Capacity capacity(File root)throws IOException {
         Ledger ledger=ledger(root);if(ledger==null||ledger.effective==null)throw new IOException("History capacity is not configured");State state=state(root);
         if(state.store==null)throw new IOException("Open the registered protection store first");Usage usage=usage(state.store,ledger.effective,ledger);
-        return new Capacity(ledger.effective,usage.actual,usage.reserved,usage.slots,ledger.blocked);
+        return new Capacity(ledger.effective,usage.actual,usage.reserved,usage.slots,ledger.blocked,maintenance(root,ledger.effective,new Budget(METADATA_BUDGET)));
     }
     static boolean admit(File root,String role,long newBytes,long newReservation,long releaseBytes,long newSlots,long releaseSlots,boolean completion)throws IOException {
         Ledger ledger=ledger(root);if(ledger==null)return false;
         Configuration config=ledger.effective;if(config==null)throw new IOException("History registration is pending");
         int affected=Arrays.asList(ROLES).indexOf(role);if(affected<0||!root.getName().equals(config.names[affected]))throw new IOException("Unregistered history writer");
         State state=state(root);if(state.store==null)throw new IOException("Open the registered protection store first");
+        if(state.enrolling)throw new IOException("Maintenance enrollment is in progress");
+        if(maintenance(root,config,new Budget(METADATA_BUDGET)).blocked())throw new IOException("Pending maintenance blocks history mutation");
         Usage usage=usage(state.store,config,ledger);
         if(newBytes<0||newReservation<0||releaseBytes<0||releaseSlots<0||newSlots<0||releaseBytes>usage.reserved||releaseSlots>usage.slots)throw new IOException("Unowned history reservation");
         long growth=add(newBytes,newReservation)-releaseBytes,slotGrowth=newSlots-releaseSlots;
@@ -307,6 +328,90 @@ final class HistoryStorage {
     static List<ProtectionStore.StoredRecord> policyRecords(File root)throws IOException {Ledger ledger=ledger(root);return ledger==null?Collections.emptyList():Collections.unmodifiableList(new ArrayList<>(ledger.records));}
     static Configuration configuredPolicy(File root)throws IOException {Ledger ledger=ledger(root);return ledger==null?null:ledger.effective;}
     static boolean policyBlocked(File root)throws IOException {Ledger ledger=ledger(root);return ledger!=null&&ledger.blocked;}
+    /** Inventory only: no record here grants pin closure, replay, deletion or payload capacity. */
+    static final class Maintenance {
+        final List<ProtectionStore.StoredRecord> records=new ArrayList<>();final List<String> diagnostics=new ArrayList<>();
+        boolean enrolled,usageComplete=true;long bytes,entries;
+        boolean blocked(){return !usageComplete||!diagnostics.isEmpty();}
+    }
+    static Maintenance maintenance(File source,Configuration config,Budget budget)throws IOException {
+        Maintenance view=new Maintenance();if(config==null||config.maintenance==null)return view;view.enrolled=true;
+        File root=new File(source.getParentFile(),config.maintenance);
+        try {
+            canonicalRoot(root);if(!Files.isDirectory(root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Missing maintenance root");
+            try(DirectoryStream<Path> paths=Files.newDirectoryStream(root.toPath())){for(Path path:paths){
+                if(view.entries>=MAINTENANCE_ENTRIES){view.diagnostics.add("maintenance: entry limit");view.usageComplete=false;break;}
+                String name=path.getFileName().toString();budget.charge(1024L+name.length()*2L);view.entries++;
+                long size=0;String id=null,kind="unknown",hash=null;
+                try {
+                    BasicFileAttributes before=attrs(path);size=before.size();
+                    if(!before.isRegularFile())throw new IOException("Nonregular maintenance entry");
+                    view.bytes=add(view.bytes,size);
+                    int dot=name.lastIndexOf('.');if(dot>0){String candidate=name.substring(0,dot);kind=name.substring(dot+1);
+                        try{if(UUID.fromString(candidate).toString().equals(candidate))id=candidate;}catch(IllegalArgumentException ignored){}
+                    }
+                    boolean typed=id!=null&&Arrays.asList("operation","closed","prune-intent","operation-stage","close-stage","prune-stage").contains(kind);
+                    long maximum=kind.startsWith("close")||kind.equals("closed")?1024:65536;
+                    if(!typed)view.diagnostics.add("maintenance: unknown entry");
+                    if(size<0||size>maximum)view.diagnostics.add("maintenance: oversized entry");
+                    else if(view.bytes<=MAINTENANCE_BYTES){
+                        hash=hash(path,before);
+                        if(typed&&!kind.endsWith("-stage")){
+                            // Only outer framing is understood in this prerequisite. Never infer lifecycle state.
+                            if(!maintenanceEnvelope(path,before,id,kind))view.diagnostics.add("maintenance: invalid envelope");
+                        }
+                    }
+                    view.diagnostics.add(typed&&kind.endsWith("-stage")?"maintenance: retained stage":"maintenance: unresolved record semantics");
+                }catch(IOException failure){view.diagnostics.add("maintenance: unreadable entry");view.usageComplete=false;}
+                view.records.add(new ProtectionStore.StoredRecord("maintenance",name,id,kind,size,hash));
+                if(view.bytes>MAINTENANCE_BYTES){view.diagnostics.add("maintenance: byte limit");view.usageComplete=false;break;}
+            }}
+        }catch(IOException|DirectoryIteratorException failure){view.diagnostics.add("maintenance: inventory unavailable");view.usageComplete=false;}
+        if(view.bytes>MAINTENANCE_BYTES-PRUNE_RESERVE_BYTES||view.entries>MAINTENANCE_ENTRIES-PRUNE_RESERVE_SLOTS)view.diagnostics.add("maintenance: prune reserve unavailable");
+        view.records.sort(Comparator.comparing(record->record.filename));Collections.sort(view.diagnostics);return view;
+    }
+    private static boolean maintenanceEnvelope(Path path,BasicFileAttributes before,String id,String kind)throws IOException {
+        // Header: MDHM, version 1, type 1/2/3, UUID, bounded body length, body, SHA-256.
+        // Body semantics deliberately remain unsupported; even a valid envelope blocks all mutations.
+        if(before.size()<64)return false;
+        ByteBuffer data=ByteBuffer.allocate((int)before.size());
+        try(SeekableByteChannel channel=Files.newByteChannel(path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
+            while(data.hasRemaining())if(channel.read(data)<0)throw new IOException("Truncated maintenance envelope");
+            if(channel.read(ByteBuffer.allocate(1))!=-1)throw new IOException("Maintenance envelope grew");
+        }
+        BasicFileAttributes after=attrs(path);if(!after.isRegularFile()||before.size()!=after.size()||!Objects.equals(before.fileKey(),after.fileKey())||!before.lastModifiedTime().equals(after.lastModifiedTime()))throw new IOException("Maintenance entry changed");
+        byte[] bytes=data.array();int end=bytes.length-32;
+        if(!MessageDigest.isEqual(Arrays.copyOfRange(bytes,end,bytes.length),digest().digest(Arrays.copyOf(bytes,end))))return false;
+        data.flip();int type="operation".equals(kind)?1:"closed".equals(kind)?2:3;
+        return data.getInt()==0x4d44484d&&data.getInt()==1&&data.getInt()==type&&new UUID(data.getLong(),data.getLong()).toString().equals(id)&&data.getInt()==end-32;
+    }
+    static Maintenance maintenance(File root)throws IOException {Ledger ledger=ledger(root);Maintenance view=maintenance(root,ledger==null?null:ledger.effective,new Budget(METADATA_BUDGET));if(ledger!=null&&ledger.blocked)view.diagnostics.add("policy: pending publication or recovery");return view;}
+    static void enrollMaintenance(ProtectionStore store,File requested)throws IOException {
+        File root=store.storageRoot(),maintenance=canonicalRoot(requested);State state=state(root);
+        if(!MAINTENANCE_ROOT.equals(maintenance.getName()))throw new IOException("Maintenance root must use registered role name");
+        Ledger ledger=ledger(root);if(ledger==null||ledger.latest==null)throw new IOException("Configure four history roots before maintenance enrollment");
+        Configuration previous=ledger.latest;File[] roots=new File[6];for(int i=0;i<4;i++)roots[i]=new File(root.getParentFile(),previous.names[i]);roots[4]=policyRoot(root);roots[5]=maintenance;siblings(roots);
+        if(state.publishing||state.enrolling)throw new IOException("History publication in progress");
+        if(previous.maintenance!=null){
+            if(!previous.maintenance.equals(maintenance.getName()))throw new IOException("Conflicting maintenance registration");
+            changed(root);state.recoveryRequired=true;
+            recoverPolicy(root,store.durability());return;
+        }
+        if(state.uncertain)throw new IOException("Recover prior policy before maintenance enrollment");
+        Configuration next=new Configuration(previous.names,previous.initialQuota,previous.quota,previous.automaticCount,previous.sequence+1,"",maintenance.getName());
+        byte[] expected=policyBytes(next,previous.hash);
+        if(ledger.stage!=null&&!Arrays.equals(expected,boundedPolicyRead(ledger.stage)))throw new IOException("Conflicting maintenance enrollment stage");
+        changed(root);state.enrolling=true;state.recoveryRequired=true;
+        try {
+            if(!Files.exists(maintenance.toPath(),LinkOption.NOFOLLOW_LINKS))Files.createDirectory(maintenance.toPath());
+            Maintenance inventory=maintenance(root,next,new Budget(METADATA_BUDGET));
+            if(!inventory.usageComplete||inventory.bytes>MAINTENANCE_BYTES||inventory.entries>MAINTENANCE_ENTRIES)throw new IOException("Unsafe maintenance inventory");
+            // Every retry proves linkage again, even if a previous mkdir or parent fsync failed.
+            store.durability().syncDirectory(root.getParentFile());store.durability().syncDirectory(maintenance);
+            Ledger checked=ledger(root);if(checked.latest==null||!previous.hash.equals(checked.latest.hash))throw new IOException("Policy changed during enrollment");
+            publishPolicy(root,next,store.durability());
+        }finally{state.enrolling=false;}
+    }
     static MessageDigest digest()throws IOException {try{return MessageDigest.getInstance("SHA-256");}catch(NoSuchAlgorithmException e){throw new IOException("SHA-256 unavailable",e);}}
     static String hex(byte[] bytes){StringBuilder result=new StringBuilder(bytes.length*2);for(byte b:bytes)result.append(Character.forDigit((b&255)>>>4,16)).append(Character.forDigit(b&15,16));return result.toString();}
 }

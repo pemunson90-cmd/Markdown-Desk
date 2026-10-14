@@ -24,10 +24,14 @@ public final class HistoryPolicy {
     public static final class Capacity {
         public final HistoryPolicy policy;
         public final long actualBytes,reservedCompletionBytes,reservedCompletionSlots,chargedBytes;
-        public final boolean overQuota,mutationBlocked;
+        public final boolean overQuota,mutationBlocked,maintenanceEnrolled,maintenanceUsageComplete;
+        public final long maintenanceActualBytes,maintenanceOccupiedEntries,reservedPruneBytes,reservedPruneSlots;
         private Capacity(HistoryStorage.Capacity capacity)throws IOException {
             policy=new HistoryPolicy(capacity.configuration.quota,capacity.configuration.automaticCount);actualBytes=capacity.actualBytes;
             reservedCompletionBytes=capacity.reservedBytes;reservedCompletionSlots=capacity.reservedSlots;chargedBytes=capacity.chargedBytes();
+            maintenanceEnrolled=capacity.maintenance.enrolled;maintenanceUsageComplete=capacity.maintenance.usageComplete;
+            maintenanceActualBytes=capacity.maintenance.bytes;maintenanceOccupiedEntries=capacity.maintenance.entries;
+            reservedPruneBytes=maintenanceEnrolled?HistoryStorage.PRUNE_RESERVE_BYTES:0;reservedPruneSlots=maintenanceEnrolled?HistoryStorage.PRUNE_RESERVE_SLOTS:0;
             overQuota=chargedBytes>policy.quotaBytes;mutationBlocked=capacity.blocked;
         }
     }
