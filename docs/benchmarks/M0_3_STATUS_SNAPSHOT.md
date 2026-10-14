@@ -53,3 +53,7 @@ characters to expose the snapshot cost; it is not Android's `Editable`.
 This test measures method wall time on a host with simulated Android-facing
 objects. It does **not** measure typing latency, UI thread responsiveness,
 device allocation/GC, WebView, SAF, phone or Fold behavior; all are **NOT RUN**.
+
+Later M0 label repair adds dynamic Save action descriptions to updateStatus.
+The samples above measure the exact earlier method hashes recorded here; they
+are historical evidence, not measurements of every subsequent source revision.

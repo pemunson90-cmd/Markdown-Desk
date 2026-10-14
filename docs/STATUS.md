@@ -50,8 +50,8 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
   fixes; status snapshot count2→1. No reliable timing speedup or device claim.
 - Chromium host layout proxy passes108cases (9themes×3sizes×4viewports);
   this is browser overflow coverage, not screenshots or Android/Fold acceptance.
-- Independent review and two fresh committed-source builds PASS at `8462f79`.
-  Unsigned APK SHA-256: `e19e10d8e1c85324b4cca2bbb7d142734a5d926f87aebfdb56f53662d8dd5d9e`.
+- Independent review and two fresh committed-source builds PASS at `081b610`.
+  Unsigned APK SHA-256: `51ef128c7dfc7903a10553578ccc48abb1e02cc315e31e86dd963eb3faa673c7`.
   JDK17/SDK37.0/build-tools36.0.0 reused; no dependency downloads in clean rebuild.
   Independent CI run38564454893 failed in status-test tooling: a hard-coded
   local Java path; desired safety step was skipped. Scripts now use PATH and
@@ -69,8 +69,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
   Static accessibility audit records remaining divider/target/device gaps.
 - Safe-save preparation:20model-contract tests pass, explicitly not production
   persistence/durability proof; no existing provider assertion weakened.
-- Current next action: complete clean committed rebuild of Save As/label repair;
-  then prepare real storage durability adapter/fault cases and remaining
+- Current next action: prepare real storage durability adapter/fault cases and remaining
   accessibility/UI seams under
   ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
   both original and attempted edit durably, fail closed if protection fails,

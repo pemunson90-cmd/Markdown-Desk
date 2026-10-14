@@ -135,3 +135,8 @@ description hiding COPY/SAVED; updateStatus now uses matching dynamic descriptio
 with28status assertions. No layout or click-routing changes. Remaining static
 accessibility findings: [audit](M0_UI_ACCESSIBILITY_AUDIT.md). Real Android
 TalkBack/IME/Fold/provider/process-death verification remains NOT RUN.
+
+Two fresh committed-source checkouts at `081b610` pass the expanded host
+suite and produce identical unsigned APK SHA-256
+`51ef128c7dfc7903a10553578ccc48abb1e02cc315e31e86dd963eb3faa673c7`.
+The older `8462f79` build hash above remains historical evidence.
