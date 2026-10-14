@@ -29,8 +29,10 @@ policy. Controlled startup is read-only until explicit reconciliation.
 Scoped worker evidence: codec14cases/209assertions; policy49, admission61,
 integration42checks;10real SIGKILL boundaries and7additional fresh-process cases,
 each reopened twice. Independent review approved exact source and reproduced
-missing-root, second-handle, wrong-bundle and wrong-role repairs. Fresh combined
-host/unsigned gate is PENDING, not covered by earlier branch evidence.
+missing-root, second-handle, wrong-bundle and wrong-role repairs. First combined gate at `34ff18c` stopped in the archive runner: its brace-expanded
+native source list omitted capacity/control dependencies. Compiler sourcepath is
+being repaired; all preceding required paths passed. The complete host/unsigned
+gate remains PENDING, not covered by earlier branch evidence.
 
 Reviewed syntax fix `4c2fda6` preserves equal-priority search/foreign style
 precedence, with baseline full fallback whenever a foreign CharacterStyle exists.
@@ -43,8 +45,11 @@ newest same-history anchors, labels, pins, stages and unresolved data stay prote
 
 Next: complete one coherent clean host/build gate, publish the reconciled PR #14
 without force-pushing, then required hosted validation. An inert bounded intent
-codec is in independent development; no deletion, durable live pins, maintenance
-projection/replay, runtime history, export/import or M1 completion is claimed.
+codec is reviewed at `7c422a2`:73 native and103 bounded-heap checks plus planner
+compatibility pass. It performs no filesystem operations and the control parser
+still treats intent files as unknown until separately reviewed integration. No
+deletion, durable live pins, maintenance projection/replay, runtime history,
+export/import or M1 completion is claimed.
 Continue those next slices with explicit authority and complete framing bounds.
 Physical Fold7/Android16/OneUI8, SAF/IME/TalkBack, power-loss, canonical signing and
 upgrade gates remain NOT RUN. Raw-provider hazard diagnostics are unchanged RED.

@@ -143,3 +143,11 @@ maintenance recovery/tombstones and all interruption tests described above.
 The parallel extra-root/allowance proposal in ADR-003 is historical and superseded
 for accounting; preserve one existing control allowance. No runtime activation
 or physical/signing/upgrade acceptance follows from these source checkpoints.
+
+Inert intent framing is now reviewed at `7c422a2`: complete envelope <=64KiB,
+strict typed canonical proof/closure/anchor decoding, explicit metadata bindings
+and bounded identity descriptors. It has no filesystem caller and grants no
+policy/confirmation/deletion authority. The next maintenance-recovery slice must
+validate stable authority and every unaffected survivor before installing an
+exact logical tombstone, while retaining physical charges for present members.
+Ordinary control reconciliation must never promote an intent stage.
