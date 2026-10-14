@@ -5,6 +5,7 @@ OUT="$ROOT/verification/build/protection-store"
 mkdir -p "$OUT/classes" "$OUT/tmp"
 javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
+ "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/verification/protection_store/ProtectionStoreCheck.java"
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck
 python3 - "$OUT" <<'PY'

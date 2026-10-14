@@ -8,13 +8,11 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** Bounded append-only metadata protocol shared by identity and optional ownership records. */
 final class HistoryMetadataIO {
     static final int MAX_RECORD=16384, MAX_STRING=4096, MAX_ENTRIES=4096;
     static final long MAX_BYTES=8L*1024*1024;
-    private static final ConcurrentHashMap<String,Object> LOCKS=new ConcurrentHashMap<>();
     final File root;
     final Object lock;
     private final String extension;
@@ -25,8 +23,8 @@ final class HistoryMetadataIO {
     HistoryMetadataIO(File root,String extension,int magic,ProtectionStore.Durability durability)throws IOException {
         if(root==null||durability==null)throw new IOException("Invalid history metadata configuration");
         ancestors(root.getAbsoluteFile().toPath());
-        this.root=root.getAbsoluteFile().toPath().normalize().toFile();this.extension=extension;this.magic=magic;this.durability=durability;
-        lock=LOCKS.computeIfAbsent(this.root.getPath(),ignored->new Object());
+        this.root=HistoryStorage.canonicalRoot(root);this.extension=extension;this.magic=magic;this.durability=durability;
+        lock=HistoryStorage.monitorFor(this.root);
         synchronized(lock){
             ancestors(this.root.toPath());File parent=this.root.getParentFile();
             if(parent==null||!Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)||!parent.getCanonicalFile().equals(parent))
@@ -78,7 +76,7 @@ final class HistoryMetadataIO {
         if(inventory.files.size()>=MAX_ENTRIES||record.length>MAX_BYTES-inventory.bytes)throw new IOException("History metadata quota exhausted including stages");
         File destination=new File(root,id+extension),stage=new File(root,UUID.randomUUID()+".stage");
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable history record exists");
-        Files.createFile(stage.toPath());
+        HistoryStorage.changed(root);Files.createFile(stage.toPath());
         try(FileOutputStream out=new FileOutputStream(stage)){out.write(record);out.flush();durability.syncFile(out.getFD());}
         check.validate();durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic history move did not consume stage");

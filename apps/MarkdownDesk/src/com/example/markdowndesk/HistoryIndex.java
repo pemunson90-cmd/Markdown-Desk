@@ -22,7 +22,7 @@ public final class HistoryIndex {
             this.names=Collections.unmodifiableList(new ArrayList<>(names));
         }
     }
-    private static final class Ownership {
+    static final class Ownership {
         final String id, historyId, transactionId;
         final long sequence;
         final Metadata original,attempted;
@@ -31,7 +31,7 @@ public final class HistoryIndex {
         }
     }
     /** Full source metadata; never holds a payload or a Snapshot handle. */
-    private static final class Metadata {
+    static final class Metadata {
         final String id,documentId,uri,title,hash,role;
         final long revision,timestamp;
         final int size;
@@ -58,12 +58,19 @@ public final class HistoryIndex {
         final Map<String,List<HistoryCatalog.Checkpoint>> names=new HashMap<>();
         final Map<String,HistoryIdentity.Descriptor> histories=new HashMap<>();
     }
+    File storageRoot(){return io.root;}
+    boolean uses(ProtectionStore source,HistoryCatalog names,HistoryIdentity routes){return store==source&&catalog==names&&identity==routes;}
+    List<Ownership> ownershipsAgainst(ProtectionStore.ValidatedSources validated)throws IOException {return Collections.unmodifiableList(readAll(sources(validated)));}
     private final ProtectionStore store;
     private final HistoryCatalog catalog;
     private final HistoryIdentity identity;
     private final HistoryMetadataIO io;
     public HistoryIndex(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,File root,ProtectionStore.Durability durability)throws IOException {
         if(store==null||catalog==null||identity==null)throw new IOException("Invalid history index configuration");
+        Object parentMonitor=HistoryStorage.monitorFor(root);
+        if(parentMonitor!=HistoryStorage.monitorFor(store.storageRoot())||parentMonitor!=HistoryStorage.monitorFor(catalog.storageRoot())
+                ||parentMonitor!=HistoryStorage.monitorFor(identity.storageRoot())||catalog.sourceStore()!=store)
+            throw new IOException("Index dependencies require same private parent and source");
         this.store=store;this.catalog=catalog;this.identity=identity;
         io=new HistoryMetadataIO(root,".index",0x4d444858,durability);
         synchronized(io.lock){readAll(sources());}
@@ -72,7 +79,7 @@ public final class HistoryIndex {
      * Use the native URI bound to historyId, never a content hash to infer identity.
      * Call after successful save. Any IOException is an optional history error; the caller must
      * still report the successful provider outcome. A returned coordinator handle can be stale:
-     * this API deliberately rereads store.transactions() to establish verified completion.
+     * this API deliberately validates actual store records to establish verified completion.
      */
     public void recordVerified(String historyId,String transactionId)throws IOException {
         HistoryMetadataIO.id(historyId);HistoryMetadataIO.id(transactionId);
@@ -123,20 +130,22 @@ public final class HistoryIndex {
     private static Version version(ProtectionStore.Snapshot snapshot,String groupId,long sequence,Status status,Sources sources){
         return new Version(snapshot,groupId,sequence,status,sources.names.getOrDefault(snapshot.id,Collections.emptyList()));
     }
-    private Sources sources()throws IOException {
+    private Sources sources()throws IOException {return store.withValidatedSources(this::sources);}
+    private Sources sources(ProtectionStore.ValidatedSources validated)throws IOException {
+        validated.require(store);if(!validated.inventory.complete)throw new IOException("Incomplete source inventory");
         Sources sources=new Sources();
         for(HistoryIdentity.Descriptor descriptor:identity.descriptors())sources.histories.put(descriptor.id,descriptor);
-        for(ProtectionStore.Transaction transaction:store.transactions()){
+        for(ProtectionStore.Transaction transaction:validated.inventory.transactions){
             if(sources.groups.put(transaction.id,transaction)!=null)throw new IOException("Duplicate source transaction");
         }
-        for(ProtectionStore.Snapshot snapshot:store.snapshots()){
+        for(ProtectionStore.Snapshot snapshot:validated.inventory.snapshots){
             if(sources.snapshots.put(snapshot.id,snapshot)!=null)throw new IOException("Duplicate source snapshot");
         }
         for(ProtectionStore.Transaction transaction:sources.groups.values())
             if(!new Metadata(transaction.original).matches(requiredSnapshot(sources,transaction.original.id))
                     ||!new Metadata(transaction.attempted).matches(requiredSnapshot(sources,transaction.attempted.id)))throw new IOException("Source graph changed during enumeration");
         // Catalog's full scan detects invalid checkpoints for all documents, even before filtering.
-        for(HistoryCatalog.Checkpoint checkpoint:catalog.all()){
+        for(HistoryCatalog.Checkpoint checkpoint:catalog.allAgainstValidatedSnapshots(validated)){
             ProtectionStore.Snapshot snapshot=requiredSnapshot(sources,checkpoint.snapshotId);
             if(!checkpoint.documentId.equals(snapshot.documentId)||!checkpoint.snapshotHash.equals(snapshot.hash))throw new IOException("Checkpoint graph mismatch");
             sources.names.computeIfAbsent(checkpoint.snapshotId,ignored->new ArrayList<>()).add(checkpoint);

@@ -14,7 +14,7 @@ java -cp "$OUT/classes" ExtractStrictEncoding "$SRC/DocumentIO.java" "$OUT/MainA
 javac --release 11 -cp "$JSON_JAR" -d "$OUT/classes" \
     "$ROOT/verification/recovery_loader/stubs/android/content/Context.java" \
     "$SRC/DocumentTab.java" "$SRC/SessionStore.java" "$SRC/RecoveryStore.java" \
-    "$SRC/AtomicCommit.java" "$SRC/EditorTools.java" "$SRC/ProtectionStore.java" "$OUT/MainActivity.java" \
+    "$SRC/AtomicCommit.java" "$SRC/EditorTools.java" "$SRC/ProtectionStore.java" "$SRC/HistoryStorage.java" "$OUT/MainActivity.java" \
     "$ROOT/verification/recovery_loader/RecoveryLoaderCheck.java"
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes:$JSON_JAR" com.example.markdowndesk.RecoveryLoaderCheck
 
