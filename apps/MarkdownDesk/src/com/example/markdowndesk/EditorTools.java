@@ -9,8 +9,12 @@ public final class EditorTools {
     private EditorTools() {}
 
     public static int wordCount(String text) {
+        return wordCount(text, Locale.getDefault());
+    }
+
+    static int wordCount(String text, Locale locale) {
         if (text == null || text.isEmpty()) return 0;
-        BreakIterator words = BreakIterator.getWordInstance(Locale.getDefault());
+        BreakIterator words = BreakIterator.getWordInstance(locale);
         words.setText(text);
         int count = 0;
         int start = words.first();

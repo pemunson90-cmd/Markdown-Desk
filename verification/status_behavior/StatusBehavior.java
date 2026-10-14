@@ -16,6 +16,7 @@ public final class StatusBehavior {
         StatusHarness h = new StatusHarness();
         h.editor = new StatusHarness.Editor(source);
         h.updateStatus();
+        h.settle();
         eq(expectedStatus, h.statusView.text, "status");
         eq(expectedTitle, h.titleView.text, "title");
         eq(expectedSave, h.saveButton.text, "save label");
@@ -37,6 +38,7 @@ public final class StatusBehavior {
         h.mode = StatusHarness.MODE_PREVIEW;
         h.wordGoal = 4;
         h.updateStatus();
+        h.settle();
         eq("3 words · 13 characters · 2 lines · 1 min read · 75% of 4 · Read", h.statusView.text, "goal/read");
         eq("Note.md  •", h.titleView.text, "dirty title");
         eq("SAVE", h.saveButton.text, "dirty save");
@@ -52,6 +54,7 @@ public final class StatusBehavior {
         h.mode = StatusHarness.MODE_SPLIT;
         h.wordGoal = 2;
         h.updateStatus();
+        h.settle();
         eq("3 words · " + unicode.length() + " characters · 2 lines · 1 min read · 100% of 2 · Split",
                 h.statusView.text, "Unicode/CRLF/goal cap/split");
         eq("Note.md  ·  Read-only", h.titleView.text, "read-only title");
@@ -63,6 +66,7 @@ public final class StatusBehavior {
 
         h.saveInProgress = false;
         h.updateStatus();
+        h.settle();
         eq("COPY", h.saveButton.text, "read-only save");
         eq("Save a copy", h.saveButton.contentDescription, "read-only accessible action");
         eq(true, h.saveButton.enabled, "read-only enabled");
@@ -71,16 +75,91 @@ public final class StatusBehavior {
         h.editor = new StatusHarness.Editor("guard");
         h.titleView = null;
         h.updateStatus();
+        h.settle();
         eq(0, h.editor.text.copies, "null-title guard");
 
         h = new StatusHarness();
         h.editor = new StatusHarness.Editor("one two\nthree");
         h.editor.selection = 4;
         h.updateStatus();
+        h.settle();
         eq(4, h.editor.selection, "selection unchanged");
         eq("one two\nthree", h.editor.text.source, "source unchanged");
         eq(1, h.editor.text.copies, "one editor snapshot per status update");
+        asynchronous();
         System.out.println("PASS " + checks + " status behavior assertions");
+    }
+
+    private static void asynchronous() {
+        StatusHarness h = new StatusHarness();
+        h.editor = new StatusHarness.Editor("one two");
+        DocumentTab first = new DocumentTab(); first.id = "first";
+        DocumentTab second = new DocumentTab(); second.id = "second";
+        h.tabs.add(first); h.tabs.add(second); h.activeTab = 0;
+        h.updateStatus();
+        eq("Calculating statistics · 7 characters · Write", h.statusView.text, "initial pending is explicit");
+        eq(0, h.editor.text.copies, "no immediate editor snapshot");
+        h.settle();
+        eq("2 words · 7 characters · 1 lines · 1 min read · Write", h.statusView.text, "settled count");
+        eq(1, h.editor.text.copies, "one debounced snapshot");
+        h.mode = StatusHarness.MODE_PREVIEW;
+        h.wordGoal = 4;
+        h.updateStatus();
+        eq("2 words · 7 characters · 1 lines · 1 min read · 50% of 4 · Read", h.statusView.text, "cached counts format current mode/goal");
+        eq(0, h.main.delayed.size(), "non-text status update reuses exact result");
+        eq(1, h.editor.text.copies, "no snapshot for cached refresh");
+        for (int i = 0; i < 1000; i++) h.changed("one two three", false);
+        eq(1, h.main.delayed.size(), "burst has one debounce callback");
+        eq(0, h.worker().tasks.size(), "burst does not queue worker before debounce");
+        eq(0, h.editor.text.copies, "burst makes no editor snapshots");
+        eq("Calculating statistics · 13 characters · Read", h.statusView.text, "new edit hides stale counts and goal");
+        eq("Note.md  •", h.titleView.text, "dirty title immediate");
+        eq("SAVE", h.saveButton.text, "save immediate");
+        eq(true, first.dirty, "active tab dirty immediate");
+        h.main.runDelayed();
+        h.worker().drain(); // Result posted, then a new edit.
+        h.changed("four", false);
+        h.main.runPosted();
+        eq("Calculating statistics · 4 characters · Read", h.statusView.text, "queued stale completion cannot overwrite edit");
+        h.settle();
+        eq("1 word · 4 characters · 1 lines · 1 min read · 25% of 4 · Read", h.statusView.text, "latest edit settles");
+        h.changed("old tab text", false);
+        h.main.runDelayed();
+        h.worker().drain();
+        h.activeTab = 1; // Deliberately same revision: identity must independently reject old result.
+        h.main.runPosted();
+        eq("Calculating statistics · 12 characters · Read", h.statusView.text, "identity rejects old tab completion");
+        h.changed("replacement\r\n", true); // Programmatic restore suppresses dirty side effects.
+        h.dirty = false;
+        long prior = h.revision();
+        h.updateStatus();
+        eq(false, second.dirty, "suppressed restore does not dirty tab");
+        h.settle();
+        eq("1 word · 13 characters · 2 lines · 1 min read · 25% of 4 · Read", h.statusView.text, "suppressed restore receives fresh stats");
+        h.changed("same length!\n", true);
+        eq(prior + 1, h.revision(), "suppressed same-length replacement increments revision");
+        h.updateStatus(); h.settle();
+        eq("2 words · 13 characters · 2 lines · 1 min read · 50% of 4 · Read", h.statusView.text, "same-length replacement cannot use old counts");
+        Locale old = Locale.getDefault();
+        try {
+            h.changed("locale text", false); h.main.runDelayed();
+            h.worker().drain();
+            Locale.setDefault(old.equals(Locale.FRANCE) ? Locale.US : Locale.FRANCE);
+            h.main.runPosted();
+            eq("Calculating statistics · 11 characters · Read", h.statusView.text, "locale rejects prior completion");
+            h.updateStatus(); h.settle();
+            eq("2 words · 11 characters · 1 lines · 1 min read · 50% of 4 · Read", h.statusView.text, "new locale recomputes");
+        } finally { Locale.setDefault(old); }
+        h.changed("closing", false); h.main.runDelayed();
+        h.worker().drain();
+        h.onDestroy();
+        h.main.runPosted(); h.main.runDelayed();
+        eq(true, h.worker().isShutdown(), "lifecycle shuts down dedicated worker");
+        eq(0, h.main.posted.size(), "lifecycle removes posted completion");
+        eq(0, h.main.delayed.size(), "lifecycle removes debounce");
+        eq("Calculating statistics · 7 characters · Read", h.statusView.text, "no result after destruction");
+        eq(0, h.io.tasks.size(), "statistics do not queue save IO");
+        eq(0, h.renderIo.tasks.size(), "statistics do not queue render IO");
     }
 
     private static String fixture(int words) {
@@ -94,30 +173,35 @@ public final class StatusBehavior {
     }
 
     private static void bench() {
-        System.out.println("words,chars,snapshots_per_update,sample1_ms,sample2_ms,sample3_ms,median_ms,max_used_heap_MiB");
+        System.out.println("words,chars,snapshots_per_immediate_update,sample1_ms,sample2_ms,sample3_ms,median_ms,max_used_heap_MiB,deferred1_ms,deferred2_ms,deferred3_ms,deferred_median_ms,total_snapshots_per_edit");
         Runtime vm = Runtime.getRuntime();
         for (int words : new int[]{10000, 100000, 500000}) {
             String source = fixture(words);
             StatusHarness h = new StatusHarness();
             h.editor = new StatusHarness.Editor(source);
-            h.updateStatus(); // warmup
-            long[] time = new long[3];
+            h.updateStatus(); h.settle(); // warmup
+            long[] time = new long[3], deferred = new long[3];
             long peakUsed = 0;
-            int priorCopies = h.editor.text.copies;
+            int immediateCopies = 0, totalCopies = 0;
             for (int i = 0; i < 3; i++) {
                 System.gc();
                 long start = System.nanoTime();
-                h.updateStatus();
+                h.changed(source, false); // actual extracted TextWatcher -> updateStatus
                 time[i] = System.nanoTime() - start;
+                immediateCopies += h.editor.text.copies;
+                start = System.nanoTime();
+                h.settle(); // snapshot + actual worker scan + status apply; excludes intentional 250ms wait
+                deferred[i] = System.nanoTime() - start;
+                totalCopies += h.editor.text.copies;
                 peakUsed = Math.max(peakUsed, vm.totalMemory() - vm.freeMemory());
             }
-            int copies = (h.editor.text.copies - priorCopies) / 3;
-            if (h.editor.text.copies - priorCopies != 3 * copies) throw new AssertionError("Inconsistent snapshot count");
-            long[] sorted = time.clone();
-            Arrays.sort(sorted);
-            System.out.printf(Locale.ROOT, "%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.1f%n", words,
-                    source.length(), copies, time[0] / 1e6, time[1] / 1e6,
-                    time[2] / 1e6, sorted[1] / 1e6, peakUsed / 1048576.0);
+            long[] sorted = time.clone(), sortedDeferred = deferred.clone();
+            Arrays.sort(sorted); Arrays.sort(sortedDeferred);
+            System.out.printf(Locale.ROOT, "%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.1f,%.3f,%.3f,%.3f,%.3f,%d%n", words,
+                    source.length(), immediateCopies / 3, time[0] / 1e6, time[1] / 1e6,
+                    time[2] / 1e6, sorted[1] / 1e6, peakUsed / 1048576.0,
+                    deferred[0] / 1e6, deferred[1] / 1e6, deferred[2] / 1e6, sortedDeferred[1] / 1e6, totalCopies / 3);
+            h.onDestroy();
         }
     }
 

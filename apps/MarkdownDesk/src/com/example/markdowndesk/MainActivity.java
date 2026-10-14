@@ -155,6 +155,16 @@ public class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService renderIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService statisticsIo = Executors.newSingleThreadExecutor();
+    private final LatestStatistics statistics = new LatestStatistics(this.statisticsIo,
+            runnable -> this.main.post(runnable), this::acceptStatistics);
+    private Runnable statisticsRunnable;
+    private long statisticsRevision;
+    private long statisticsRequestedRevision = -1;
+    private String statisticsRequestedDocument;
+    private Locale statisticsRequestedLocale;
+    private LatestStatistics.Result statisticsResult;
+    private boolean statisticsStopped;
     private final List<Button> buttons = new ArrayList();
     private final List<Button> tabButtons = new ArrayList();
     private final List<Button> modeButtons = new ArrayList();
@@ -224,6 +234,7 @@ public class MainActivity extends Activity {
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        stopStatistics();
         this.main.removeCallbacksAndMessages(null);
         if (this.preview != null) {
             this.preview.destroy();
@@ -416,6 +427,7 @@ public class MainActivity extends Activity {
 
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                MainActivity.this.invalidateStatistics();
                 if (MainActivity.this.suppressChanges) {
                     return;
                 }
@@ -4134,6 +4146,60 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(this.displayName).setMessage(info.toString()).setPositiveButton("Done", null).show();
     }
 
+    // Main-thread keys include suppressed setText calls as well as user edits.
+    private void invalidateStatistics() {
+        this.statisticsRevision++;
+        this.statisticsResult = null;
+        this.statisticsRequestedRevision = -1;
+        this.statistics.invalidate();
+        if (this.statisticsRunnable != null) this.main.removeCallbacks(this.statisticsRunnable);
+        this.statisticsRunnable = null;
+    }
+
+    private String statisticsDocumentId() {
+        return this.activeTab >= 0 && this.activeTab < this.tabs.size()
+                ? this.tabs.get(this.activeTab).id : "";
+    }
+
+    private void requestStatistics() {
+        if (this.statisticsStopped) return;
+        final String documentId = statisticsDocumentId();
+        final long revision = this.statisticsRevision;
+        final Locale locale = Locale.getDefault();
+        if (revision == this.statisticsRequestedRevision
+                && documentId.equals(this.statisticsRequestedDocument)
+                && locale.equals(this.statisticsRequestedLocale)) return;
+        this.statisticsResult = null;
+        this.statistics.invalidate();
+        if (this.statisticsRunnable != null) this.main.removeCallbacks(this.statisticsRunnable);
+        this.statisticsRequestedRevision = revision;
+        this.statisticsRequestedDocument = documentId;
+        this.statisticsRequestedLocale = locale;
+        this.statisticsRunnable = () -> {
+            this.statisticsRunnable = null;
+            if (this.statisticsStopped || this.editor == null || revision != this.statisticsRevision
+                    || !documentId.equals(statisticsDocumentId()) || !locale.equals(Locale.getDefault())) return;
+            // Editable stays on the UI thread; the worker receives only this immutable snapshot.
+            this.statistics.request(documentId, revision, this.editor.getText().toString(), locale);
+        };
+        this.main.postDelayed(this.statisticsRunnable, 250L);
+    }
+
+    private void acceptStatistics(LatestStatistics.Result result) {
+        if (this.statisticsStopped || this.editor == null || result.revision != this.statisticsRevision
+                || !result.documentId.equals(statisticsDocumentId()) || !result.locale.equals(Locale.getDefault())) return;
+        this.statisticsResult = result;
+        updateStatus();
+    }
+
+    private void stopStatistics() {
+        this.statisticsStopped = true;
+        if (this.statisticsRunnable != null) this.main.removeCallbacks(this.statisticsRunnable);
+        this.statisticsRunnable = null;
+        this.statistics.close();
+        this.statisticsIo.shutdownNow();
+    }
+
     /* JADX INFO: Access modifiers changed from: private */
     public void updateStatus() {
         String str;
@@ -4148,17 +4214,21 @@ public class MainActivity extends Activity {
         } else {
             str = this.mode == MODE_PREVIEW ? "Read" : "Split";
         }
-        String statusText = this.editor.getText().toString();
-        int iWordCount = EditorTools.wordCount(statusText);
+        requestStatistics();
         int length = this.editor.length();
-        String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
         String quantityString2 = getResources().getQuantityString(R.plurals.character_count, length, Integer.valueOf(length));
-        int lineCount = EditorTools.lineCount(statusText);
-        int iMax = iWordCount == 0 ? 0 : Math.max(1, (int) Math.ceil(((double) iWordCount) / 220.0d));
-        if (this.wordGoal > 0) {
-            str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
+        LatestStatistics.Result counts = this.statisticsResult;
+        if (counts == null) {
+            this.statusView.setText("Calculating statistics · " + quantityString2 + " · " + str);
+        } else {
+            int iWordCount = counts.words;
+            String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
+            int iMax = iWordCount == 0 ? 0 : Math.max(1, (int) Math.ceil(((double) iWordCount) / 220.0d));
+            if (this.wordGoal > 0) {
+                str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
+            }
+            this.statusView.setText(quantityString + " · " + quantityString2 + " · " + counts.lines + " lines · " + iMax + " min read" + str3 + " · " + str);
         }
-        this.statusView.setText(quantityString + " · " + quantityString2 + " · " + lineCount + " lines · " + iMax + " min read" + str3 + " · " + str);
         Button button = this.saveButton;
         if (this.saveInProgress) {
             str2 = "•••";

@@ -13,5 +13,7 @@ mkdir -p "$out/classes"
   verification/stubs/android/graphics/drawable/GradientDrawable.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java \
+  apps/MarkdownDesk/src/com/example/markdowndesk/LatestStatistics.java \
+  apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java \
   "$out/StatusHarness.java" verification/status_behavior/StatusBehavior.java
 "$java_bin" -Xms128m -Xmx1g -cp "$out/classes" com.example.markdowndesk.StatusBehavior "${1:-test}"
