@@ -62,6 +62,7 @@ public final class HistoryCatalog {
         lock=HistoryStorage.monitorFor(this.root);
         if(lock!=HistoryStorage.monitorFor(store.storageRoot()))throw new IOException("Catalog and source require same private parent");
         synchronized(lock) {
+            HistoryStorage.checkRoot(this.root,"catalog",null);
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
             if(parent==null || !Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)
@@ -87,6 +88,7 @@ public final class HistoryCatalog {
             byte[] record=encode(checkpoint);
             if(inventory.files.size()>=MAX_RECORDS || record.length>MAX_METADATA_BYTES-inventory.bytes)
                 throw new IOException("Catalog quota exhausted (including stages)");
+            HistoryStorage.admitMetadata(root,"catalog",record.length);
             File destination=file(checkpoint.id,".checkpoint"), stage=file(UUID.randomUUID().toString(),".stage");
             checkAncestors(root.toPath());
             if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable checkpoint exists");

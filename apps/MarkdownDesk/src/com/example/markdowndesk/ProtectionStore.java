@@ -114,6 +114,12 @@ public final class ProtectionStore {
     }
     File storageRoot(){return root;}
     long constructorQuotaBytes(){return quotaBytes;}
+    Durability durability(){return durability;}
+    long[] completionReservations()throws IOException {Reservation reserved=unresolvedReservation();return new long[]{reserved.bytes,reserved.entries};}
+    /** Requires explicit HistoryPolicy.configure; existing constructor-only stores are unchanged. */
+    public void setQuotaBytes(long bytes)throws IOException {synchronized(lock){HistoryStorage.Configuration policy=HistoryStorage.currentPolicy(root);HistoryStorage.setPolicy(root,bytes,policy.automaticCount,durability);}}
+    /** Proves a committed but uncertain policy publication; never promotes a retained stage. */
+    public void recoverPolicy()throws IOException {synchronized(lock){HistoryStorage.recoverPolicy(root,durability);}}
     public Inventory inspect()throws IOException {return withValidatedSources(sources->sources.inventory);}
     <T> T withValidatedSources(SourceOperation<T> operation)throws IOException {
         return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),operation);
@@ -157,6 +163,7 @@ public final class ProtectionStore {
         this.durability=adapter; this.quotaBytes=quotaBytes;
         lock=HistoryStorage.monitorFor(this.root);
         synchronized (lock) {
+            HistoryStorage.checkRoot(this.root,"store",quotaBytes);
             checkAncestors(this.root.toPath());
             File parent=this.root.getParentFile();
             if (parent==null || !Files.isDirectory(parent.toPath(), LinkOption.NOFOLLOW_LINKS))
@@ -166,7 +173,7 @@ public final class ProtectionStore {
             // Re-sync even an existing root: a previous failed creation may have left it behind.
             durability.syncDirectory(parent);
             durability.syncDirectory(this.root);
-            entries();
+            entries();HistoryStorage.attachStore(this);
         }
     }
 
@@ -215,8 +222,8 @@ public final class ProtectionStore {
             byte[] envelope=transactionEnvelope(stored,COMPLETE);
             long staged=completionStageBytes(stored,false);
             if(staged>=0&&staged!=envelope.length)throw new IOException("Partial completion stage retained; retry blocked");
-            if(staged<0)checkQuota(envelope.length,0,envelope.length);
-            else checkQuota(0,0,0,0,0);
+            if(staged<0)checkQuota(envelope.length,0,envelope.length,1,1,true);
+            else checkQuota(0,0,0,0,0,true);
             commitCompletion(stored,envelope,staged>=0);
             readCompletion(stored);
         }
@@ -319,9 +326,10 @@ public final class ProtectionStore {
     }
 
     private void checkQuota(long newBytes,long newReservation,long releasedReservation)throws IOException {
-        checkQuota(newBytes,newReservation,releasedReservation,1+(newReservation>0?1:0),releasedReservation>0?1:0);
+        checkQuota(newBytes,newReservation,releasedReservation,1+(newReservation>0?1:0),releasedReservation>0?1:0,false);
     }
-    private void checkQuota(long newBytes,long newReservation,long releasedReservation,long newSlots,long releasedSlots)throws IOException {
+    private void checkQuota(long newBytes,long newReservation,long releasedReservation,long newSlots,long releasedSlots,boolean completion)throws IOException {
+        if(HistoryStorage.admit(root,"store",newBytes,newReservation,releasedReservation,newSlots,releasedSlots,completion))return;
         File[] files=entries();Reservation reserved=unresolvedReservation();
         try {
             long total=0;

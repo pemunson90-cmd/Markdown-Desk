@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+OUT="$ROOT/verification/build/history-quota"
+mkdir -p "$OUT/classes" "$OUT/tmp"
+SRC="$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk"
+javac --release 11 -d "$OUT/classes" "$SRC/ProtectionStore.java" "$SRC/HistoryStorage.java" "$SRC/HistoryPolicy.java" "$SRC/HistoryCatalog.java" "$SRC/HistoryMetadataIO.java" "$SRC/HistoryIdentity.java" "$SRC/HistoryIndex.java" "$SRC/HistoryGraph.java" "$ROOT/verification/history_quota/HistoryQuotaCheck.java" "$ROOT/verification/history_quota/HistoryQuotaRestartProbe.java"
+java -Xmx128m -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.HistoryQuotaCheck
+python3 "$ROOT/verification/history_quota/run_restart.py" "$OUT"

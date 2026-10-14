@@ -26,6 +26,7 @@ final class HistoryMetadataIO {
         this.root=HistoryStorage.canonicalRoot(root);this.extension=extension;this.magic=magic;this.durability=durability;
         lock=HistoryStorage.monitorFor(this.root);
         synchronized(lock){
+            HistoryStorage.checkRoot(this.root,extension.substring(1),null);
             ancestors(this.root.toPath());File parent=this.root.getParentFile();
             if(parent==null||!Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)||!parent.getCanonicalFile().equals(parent))
                 throw new IOException("History metadata parent is not canonical directory");
@@ -74,6 +75,7 @@ final class HistoryMetadataIO {
     void commit(String id,byte[] record,Check check)throws IOException {
         id(id);Inventory inventory=inventory();
         if(inventory.files.size()>=MAX_ENTRIES||record.length>MAX_BYTES-inventory.bytes)throw new IOException("History metadata quota exhausted including stages");
+        HistoryStorage.admitMetadata(root,extension.substring(1),record.length);
         File destination=new File(root,id+extension),stage=new File(root,UUID.randomUUID()+".stage");
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable history record exists");
         HistoryStorage.changed(root);Files.createFile(stage.toPath());

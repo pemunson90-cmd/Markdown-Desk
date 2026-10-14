@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
 
-/** Read-only proof/accounting for four private sibling roots. No admission or deletion API. */
+/** Read-only proof/accounting for four private sibling roots and their optional policy ledger. No admission or deletion API. */
 public final class HistoryGraph {
     public static final class Ownership {
         public final String id, historyId, transactionId, originalSnapshotId, attemptedSnapshotId;
@@ -75,6 +75,19 @@ public final class HistoryGraph {
                 builder.records.addAll(inventory.records);builder.snapshots.addAll(inventory.snapshots);builder.transactions.addAll(inventory.transactions);
                 builder.diagnostics.addAll(inventory.diagnostics);builder.actual=inventory.actualBytes;builder.reserved=inventory.reservedCompletionBytes;
                 builder.slots=inventory.reservedCompletionSlots;builder.usageComplete=inventory.usageComplete;
+                HistoryPolicy effectivePolicy=policy;
+                try {
+                    HistoryStorage.Configuration configured=HistoryStorage.configuredPolicy(store.storageRoot());
+                    if(configured!=null){
+                        effectivePolicy=new HistoryPolicy(configured.quota,configured.automaticCount);
+                        String[] actualRoots={store.storageRoot().getName(),catalog.storageRoot().getName(),identity.storageRoot().getName(),index.storageRoot().getName()};
+                        if(!Arrays.equals(actualRoots,configured.names))throw new IOException("Graph differs from registered history bundle");
+                    }
+                    for(ProtectionStore.StoredRecord record:HistoryStorage.policyRecords(store.storageRoot())){
+                        budget.charge(1024L+record.filename.length()*2L);builder.records.add(record);builder.actual=Math.addExact(builder.actual,record.serializedBytes);
+                    }
+                    if(HistoryStorage.policyBlocked(store.storageRoot()))builder.diagnostics.add("policy: pending publication or recovery");
+                }catch(IOException|ArithmeticException invalid){builder.diagnostics.add("policy: invalid capacity proof");builder.usageComplete=false;}
                 boolean metadataValid=true;
                 for(String role:Arrays.asList("catalog","identity","index")){
                     File root="catalog".equals(role)?catalog.storageRoot():"identity".equals(role)?identity.storageRoot():index.storageRoot();
@@ -103,17 +116,17 @@ public final class HistoryGraph {
                 try{builder.charged=Math.addExact(builder.actual,builder.reserved);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
                 builder.records.sort(Comparator.comparing((ProtectionStore.StoredRecord record)->record.rootRole).thenComparing(record->record.filename));
                 Collections.sort(builder.diagnostics);
-                return new Graph(builder,fingerprint(builder),policy);
+                return new Graph(builder,fingerprint(builder,effectivePolicy),effectivePolicy);
             });
         }
     }
-    private String fingerprint(Builder builder)throws IOException {
+    private String fingerprint(Builder builder,HistoryPolicy effectivePolicy)throws IOException {
         MessageDigest digest=HistoryStorage.digest();
         try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(new OutputStream(){@Override public void write(int value){} @Override public void write(byte[] bytes,int offset,int length){}},digest))){
             text(out,"read-only-history-graph-v1");
             for(File root:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))text(out,root.getName());
-            out.writeLong(store.constructorQuotaBytes());out.writeBoolean(policy!=null);
-            if(policy!=null){out.writeLong(policy.quotaBytes);out.writeInt(policy.automaticCount);}
+            out.writeLong(store.constructorQuotaBytes());out.writeBoolean(effectivePolicy!=null);
+            if(effectivePolicy!=null){out.writeLong(effectivePolicy.quotaBytes);out.writeInt(effectivePolicy.automaticCount);}
             out.writeLong(builder.actual);out.writeLong(builder.reserved);out.writeLong(builder.slots);out.writeBoolean(builder.usageComplete);
             out.writeInt(builder.records.size());
             for(ProtectionStore.StoredRecord record:builder.records){text(out,record.rootRole);text(out,record.filename);text(out,record.id);text(out,record.kind);out.writeLong(record.serializedBytes);text(out,record.envelopeHash);}
