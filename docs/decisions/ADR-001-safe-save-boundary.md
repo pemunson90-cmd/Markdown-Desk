@@ -1,7 +1,8 @@
 # ADR-001: Preserve both versions before a fallible provider save
 
 - Date: 2026-10-14
-- Status: proposed architecture for review; no runtime implementation or gate clearance
+- Status: recoverability direction selected under owner delegation; detailed
+  implementation and quota recommendations remain for review; no gate clearance
 - Scope: document save boundary and its recovery contract; M1 preparation
 - References: [roadmap](../ROADMAP.md), [release gates](../RELEASE_GATES.md),
   [provider probes](../../verification/document_io/README.md)
@@ -12,6 +13,15 @@ Protect the user's existing document bytes and the exact edited version submitte
 for save before any potentially destructive provider operation. Keep user-owned
 Markdown canonical, offline and accessed through scoped SAF. This design does
 not introduce a new editor, workspace, cloud service or release.
+
+The owner delegated the reliability choice on 2026-10-14: “I have no idea just
+do what's best and most reliable”. The architect selects durable private
+protection of both versions, mandatory before every provider mutation, while
+retaining generic SAF save usability. Protection failure blocks the save.
+Recovery is explicit restore-to-new-copy; there is no automatic rollback.
+This guarantees recoverable protected bytes within the storage assumptions
+below, not an unchanged canonical URI after provider failure. The delegation
+does not waive physical-device gates or M0-to-M1 sequencing prerequisites.
 
 The protected baseline is `v2.2.5-baseline`, merged at `d1288a8`, version
 2.2.5/code18. Its `DocumentIO.write` opens `rwt`, falling back to `wt` when
@@ -45,12 +55,12 @@ them alongside baseline-preservation tests. They do not fix partial writes.
 Keep the low-level destructive-write probes visible; do not turn them green by
 weakening assertions or substituting a successful recovery claim.
 
-## Alternatives and recommendation
+## Alternatives and selected direction
 
 | Approach | Benefit | Limit / ruling |
 | --- | --- | --- |
-| Require a provider transaction or atomic replace | Can keep the canonical file unchanged on failure when the provider actually guarantees it | Generic SAF does not promise this. Rename/delete flags are not transactional replacement. Restricting overwrite to verified providers or requiring Save As needs an explicit product decision. |
-| Preserve both versions privately before the existing provider write | Works across current fallible provider paths; permits recovery even when the canonical file is truncated | Recommended recoverability boundary. Costs space and latency; does not guarantee the URI remains intact or eliminate external-write races. |
+| Require a provider transaction or atomic replace | Can keep the canonical file unchanged on failure when the provider actually guarantees it | Generic SAF does not promise this. Rename/delete flags are not transactional replacement. Requiring it for all overwrite operations would restrict existing SAF usability; not selected as the common boundary. |
+| Preserve both versions privately before the existing provider write | Works across current fallible provider paths; permits recovery even when the canonical file is truncated | Selected under owner delegation. Costs space and latency; does not guarantee the URI remains intact or eliminate external-write races. |
 | Write, then attempt automatic rollback | Appears to repair common failures | Rejected: rollback is another fallible write and may overwrite an external edit. A recovery draft alone also omits the original version. |
 
 Use the second approach as the common boundary. A provider-specific atomic path
@@ -164,15 +174,26 @@ files and commit records. Space checks are advisory; actual write/sync failures
 must still abort safely. Repeated save failures must not evict earlier recovery
 evidence merely to make the next attempt fit.
 
-Owner policy decisions remain pending; no numerical defaults are approved:
+The owner delegated policy judgment; another owner question is not required to
+prepare the implementation. The following conservative values are architect
+recommendations for later reviewed implementation, pending measured storage
+overhead and save latency. They are not implemented defaults or accepted
+performance budgets:
 
 | Decision | Alternatives | Proposed direction for review |
 | --- | --- | --- |
-| Retention quota | Fixed byte quota; device-free-space fraction with a cap; user-managed unlimited growth | Configurable fixed quota plus a free-space reserve; benchmark real overhead before choosing numbers. |
-| Successful-version retention | Count per document; age plus count; quota-driven oldest automatic versions | Combine count/age with a global quota; pin named checkpoints and unresolved recovery. Define the minimum retained successful versions explicitly. |
-| Quota exhausted | Stop overwrite; prune eligible automatic history then retry; bypass protection | Prune only eligible history, then stop overwrite if protection still cannot commit. Never offer an unprotected overwrite bypass under this contract. |
-| Automatic history frequency | Every verified save; elapsed time; meaningful-content change | Separate mandatory per-attempt protection from configurable successful-history frequency. Avoid disabling safety when automatic history is disabled. |
-| Required guarantee for generic providers | Recoverable original bytes; canonical URI unchanged on any failure | Owner must resolve the milestone wording before M1 acceptance. This proposal guarantees recoverability only within the stated storage assumptions. |
+| Retention quota | Fixed byte quota; device-free-space fraction with a cap; user-managed unlimited growth | Propose a configurable 64 MiB global quota for persisted envelopes/records, with staging space and a measured free-space reserve checked separately. Quota includes protected records; it never authorizes deleting them. |
+| Successful-version retention | Count per document; age plus count; quota-driven oldest automatic versions | Propose at most 20 automatic successful versions per document, subject to the global quota. Prune oldest eligible versions first. Preserve at least the last recoverable version; named checkpoints and unresolved transactions are exempt from count-based pruning. |
+| Quota exhausted | Stop overwrite; prune eligible automatic history then retry; bypass protection | Prune only eligible automatic history, then stop overwrite if protection cannot commit. Offer explicit user-managed export/deletion; never silently delete protected records or offer an unprotected overwrite bypass. |
+| Automatic history frequency | Every verified save; elapsed time; meaningful-content change | Initially retain successful content changes, bounded by the proposed quotas. Every save attempt still synchronously protects both required versions before mutation, even when optional automatic history is disabled. |
+| Required guarantee for generic providers | Recoverable original bytes; canonical URI unchanged on any failure | Selected: byte-exact recoverability of the observed original and submitted edit, within the stated storage assumptions. Canonical URI immutability is not promised. |
+
+Protection is mandatory synchronous work on the I/O executor, not an optional
+background optimization. Measure its worst-case space and latency on the matched
+M0 fixtures, including two near-limit versions and envelope overhead. A 64 MiB
+quota may hold substantially fewer than 20 large versions. Do not reduce byte
+integrity, sync ordering or failure protection to meet a timing target; revise
+the recommendation with measured evidence instead.
 
 Backup/export of app-private history remains separate from user-owned document
 backup. Honor the existing privacy/backup configuration; adding snapshots is not
@@ -210,14 +231,19 @@ foundation/benchmark/safety gates remain open; M1 runtime history integration
 must wait for its prerequisite gates or an explicitly approved sequencing change.
 No milestone, device/Fold, provider, upgrade or release acceptance is implied.
 
-The literal M1 exit condition, “no original document destruction,” cannot be
-claimed solely because an app-private original survives a destructive provider
-write. If unchanged canonical-file semantics are required, restrict in-place
-save to proven transactional providers or use explicit Save As for others.
-Resolve this product guarantee explicitly rather than silently changing the
-gate or suppressing the red low-level probes.
+The delegated product choice resolves the intended guarantee as recoverable
+original bytes, not an unchanged provider URI. The literal M1 exit wording,
+“no original document destruction,” must be reconciled explicitly with this
+decision in the controlling roadmap/release documentation before acceptance;
+this ADR alone does not declare that gate passed or edit those documents.
+The original-preservation low-level probes remain red for destructive generic
+provider writes. Retain those probes and their assertion strength, and add
+transaction-level tests proving byte-exact recovery of both versions, fail-closed
+protection and no automatic rollback. Their distinct outcomes must remain
+visible rather than replacing a red primitive result with a green transaction
+claim. No sequencing exception or physical-gate waiver has been approved.
 
-After the prerequisite and policy decisions, implement in reviewed slices:
+After the prerequisite gates and implementation review, implement in slices:
 transaction-envelope storage/fault tests; coordinator/provider fault tests;
 narrow MainActivity integration and independent recovery loading; then history
 UI/retention. Preserve package/signing identity, versions until an authorized

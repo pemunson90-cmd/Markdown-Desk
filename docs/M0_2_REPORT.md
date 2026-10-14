@@ -1,7 +1,9 @@
 # M0 behavioral test checkpoint
 
 Date: 2026-10-14. Baseline: `v2.2.5-baseline` / `d1288a8`.
-This adds local executable fixtures and host measurement; it does not declare
+The initial tests-only checkpoint is commit `d35d02f`. This report retains its
+baseline findings; see the subsequent fix section and live STATUS for current
+source behavior. This adds local executable fixtures and host measurement; it does not declare
 M0 complete, close issue #2/#3, fix production behavior, or establish a release.
 
 ## Commands and results
@@ -24,7 +26,7 @@ fixed. The renderer preservation runner explicitly reproduces its known nested
 list failure, then the safety runner executes that desired assertion directly
 and returns nonzero. Contrast `--gate` similarly returns nonzero on violations.
 
-## Reproduced baseline failures — unresolved
+## Reproduced baseline failures — historical test checkpoint
 
 - Five DocumentIO safety probes fail: null metadata descriptor fabricates
   writability; two >8MiB payloads (ASCII and Unicode/BOM-inclusive) overwrite
@@ -72,6 +74,38 @@ algorithm results, not Android responsiveness. No UI/device budget established.
 Next: test-first DocumentIO8MiB-write preflight and null-descriptor fix, then
 contrast/readability and independent session/recovery loading; review the safe
 save boundary in [ADR-001](decisions/ADR-001-safe-save-boundary.md). Generic SAF
-cannot guarantee atomic saves; the product guarantee decision is pending. No M1
+cannot guarantee atomic saves; the owner delegated the product guarantee decision; ADR-001 selects mandatory recoverable copies of both versions. No M1
 feature integration before prerequisites/approved sequencing. Preserve baseline
 rollback and keep signed APK/device acceptance separate.
+
+## Subsequent local M0 fixes (current branch)
+
+- Oversized encoded writes now reject before resolver access; null descriptors
+  no longer fabricate write capability. Original desired probes now3pass/2fail.
+  Failed partial/zero-byte provider writes still fail original-preservation tests.
+- Foreground derivation retains already-readable colors, otherwise minimally
+  blends them toward black/white; all9paletteconstants and25assets remain exact.
+  6,264independent helper assertions,54pair checks and72checks on AST-extracted
+  actual styleButton with recorded drawable colors pass. Caption backing is
+  darker;512independent sRGB/linear compositing cases cover worst-case white.
+  Gallery labels/state and actual Save/dialog/icon routes are included in review.
+  No screenshot/disabled-alpha/font-scale/real paint acceptance is claimed.
+- Nested-list regression now passes12independent list assertions (including
+  200levels), with467renderer/palette assertions. Only contiguous list lines supported;
+  no fullCommonMark/multiline-list claim.
+- Wide 2,000/5,000-column tables previously threw StackOverflowError. Iterative
+  divider recognition now passes14,020grammar/differential assertions and all
+  five input probes. Header links/blocked-image text, linked code and quoted code
+  have context-specific readable foreground tests.
+- Recovery read independent of session parse:10cases134assertions green after
+  two prior failing cases. Actual callback bodies are simulated; no device claim.
+- Actual updateStatus takes one immutable string snapshot instead of two:
+ 24statusassertions pass. [Matched measurement](benchmarks/M0_3_STATUS_SNAPSHOT.md)
+ reports noisy samples and does not claim a reliable wall-time speedup.
+- Behavior-changing source is not claimed byte-identical. Provenance verifies
+  immutable pinned `v2.2.5-baseline` and current cleared assets; active source
+  requires actual diff/tests/review.10checker tests include coordinated mutable
+  inventory+asset tampering and dangling/directory symlink rejection.
+- M0/issue#2/#3 remain open. Durable pre-write protection is designed inADR-001,
+  not implemented; owner delegated the recoverability policy decision. Generic
+  SAF may partially mutate a URI; restore-to-new-copy must preserve both versions.

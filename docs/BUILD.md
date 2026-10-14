@@ -80,3 +80,17 @@ and is intentionally not hidden. See M0_2_REPORT.md for precise limits.
 
 `PATH="$JAVA_HOME/bin:$PATH" bash verification/benchmarks/run.sh` records a matched
 host-only benchmark; do not repeat it for unrelated edits or claim device latency.
+
+### Active branch versus immutable baseline
+
+On behavior-changing branches the host suite invokes
+`check_baseline_inventory.py --baseline-ref v2.2.5-baseline`: it verifies the
+pinned baseline commit independently and current exact cleared assets. It does
+not claim modified current Java is unchanged. Default invocation remains strict
+for an exact-import checkout. Clean rebuilds obtain the baseline tag only from
+local Git into temporary repositories; no remote fetch is used.
+
+A SHA-pinned GitHub host workflow provides the roadmap's independent-runner
+portability check for meaningful source/test changes. It uses no Android signing,
+SDK build or benchmark, and preserves the failing desired provider-safety gate.
+No CI success is inferred from creating the workflow. Local work remains default.

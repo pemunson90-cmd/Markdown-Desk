@@ -738,7 +738,7 @@ public class MainActivity extends Activity {
             textView.setTextColor(-1);
             textView.setGravity(17);
             textView.setPadding(dp(16), dp(9), dp(16), dp(9));
-            textView.setBackground(UiTheme.rounded(withAlpha(-16777216, 125), dp(18), withAlpha(-1, 45), MODE_PREVIEW));
+            textView.setBackground(UiTheme.rounded(UiTheme.SPLASH_HINT_BACKGROUND, dp(18), withAlpha(-1, 45), MODE_PREVIEW));
             FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-2, -2, 81);
             layoutParams.setMargins(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(24));
             frameLayout.addView(textView, layoutParams);
@@ -829,7 +829,7 @@ public class MainActivity extends Activity {
             warning.setText("The launch splash is currently switched off under Appearance, so none of "
                     + "these will appear until you switch it back on.");
             warning.setTextSize(13.0f);
-            warning.setTextColor(this.palette.accent);
+            warning.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
             warning.setPadding(dp(2), 0, dp(2), dp(12));
             column.addView(warning, matchWrap());
         }
@@ -865,7 +865,7 @@ public class MainActivity extends Activity {
         sectionLabel.setText("IMAGES");
         sectionLabel.setLetterSpacing(0.14f);
         sectionLabel.setTextSize(11.0f);
-        sectionLabel.setTextColor(this.palette.accent);
+        sectionLabel.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
         sectionLabel.setPadding(dp(4), dp(18), 0, dp(8));
         column.addView(sectionLabel, matchWrap());
 
@@ -989,7 +989,7 @@ public class MainActivity extends Activity {
         state.setText(item.enabled
                 ? (item.bundled ? "On · in the rotation" : "On · imported")
                 : (item.bundled ? "Off" : "Off · imported"));
-        state.setTextColor(item.enabled ? this.palette.accent : this.palette.muted);
+        state.setTextColor(item.enabled ? UiTheme.readableForeground(this.palette.accent, this.palette.accentSoft) : this.palette.muted);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -1283,7 +1283,7 @@ public class MainActivity extends Activity {
         this.statusView.setBackgroundColor(this.palette.surface);
         this.body.setBackgroundColor(this.palette.canvas);
         this.titleView.setTextColor(this.palette.text);
-        this.eyebrowView.setTextColor(this.palette.accent);
+        this.eyebrowView.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.surface));
         this.statusView.setTextColor(this.palette.muted);
         this.editor.setTextColor(this.palette.text);
         this.editor.setHintTextColor(this.palette.muted);
@@ -1302,7 +1302,7 @@ public class MainActivity extends Activity {
                 styleButton(it.next(), false, false);
             }
         }
-        this.saveButton.setTextColor(-1);
+        this.saveButton.setTextColor(UiTheme.readableForeground(-1, this.palette.accent));
         this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
         updateModeChrome();
         updateTabsUi();
@@ -1327,9 +1327,9 @@ public class MainActivity extends Activity {
         UiTheme.Palette palette = this.palette;
         int i3 = z ? palette.accent : palette.border;
         if (z2) {
-            i2 = -1;
+            i2 = UiTheme.readableForeground(-1, this.palette.accent);
         } else {
-            i2 = z ? this.palette.accent : this.palette.text;
+            i2 = z ? UiTheme.readableForeground(this.palette.accent, this.palette.accentSoft) : this.palette.text;
         }
         button.setTextColor(i2);
         button.setBackground(UiTheme.rounded(i, dp(13), i3, !z2 ? 1 : 0));
@@ -1343,13 +1343,13 @@ public class MainActivity extends Activity {
         styleButton(this.previewModeButton, this.mode == MODE_PREVIEW, false);
         styleButton(this.splitModeButton, this.mode == MODE_SPLIT, false);
         styleButton(this.focusButton, this.focusMode, false);
-        setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusMode ? this.palette.accent : this.palette.text);
+        setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusButton.getCurrentTextColor());
         if (this.lockButton != null) {
             styleButton(this.lockButton, this.editorLocked, false);
             boolean sourceVisible = this.mode != MODE_PREVIEW;
             this.lockButton.setEnabled(sourceVisible && !this.readOnly);
             this.lockButton.setAlpha((sourceVisible && !this.readOnly) ? 1.0f : 0.45f);
-            int iconColor = this.editorLocked ? this.palette.accent : this.palette.text;
+            int iconColor = this.lockButton.getCurrentTextColor();
             setButtonIcon(this.lockButton, this.editorLocked ? R.drawable.ic_lock : R.drawable.ic_lock_open, iconColor);
         }
     }
@@ -2150,30 +2150,28 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$restoreSessionOrRecovery$42(final Intent intent) {
-        RecoveryStore.Draft draft;
-        SessionStore.State state;
+        RecoveryStore.Draft draft = null;
+        SessionStore.State state = null;
         Exception e = null;
+        // A malformed session must not hide an independently recoverable draft.
         try {
             state = SessionStore.read(this);
+        } catch (Exception sessionError) {
+            e = sessionError;
+        }
+        try {
+            draft = RecoveryStore.read(this);
+        } catch (Exception recoveryError) {
+            if (e == null) e = recoveryError;
+            else e.addSuppressed(recoveryError);
+        }
+        if (state != null && draft != null && draft.timestamp > state.timestamp) {
             try {
-                draft = RecoveryStore.read(this);
-                if (state != null && draft != null) {
-                    try {
-                        if (draft.timestamp > state.timestamp) {
-                            mergeNewerRecovery(state, draft);
-                        }
-                    } catch (Exception e2) {
-                        e = e2;
-                    }
-                }
-            } catch (Exception e3) {
-                draft = null;
-                e = e3;
+                mergeNewerRecovery(state, draft);
+            } catch (Exception mergeError) {
+                if (e == null) e = mergeError;
+                else e.addSuppressed(mergeError);
             }
-        } catch (Exception e4) {
-            draft = null;
-            e = e4;
-            state = null;
         }
         final Exception exc = e;
         final SessionStore.State state2 = state;
@@ -2535,7 +2533,7 @@ public class MainActivity extends Activity {
             textView3.setText("RECENT");
             textView3.setLetterSpacing(0.14f);
             textView3.setTextSize(11.0f);
-            textView3.setTextColor(this.palette.accent);
+            textView3.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
             textView3.setPadding(dp(4), dp(22), MODE_EDIT, dp(8));
             linearLayout.addView(textView3, matchWrap());
             for (final RecentStore.Item item : list) {
@@ -3174,9 +3172,9 @@ public class MainActivity extends Activity {
         Button positive = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         Button negative = alertDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
         Button neutral = alertDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
-        if (positive != null) positive.setTextColor(this.palette.accent);
-        if (negative != null) negative.setTextColor(this.palette.accent);
-        if (neutral != null) neutral.setTextColor(this.palette.accent);
+        if (positive != null) positive.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
+        if (negative != null) negative.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
+        if (neutral != null) neutral.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
     }
 
     private void showRecentFailure(final Uri uri, Exception exc) {
@@ -3951,11 +3949,12 @@ public class MainActivity extends Activity {
         } else {
             str = this.mode == MODE_PREVIEW ? "Read" : "Split";
         }
-        int iWordCount = EditorTools.wordCount(this.editor.getText().toString());
+        String statusText = this.editor.getText().toString();
+        int iWordCount = EditorTools.wordCount(statusText);
         int length = this.editor.length();
         String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
         String quantityString2 = getResources().getQuantityString(R.plurals.character_count, length, Integer.valueOf(length));
-        int lineCount = EditorTools.lineCount(this.editor.getText().toString());
+        int lineCount = EditorTools.lineCount(statusText);
         int iMax = iWordCount == 0 ? 0 : Math.max(1, (int) Math.ceil(((double) iWordCount) / 220.0d));
         if (this.wordGoal > 0) {
             str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
@@ -3973,7 +3972,7 @@ public class MainActivity extends Activity {
         this.saveButton.setEnabled(!this.saveInProgress);
         if (this.palette != null) {
             if (this.dirty || this.readOnly) {
-                this.saveButton.setTextColor(-1);
+                this.saveButton.setTextColor(UiTheme.readableForeground(-1, this.palette.accent));
                 this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
             } else {
                 styleButton(this.saveButton, true, false);

@@ -13,7 +13,7 @@ public final class ModeHarness {
         void setAlpha(float value) { alphaPercent = Math.round(value * 100); }
         void setContentDescription(String value) { description = value; }
     }
-    static final class Button extends View { int icon, iconColor; boolean styledActive; }
+    static final class Button extends View { int icon, iconColor, textColor; boolean styledActive; int getCurrentTextColor(){return textColor;} }
     static final class Header extends View {
         int left, top, right, bottom;
         void setPadding(int l, int t, int r, int b) { left=l; top=t; right=r; bottom=b; }
@@ -70,7 +70,7 @@ public final class ModeHarness {
     void showKeyboard(Editor target) { showKeyboardCalls++; }
     void applyResponsiveChrome() { responsiveUpdates++; }
     void updateFormatAvailability() { formatUpdates++; }
-    void styleButton(Button button, boolean active, boolean ignored) { button.styledActive=active; chromeStyleCalls++; }
+    void styleButton(Button button, boolean active, boolean ignored) { button.styledActive=active; button.textColor=active?palette.accent:palette.text; chromeStyleCalls++; }
     void setButtonIcon(Button button, int icon, int color) { button.icon=icon; button.iconColor=color; }
     /* EXTRACTED_METHODS */
 }

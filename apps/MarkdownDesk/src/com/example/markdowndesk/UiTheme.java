@@ -4,6 +4,8 @@ import android.graphics.drawable.GradientDrawable;
 
 /* JADX INFO: loaded from: classes.dex */
 final class UiTheme {
+    // High-opacity dark hint backing retains contrast even over white splash artwork.
+    static final int SPLASH_HINT_BACKGROUND = 0xdc000000;
     static final int FOREST = 3;
     static final int BUBBLEGUM = 4;
     static final int AMETHYST = 5;
@@ -78,6 +80,54 @@ final class UiTheme {
             return new Palette("Sepia", false, "#F2E6CF", "#F8EFDD", "#FFF8E9", "#392F24", "#746654", "#9D4D2D", "#EBD0B4", "#D3C1A5", "#E9DBC3", "#A73535");
         }
         return new Palette("Midnight", true, "#12110F", "#191815", "#24221E", "#F4EFE7", "#ABA49A", "#E7956F", "#3A2720", "#393630", "#211F1B", "#FFB4AB");
+    }
+
+    /** Returns opaque preferred text when AA-readable, otherwise its nearest
+     *  8-bit blend toward black or white with at least 4.5:1 contrast.
+     *  Both inputs must be opaque ARGB colors. */
+    static int readableForeground(int preferred, int background) {
+        if (contrast(preferred, background) >= 4.5) return preferred;
+        int blackStep = readableStep(preferred, background, 0xff000000);
+        int whiteStep = readableStep(preferred, background, 0xffffffff);
+        return blend(preferred, blackStep <= whiteStep ? 0xff000000 : 0xffffffff,
+                Math.min(blackStep, whiteStep));
+    }
+
+    private static int readableStep(int preferred, int background, int endpoint) {
+        if (contrast(endpoint, background) < 4.5) return 256;
+        int low = 0, high = 255;
+        while (low < high) {
+            int mid = (low + high) >>> 1;
+            if (contrast(blend(preferred, endpoint, mid), background) >= 4.5) high = mid;
+            else low = mid + 1;
+        }
+        return low;
+    }
+
+    private static int blend(int preferred, int endpoint, int step) {
+        int result = 0xff000000;
+        for (int shift = 0; shift <= 16; shift += 8) {
+            int from = (preferred >>> shift) & 255;
+            int to = (endpoint >>> shift) & 255;
+            result |= ((from * (255 - step) + to * step + 127) / 255) << shift;
+        }
+        return result;
+    }
+
+    private static double contrast(int foreground, int background) {
+        double a = luminance(foreground), b = luminance(background);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+
+    private static double luminance(int color) {
+        return 0.2126 * linear((color >>> 16) & 255)
+                + 0.7152 * linear((color >>> 8) & 255)
+                + 0.0722 * linear(color & 255);
+    }
+
+    private static double linear(int channel) {
+        double value = channel / 255.0;
+        return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
     }
 
     static GradientDrawable rounded(int i, float f, int i2, int i3) {

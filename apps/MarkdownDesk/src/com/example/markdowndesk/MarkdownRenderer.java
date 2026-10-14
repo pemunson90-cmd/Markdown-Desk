@@ -14,7 +14,6 @@ public final class MarkdownRenderer {
     private static final Pattern ORDERED = Pattern.compile("^\\s*(\\d+)\\.\\s+(.+)$");
     private static final Pattern UNORDERED = Pattern.compile("^\\s*[-+*]\\s+(.+)$");
     private static final Pattern TASK = Pattern.compile("^\\[([ xX])]\\s+(.*)$");
-    private static final Pattern TABLE_DIVIDER = Pattern.compile("^\\s*\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)+\\|?\\s*$");
     private static final Pattern CODE_SPAN = Pattern.compile("`([^`\\n]+)`");
     private static final Pattern IMAGE = Pattern.compile("!\\[([^]\\n]*)]\\(([^)\\n]*)\\)");
     private static final Pattern LINK = Pattern.compile("(?<!!)\\[([^]\\n]+)]\\(([^)\\n]+)\\)");
@@ -27,8 +26,6 @@ public final class MarkdownRenderer {
     }
 
     static String render(String str, UiTheme.Palette palette, float f) {
-        Pattern pattern;
-        String str2;
         boolean z = palette.dark;
         String str3 = str == null ? "" : str;
         String[] strArrSplit = str3.split("\\n", -1);
@@ -74,7 +71,7 @@ public final class MarkdownRenderer {
                         i++;
                     } else {
                         int i3 = i + 1;
-                        if (i3 < strArrSplit.length && strCr.contains("|") && TABLE_DIVIDER.matcher(cr(strArrSplit[i3])).matches()) {
+                        if (i3 < strArrSplit.length && strCr.contains("|") && isTableDivider(cr(strArrSplit[i3]))) {
                             List<String> listCells = cells(strCr);
                             sb.append("<div class=\"table-scroll\" data-source-offset=\"").append(i2).append("\"><table><thead><tr>");
                             Iterator<String> it = listCells.iterator();
@@ -114,37 +111,44 @@ public final class MarkdownRenderer {
                             Matcher matcher3 = UNORDERED.matcher(strCr);
                             Matcher matcher4 = ORDERED.matcher(strCr);
                             if (matcher3.matches() || matcher4.matches()) {
-                                boolean zMatches = matcher4.matches();
-                                String str4 = zMatches ? "ol" : "ul";
-                                sb.append('<').append(str4).append(" data-source-offset=\"").append(i2).append("\">");
+                                // Indentation is measured in visual columns, with tabs advancing
+                                // to the next four-column stop. Only contiguous list lines join.
+                                ArrayList<ListFrame> lists = new ArrayList<>();
                                 while (i < strArrSplit.length) {
-                                    if (zMatches) {
-                                        pattern = ORDERED;
-                                        str2 = strArrSplit[i];
-                                    } else {
-                                        pattern = UNORDERED;
-                                        str2 = strArrSplit[i];
+                                    String line = cr(strArrSplit[i]);
+                                    Matcher unordered = UNORDERED.matcher(line);
+                                    Matcher ordered = ORDERED.matcher(line);
+                                    boolean isUnordered = unordered.matches();
+                                    boolean isOrdered = ordered.matches();
+                                    if (!isUnordered && !isOrdered) break;
+                                    int indent = listIndent(line);
+                                    while (!lists.isEmpty() && indent < lists.get(lists.size() - 1).indent) {
+                                        closeList(sb, lists.remove(lists.size() - 1));
                                     }
-                                    Matcher matcher5 = pattern.matcher(cr(str2));
-                                    if (!matcher5.matches()) {
-                                        break;
-                                    }
-                                    String strGroup2 = matcher5.group(zMatches ? 2 : 1);
-                                    Matcher matcher6 = TASK.matcher(strGroup2);
-                                    sb.append("<li>");
-                                    if (matcher6.matches()) {
-                                        sb.append("<input type=\"checkbox\" disabled");
-                                        if (!matcher6.group(1).equals(" ")) {
-                                            sb.append(" checked");
+                                    if (!lists.isEmpty()) {
+                                        ListFrame current = lists.get(lists.size() - 1);
+                                        if (indent == current.indent && current.ordered == isOrdered) {
+                                            sb.append("</li>");
+                                        } else if (indent == current.indent) {
+                                            closeList(sb, lists.remove(lists.size() - 1));
                                         }
-                                        sb.append("> ").append(inline(matcher6.group(2)));
-                                    } else {
-                                        sb.append(inline(strGroup2));
                                     }
-                                    sb.append("</li>");
+                                    if (lists.isEmpty() || indent > lists.get(lists.size() - 1).indent) {
+                                        openList(sb, lists, indent, isOrdered, iArrLineOffsets[i]);
+                                    }
+                                    String item = isOrdered ? ordered.group(2) : unordered.group(1);
+                                    Matcher task = TASK.matcher(item);
+                                    sb.append("<li>");
+                                    if (task.matches()) {
+                                        sb.append("<input type=\"checkbox\" disabled");
+                                        if (!task.group(1).equals(" ")) sb.append(" checked");
+                                        sb.append("> ").append(inline(task.group(2)));
+                                    } else {
+                                        sb.append(inline(item));
+                                    }
                                     i++;
                                 }
-                                sb.append("</").append(str4).append('>');
+                                while (!lists.isEmpty()) closeList(sb, lists.remove(lists.size() - 1));
                             } else {
                                 StringBuilder sb3 = new StringBuilder();
                                 while (i < strArrSplit.length) {
@@ -171,11 +175,45 @@ public final class MarkdownRenderer {
         String strCss4 = css(palette.code);
         String strCss5 = css(palette.border);
         String strCss6 = css(palette.accent);
+        String strCss7 = css(UiTheme.readableForeground(palette.accent, palette.canvas));
+        String strCss8 = css(UiTheme.readableForeground(palette.accent, palette.code));
+        String strCss9 = css(UiTheme.readableForeground(palette.muted, palette.code));
         float fMax = Math.max(12.0f, Math.min(f, 32.0f));
         float h1 = Math.max(28.0f, Math.min(fMax * 1.36f, 34.0f));
         float h2 = Math.max(24.0f, Math.min(fMax * 1.22f, 29.0f));
         float h3 = Math.max(21.0f, Math.min(fMax * 1.12f, 25.0f));
-        return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>html{color-scheme:" + (z ? "dark" : "light") + ";scroll-behavior:auto;background:" + strCss + ";-webkit-text-size-adjust:100%}body{box-sizing:border-box;max-width:720px;margin:0 auto;padding:38px 28px 28px;background:" + strCss + ";color:" + strCss2 + ";font-family:Georgia,'Times New Roman',serif;font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(fMax)) + "px;line-height:1.72;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}[data-source-offset]{scroll-margin-top:24px;border-radius:5px;transition:background .15s ease}h1,h2,h3,h4,h5,h6{font-family:system-ui,sans-serif;letter-spacing:-.018em;line-height:1.16;margin:1.6em 0 .55em}h1{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h1)) + "px;margin-top:.35em}h2{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h2)) + "px;border-bottom:1px solid " + strCss5 + ";padding-bottom:.28em}h3{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h3)) + "px}p{margin:.9em 0}a,.link{color:" + strCss6 + "}blockquote{margin:1em 0;padding:.15em 1em;border-left:4px solid " + strCss6 + ";color:" + strCss3 + "}pre{background:" + strCss4 + ";padding:18px;border:1px solid " + strCss5 + ";border-radius:14px;overflow-x:auto;white-space:pre;line-height:1.5}code{font-family:'SFMono-Regular',Consolas,monospace;background:" + strCss4 + ";padding:.12em .34em;border-radius:5px;font-size:.9em}pre code{padding:0}table{border-collapse:separate;border-spacing:0;min-width:100%;border:1px solid " + strCss5 + ";border-radius:12px;overflow:hidden}th,td{border-right:1px solid " + strCss5 + ";border-bottom:1px solid " + strCss5 + ";padding:10px 12px;text-align:left;white-space:nowrap}th{background:" + strCss4 + ";font-family:system-ui,sans-serif}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}.table-scroll{overflow-x:auto;margin:1.2em 0}ul,ol{padding-left:1.5em}li{margin:.25em 0}hr{border:0;border-top:1px solid " + strCss5 + ";margin:1.6em 0}.blocked-image{color:" + strCss3 + ";font-style:italic}</style></head><body>" + String.valueOf(sb) + syncScript() + "</body></html>";
+        return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>html{color-scheme:" + (z ? "dark" : "light") + ";scroll-behavior:auto;background:" + strCss + ";-webkit-text-size-adjust:100%}body{box-sizing:border-box;max-width:720px;margin:0 auto;padding:38px 28px 28px;background:" + strCss + ";color:" + strCss2 + ";font-family:Georgia,'Times New Roman',serif;font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(fMax)) + "px;line-height:1.72;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}[data-source-offset]{scroll-margin-top:24px;border-radius:5px;transition:background .15s ease}h1,h2,h3,h4,h5,h6{font-family:system-ui,sans-serif;letter-spacing:-.018em;line-height:1.16;margin:1.6em 0 .55em}h1{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h1)) + "px;margin-top:.35em}h2{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h2)) + "px;border-bottom:1px solid " + strCss5 + ";padding-bottom:.28em}h3{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h3)) + "px}p{margin:.9em 0}a,.link{color:" + strCss7 + "}blockquote{margin:1em 0;padding:.15em 1em;border-left:4px solid " + strCss6 + ";color:" + strCss3 + "}pre{background:" + strCss4 + ";padding:18px;border:1px solid " + strCss5 + ";border-radius:14px;overflow-x:auto;white-space:pre;line-height:1.5}code{font-family:'SFMono-Regular',Consolas,monospace;background:" + strCss4 + ";padding:.12em .34em;border-radius:5px;font-size:.9em}pre code{padding:0}blockquote code{color:" + strCss9 + "}th a,th .link,a code,.link code{color:" + strCss8 + "}table{border-collapse:separate;border-spacing:0;min-width:100%;border:1px solid " + strCss5 + ";border-radius:12px;overflow:hidden}th,td{border-right:1px solid " + strCss5 + ";border-bottom:1px solid " + strCss5 + ";padding:10px 12px;text-align:left;white-space:nowrap}th{background:" + strCss4 + ";font-family:system-ui,sans-serif}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}.table-scroll{overflow-x:auto;margin:1.2em 0}ul,ol{padding-left:1.5em}li{margin:.25em 0}hr{border:0;border-top:1px solid " + strCss5 + ";margin:1.6em 0}.blocked-image{color:" + strCss3 + ";font-style:italic}th .blocked-image{color:" + strCss9 + "}</style></head><body>" + String.valueOf(sb) + syncScript() + "</body></html>";
+    }
+
+    private static final class ListFrame {
+        final int indent;
+        final boolean ordered;
+        ListFrame(int indent, boolean ordered) {
+            this.indent = indent;
+            this.ordered = ordered;
+        }
+    }
+
+    private static int listIndent(String line) {
+        int columns = 0;
+        for (int j = 0; j < line.length(); j++) {
+            char c = line.charAt(j);
+            if (c == '\t') columns += 4 - columns % 4;
+            else if (Character.isWhitespace(c)) columns++;
+            else break;
+        }
+        return columns;
+    }
+
+    private static void openList(StringBuilder html, List<ListFrame> lists, int indent, boolean ordered, int sourceOffset) {
+        html.append(ordered ? "<ol" : "<ul");
+        if (lists.isEmpty()) html.append(" data-source-offset=\"").append(sourceOffset).append('"');
+        html.append('>');
+        lists.add(new ListFrame(indent, ordered));
+    }
+
+    private static void closeList(StringBuilder html, ListFrame list) {
+        html.append("</li>").append(list.ordered ? "</ol>" : "</ul>");
     }
 
     private static int[] lineOffsets(String[] strArr) {
@@ -203,7 +241,47 @@ public final class MarkdownRenderer {
             return true;
         }
         int i2 = i + 1;
-        return i2 < strArr.length && strCr.contains("|") && TABLE_DIVIDER.matcher(cr(strArr[i2])).matches();
+        return i2 < strArr.length && strCr.contains("|") && isTableDivider(cr(strArr[i2]));
+    }
+
+    // Same short-line grammar as the former divider regex, scanned without
+    // recursive regex groups so wide tables cannot exhaust the Java stack.
+    private static boolean isTableDivider(String line) {
+        int at = skipDividerSpace(line, 0);
+        if (at < line.length() && line.charAt(at) == '|') at++;
+        at = dividerCellEnd(line, skipDividerSpace(line, at));
+        if (at < 0) return false;
+        at = skipDividerSpace(line, at);
+        int separators = 0;
+        while (at < line.length() && line.charAt(at) == '|') {
+            int next = skipDividerSpace(line, at + 1);
+            // One final pipe is allowed only after at least two cells.
+            if (next == line.length()) return separators > 0;
+            int end = dividerCellEnd(line, next);
+            if (end < 0) return false;
+            separators++;
+            at = skipDividerSpace(line, end);
+        }
+        return separators > 0 && at == line.length();
+    }
+
+    private static int dividerCellEnd(String line, int at) {
+        if (at < line.length() && line.charAt(at) == ':') at++;
+        int dashStart = at;
+        while (at < line.length() && line.charAt(at) == '-') at++;
+        if (at - dashStart < 3) return -1;
+        if (at < line.length() && line.charAt(at) == ':') at++;
+        return at;
+    }
+
+    private static int skipDividerSpace(String line, int at) {
+        while (at < line.length()) {
+            char c = line.charAt(at);
+            // Java Pattern's default ASCII \s character class.
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '\f' && c != '\u000b') break;
+            at++;
+        }
+        return at;
     }
 
     private static List<String> cells(String str) {

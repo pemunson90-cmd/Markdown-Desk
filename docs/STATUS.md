@@ -32,20 +32,33 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 ## Active continuous campaign — M0 safety and measurement
 
-- Branch: `codex/m0-safety-regressions`, based on merged/tagged source baseline.
+- Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
 - Issue #2: host provider/UTF8/BOM/size and session/recovery fixtures and independent renderer/mode-method fixtures integrated:39provider,
-  568session/recovery,368renderer/palette,99mode/lock assertions pass; six
+  568session/recovery,467renderer/palette,99mode/lock assertions pass; ten
   inventory audit tests pass. Actual Android boundaries are simulated.
 - Issue #3: deterministic10k/100k/500k-word and8MiB host benchmarks recorded;
   full UI/device/Fold timing remains NOT RUN.
-- Runtime source remains unchanged in this slice; test doubles cannot establish
-  real SAF, UI/Focus/keyboard, phone/Fold or process-death acceptance.
-- Desired-safety/spec gate is RED:5provider probes, nested-list rendering and
-  16text-contrast pairs fail. See M0_2_REPORT.md; do not bypass these defects.
-- Current next action: publish reviewed tests-only checkpoint, then execute
-  test-first8MiBwrite preflight/nullmetadata fix and bounded contrast fixes.
-  ADR-001 safe-save design prepared; owner atomic-versus-recoverability
-  product guarantee decision is pending while independent M0 work continues.
+- Runtime changes now deliberately fix encoded-byte write preflight/null-descriptor
+  metadata, readable derived foregrounds and hint backing, contiguous nested
+  lists, independent session/recovery loading and duplicate status snapshots.
+  Nine palette definitions,25artworkfiles, storage formats and modes/locks remain
+  preserved. Test doubles do not establish real Android/phone/Fold acceptance.
+- Provider safety probes now3pass/2fail; destructive partial/zero-byte provider
+  writes remain unresolved. Nesting, wide-table stack-overflow and sampled/context contrast fixes pass locally.
+  The desired-safety gate remains RED, so M0 is not complete.
+- Recovery loader10cases134assertions and status24assertions pass after RED-first
+  fixes; status snapshot count2→1. No reliable timing speedup or device claim.
+- Chromium host layout proxy passes108cases (9themes×3sizes×4viewports);
+  this is browser overflow coverage, not screenshots or Android/Fold acceptance.
+- Local host regression suite passes; final committed-source clean-rebuild verification
+  and updated integration review underway. Pinned host CI added for independent
+  portability evidence only; no successful hosted run claimed yet.
+- Current next action: complete integrated review/build and publish recoverable
+  M0 checkpoint; then implement/review mandatory pre-write protection under
+  ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
+  both original and attempted edit durably, fail closed if protection fails,
+  restore only to a new copy. This is recoverability, not unchanged provider URI.
+  M1 history integration and later milestones still require prerequisites.
 - M0 is not complete and no M1–M7 implementation/release is claimed. Continue
   independent eligible work while hardware-dependent checks remain NOT RUN.
 

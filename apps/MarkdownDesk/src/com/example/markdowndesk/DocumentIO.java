@@ -105,6 +105,10 @@ public final class DocumentIO {
     }
 
     public static void write(ContentResolver contentResolver, Uri uri, byte[] bArr) throws IOException {
+        // Count encoded bytes (including any BOM) before any destructive provider open.
+        if (bArr.length > MAX_DOCUMENT_BYTES) {
+            throw new IOException("This document is larger than the 8 MB safety limit. Markdown Desk left it unchanged.");
+        }
         ParcelFileDescriptor parcelFileDescriptorOpenFileDescriptor;
         try {
             parcelFileDescriptorOpenFileDescriptor = contentResolver.openFileDescriptor(uri, "rwt");
@@ -209,7 +213,7 @@ public final class DocumentIO {
             try {
                 ParcelFileDescriptor parcelFileDescriptorOpenFileDescriptor = contentResolver.openFileDescriptor(uri, "rw");
                 try {
-                    metadata.writable = true;
+                    metadata.writable = parcelFileDescriptorOpenFileDescriptor != null;
                     if (parcelFileDescriptorOpenFileDescriptor != null) {
                         parcelFileDescriptorOpenFileDescriptor.close();
                     }

@@ -1,0 +1,28 @@
+package com.example.markdowndesk;
+
+import android.content.Context;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Host shell; only the marked app members implement loading/merging behavior. */
+public final class MainActivity extends Context {
+    public static final class Intent {}
+    public static final class PostedCallbacks {
+        final List<Runnable> queue=new ArrayList<>();
+        public boolean post(Runnable task) { queue.add(task); return true; }
+        void drain() { for(Runnable task:new ArrayList<>(queue)) task.run(); queue.clear(); }
+    }
+    final PostedCallbacks main=new PostedCallbacks();
+    int deliveries;
+    SessionStore.State deliveredState;
+    RecoveryStore.Draft deliveredDraft;
+    Exception deliveredError;
+    Intent deliveredIntent;
+    MainActivity(File filesDir) { super(filesDir); }
+    // UI callback is intentionally a collector: this harness tests loader outputs, not UI.
+    public void lambda$restoreSessionOrRecovery$41(SessionStore.State state, Intent intent, Exception error, RecoveryStore.Draft draft) {
+        deliveries++; deliveredState=state; deliveredIntent=intent; deliveredError=error; deliveredDraft=draft;
+    }
+    /* EXTRACTED_MEMBERS */
+}

@@ -19,8 +19,8 @@ public final class PaletteContrastAudit {
         System.out.println("theme,pair,contrast,required,result");
         for (int i=0; i<9; i++) {
             UiTheme.Palette p=UiTheme.palette(i,false);
-            String[] labels={"Save white/accent", "body/canvas", "muted/raised", "selected accent/accentSoft", "link accent/canvas", "dialog accent/raised"};
-            int[] fg={0xffffffff,p.text,p.muted,p.accent,p.accent,p.accent};
+            String[] labels={"Save readable/accent", "body/canvas", "muted/raised", "selected accent/accentSoft", "link accent/canvas", "dialog accent/raised"};
+            int[] fg={UiTheme.readableForeground(0xffffffff,p.accent),p.text,p.muted,UiTheme.readableForeground(p.accent,p.accentSoft),UiTheme.readableForeground(p.accent,p.canvas),UiTheme.readableForeground(p.accent,p.raised)};
             int[] bg={p.accent,p.canvas,p.raised,p.accentSoft,p.canvas,p.raised};
             for (int k=0; k<labels.length; k++) {
                 double ratio=contrast(fg[k],bg[k]);
@@ -29,7 +29,7 @@ public final class PaletteContrastAudit {
                 if (!pass) failures++;
             }
         }
-        System.out.println("Observed baseline contrast failures: "+failures+"; Android rendering NOT RUN");
-        if (gate && failures>0) throw new AssertionError("Existing text contrast pairs below4.5:1: "+failures);
+        System.out.println("Observed active contrast failures: "+failures+"; Android rendering NOT RUN");
+        if (gate && failures>0) throw new AssertionError("Active text contrast pairs below4.5:1: "+failures);
     }
 }

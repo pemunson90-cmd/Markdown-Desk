@@ -1,10 +1,13 @@
 package com.example.markdowndesk;
 
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Independently written host oracles for the Markdown body and palette CSS. */
 public final class RendererGolden {
     private static int checks;
+    private static final String[] LINK_CSS = {"B9552E", "E7956F", "9D4D2D", "78B891", "B64C86", "B873FF", "D06A8B", "5CC6C7", "45E6FF"};
     private static final String[] NAMES = {"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
     private static final String[] COLORS = {
         "FBF8F2 28231E 746D64 F0ECE5 DED7CE C85C32 light",
@@ -42,6 +45,21 @@ public final class RendererGolden {
         double x = luminance(a), y = luminance(b);
         return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
     }
+    private static int cssHex(String html, String selector, String property, int fallback) {
+        int start = html.indexOf(selector + "{");
+        if (start < 0) return fallback;
+        int end = html.indexOf('}', start);
+        Matcher value = Pattern.compile("(?:^|;)" + property + ":#([0-9A-Fa-f]{6})")
+                .matcher(html.substring(start + selector.length() + 1, end));
+        return value.find() ? 0xff000000 | Integer.parseInt(value.group(1), 16) : fallback;
+    }
+    private static void atLeastAA(String label, int foreground, int background) {
+        checks++;
+        double ratio = contrast(foreground, background);
+        if (ratio < 4.5) throw new AssertionError(String.format(Locale.ROOT,
+                "%s contrast %.3f:1 foreground #%06X background #%06X", label, ratio,
+                foreground & 0xffffff, background & 0xffffff));
+    }
     private static void audit(String name, String pair, int foreground, int background) {
         double ratio = contrast(foreground, background);
         System.out.printf(Locale.ROOT, "CONTRAST %-10s %-14s %.2f:1 %s%n", name, pair, ratio, ratio >= 4.5 ? "AA" : "BELOW-AA");
@@ -63,13 +81,40 @@ public final class RendererGolden {
             equal("palette scheme " + i, expected[6], p.dark ? "dark" : "light");
             audit(p.name, "body/canvas", p.text, p.canvas);
             audit(p.name, "muted/canvas", p.muted, p.canvas);
-            audit(p.name, "link/canvas", p.accent, p.canvas);
+            audit(p.name, "rendered link/canvas", 0xff000000 | Integer.parseInt(LINK_CSS[i], 16), p.canvas);
+            if (contrast(0xff000000 | Integer.parseInt(LINK_CSS[i], 16), p.canvas) < 4.5) throw new AssertionError("link contrast " + p.name);
+            String contexts = MarkdownRenderer.render("| [header](https://example.com) | ![alt](https://example.com/i.png) |\n| --- | --- |\n| x | y |\n\n[`inline`](https://example.com)\n\n> `quoted`\n\n> [`linked`](https://example.com)", p, 18);
+            has("two-column linked header " + i, contexts, "<th><a href=\"https://example.com\">header</a></th>");
+            has("blocked image in table header " + i, contexts, "<th><span class=\"blocked-image\">🖼 alt (remote image blocked)</span></th>");
+            has("linked inline code " + i, contexts, "<a href=\"https://example.com\"><code>inline</code></a>");
+            has("quoted inline code " + i, contexts, "<code>quoted</code></blockquote>");
+            has("linked code inside quote " + i, contexts, "<code>linked</code></a></blockquote>");
+            int baseLink = cssHex(contexts, "a,.link", "color", 0);
+            int codeBackground = cssHex(contexts, "code", "background", 0);
+            int headerBackground = cssHex(contexts, "th", "background", 0);
+            int contextLink = cssHex(contexts, "th a,th .link,a code,.link code", "color", baseLink);
+            int quoteColor = cssHex(contexts, "blockquote", "color", 0);
+            int quotedCode = cssHex(contexts, "blockquote code", "color", quoteColor);
+            int blockedBase = cssHex(contexts, ".blocked-image", "color", 0);
+            int headerBlocked = cssHex(contexts, "th .blocked-image", "color", blockedBase);
+            checks++;
+            if (baseLink == 0 || codeBackground == 0 || headerBackground == 0 || quoteColor == 0 || blockedBase == 0)
+                throw new AssertionError("missing rendered CSS colors for " + p.name);
+            atLeastAA(p.name + " header link/code", contextLink, headerBackground);
+            atLeastAA(p.name + " linked inline code/code", contextLink, codeBackground);
+            atLeastAA(p.name + " quoted inline code/code", quotedCode, codeBackground);
+            atLeastAA(p.name + " blocked image in header/code", headerBlocked, headerBackground);
+            if (contexts.contains("blockquote code{") && contexts.contains("th a,th .link,a code,.link code{")) {
+                checks++;
+                if (contexts.indexOf("th a,th .link,a code,.link code{") < contexts.indexOf("blockquote code{"))
+                    throw new AssertionError("linked code cascade order " + p.name);
+            }
             for (float size : new float[]{11, 12, 18, 32, 33}) {
                 String html = MarkdownRenderer.render("# Title", p, size);
                 float applied = Math.max(12, Math.min(32, size));
                 has("canvas CSS " + i, html, "html{color-scheme:" + expected[6] + ";scroll-behavior:auto;background:#" + expected[0]);
                 has("text CSS " + i, html, "color:#" + expected[1] + ";font-family:Georgia");
-                has("link CSS " + i, html, "a,.link{color:#" + expected[5] + "}");
+                has("link CSS " + i, html, "a,.link{color:#" + LINK_CSS[i] + "}");
                 has("reading size " + i + "/" + size, html, "font-size:" + String.format(Locale.ROOT, "%.1f", applied) + "px;line-height:1.72");
                 has("heading body " + i, html, "<h1 data-source-offset=\"0\">Title</h1>");
                 if (size == 11 || size == 12) {
