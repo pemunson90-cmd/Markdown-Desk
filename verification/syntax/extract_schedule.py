@@ -32,6 +32,6 @@ final class SchedulingHarness {
  final Editor editor=new Editor();final Main main=new Main();
  final List<DocumentTab> tabs=new ArrayList<>();int activeTab=-1;
  boolean suppressChanges,dirty,dark;Runnable highlightRunnable;
- void invalidateStatistics(){}void updateStatus(){}void updateTabsUi(){}
+ void invalidateStatistics(){}void invalidatePreview(){}void updateStatus(){}void updateTabsUi(){}
  void scheduleRecovery(){}void schedulePreview(){}void scheduleSession(){}
 ''' + field + '\n' + '\n'.join(methods) + '\n}\n')

@@ -2,9 +2,10 @@ package com.example.markdowndesk;
 
 import java.util.Locale;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 
-/** One running scan and one replaceable snapshot, independent of document/save I/O. */
+/** One active calculation OR queued delivery, and one replaceable snapshot. */
 final class LatestStatistics implements AutoCloseable {
     static final class Result {
         final String documentId;
@@ -54,7 +55,7 @@ final class LatestStatistics implements AutoCloseable {
             if (running) return;
             running = true;
         }
-        worker.execute(this::drain);
+        submit();
     }
 
     /** Reject an in-flight/posted result immediately, before a later debounced snapshot. */
@@ -63,28 +64,72 @@ final class LatestStatistics implements AutoCloseable {
         pending = null;
     }
 
-    private void drain() {
-        while (true) {
-            final Request request;
-            synchronized (this) {
-                request = pending;
-                pending = null;
-                if (closed || request == null) {
-                    running = false;
-                    return;
-                }
-            }
-            final Result result = new Result(request);
-            synchronized (this) {
-                if (closed || request.generation != generation) continue;
-            }
-            completion.execute(() -> {
-                synchronized (LatestStatistics.this) {
-                    if (closed || request.generation != generation) return;
-                }
-                listener.accept(result);
-            });
+    private void submit() {
+        // Executor implementations may block/reenter. Never hold the state monitor here.
+        try {
+            worker.execute(this::calculate);
+        } catch (RejectedExecutionException rejected) {
+            reject();
         }
+    }
+
+    private void calculate() {
+        final Request request;
+        synchronized (this) {
+            request = pending;
+            pending = null;
+            if (closed || request == null) {
+                running = false;
+                return;
+            }
+        }
+        final Result result;
+        try {
+            result = new Result(request);
+        } catch (RuntimeException failed) {
+            finish();
+            return;
+        }
+        final long ticket = request.generation;
+        final boolean stale;
+        synchronized (this) {
+            stale = closed || ticket != generation;
+        }
+        if (stale) {
+            finish();
+            return;
+        }
+        try {
+            // Capture only small counts/keys and the ticket, not the full source Request.
+            completion.execute(() -> deliver(result, ticket));
+        } catch (RejectedExecutionException rejected) {
+            reject();
+        }
+    }
+
+    private void deliver(Result result, long ticket) {
+        try {
+            synchronized (this) {
+                if (!closed && ticket == generation) listener.accept(result);
+            }
+        } finally {
+            // Backpressure includes main delivery, so completed results cannot accumulate.
+            finish();
+        }
+    }
+
+    private void finish() {
+        synchronized (this) {
+            running = false;
+            if (closed || pending == null) return;
+            running = true;
+        }
+        submit();
+    }
+
+    private synchronized void reject() {
+        close();
+        running = false;
     }
 
     @Override public synchronized void close() {

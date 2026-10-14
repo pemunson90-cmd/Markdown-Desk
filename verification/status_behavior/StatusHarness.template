@@ -87,6 +87,8 @@ final class StatusHarness extends Activity {
     void updateTabsUi() {}
     void scheduleRecovery() {}
     void schedulePreview() {}
+    void invalidatePreview() {}
+    void stopPreview() { renderIo.shutdownNow(); }
     void scheduleHighlight() {}
     void scheduleHighlightEdit() {}
     void scheduleSession() {}
