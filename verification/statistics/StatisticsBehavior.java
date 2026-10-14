@@ -106,6 +106,9 @@ public final class StatisticsBehavior {
             release.countDown();
             pool.submit(() -> {}).get(5, TimeUnit.SECONDS); // drain barrier, no sleeps
             if (error.get() != null) throw new AssertionError("worker failed", error.get());
+            eq(1, posts.get(), "main delivery backpressure prevents another calculation");
+            synchronized (ui) { ui.drain(); }
+            pool.submit(() -> {}).get(5, TimeUnit.SECONDS); // latest starts after consuming old delivery
             synchronized (ui) { ui.drain(); }
             eq(2, posts.get(), "one running scan and one latest replacement scanned");
             eq(1, delivered.size(), "posted first result suppressed after replacement");
