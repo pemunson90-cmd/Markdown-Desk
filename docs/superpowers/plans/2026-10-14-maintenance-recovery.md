@@ -61,4 +61,5 @@
 - [x] Reject changed member/anchor/identity/unaffected record, outside missing edge, unknown/symlink/nonregular/I/O failure, changed marker/policy/intent, every retained stage, conflicting intent and full/overflow allowance.
 - [x] Cover valid intent larger than16KiB within64KiB and oversized input rejection without allocation from untrusted length; retain constrained-heap native fixtures.
 - [x] Independent critical persistence review checks final source SHA and all read/filter boundaries; resolve actual findings.
-- [ ] Integrator runs one coherent full host/unsigned gate, registers production-path tests, reconciles status, then required hosted check. No automatic execution or device acceptance follows.
+- [x] Integrator ran the coherent full host/unsigned gate at `98577d5`; production-path runner registered and status reconciled.
+- [ ] Complete required hosted verification before merge. No automatic execution or device acceptance follows.

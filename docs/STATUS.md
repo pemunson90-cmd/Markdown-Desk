@@ -30,10 +30,13 @@ after canonical author metadata correction), with typed discovery `c6d7e8c`.
 Worker evidence:65cases/578assertions, codec73/103, an8MiB member at128MiB
 heap/32MiB held, and7synthetic interruption states reopened in14fresh JVMs.
 These are read-only projection observations, not executor SIGKILL/unlink proof.
-The complete recovery slice still requires the integration host/build gate.
+Combined integration gate **PASS** at `98577d5a45e001911454fa6dbcbff03135aa5ba1`:
+full required host suite once from clean committed source and two audited unsigned
+builds matching SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
+Package2.2.5/code18/min26/target35 and all25assets preserved; no signing inputs.
+Required hosted validation is pending before source merge.
 
-Next: finish fresh-process/hostile/constrained-heap evidence, independently review
-the exact recovery SHA, then one coherent host/build/hosted gate. Durable pins,
+Next: publish the verified recovery slice and complete its required hosted gate. Durable pins,
 intent publication and unlink/replay execution remain separate prerequisites;
 continue backup/import, runtime history and eligible M2–M7 work afterward.
 No milestone, installable APK, physical Fold7/Android16/OneUI8, SAF/IME/TalkBack,
