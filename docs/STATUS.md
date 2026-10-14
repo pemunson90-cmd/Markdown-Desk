@@ -10,8 +10,10 @@
   constrained-memory assertions. Reviews found and repaired initial-registration
   parent-sync, fresh-stage retry, graph-root binding and planner batching/ordering
   gaps. Host Editable relocation is a model, not Android IME proof.
-- Combined `python3 verification/check_clean_rebuild.py` is running on clean
-  committed `6d55d9a`; full host/two-build evidence and review-ready CI are pending.
+- First combined gate at `6d55d9a` failed in the statistics-only host adapter:
+  the extracted watcher gained syntax coordination dependencies. The adapter
+  boundary was updated without changing product behavior; targeted status
+  checks PASS. Combined host/two-build rerun and review-ready CI remain pending.
   Earlier `90f258e` full evidence remains attributed to that exact revision.
 - Shared capacity is opt-in only; legacy constructor paths remain unchanged.
   Pure planner performs no deletion. No runtime quota/history control acceptance,
