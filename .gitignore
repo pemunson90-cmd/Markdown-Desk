@@ -1,0 +1,28 @@
+# Local build intermediates and caches
+**/build/
+**/.gradle/
+**/.idea/
+**/.DS_Store
+*.class
+*.log
+*.tmp
+*.bak
+*.swp
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+*.aab
+*.asc
+*.env
+.env.*
+local.properties
+# Private backups/source recovery remain outside Git
+**/PRIVATE_SIGNING/
+**/private/
+**/secrets/
+**/*credentials*
+**/*CREDENTIALS*
