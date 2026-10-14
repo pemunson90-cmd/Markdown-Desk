@@ -1,19 +1,20 @@
 # Markdown Desk
 
-A local-first Markdown writing and reading app for Android, phones and foldables.
+A fast, local-first Markdown reader, editor and document workspace for Android phones and foldables.
 
-**Current installed release reference:** 2.2.5 (`com.example.markdowndesk`, versionCode 18). **Professional Edition is a roadmap**, not an existing release.
+**Protected existing release:** 2.2.5 (package `com.example.markdowndesk`, versionCode 18). **Professional Edition:** work in progress under the [M0–M7 roadmap](docs/ROADMAP.md), not a released upgrade.
 
-> Exact 2.2.5 source is imported on the baseline branch with verified unsigned builds and host checks. [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9) remains draft pending remaining gates; no new release or device acceptance is claimed. See [status](docs/STATUS.md) and [build commands](docs/BUILD.md).
+The exact 2.2.5 baseline source and 25 owner-approved splash assets have been imported on [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9). Host checks and reproducible **unsigned** builds passed. The archived signed 2.2.5 APK's fingerprint was independently verified by the PM. Device/Fold/upgrade acceptance remains separate; consult [live status](docs/STATUS.md) for the latest state rather than this introductory README.
 
-## For Codex
-1. Read [AGENTS.md](AGENTS.md) and [the roadmap](docs/ROADMAP.md).
-2. Read [exact baseline import protocol](docs/BASELINE_AND_IMPORT.md) and [release gates](docs/RELEASE_GATES.md).
-3. Begin with [issue #1: exact baseline import and unsigned build](https://github.com/pemunson90-cmd/Markdown-Desk/issues/1). Then tackle [tests](https://github.com/pemunson90-cmd/Markdown-Desk/issues/2), [performance](https://github.com/pemunson90-cmd/Markdown-Desk/issues/3), and [theme/accessibility](https://github.com/pemunson90-cmd/Markdown-Desk/issues/4) in bounded changes.
-4. Record decisions in [the decision ledger](docs/DECISIONS.md) and verified progress in [STATUS](docs/STATUS.md).
+## Developer / Codex quick start
 
-## Architecture priorities
-Preserve existing Write/Read/Split and **Focus/View** modes, tab behavior, quick local SAF documents, nine color themes, 25 splash options and original canonical signing identity. Add safe version history, workspace navigation, performance and professional reading/revision features through tested milestones.
+1. **Read [AGENTS.md](AGENTS.md)** — standing continuous-campaign, adaptive model delegation and Codex-environment-first instructions.
+2. Read [live status](docs/STATUS.md), [roadmap](docs/ROADMAP.md), [release gates](docs/RELEASE_GATES.md), and [build instructions](docs/BUILD.md).
+3. Use the [reusable Codex resume recipe](docs/CODEX_START.md). Resume the next **unblocked** roadmap task and continue; do not restart at issue #1 after baseline import.
+4. For historical source provenance see [baseline import audit](docs/M0_1_AUDIT.md) and [decisions](docs/DECISIONS.md).
 
-## Public repository warning
-Private release-signing keys, credentials, personal document content and recovery archives do not belong in GitHub or CI. Art/assets require an explicit publication review before source import. Signing and APK release happen only with the authorized private release identity.
+## Product guarantees
+
+Existing Write/Read/Split and **Focus/View** modes, tabs, scoped Android SAF documents, offline capability, nine themes, 25 owner-approved splashes and the canonical signing identity are preserved. The professional roadmap prioritizes document safety/history, performance, workspace organization, reader/editor polish and interoperable export.
+
+This is a **public repository**. It must never contain private signing keystores/passwords, personal documents or private recovery bundles. Use local Codex shell/git/build/tests for ordinary development. GitHub is the durable upstream for PRs, issues and project documentation; invoke GitHub Actions only for tests or protections that justify the additional execution.
