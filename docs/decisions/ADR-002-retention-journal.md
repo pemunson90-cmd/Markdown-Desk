@@ -108,3 +108,9 @@ transaction UUID but require distinct archive entry UUIDs. Persist mappings acro
 hash/write/retry passes; remap shared native identity separately on import. Export
 validated configuration via typed preferences, never restore old control
 registration/policy authority as effective local policy.
+
+Independent completion checkpoint `809d41b` observed7cases/86assertions and six
+before/after retry SIGKILL cases in its environment. Its test fixtures are retained
+in reconciliation; the live producer uses reviewed `b511fee` with stronger fresh/
+reused-stage inode checks and read-only retries. These are source checkpoints,
+not shared-policy or physical-device acceptance.

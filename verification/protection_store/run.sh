@@ -18,9 +18,13 @@ trap cleanup_fixtures EXIT
 javac --release 11 -d "$OUT/classes" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
- "$ROOT/verification/protection_store/ProtectionStoreCheck.java"
+ "$ROOT/verification/protection_store/ProtectionStoreCheck.java" \
+ "$ROOT/verification/protection_store/CompletionReservationCheck.java" \
+ "$ROOT/verification/protection_store/CompletionRestartProbe.java"
 case "${1:-all}" in
- all) java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck ;;
+ all) java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.ProtectionStoreCheck
+      java -Djava.io.tmpdir="$RUN_FIXTURES" -cp "$OUT/classes" com.example.markdowndesk.CompletionReservationCheck
+      python3 "$ROOT/verification/protection_store/run_completion_restart.py" "$OUT" ;;
  physical) ;; # Only existing real filesystem-failure assertions.
  *) echo 'Usage: run.sh [all|physical]' >&2; exit 2 ;;
 esac
