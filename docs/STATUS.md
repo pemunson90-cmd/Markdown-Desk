@@ -1,65 +1,61 @@
 # Current project status
 
-## Current checkpoint — durable pins and preview scheduling, 2026-10-14
+## Current checkpoint — M1 operation foundations, 2026-10-14
 
-Main is `6630609a122b13189161fa3ae4e6e1f56073f16c`: [PR #16](https://github.com/pemunson90-cmd/Markdown-Desk/pull/16)
-merged at reviewed head `3e1890d` after required hosted run38646423423 passed.
-Read-only maintenance recovery now validates retained intent evidence and survivor
-bindings before exposing a tombstone view. It performs no unlink, publication,
-repair, migration or automatic cleanup. Its public read gate rejects uninstalled
-or invalid projection state, and installed views revalidate every read.
+Main is `c0b7b80fd5e1a0c879d57ebe1399d726f4bc3b6b`: [PR #17](https://github.com/pemunson90-cmd/Markdown-Desk/pull/17)
+merged at reviewed head `607bfd0` after required hosted run38649285065 passed.
+Draft run38649273039 was skipped, not passing evidence. [PR #16](https://github.com/pemunson90-cmd/Markdown-Desk/pull/16)
+previously merged at `6630609`, after required hosted run38646423423 passed.
+PR #9 exact-source import and PRs #10–#15 remain merged.
 
-Combined clean integration gate passed at `98577d5`: the full required host suite
-once and two audited unsigned builds matching SHA-256
-`0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
-Scoped recovery evidence is65cases/578checks, codec73/103, an8MiB member at128MiB
-heap with32MiB held, and7synthetic interrupted states reopened in14fresh JVMs.
-Those synthetic states are not executor SIGKILL, unlink or power-loss evidence.
-PR #14 and PR #15 are also merged; their evidence below is historical.
+Latest verified source:
 
-Active independent work:
+- Preview holds one active render/delivery plus one replaceable snapshot; stale
+  edits, suppressed loads, tabs, palette/font/mode and shutdown invalidate it.
+  Existing180ms cadence, exact HTML and scroll capture remain. Worker402checks,
+  independent18concurrency checks, renderer goldens and SDK37 compilation passed.
+- Statistics now also holds delivery backpressure: worker29delivery+94existing
+  checks and independent22checks passed. Posted callbacks retain counts/keys,
+  not source text; existing250ms cadence and count semantics remain.
+- Clean integration gate at `f0527060da0fefbbeda3ffb82dad323db4d45a69` passed the
+  full required host suite once and two audited unsigned builds matching
+  SHA-256 `eb1a95566fb8520c2de317e4c187bfec7fa166dda7e481bdc1bac414c442ac07`.
+  Package2.2.5/code18/min26/target35 and all25approved assets preserved; no
+  downloads/signing inputs. Scoped tracked-file credential scan348files/0matches
+  is a pattern check, not whole-history proof. Reviewed production bytes match.
+- Read-only maintenance recovery validates committed intents and survivors before
+  installing a revalidated logical tombstone. Its clean gate at `98577d5` matched
+  unsigned SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
+  It publishes/deletes nothing; synthetic partial states are not executor crash proof.
 
-- Durable-pin architecture review: one shared control allowance, conservative
-  operation scopes and explicit terminal receipt reservations. Partial terminal
-  staging must not be presented as guaranteed cancellation; the precise recovery
-  contract is under review before implementation. Restore inputs may legitimately
-  include unresolved protected transactions and must not require pruning authority.
-- `codex/preview-worker` implements bounded preview scheduling; integration is
-  `codex/preview-integration`. Existing180ms debounce and HTML are preserved.
-  One active render/delivery plus one replaceable snapshot must reject stale
-  results immediately after edits, suppressed loads, layout changes and shutdown.
-  Preview source `2020ec4` passed402focused checks, renderer goldens and SDK37
-  Java compilation; independent review passed18controlled concurrency checks.
-  Integration at `08179fa` preserves identical reviewed production bytes.
-  Updated host boundaries passed57status,39,137syntax plus scheduler,42SplitUI
-  and8divider checks, and402preview checks. The new preview runner is required.
-  Matched10k/100k/500k fixture bursts held worker/delivery queues to1/1 versus
-  baseline8/8; capture timings are mixed and renderer timings were not repeated.
-  These are host queue observations, not typing/device latency or peak memory.
-- The same review found an independent statistics completion backlog: repeated
-  scans while main delivery is held can retain many request/result callbacks.
-  Repair `719c8ae` (integration `26e1fa9`) preserves250ms debounce and exact
-  counts. Worker29delivery+94existing assertions and independent22concurrency
-  checks passed; baseline100held callbacks became1in the independent probe.
-  Posted closures retain counts/keys, not full source. Both bounded workers are
-  independently approved. Combined clean gate PASS at
-  `f0527060da0fefbbeda3ffb82dad323db4d45a69`: required host suite once, then
-  two audited unsigned builds matching SHA-256
-  `eb1a95566fb8520c2de317e4c187bfec7fa166dda7e481bdc1bac414c442ac07`.
-  No signing inputs or downloads; identity/assets preserved. Scoped tracked-file
-  credential scan348files/0matches is a pattern check, not a whole-history proof.
-  Required hosted validation is pending before this performance source merge.
+Active integration is `codex/m1-operation-foundations`. Independent ownership:
 
-Next: verify and integrate the preview change while implementing reviewed durable
-pins; then intent publication and explicit journaled retention, backup/import and
-runtime history. Continue eligible M2–M7 work without treating a PR as campaign
-completion. No destructive executor or full M1 workflow is enabled yet.
+- `codex/durable-history-pins`: codec/discovery `478eb42` has909scoped assertions
+  plus old control14cases/209checks. Lifecycle and mandatory planner freeze are
+  in progress, with exact-source persistence review pending. One existing control
+  allowance funds retained BEGIN/CLOSE pairs and terminal reservations. Partial
+  stages remain preserved/blocked; reservation does not guarantee cancellation.
+- `codex/private-state-codec`: approved pure streaming schema over current source
+  fields and eight actual allowlisted settings. New codec implementation/tests
+  are in progress, unverified. URI/baseline/clean fields are provenance only;
+  no grant, native state adoption, provider write or runtime caller is enabled.
+- Next executor plan is independently reviewed on `codex/journaled-retention`.
+  Implement selected deletion/replay only after completed-pin compatibility
+  review; exact effective authority and explicit terminal recovery are required.
+  Automatic execution waits for typed per-root capacity-demand proofs. Existing
+  pure previews do not authorize deletion.
 
-Package2.2.5/code18/min26/target35 and all25owner-approved assets remain preserved.
-Required production recoverability stays GREEN; raw-provider hazards remain
+Next: review and integrate pins/private-state validation, then journaled retention,
+operation quiescence/partial-stage resolution, persisted export manifests, strict
+import/adoption and runtime history. Continue eligible M2–M7 without treating a PR
+as campaign completion. No destructive executor or full M1 workflow is enabled.
+
+Required production recoverability remains GREEN; raw-provider hazards remain
 unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
 TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
-No milestone or installable release is claimed.
+Existing same-URL WebView completion/scroll ordering and fixed-delay printing
+remain separate Android gaps. Host queue observations are not typing latency,
+peak memory or device acceptance. No milestone or installable release is claimed.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
