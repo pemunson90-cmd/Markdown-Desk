@@ -50,11 +50,12 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
   fixes; status snapshot count2→1. No reliable timing speedup or device claim.
 - Chromium host layout proxy passes108cases (9themes×3sizes×4viewports);
   this is browser overflow coverage, not screenshots or Android/Fold acceptance.
-- Local host regression suite passes; final committed-source clean-rebuild verification
-  and updated integration review underway. Pinned host CI added for independent
-  portability evidence only; no successful hosted run claimed yet.
-- Current next action: complete integrated review/build and publish recoverable
-  M0 checkpoint; then implement/review mandatory pre-write protection under
+- Independent review and two fresh committed-source builds PASS at `8462f79`.
+  Unsigned APK SHA-256: `e19e10d8e1c85324b4cca2bbb7d142734a5d926f87aebfdb56f53662d8dd5d9e`.
+  JDK17/SDK37.0/build-tools36.0.0 reused; no dependency downloads in clean rebuild.
+  Pinned host CI is pushed for portability evidence; no hosted run observed yet.
+- Current next action: prepare executable pre-write protection acceptance cases
+  and audit remaining accessibility/UI seams; then implement/review protection under
   ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
   both original and attempted edit durably, fail closed if protection fails,
   restore only to a new copy. This is recoverability, not unchanged provider URI.

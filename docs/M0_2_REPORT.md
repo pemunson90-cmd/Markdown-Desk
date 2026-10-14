@@ -109,3 +109,14 @@ rollback and keep signed APK/device acceptance separate.
 - M0/issue#2/#3 remain open. Durable pre-write protection is designed inADR-001,
   not implemented; owner delegated the recoverability policy decision. Generic
   SAF may partially mutate a URI; restore-to-new-copy must preserve both versions.
+
+## Integrated checkpoint verification
+
+Independent risk review found no blocking defect in the bounded fixes. Two
+fresh committed-source checkouts at `8462f79` pass the host suite and build
+byte-identical genuinely unsigned APKs: SHA-256
+`e19e10d8e1c85324b4cca2bbb7d142734a5d926f87aebfdb56f53662d8dd5d9e`.
+JDK17, installed SDK37.0 and build-tools36.0.0 reused without dependency
+downloads. Chromium overflow proxy passes108cases; no screenshot comparison
+or Android device acceptance is implied. The safety gate still fails exactly
+two destructive provider probes. PR10 stays draft.
