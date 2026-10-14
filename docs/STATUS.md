@@ -53,8 +53,15 @@ Active integration is `codex/m1-operation-foundations`, [draft PR #18](https://g
   Automatic execution waits for typed per-root capacity-demand proofs. Existing
   pure previews do not authorize deletion.
 
-Next: run the combined clean host/unsigned gate for reviewed pins/private-state
-validation, then required hosted validation before source merge. Continue journaled retention,
+Combined clean gate PASS at `6bba85431e0cc2c340cd945551fb5c4d96ebda38`:
+required host suite once and two audited unsigned builds matching SHA-256
+`c646e0757b027d5de003ba904d9787e5daa8d092bd326f7155044386736b4d5e`.
+No downloads/signing inputs; package/assets preserved. Required hosted validation
+is pending before source merge. Scoped367tracked-file credential pattern scan
+had0matches; not a whole-history proof.
+
+Next: complete the required hosted gate for reviewed pins/private-state validation.
+Continue journaled retention,
 operation quiescence/partial-stage resolution, persisted export manifests, strict
 import/adoption and runtime history. Continue eligible M2–M7 without treating a PR
 as campaign completion. No destructive executor or full M1 workflow is enabled.
