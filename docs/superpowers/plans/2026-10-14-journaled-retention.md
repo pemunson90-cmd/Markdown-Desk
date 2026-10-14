@@ -1,6 +1,6 @@
 # Journaled retention execution — next prerequisite
 
-Status: selected-only backend host checks passed; exact-source review pending.
+Status: selected-only backend host checks and independent exact-source review passed.
 No runtime caller is enabled.
 Base: e2e3b815 with the completed reviewed durable-pin prerequisite. This plan
 continues ADR-002, not the superseded extra-root/allowance proposal in ADR-003.
@@ -122,8 +122,9 @@ intent unlink; a restored intent remains idempotently replayable.
       no extra members or unrelated bytes removed. Retained invalid input blocks.
 - [x] Bounded256-member/64KiB proof and control allowance boundaries; constrained
       heap with near-limit snapshot pairs, no payload materialization.
-- [ ] Independent persistence review of exact committed source, then scoped
-      dependency regressions and one clean full host/two-unsigned-build gate.
+- [x] Independent persistence review of exact committed source and scoped
+      dependency regressions.
+- [ ] Parent integration: one clean full host/two-unsigned-build gate.
 
 A host filesystem SIGKILL test is not sudden-power-loss or Android app-UID/SAF
 proof. No physical Fold, signing, upgrade, export/import or M1 completion claim.
@@ -144,25 +145,27 @@ exact-authority gaps above. This revision addresses the selected-only contract;
 independent revised-plan review approved bdd95ed, with SELECTED-only enforcement
 required for replay too. Compatibility review against completed pin source approved the explicit locked
 recovery, closed-audit refresh, shared retirement capability and unpublished
-terminal capacity design before destructive implementation. Final exact-source
-review remains required.
+terminal capacity design before destructive implementation. Independent exact-source review approved the corrected implementation at
+`c36b093f2b2368af2a61cbc60bf81f56b0236d8a`.
 
 ## Scoped implementation evidence
 
-`bash verification/history_executor/run.sh`: 747 behavioral checks and22 memory
-checks passed;44 SIGKILL/OS-limit/corruption fixtures passed88 fresh JVM reopens.
-The memory case uses near-limit native pairs with32MiB held live at128MiB heap.
+`bash verification/history_executor/run.sh`: 747 behavioral checks and 22 memory
+checks passed; 44 SIGKILL/OS-limit/corruption fixtures passed 88 fresh JVM reopens.
+The memory case uses near-limit native pairs with 32 MiB held live at 128 MiB heap.
 Publication OS write-size failure and actual intent-unlink permission failure
 retain evidence; byte and slot allowance boundaries reject before publication.
 Partial member prefixes retain exact physical charges and genuine reservations.
 
-Affected dependency runners passed: pins909 codec/332 lifecycle/4 manifest and
-20 SIGKILL boundaries/42 fresh reopens; capacity209 codec plus49 policy/61
-admission/42 integration and10 SIGKILL/7 fresh cases; maintenance73/103 codec,
-578 projection checks, memory and14 fresh reopens; planner81/5 and60/9 pressure;
-retention graph94/6. No unchanged broad benchmark or full gate was repeated.
+Affected dependency runners passed: pins 909 codec / 332 lifecycle / 4 manifest
+and 20 SIGKILL boundaries / 42 fresh reopens; capacity 209 codec plus 49 policy /
+61 admission / 42 integration and 10 SIGKILL / 7 fresh cases; maintenance 73/103
+codec, 578 projection checks, memory and 14 fresh reopens; planner 81/5 and 60/9
+pressure; retention graph 94/6. No unchanged broad benchmark or full gate was repeated.
 The parent integrator owns central runner registration and the full host/build
-gate. Independent exact-source review remains pending at this checkpoint.
+gate. Independent review approved exact source `c36b093f2b2368af2a61cbc60bf81f56b0236d8a`: 25
+independent boundary probes passed, plus before/after bootstrap reproduction.
+These independent probes are separate from the implementation runner counts.
 
 Independent source review reproduced a pre-enrollment alternate bootstrap-hint
 handle publishing intent before recovery rejected it. A separate targeted RED
