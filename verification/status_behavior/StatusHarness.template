@@ -1,6 +1,11 @@
 package com.example.markdowndesk;
 
-final class StatusHarness {
+import java.util.*;
+import java.util.concurrent.*;
+
+class Activity { protected void onDestroy() {} }
+
+final class StatusHarness extends Activity {
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
     static final class R { static final class plurals { static final int word_count = 1, character_count = 2; } }
     static final class TextView { String text; void setText(String value) { text = value; } }
@@ -22,7 +27,7 @@ final class StatusHarness {
         public String toString() { copies++; return new String(source.toCharArray()); }
     }
     static final class Editor {
-        final CountedText text;
+        CountedText text;
         int selection;
         Editor(String source) { text = new CountedText(source); }
         CharSequence getText() { return text; }
@@ -34,6 +39,64 @@ final class StatusHarness {
             return formatted + " " + noun + (quantity == 1 ? "" : "s");
         }
     }
+    interface Editable extends CharSequence {}
+    interface TextWatcher {
+        void beforeTextChanged(CharSequence text, int start, int count, int after);
+        void onTextChanged(CharSequence text, int start, int before, int count);
+        void afterTextChanged(Editable text);
+    }
+    static final class QueueExecutor extends AbstractExecutorService {
+        final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
+        boolean stopped;
+        public void execute(Runnable task) { if (stopped) throw new RejectedExecutionException(); tasks.add(task); }
+        public void shutdown() { stopped = true; }
+        public List<Runnable> shutdownNow() { stopped = true; List<Runnable> pending = new ArrayList<>(tasks); tasks.clear(); return pending; }
+        public boolean isShutdown() { return stopped; }
+        public boolean isTerminated() { return stopped && tasks.isEmpty(); }
+        public boolean awaitTermination(long timeout, TimeUnit unit) { return isTerminated(); }
+        void drain() { while (!tasks.isEmpty()) tasks.remove().run(); }
+    }
+    static final class Executors { static QueueExecutor newSingleThreadExecutor() { return new QueueExecutor(); } }
+    static final class Handler {
+        final ArrayDeque<Runnable> delayed = new ArrayDeque<>(), posted = new ArrayDeque<>();
+        void post(Runnable runnable) { posted.add(runnable); }
+        void postDelayed(Runnable runnable, long delay) {
+            if (delay != 250L) throw new AssertionError("Unexpected debounce delay: " + delay);
+            delayed.add(runnable);
+        }
+        void removeCallbacks(Runnable runnable) { delayed.remove(runnable); posted.remove(runnable); }
+        void removeCallbacksAndMessages(Object token) { delayed.clear(); posted.clear(); }
+        void runDelayed() { while (!delayed.isEmpty()) delayed.remove().run(); }
+        void runPosted() { while (!posted.isEmpty()) posted.remove().run(); }
+    }
+    final List<DocumentTab> tabs = new ArrayList<>();
+    int activeTab = -1;
+    boolean suppressChanges;
+    final Handler main = new Handler();
+    final QueueExecutor io = new QueueExecutor(), renderIo = new QueueExecutor();
+    static final class Preview { void destroy() {} }
+    Preview preview;
+    /* EXTRACTED_FIELDS */
+    final TextWatcher watcher = /* EXTRACTED_WATCHER */;
+    void continueMarkdownLine(Editable value) {}
+    void updateTabsUi() {}
+    void scheduleRecovery() {}
+    void schedulePreview() {}
+    void scheduleHighlight() {}
+    void scheduleSession() {}
+    void changed(String text, boolean suppress) {
+        editor.text = new CountedText(text);
+        suppressChanges = suppress;
+        watcher.onTextChanged(editor.text, 0, 0, text.length());
+        suppressChanges = false;
+    }
+    void settle() {
+        main.runDelayed();
+        ((QueueExecutor) statisticsIo).drain();
+        main.runPosted();
+    }
+    long revision() { return statisticsRevision; }
+    QueueExecutor worker() { return (QueueExecutor) statisticsIo; }
     final Resources resources = new Resources();
     TextView titleView = new TextView(), statusView = new TextView();
     Button saveButton = new Button();

@@ -62,6 +62,7 @@ public final class ModeBehaviorTest {
             h.mode=mode;
             invoke(h, "updateModeChrome");
             check("selected mode button " + mode, h.editModeButton.styledActive==(mode==0) && h.previewModeButton.styledActive==(mode==1) && h.splitModeButton.styledActive==(mode==2));
+            check("semantic mode selection " + mode, h.editModeButton.selected==(mode==0) && h.previewModeButton.selected==(mode==1) && h.splitModeButton.selected==(mode==2));
             check("lock affordance " + mode, h.lockButton.enabled==(mode!=1) && h.lockButton.alphaPercent==(mode==1?45:100));
             h.readOnly=true;
             invoke(h, "updateModeChrome");
@@ -77,6 +78,13 @@ public final class ModeBehaviorTest {
             check("unlock state " + mode, !h.editorLocked && !h.tabs.get(0).editorLocked && h.editor.keyListener!=null && h.editor.cursorVisible);
             check("lock action label " + mode, "Lock editing".equals(h.lockButton.description));
             check("unlock icon " + mode, h.lockButton.icon==3 && h.lockButton.iconColor==h.palette.text);
+        }
+        ModeHarness transitions = new ModeHarness();
+        for (int next : new int[]{0, 2, 1, 0, 1, 2}) {
+            transitions.mode = next;
+            invoke(transitions, "updateModeChrome");
+            check("selection clears previous mode " + next, transitions.editModeButton.selected==(next==0)
+                && transitions.previewModeButton.selected==(next==1) && transitions.splitModeButton.selected==(next==2));
         }
         System.out.println("PASS " + checks + " host assertions on five AST-extracted MainActivity methods");
     }

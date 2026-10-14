@@ -1,0 +1,60 @@
+import java.util.*;
+final class AppearanceHarness {
+    static class AccessibilityNodeInfo {
+        boolean checkable, checked;
+        void setCheckable(boolean value) { checkable=value; }
+        void setChecked(boolean value) { checked=value; }
+    }
+    static class View {
+        boolean selected;
+        String description;
+        AccessibilityDelegate delegate;
+        boolean isSelected() { return selected; }
+        void setSelected(boolean value) { selected=value; }
+        void setContentDescription(String value) { description=value; }
+        void setAccessibilityDelegate(AccessibilityDelegate value) { delegate=value; }
+        static class AccessibilityDelegate {
+            void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {}
+        }
+    }
+    static class TextView extends View {
+        String text; int color;
+        void setText(String value) { text=value; }
+        void setTextColor(int value) { color=value; }
+    }
+    static class Button extends TextView {
+        Object background;
+        void setBackground(Object value) { background=value; }
+        AccessibilityNodeInfo node() {
+            AccessibilityNodeInfo info = new AccessibilityNodeInfo();
+            if (delegate != null) delegate.onInitializeAccessibilityNodeInfo(this, info);
+            return info;
+        }
+    }
+    static class AlertDialog { boolean showing=true; int scrollY=321; boolean isShowing() {return showing;} }
+    static class UiTheme {
+        static class Palette { String name="Paper"; int text=1, muted=2, surface=3, border=4, accent=5, accentSoft=6; }
+        static Object rounded(int color, int radius, int border, int width) {return color;}
+    }
+    static class SplashStore { static List<Integer> enabled(Object context) {return List.of(1,2,3);} }
+    static class AppearanceUi {
+        AlertDialog dialog=new AlertDialog();
+        TextView title=new TextView(), description=new TextView(), sourceLabel=new TextView(), readLabel=new TextView();
+        Button linesButton=new Button(), typewriterButton=new Button(), splashButton=new Button(), galleryButton=new Button();
+        final String[] themeNames={"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
+        final Button[] themeButtons=new Button[9];
+        final List<Button> buttons=new ArrayList<>();
+        AppearanceUi() {
+            for (int i=0;i<9;i++) {themeButtons[i]=new Button(); buttons.add(themeButtons[i]);}
+            Collections.addAll(buttons, linesButton,typewriterButton,splashButton,galleryButton);
+        }
+    }
+    int themeId, styledDialogs;
+    boolean lineNumbers, typewriterMode, launchSplashEnabled;
+    float fontSp=18, previewFontSp=18;
+    UiTheme.Palette palette=new UiTheme.Palette();
+    int dp(int value) {return value;}
+    void styleDialog(AlertDialog dialog) {styledDialogs++;}
+    void refresh(AppearanceUi ui) {refreshAppearance(ui);}
+    /* METHODS */
+}

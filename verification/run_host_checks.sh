@@ -30,6 +30,7 @@ bash verification/contrast/run.sh --gate
 
 bash verification/recovery_loader/run.sh
 bash verification/status_behavior/run.sh test
+bash verification/statistics/run.sh
 
 bash verification/save_lifecycle/run.sh
 
