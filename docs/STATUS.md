@@ -1,6 +1,6 @@
 # Current project status
 
-## Resume reconciliation — 2026-10-14
+## Independent-environment reconciliation — historical snapshot, 2026-10-14
 
 - Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
   and preserved draft PR #13 at `0918e76` on `codex/m1-safe-retention`.
@@ -8,12 +8,11 @@
   no pre-existing Markdown Desk checkout or uncommitted work was available
   in this attached environment. Other agents/environments may hold unpublished
   work; this observation does not establish their status or why an agent stopped.
-- Current branch resumes PR #13. Existing graph tests rerun with JDK17:
+- This snapshot predates the integrated completion/planner/control work described below. Current branch resumes PR #13. Existing graph tests rerun with JDK17:
   `bash verification/history_retention/run.sh` PASS, 81 functional and
   6 constrained-memory checks. Historical full-suite/build evidence below is
   attributed to its original commits, not this fresh run.
-- Completion reservation/staging safety and incremental logical-line indexing
-  are active independent implementation slices. Shared quota/policy admission,
+- At this snapshot, completion reservation/staging safety and incremental logical-line indexing were active independent implementation slices. Completion staging is now integrated below; unpublished logical-line work in another environment is preserved and must be reconciled before overlapping runtime edits. Shared quota/policy admission,
   safe planner/journal/executor and runtime controls remain incomplete.
 - GitHub branch API reports main `protected=false`; rulesets list is empty.
   Administration mutation is unavailable through the installed GitHub connector;

@@ -73,8 +73,7 @@ future device/release acceptance. This tag never authorizes a new signed release
 ## M0 regression and safety commands
 
 `bash verification/run_host_checks.sh` now includes provider/session/renderer/
-AST-extracted mode and strict inventory fixtures. These are host preservation
-checks; their green result does not pass the separate desired safety/spec gate.
+AST-extracted mode and strict inventory fixtures. These include required production recoverability within host boundaries. Their green result does not establish physical-device acceptance or universal provider atomicity.
 Run `bash verification/document_io/run.sh --safety` for the retained raw-provider
 truncation diagnostic. The legacy aggregate `run_safety_gates.sh` mixes primitive
 and application contracts; its RED status does not represent a failure of
