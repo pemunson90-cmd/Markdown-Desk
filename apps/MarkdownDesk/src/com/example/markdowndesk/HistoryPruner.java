@@ -275,11 +275,20 @@ public final class HistoryPruner {
     private static <T> List<T> freeze(Collection<T> values){return Collections.unmodifiableList(new ArrayList<>(values));}
     private static <T> Set<T> freezeSet(Collection<T> values){return Collections.unmodifiableSet(new LinkedHashSet<>(values));}
     private static final class ProofLimit extends IOException {private static final long serialVersionUID=1L;}
+    /** Inert codec bridge: preserves canonical preview bytes, never closes the supplied sink. */
+    static void writeCanonicalProof(DeletePlan plan,OutputStream sink)throws IOException {
+        if(plan==null||sink==null)throw new IOException("Missing canonical proof");
+        DataOutputStream out=new DataOutputStream(new ProofOutput(sink));writeProof(out,plan);out.flush();
+    }
     /** Count/hash canonical proof without allocating an encoded proof-sized array. */
     private static final class ProofOutput extends OutputStream {
         int count;
-        @Override public void write(int b)throws IOException{charge(1);}
-        @Override public void write(byte[] b,int offset,int length)throws IOException{charge(length);}
+        final OutputStream sink;
+        ProofOutput(){sink=null;}
+        ProofOutput(OutputStream sink){this.sink=sink;}
+        @Override public void write(int b)throws IOException{charge(1);if(sink!=null)sink.write(b);}
+        @Override public void write(byte[] b,int offset,int length)throws IOException{charge(length);if(sink!=null)sink.write(b,offset,length);}
+        @Override public void flush()throws IOException{if(sink!=null)sink.flush();}
         void charge(int n)throws IOException{if(n>MAX_PROOF_BYTES-count)throw new ProofLimit();count+=n;}
     }
     private static void writeProof(DataOutputStream out,DeletePlan plan)throws IOException {
