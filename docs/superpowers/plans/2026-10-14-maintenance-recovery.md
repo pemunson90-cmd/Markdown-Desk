@@ -34,10 +34,10 @@
 **Interfaces:** `Inspection` exposes immutable committed intent/stage evidence separately from registration/policy chain. Ordinary reconciliation rejects maintenance presence before any stage promotion.
 
 - [x] Native registered fixture observes RED: valid committed intent currently destroys independently valid chain evidence.
-- [ ] Recognize only the fixed intent names, decode with64KiB limit, retain16KiB authority limits, charge both names under shared bounds.
-- [ ] Keep valid chain evidence available while maintenance blocks ordinary authority; malformed/conflicting stages remain retained and blocked.
-- [ ] Check ordinary registration/open/reconcile/policy/admission cannot bypass intent or promote its stage.
-- [ ] Run discovery tests and existing control/authority groups; commit scoped coherent source.
+- [x] Recognize only the fixed intent names, decode with64KiB limit, retain16KiB authority limits, charge both names under shared bounds.
+- [x] Keep valid chain evidence available while maintenance blocks ordinary authority; malformed/conflicting stages remain retained and blocked.
+- [x] Check ordinary registration/open/reconcile/policy/admission cannot bypass intent or promote its stage.
+- [x] Run discovery tests and existing control/authority groups; commit scoped coherent source.
 
 ### Task2: Explicit candidate projection and unaffected proof
 
@@ -45,20 +45,20 @@
 
 **Interfaces:** package-private `HistoryMaintenanceRecovery.unaffectedFingerprint(Graph, intentClosure)` and `open(store,catalog,identity,index,durability): RecoveryView`. Explicit internal candidate-view overloads feed validated sources/metadata enumeration; ordinary public readers require installed validated binding.
 
-- [ ] Write native intact/partial/all-absent closure fixtures and compute pre-intent survivor proof using the same canonical helper.
-- [ ] Add `history-maintenance-unaffected-v1`: registered role names, sorted survivor envelopes, survivor semantic edges/identities and surviving reservations. Exclude whole closure regardless physical presence, profile/constructor hints, all maintenance/control transient usage, and physical bytes/slots of removed members. Stable authority binds separately.
-- [ ] Validate every still-present member by nofollow exact length/hash; validate existing removed-reference envelopes without resolving intentionally absent members. Preserve all outside-closure semantic validation.
-- [ ] Dedicated opener validates roles/bootstrap/enrollment/policy/intent, then read-only sync/readback and fresh validation before installation. It does not acknowledge ordinary writer readiness.
-- [ ] Filter only exact validated closure from logical enumeration/reservations; direct tombstoned lookup fails. Report raw physical charges separately.
-- [ ] Treat installed view as filtering capability, not validity cache: every read rechecks current intent/control/bundle and exact present member identity/bytes before hiding. Replaced/corrupt members fail.
-- [ ] Run projection, authority-drift, callback/isolation and malformed-member tests; inspect all ordinary reader entry points; commit.
+- [x] Write native intact/partial/all-absent closure fixtures and compute pre-intent survivor proof using the same canonical helper.
+- [x] Add `history-maintenance-unaffected-v1`: registered role names, sorted survivor envelopes, survivor semantic edges/identities and surviving reservations. Exclude whole closure regardless physical presence, profile/constructor hints, all maintenance/control transient usage, and physical bytes/slots of removed members. Stable authority binds separately.
+- [x] Validate every still-present member by nofollow exact length/hash; validate existing removed-reference envelopes without resolving intentionally absent members. Preserve all outside-closure semantic validation.
+- [x] Dedicated opener validates roles/bootstrap/enrollment/policy/intent, then read-only sync/readback and fresh validation before installation. It does not acknowledge ordinary writer readiness.
+- [x] Filter only exact validated closure from logical enumeration/reservations; direct tombstoned lookup fails. Report raw physical charges separately.
+- [x] Treat installed view as filtering capability, not validity cache: every read rechecks current intent/control/bundle and exact present member identity/bytes before hiding. Replaced/corrupt members fail.
+- [x] Run projection, authority-drift, callback/isolation and malformed-member tests; inspect all ordinary reader entry points; commit.
 
 ### Task3: Fresh-process and failure evidence
 
 **Files:** maintenance fixture/runner/README, fresh-JVM driver and probe.
 
-- [ ] Reopen intact, synthetic partial and all-absent closures twice in fresh JVMs; assert exact survivors, no phantom reservation, no extra mutation and physical accounting.
-- [ ] Reject changed member/anchor/identity/unaffected record, outside missing edge, unknown/symlink/nonregular/I/O failure, changed marker/policy/intent, every retained stage, conflicting intent and full/overflow allowance.
-- [ ] Cover valid intent larger than16KiB within64KiB and oversized input rejection without allocation from untrusted length; retain constrained-heap native fixtures.
-- [ ] Independent critical persistence review checks final source SHA and all read/filter boundaries; resolve actual findings.
+- [x] Reopen intact, synthetic partial and all-absent closures twice in fresh JVMs; assert exact survivors, no phantom reservation, no extra mutation and physical accounting.
+- [x] Reject changed member/anchor/identity/unaffected record, outside missing edge, unknown/symlink/nonregular/I/O failure, changed marker/policy/intent, every retained stage, conflicting intent and full/overflow allowance.
+- [x] Cover valid intent larger than16KiB within64KiB and oversized input rejection without allocation from untrusted length; retain constrained-heap native fixtures.
+- [x] Independent critical persistence review checks final source SHA and all read/filter boundaries; resolve actual findings.
 - [ ] Integrator runs one coherent full host/unsigned gate, registers production-path tests, reconciles status, then required hosted check. No automatic execution or device acceptance follows.

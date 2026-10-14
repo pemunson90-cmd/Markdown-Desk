@@ -25,7 +25,12 @@ control/intent and every survivor validate. Logical deletion closure must not
 remove physical charges or invent completion reservations. Installed filtering
 is revalidated per read, including same-byte replacement. A review caught the
 uninstalled-view public-read fallback; its correction passed19independent focused
-checks. The complete recovery slice is NOT yet integration-accepted.
+checks. Exact source review approved `9dde0b1` (tree-identical to reviewed `d8f4769`
+after canonical author metadata correction), with typed discovery `c6d7e8c`.
+Worker evidence:65cases/578assertions, codec73/103, an8MiB member at128MiB
+heap/32MiB held, and7synthetic interruption states reopened in14fresh JVMs.
+These are read-only projection observations, not executor SIGKILL/unlink proof.
+The complete recovery slice still requires the integration host/build gate.
 
 Next: finish fresh-process/hostile/constrained-heap evidence, independently review
 the exact recovery SHA, then one coherent host/build/hosted gate. Durable pins,
