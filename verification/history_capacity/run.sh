@@ -25,5 +25,5 @@ if [[ ! -f "$SRC" ]]; then
 fi
 OUT="$ROOT/verification/build/history-capacity-codec"
 mkdir -p "$OUT/classes" "$OUT/tmp"
-javac --release 11 -d "$OUT/classes" "$SRC" "$ROOT/verification/history_capacity/HistoryControlCodecCheck.java"
+javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/classes" "$SRC" "$ROOT/verification/history_capacity/HistoryControlCodecCheck.java"
 java -Xmx64m -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/classes" com.example.markdowndesk.HistoryControlCodecCheck
