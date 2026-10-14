@@ -1,6 +1,6 @@
 # Current project status
 
-## M0.1 / issue #1 — imported; host/build gates pass, final gates pending
+## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merge pending
 
 As of **2026-10-14**, branch `codex/issue-1-baseline-audit`, draft
 [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9):
@@ -25,18 +25,17 @@ As of **2026-10-14**, branch `codex/issue-1-baseline-audit`, draft
   Compiled package `com.example.markdowndesk`, 2.2.5/code18, min26/target35.
 - Focus/View and other existing modes retained exactly; runtime phone/Fold and
   provider/upgrade acceptance **NOT RUN**. No connected device.
-- Baseline signed APK digest/certificate validation remains pending (APK missing).
-  No release APK, baseline tag, merge, feature development or hosted CI run.
+- **Independent PM signed-baseline verification completed** using the archived original 2.2.5 APK (no signing secrets): APK SHA-256 `ec5e790343b45a56f2580f3f5ec97eae3fb3096e10e012e58eb76bc89e683601`, canonical signer SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, v2/v3 verified, manifest 2.2.5/code18, ZIP/alignment and 25 splashes passed. Evidence is attributed to the PM's separate check in [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9#issuecomment-6164996417), **not** to the Codex host run.
+- PM approved merging the **unchanged-source baseline** after final document reconciliation; physical Fold/SAF/IME/TalkBack/upgrade acceptance remains **NOT RUN** and must gate future production releases. No new signed release, tag, merge, feature development or hosted CI run has occurred yet.
 
 See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-## Next
+## Next — continuous campaign
 
-1. Independent source/build review completed without critical/important implementation findings; final gatekeeper approval remains pending.
-2. Obtain baseline signed APK for public-certificate/digest validation, without
-   signing secrets. Record actual device/Fold/upgrade acceptance separately.
-3. Keep PR #9 draft until required gates pass; then decide baseline tagging/merge.
-4. Do not start issue #2 or later roadmap work in this task.
+1. Complete this documentation reconciliation, confirm current PR state and implement the PM-approved **baseline source-import merge** of PR #9; tag `v2.2.5-baseline` without issuing a new APK release. The source import does not require retroactive Fold/device acceptance.
+2. Immediately start [issue #2](https://github.com/pemunson90-cmd/Markdown-Desk/issues/2) behavioral regression tests and then move through the next eligible tasks in the [M0–M7 roadmap](ROADMAP.md). **Do not stop after a single issue** unless a real external gate blocks all independent work.
+3. Keep runtime device/SAF/Fold/upgrade checks explicitly NOT RUN until performed. Do not bypass private signing or device acceptance for user-facing releases.
+4. Apply the standing orchestration/local-first workflow in [AGENTS.md](../AGENTS.md), updating this status with actual results and the next runnable task at every coherent checkpoint.
 
 Historical Library versions/SDK/recovery archives are a secondary provenance
 request, not retrieved/uploaded in this session. Exact 2.2.5 source and historical
