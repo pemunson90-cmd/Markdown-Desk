@@ -66,5 +66,5 @@ runs were not performed inside an independently enforced network sandbox.
 The default build path retains the original canonical signing requirements.
 It was not executed here. Signing credentials must remain outside this public
 repository and hosted CI. Never use a generated replacement/debug key to make
-these validation artifacts installable. No baseline tag is created until
-remaining import/release gates are resolved.
+these validation artifacts installable. The PM-cleared source-only baseline may be merged/tagged independently of
+future device/release acceptance. This tag never authorizes a new signed release.
