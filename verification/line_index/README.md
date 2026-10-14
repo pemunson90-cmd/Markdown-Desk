@@ -20,8 +20,13 @@ insertion reads one character; deletion reads none of the surviving text.
 Ordinary edits binary-search old LF offsets, scan inserted characters, splice
 new LF offsets and shift remaining offsets. Complexity is O(inserted characters
 + following logical lines), with O(lines) retained index capacity. LF-containing
-partial insertions also need temporary O(inserted LF) offsets. Full-document
-replacement and inconsistent callback metadata use a single full scan. This is
+partial insertions up to 65,536 UTF-16 units also need temporary O(inserted LF)
+offsets. Larger insertions, full-document replacement and inconsistent callback
+metadata use two full passes and an exact-sized line array, as the baseline did.
+Large retained arrays grow with at most 65,536 spare offsets rather than doubling.
+The additional 128MiB-heap/32MiB-held fixture checks LF-dense opening, a near-full
+partial paste reaching the exact 8MiB boundary, subsequent small growth and reset.
+Both opening and partial paste reproduced an OOM in the pre-fix helper. This is
 not constant-time editing and does not optimize Android text layout or syntax.
 
 `benchmark-2026-10-14.csv` records five samples per fixture/position/path. Each
@@ -48,7 +53,8 @@ it is not peak memory, RSS or the allocation cost of one callback.
 
 Environment: Debian13, Linux6.18.44, Intel Xeon Platinum8573C, container quota
 4 CPUs/16GiB, Temurin17.0.16+8, `-Xms128m -Xmx1g`.
-Measured source SHA256:
+Historical measured source at `90f258e` (before the bounded-heap correction)
+SHA256:
 
 - `KineticEditText.java`: `be74bebcc18fb520c02c27ca02336a96de8259ebcb8c251f40343910a1c60b2c`
 - `LogicalLineIndex.java`: `848138116780a0651dbb3c4c4c9eedf79d7f0e7c56e434268b6ca42b70254390`

@@ -1,5 +1,20 @@
 # Current project status
 
+## Current integration checkpoint — 2026-10-14
+
+Remote PR #13 was independently merged at `6afd3a1` after hosted run38630847829
+passed on `e4839d2`. This environment preserves additional independently reviewed
+completion hardening, pure planning/control-codec work and all remote fixtures.
+The combined follow-up is not yet covered by that remote hosted evidence.
+
+Review reproduced two new LF-index heap failures: opening an8MiB LF-only
+document and a near-full partial paste reaching the exact8MiB limit. The reviewed
+fix uses exact two-pass resets, falls back for insertions above65,536UTF-16 units,
+and caps retained-array growth slack. Scoped tests PASS46,564assertions/3,000edits
+plus8LF-dense checks at128MiB heap/32MiB held; independent reviewer reproduced
+the formerly failing paste and confirmed it now passes. Android IME/Fold gates
+remain NOT RUN. Fresh combined host/build validation is the immediate next step.
+
 ## Independent-environment snapshot — historical evidence, 2026-10-14
 
 - Fresh independent checkout verified remote main at `3652218` (PR #12 merged),
@@ -53,8 +68,8 @@ The independent `90f258e` build above does not cover the latest combined source.
 Reconciliation retains the more thoroughly reviewed `b511fee` completion path
 (inode checks, read-only stage retry and same-target recursion guard), plus all
 independent completion fixtures and line-index work. Root review reproduced a
-bounded-heap regression in the new line index on8MiB LF-only input; correction
-and combined validation are required before this PR becomes ready. No work or
+bounded-heap regressions in the new line index; the reviewed correction above
+requires fresh combined validation before the follow-up becomes review-ready. No work or
 historical evidence is discarded; no force-push is used.
 
 ## M0.1 / issue #1 — imported and reproducible; baseline signed artifact independently verified; merged/tagged
