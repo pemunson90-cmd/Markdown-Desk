@@ -1,0 +1,6 @@
+EXPECTED RED mutant checksum: Exception in thread "main" java.lang.AssertionError: Accepted corrupt frame byte 220
+EXPECTED RED mutant trailing_bytes: Exception in thread "main" java.lang.AssertionError: Accepted trailing byte
+EXPECTED RED mutant cursor_range: Exception in thread "main" java.lang.AssertionError: Accepted invalid start 4
+EXPECTED RED mutant theme_range: Exception in thread "main" java.lang.AssertionError: Accepted theme9
+EXPECTED RED mutant payload_utf8: Exception in thread "main" java.lang.AssertionError: Accepted JDK malformed UTF8 oracle
+PASS 5 deliberate mutation sensitivity checks; production codec is not mutated
