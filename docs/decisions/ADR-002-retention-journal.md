@@ -90,3 +90,13 @@ a hard minimum of20 would make repeated8MiB saves impossible at the default64MiB
 Named, unresolved, orphan, shared and newest/sole-local groups remain protected.
 A planner result alone never authorizes an unlink or proves repeated saves work;
 executor, admission integration and interruption tests remain required.
+
+
+Pure-planner selection ruling (2026-10-14): positive capacity deficits select
+only globally oldest eligible groups until both requested minima are satisfied;
+count trimming does not precede that pressure selection. Zero/zero maintenance
+selects oldest count-excess groups in a bounded prefix and reports
+`moreCountMaintenance`. Replan from a fresh graph after execution. An explicit
+selection or positive deficit exceeding one bounded proof returns zero members
+and a limit/shortfall reason. The preview framing budget is not a journal wire
+format or authorization to delete; execution must enforce its exact own bounds.

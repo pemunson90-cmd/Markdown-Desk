@@ -47,3 +47,6 @@ bash verification/history_index/run.sh
 bash verification/history_diff/run.sh
 bash verification/private_archive/run.sh all
 bash verification/history_retention/run.sh
+bash verification/history_quota/run.sh
+bash verification/syntax/run.sh
+bash verification/history_retention/run_planner.sh
