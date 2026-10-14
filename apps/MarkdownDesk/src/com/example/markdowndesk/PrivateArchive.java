@@ -34,7 +34,9 @@ public final class PrivateArchive {
     /** Stable wire IDs; ordinal is never serialized. Raw opaque data remains provisional. */
     public enum Type {
         SNAPSHOT(1, true), PREPARATION(2, false), COMPLETION(3, false), CHECKPOINT(4, false),
-        IDENTITY(5, false), SESSION_TAB(6, true), RECOVERY(7, true), PREFERENCES(8, false);
+        IDENTITY(5, false), SESSION_TAB(6, true), RECOVERY(7, true), PREFERENCES(8, false),
+        /** Complete native HistoryIndex .index envelope; opaque bounded metadata at this layer. */
+        INDEX(9, false);
         private final int wireId;
         private final boolean document;
         Type(int wireId, boolean document) { this.wireId = wireId; this.document = document; }
