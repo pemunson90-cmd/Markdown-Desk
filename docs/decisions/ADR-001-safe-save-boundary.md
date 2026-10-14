@@ -249,3 +249,20 @@ narrow MainActivity integration and independent recovery loading; then history
 UI/retention. Preserve package/signing identity, versions until an authorized
 release, the baseline fallback and existing modes/locks/assets. No replacement
 key, signed APK, destructive migration or new backup behavior is part of this ADR.
+
+## Implementation checkpoint (2026-10-14)
+
+Minimum mandatory protection, hash/revision-bound coordinator, Activity save and
+explicit-copy recovery are implemented and independently reviewed. Streaming v1
+envelopes, lazy validated snapshot handles, entry/completion reservations and
+bounded Unicode validation close the observed host failures. The current fixed
+64MiB foundation quota is implemented; configurable retention/20-version history
+and safe pruning remain proposed work, not completed defaults. Earlier sections
+record the design-time baseline; current source handlers no longer adopt Save As
+before verification or skip independent legacy-draft protection.
+
+Actual production fixtures pass; unprotected primitive truncation probes remain
+red and explicitly separate. Fold7 runtime, Android app-UID durability, provider,
+power-loss and release checks remain NOT RUN. No milestone acceptance or source
+identity/asset/signing change is implied. See STATUS.md and the implementation
+plan for exact current counts and required external inputs.

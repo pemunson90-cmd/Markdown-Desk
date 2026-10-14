@@ -79,14 +79,18 @@ Current observed host evidence:
   pass separately. These outcomes are both preserved; there is no atomic URI
   guarantee or overall green/M0 completion claim.
 - Unsigned JDK17/SDK37.0/build-tools36.0.0 build PASS; package2.2.5/code18,
-  min26/target35 and25asset bytes preserved. Final committed-source clean rebuild
-  pending. No credentials, replacement key or signed release produced.
+  min26/target35 and25asset bytes preserved. Two fresh committed-source builds at `c326b61` PASS and match SHA-256
+  `059587cbf2feb5df1b3a4183a20b7ae5a993aaabbc8d38b56a9d489f06e28b23`. No credentials, replacement key or signed release produced.
 
 Next required work:
 
-1. Finish committed-source rebuild/evidence reconciliation and independent CI.
+1. Publish reviewed source/evidence to the existing draft PR and verify independent CI.
+   Matched host protection timing/space is recorded in
+   [measurement](benchmarks/M0_PROTECTED_SAVE_HOST.md); no device budget claimed.
 2. Obtain actual Galaxy Z Fold7 device context/ADB or owner-run baseline checks.
-   Model is confirmed; Android version/access route remains pending. Current
+   Model is confirmed; owner chose guided on-phone steps after asking what to do.
+   Android/One UI/installed-app version numbers are requested before tailored
+   checks. No ADB access or owner test results supplied yet. Current
    Codex ADB has no connected device. See [device checklist](M0_DEVICE_ACCEPTANCE.md)
    and `verification/device_context.py`; matched synthetic fixtures are available
    locally under ignored `verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`.

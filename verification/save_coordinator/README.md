@@ -15,7 +15,7 @@ external changes, source-read failure, partial/zero writes, flush/close/read-bac
 failure, completion failure and pre-write corruption are checked. Captured bytes
 are immutable; Unicode across validation buffers is preserved.
 
-34cases/150assertions pass before storage memory repair. A failing corruption
+35cases/157assertions pass after storage and captured-consent repair. A failing corruption
 case first demonstrated that persisted protection needed revalidation after the
 provider re-read; `store.validate(transaction)` now does that before write.
 

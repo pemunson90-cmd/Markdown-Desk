@@ -40,7 +40,7 @@ Files: MainActivity.java, new ProtectedDocumentSaver.java if needed; existing sa
 - [x] RED extracted Activity tests: every write passes coordinator; missing baseline requires explicit conflict consent bound to observed hash; Save As passes pending destination and original tab identity remains until verified success.
 - [x] Integrate Android directory adapter on existing I/O executor. Capture immutable request on UI thread. Persist attempted edit synchronously inside save, not debounced legacy recovery. On failure show uncertainty and accessible protected recovery action.
 - [x] Expose protected originals/attempts independently of session parsing and 12-tab capacity. Restore only to a newly selected copy, with verified bytes and no original overwrite. Keep existing legacy formats and modes.
-- [ ] Run integrated host/unsigned/clean-rebuild, independent critical review. Keep PR draft while applicable safety gates remain unresolved.
+- [x] Run integrated host/unsigned/clean-rebuild, independent critical review. Keep PR draft while applicable safety gates remain unresolved.
 
 ### Task 4: History/retention/backup after foundational protection
 - [ ] Build named checkpoints, history/diff and explicit restore-to-new-copy using validated snapshots; configure automatic policy and safe pruning (never unresolved/named/sole recovery).
@@ -54,4 +54,4 @@ Task1 and2 share only declared store interface; task3 consumes their concrete co
 
 Ruling: trusted Android getFilesDir parent is canonicalized before constructing store, because OS-owned /data/user/0 aliases may be symlinks. User-derived paths are never resolved into store filenames.
 
-Task1 complete: scoped reviewR1 closes entrycap/memory findings; Task2 complete:35production cases157assertions; Task3 code/review complete withcaptured revision retry andstrictcodec, finalcommitted clean buildpending. Task4 blocked byunfulfilled M0 prerequisites; actualFold7 access/owner-run context requested, no gates waived.
+Task1 complete: scoped reviewR1 closes entrycap/memory findings; Task2 complete:35production cases157assertions; Task3 code/review complete withcaptured revision retry andstrictcodec, finalcommitted clean builds at c326b61 pass with matching unsigned hashes. Task4 blocked byunfulfilled M0 prerequisites; actualFold7 access/owner-run context requested, no gates waived.
