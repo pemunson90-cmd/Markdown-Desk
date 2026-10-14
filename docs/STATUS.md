@@ -1,47 +1,65 @@
 # Current project status
 
-## Current checkpoint — maintenance recovery, 2026-10-14
+## Current checkpoint — durable pins and preview scheduling, 2026-10-14
 
-Main is `da52d8ba7e48a1c5342479ac2a90643d532ddbe5`: reconciled PR #14 merged
-at exact head `78bf1e5` after required hosted run38644425462 passed. Earlier
-hosted run38643656351 failed on missing `rg`; portable stub discovery was tested
-locally with `rg` absent before the passing changed-input run. No failed/skipped
-run is counted as passing. PR #15 remains merged at `2ae2930`.
+Main is `6630609a122b13189161fa3ae4e6e1f56073f16c`: [PR #16](https://github.com/pemunson90-cmd/Markdown-Desk/pull/16)
+merged at reviewed head `3e1890d` after required hosted run38646423423 passed.
+Read-only maintenance recovery now validates retained intent evidence and survivor
+bindings before exposing a tombstone view. It performs no unlink, publication,
+repair, migration or automatic cleanup. Its public read gate rejects uninstalled
+or invalid projection state, and installed views revalidate every read.
 
-The source integration at `b67995d` passed the full clean required host suite and
-two audited unsigned builds matching SHA-256
-`2a7e843fa00802789874a577083b18b17a336f0c28c9992cecbb2839cf632e69`.
-Subsequent changes were documentation and host-runner portability only; app
-bytecode/identity/assets are unchanged. Existing v1 data is not migrated or
-rewritten. Shared four-root authority, typed all-writer admission, exact completion
-conversion, explicit pure pressure mode, syntax parity and inert intent framing
-are independently reviewed. None enables runtime pruning/history controls.
+Combined clean integration gate passed at `98577d5`: the full required host suite
+once and two audited unsigned builds matching SHA-256
+`0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
+Scoped recovery evidence is65cases/578checks, codec73/103, an8MiB member at128MiB
+heap with32MiB held, and7synthetic interrupted states reopened in14fresh JVMs.
+Those synthetic states are not executor SIGKILL, unlink or power-loss evidence.
+PR #14 and PR #15 are also merged; their evidence below is historical.
 
-Active source work is `codex/maintenance-projection`, with integration branch
-`codex/maintenance-integration`. The no-unlink design and RED discovery fixture
-are committed at `00c9d58`; typed intent discovery at `8ee480a` and reader/projection
-work are being reviewed. Candidate projection remains internal until stable
-control/intent and every survivor validate. Logical deletion closure must not
-remove physical charges or invent completion reservations. Installed filtering
-is revalidated per read, including same-byte replacement. A review caught the
-uninstalled-view public-read fallback; its correction passed19independent focused
-checks. Exact source review approved `9dde0b1` (tree-identical to reviewed `d8f4769`
-after canonical author metadata correction), with typed discovery `c6d7e8c`.
-Worker evidence:65cases/578assertions, codec73/103, an8MiB member at128MiB
-heap/32MiB held, and7synthetic interruption states reopened in14fresh JVMs.
-These are read-only projection observations, not executor SIGKILL/unlink proof.
-Combined integration gate **PASS** at `98577d5a45e001911454fa6dbcbff03135aa5ba1`:
-full required host suite once from clean committed source and two audited unsigned
-builds matching SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
-Package2.2.5/code18/min26/target35 and all25assets preserved; no signing inputs.
-Required hosted validation is pending before source merge.
+Active independent work:
 
-Next: publish the verified recovery slice and complete its required hosted gate. Durable pins,
-intent publication and unlink/replay execution remain separate prerequisites;
-continue backup/import, runtime history and eligible M2–M7 work afterward.
-No milestone, installable APK, physical Fold7/Android16/OneUI8, SAF/IME/TalkBack,
-power-loss, signing or upgrade acceptance is claimed. Raw-provider hazards remain
-unchanged separate RED diagnostics. All25artwork assets stay owner-approved.
+- Durable-pin architecture review: one shared control allowance, conservative
+  operation scopes and explicit terminal receipt reservations. Partial terminal
+  staging must not be presented as guaranteed cancellation; the precise recovery
+  contract is under review before implementation. Restore inputs may legitimately
+  include unresolved protected transactions and must not require pruning authority.
+- `codex/preview-worker` implements bounded preview scheduling; integration is
+  `codex/preview-integration`. Existing180ms debounce and HTML are preserved.
+  One active render/delivery plus one replaceable snapshot must reject stale
+  results immediately after edits, suppressed loads, layout changes and shutdown.
+  Preview source `2020ec4` passed402focused checks, renderer goldens and SDK37
+  Java compilation; independent review passed18controlled concurrency checks.
+  Integration at `08179fa` preserves identical reviewed production bytes.
+  Updated host boundaries passed57status,39,137syntax plus scheduler,42SplitUI
+  and8divider checks, and402preview checks. The new preview runner is required.
+  Matched10k/100k/500k fixture bursts held worker/delivery queues to1/1 versus
+  baseline8/8; capture timings are mixed and renderer timings were not repeated.
+  These are host queue observations, not typing/device latency or peak memory.
+- The same review found an independent statistics completion backlog: repeated
+  scans while main delivery is held can retain many request/result callbacks.
+  Repair `719c8ae` (integration `26e1fa9`) preserves250ms debounce and exact
+  counts. Worker29delivery+94existing assertions and independent22concurrency
+  checks passed; baseline100held callbacks became1in the independent probe.
+  Posted closures retain counts/keys, not full source. Both bounded workers are
+  independently approved. Combined clean gate PASS at
+  `f0527060da0fefbbeda3ffb82dad323db4d45a69`: required host suite once, then
+  two audited unsigned builds matching SHA-256
+  `eb1a95566fb8520c2de317e4c187bfec7fa166dda7e481bdc1bac414c442ac07`.
+  No signing inputs or downloads; identity/assets preserved. Scoped tracked-file
+  credential scan348files/0matches is a pattern check, not a whole-history proof.
+  Required hosted validation is pending before this performance source merge.
+
+Next: verify and integrate the preview change while implementing reviewed durable
+pins; then intent publication and explicit journaled retention, backup/import and
+runtime history. Continue eligible M2–M7 work without treating a PR as campaign
+completion. No destructive executor or full M1 workflow is enabled yet.
+
+Package2.2.5/code18/min26/target35 and all25owner-approved assets remain preserved.
+Required production recoverability stays GREEN; raw-provider hazards remain
+unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
+TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
+No milestone or installable release is claimed.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
