@@ -32,6 +32,7 @@ bash verification/recovery_loader/run.sh
 bash verification/status_behavior/run.sh test
 bash verification/statistics/run.sh
 bash verification/line_index/run.sh
+bash verification/syntax/run.sh
 
 bash verification/save_lifecycle/run.sh --safety
 
@@ -48,4 +49,4 @@ bash verification/history_diff/run.sh
 bash verification/private_archive/run.sh all
 bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
-bash verification/history_capacity/run.sh codec
+bash verification/history_capacity/run.sh all
