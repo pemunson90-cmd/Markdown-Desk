@@ -31,7 +31,7 @@ Verified backend additions:
   promise, runtime consumer, operation quiescence, terminal repair, compaction
   or fresh-process arbitrary-evidence-loss anchor is implemented.
 
-Active integration: `codex/history-execution-export`.
+Active integration: `codex/history-execution-export`, [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19).
 
 - Frozen native archive manifest `73655d5` is integrated byte-identically through
   `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
@@ -53,14 +53,25 @@ Active integration: `codex/history-execution-export`.
   No new history UI is integrated or verified yet. Optional metadata must not negate successful saves;
   legacy recovery remains separately presented.
 
-Next: run one clean host/two-unsigned-build checkpoint for the reviewed selected
-executor and frozen manifest, then required hosted validation. Continue the
-history controller and narrow UI integration, runtime quiescence/terminal repair,
-persisted export capture, strict import/adoption and the remaining M0–M7 campaign.
-No full M1 workflow or milestone completion is claimed.
+Local integration gate at `715cdab92808f278b933ab160fe5579c0aae5304` passed all
+required host checks and two audited unsigned builds matching SHA-256
+`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
+The original aggregate session was interrupted during pin restart checking;
+no failing production assertion was reported. Every archived source file was
+verified unchanged before completing the remaining pin/maintenance/executor
+checks in that same clean checkout. Completed host checks were not broadly
+repeated. Both fresh unsigned artifacts preserve package 2.2.5/code 18/min 26/
+target 35 and all 25 assets; no signing inputs or downloads. Scoped tracked-file
+credential-pattern scan: 381 files, zero matches; not a whole-history proof.
+Hosted validation remains pending and draft/skipped jobs are not passing evidence.
 
-Required production recoverability remains GREEN; raw-provider hazards remain
-unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
+Next: required hosted validation, then integrate the independently reviewed
+controller and guarded history actions at their own clean gate. Continue runtime
+quiescence/terminal repair, persisted export capture, strict import/adoption and
+the remaining M0–M7 campaign. No full M1 or release completion is claimed.
+
+Required local production recoverability is GREEN; independent hosted validation
+remains pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
 TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
 Existing same-URL WebView completion/scroll ordering and fixed-delay printing
 remain separate Android gaps. Host queue observations are not typing latency,
