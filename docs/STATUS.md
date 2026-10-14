@@ -30,11 +30,13 @@ As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d5
 
 See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-## Active campaign — reviewed protection; statistics and accessibility integration
+## Active campaign — M1 backend foundation; runtime history still pending
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m0-performance-accessibility`, combining separately reviewed issue #3/#4 work.
+`codex/m1-history-foundation`. The separately reviewed issue #3/#4 slice
+[PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
+`c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
 hand back after a successful task or PR checkpoint. Remote PM changes were
 fast-forwarded through `d8d595a`; the updated AGENTS/CI policy and
@@ -69,7 +71,7 @@ Implemented locally, independently reviewed:
   existing Split divider supports accessible/keyboard adjustment with unchanged
   drag bounds. Nine palettes and25owner-cleared assets remain unchanged.
 
-Current observed host evidence:
+Merged foundation evidence (production save/UI paths unchanged by the new backends):
 
 - Full host suite PASS.42DocumentIO cases;568session/recovery assertions;
   467renderer/palette +12list +14,020divider assertions;126mode +43labels
@@ -114,24 +116,54 @@ New bounded repairs, independently reviewed with no blocking findings:
   These are statistics-path host measurements, not Android typing latency.
   See [measurement](benchmarks/M0_3_DEBOUNCED_STATISTICS.md).
 
+Current backend implementation, independently reviewed:
+
+- Immutable checkpoint names over existing validated snapshots; strict bounded
+  checksummed records and fail-closed complete pin enumeration. No source rewrite.
+  15cases/87assertions;6actual SIGKILL boundaries, each reopened twice.
+- Exact URI/unsaved-tab identities, immutable Save As provenance and verified
+  group ownership/sequence index. Missing optional records still expose actual
+  completions; pending/orphan versions remain protected. 19cases/275assertions;
+  two independent clean reopens and12SIGKILL boundaries, each reopened twice.
+  Review fixed forged TAB provenance and false-green fault/quota fixtures.
+- Read-only exact bounded diff preserving BOM/CRLF/Unicode; explicit incomplete
+  summaries at byte/line/work/output limits. 10cases/522assertions plus six paired
+  8MiB comparisons at128MiB heap with32MiB retained headroom.
+- Streaming private archive framing/integrity codec:459assertions and constrained
+  memory target,168,427,380 generated payload bytes checked, both1GiB bounds.
+  Codec callbacks are provisional; typed import validation, adoption, export pins
+  and provider readback receipts are not implemented. Review fixed an index-limit
+  false-green fixture and a reproduced zero-read hang.
+
+All four backends are registered in the required host runner. They are not wired
+into Activity actions and do not implement pruning, combined quota, private-state
+import/adoption or the full M1 user flow. Retained stages/corruption fail visibly;
+no implicit cleanup or partial pin set. Calls must remain off the UI thread;
+shared graph locking and duplicate-checkpoint validation costs need resolution
+before runtime integration.
+
 Integration evidence and next executable work:
 
-1. Clean committed-source verification **PASS** at
-   `727112133d556f44c68cdb11b95afade8a4880c6`: required host suite once from
-   the first fresh checkout, two independently built/audited unsigned APKs match
-   SHA-256 `d07d660df8438f5f0ff16a6b5b2439c12bffe7bb7b0986b3e7e79fee968ecee9`.
-   Signing inputs stripped; package2.2.5/code18, min26/target35, all25assets retained.
-   Final integration review approved with no blocking findings. Publish one
-   deliberate review-ready CI boundary, then merge only if required checks pass.
-2. The [history/retention plan](superpowers/plans/2026-10-14-history-retention.md)
-   is ready against the actual production foundation. Durable checkpoint metadata
-   and bounded diff backends are being implemented in separate worktrees, with
-   no Activity/save-path changes. Continue review and integration of verified work.
-   Optional runtime enablement still needs explicit prerequisite reconciliation;
-   no physical milestone or user-facing release is claimed from host evidence.
-3. Keep actual device/SAF/Fold/IME/TalkBack and signed-upgrade acceptance pending
-   while executing eligible local work. No replacement signing key or credentials
-   in Git/CI.
+1. Merged UI source `727112133d556f44c68cdb11b95afade8a4880c6` passed required
+   clean-checkout host tests and two unsigned builds, matching SHA-256
+   `d07d660df8438f5f0ff16a6b5b2439c12bffe7bb7b0986b3e7e79fee968ecee9`.
+   Combined backend verification **PASS** at
+   `e612e3b0e875ce07fbfe1f69980458f2c7ebdaa6`: required host suite once from
+   clean source; two unsigned builds match SHA-256
+   `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
+   Independent integration review approved; deliberate hosted validation pending.
+2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
+   shared lock/validated inventory/combined quotas/read-only graph before any
+   destructive executor. Crash-safe deletion, verified export, strict import and
+   history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
+   defines the reviewed retention protocol. Its first implementation is deliberately
+   narrowed to shared monitoring, validated inventory/read-only graph and bounded
+   per-operation validation cache; dynamic quota, reservation-bound staging and
+   deletion follow separately. No source reconstruction or coordinator redesign.
+3. Reconcile local M0 prerequisites before optional runtime enablement. Keep
+   physical milestone acceptance and user-facing release gates open. Preserve
+   canonical signing, migration/rollback and actual Fold/SAF/IME/TalkBack/upgrade
+   requirements; no replacement key or credentials in Git/CI.
 
 Owner-reported target: **Samsung Galaxy Z Fold7, Android16, One UI8.0**.
 The owner reported installed app version “2.25”; the exact installed package
