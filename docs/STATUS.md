@@ -154,8 +154,7 @@ Current retention slice, independently reviewed at `f244e0e` (Task3A1):
   Independent review caught and fixed a stale proof and an API33-only sink.
 - Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
   store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
-  cases/233assertions PASS locally after required-runner registration. Clean
-  integration host/build evidence for this slice is pending, not inherited from PR12.
+  cases/233assertions PASS locally after required-runner registration. Clean committed-source host suite PASS at `904d7bfb9dcf8a9721930aae745c79df4eef2814`; two genuinely unsigned builds PASS and match SHA-256 `4caf117b90159dbbbb9ba1585551769d0a95c77d42f44cd29366195edecc6856`. No signatures/credentials or device acceptance.
 
 Integration evidence and next executable work:
 
