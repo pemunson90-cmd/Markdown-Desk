@@ -51,7 +51,7 @@ public final class HistoryCapacity {
     public static HistoryCapacity register(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,HistoryPolicy initial,ProtectionStore.Durability durability)throws IOException{
         HistoryCapacity candidate=new HistoryCapacity(store,catalog,identity,index,durability);
         synchronized(candidate.monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){
-            if(initial==null)throw new IOException("Missing initial policy");HistoryControlStore.Inspection inspection=candidate.control.inspect();
+            HistoryStorage.requireOperational(store.storageRoot());if(initial==null)throw new IOException("Missing initial policy");HistoryControlStore.Inspection inspection=candidate.control.inspect();
             if(inspection.state!=HistoryControlStore.State.UNREGISTERED){
                 if(inspection.registration==null)throw new IOException("Registration incomplete; explicit reconciliation required");candidate.validateBundle(inspection.registration);
                 if(inspection.registration.quotaBytes!=initial.quotaBytes||inspection.registration.automaticCount!=initial.automaticCount)throw new IOException("Conflicting initial registration policy");
@@ -68,12 +68,30 @@ public final class HistoryCapacity {
             candidate.publish(HistoryControlStore.REGISTRATION_NAME,bytes,false);candidate.reconcileLocked();return candidate;
         }}
     }
-    public static HistoryCapacity open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException{
+    public static HistoryCapacity open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        Object monitor=HistoryStorage.monitorFor(store.storageRoot());synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return openLocked(store,catalog,identity,index,durability);}}
+    }
+    static HistoryCapacity openLocked(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
         HistoryCapacity candidate=new HistoryCapacity(store,catalog,identity,index,durability);
-        synchronized(candidate.monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){
-            if(candidate.control.inspect().state==HistoryControlStore.State.UNREGISTERED)throw new IOException("History bundle is not registered");
-            HistoryStorage.capacity(store.storageRoot(),candidate);candidate.reconcileLocked();return candidate;
-        }}
+        if(candidate.control.inspect().state==HistoryControlStore.State.UNREGISTERED)throw new IOException("History bundle is not registered");
+        HistoryStorage.capacity(store.storageRoot(),candidate);candidate.reconcileLocked();return candidate;
+    }
+    static HistoryCapacity prepareTerminalLocked(HistoryMaintenanceExecutor.Retirement retirement,ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());retirement.require(retirement.view);HistoryCapacity candidate=new HistoryCapacity(store,catalog,identity,index,durability);retirement.requireBundle(candidate.roots);
+        HistoryControlStore.Inspection before=retirement.control();candidate.validateBundle(before.registration);candidate.validateEnrollment(before);admitControl(before,0,0);
+        for(HistoryControlStore.Entry entry:before.entries){File file=new File(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)?candidate.parent:candidate.controlRoot,entry.filename);candidate.syncExisting(file,candidate.read(file));}
+        durability.syncDirectory(candidate.parent);for(File root:candidate.roots)durability.syncDirectory(root);durability.syncDirectory(candidate.controlRoot);
+        HistoryGraph.Graph graph=retirement.validate();HistoryControlStore.Inspection after=retirement.control();
+        if(!graph.complete||!graph.usageComplete||!before.latest.envelopeHash.equals(after.latest.envelopeHash))throw new IOException("Incomplete terminal capacity proof");
+        // The all-absent validated graph reports physical inventory and surviving completion credit.
+        new Usage(graph.actualBytes,graph.reservedCompletionBytes,graph.reservedCompletionSlots,after,true,false,after.latest.quotaBytes,Collections.emptyList());
+        candidate.acknowledged=new EffectivePolicy(after.latest);candidate.ready=true;return candidate;
+    }
+    void requireTerminalBinding(HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        retirement.require(retirement.view);retirement.requireBundle(roots);HistoryPruneIntent.PolicyBinding policy=retirement.view.intent.policy;
+        if(!ready||acknowledged==null||!acknowledged.bundleId.equals(policy.bundleId)||acknowledged.generation!=policy.generation||!acknowledged.controlRecordHash.equals(policy.envelopeHash)
+                ||acknowledged.quotaBytes!=policy.quotaBytes||acknowledged.automaticCount!=policy.automaticCount)throw new IOException("Foreign terminal capacity candidate");
     }
     public EffectivePolicy policy()throws IOException{synchronized(monitor){if(acknowledged==null)throw new IOException("No acknowledged policy");return acknowledged;}}
     public Usage inspect()throws IOException{synchronized(monitor){HistoryControlStore.Inspection inspection=control.inspect();Usage usage=ledger(inspection);
@@ -91,7 +109,7 @@ public final class HistoryCapacity {
     }
     public EffectivePolicy reconcile()throws IOException{synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return reconcileLocked();}}}
     private EffectivePolicy reconcileLocked()throws IOException{
-        ready=false;HistoryControlStore.Inspection inspection=control.inspect();HistoryPins.requireRetained(store.storageRoot(),inspection);
+        HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());ready=false;HistoryControlStore.Inspection inspection=control.inspect();HistoryPins.requireRetained(store.storageRoot(),inspection);
         if(!inspection.pins.valid||!inspection.pins.stages.isEmpty())throw new IOException("Pins require explicit reconciliation");
         admitControl(inspection,0,0); // Retained policy stages already occupy their physical slot/bytes.
         if(inspection.hasMaintenance())throw new IOException("Maintenance requires dedicated recovery");
@@ -127,7 +145,7 @@ public final class HistoryCapacity {
         throw new IOException("Missing durable enrollment binding");
     }
     EffectivePolicy graphPolicy(HistoryControlStore.Inspection inspection,File... graphRoots){return roots.equals(Arrays.asList(graphRoots))&&authorityMatches(inspection)?acknowledged:null;}
-    private boolean authorityMatches(HistoryControlStore.Inspection inspection){try{HistoryPins.requireRetained(store.storageRoot(),inspection);validateEnrollment(inspection);}catch(IOException invalid){return false;}return ready&&acknowledged!=null&&isCurrentAuthority()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
+    private boolean authorityMatches(HistoryControlStore.Inspection inspection){try{HistoryStorage.requireOperational(store.storageRoot());HistoryPins.requireRetained(store.storageRoot(),inspection);validateEnrollment(inspection);}catch(IOException invalid){return false;}return ready&&acknowledged!=null&&isCurrentAuthority()&&inspection.state==HistoryControlStore.State.VALIDATED&&inspection.latest!=null&&acknowledged.controlRecordHash.equals(inspection.latest.envelopeHash);}
     private boolean isCurrentAuthority(){try{return HistoryStorage.capacity(store.storageRoot())==this;}catch(IOException failure){return false;}}
     private void requireReady()throws IOException{if(!authorityMatches(control.inspect())){ready=false;throw new IOException("History authority requires reconciliation");}}
     void requireWriter(File root)throws IOException{HistoryStorage.requireMutation(root);if(!roots.contains(root))throw new IOException("Unregistered history writer");requireReady();}
