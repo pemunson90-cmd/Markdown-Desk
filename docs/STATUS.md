@@ -12,9 +12,29 @@
   `bash verification/history_retention/run.sh` PASS, 81 functional and
   6 constrained-memory checks. Historical full-suite/build evidence below is
   attributed to its original commits, not this fresh run.
-- Completion reservation/staging safety and incremental logical-line indexing
-  are active independent implementation slices. Shared quota/policy admission,
+- Completion reservation/staging safety (`809d41b`) and incremental logical-line
+  indexing (`90f258e`) are implemented and independently reviewed. Shared quota/policy admission,
   safe planner/journal/executor and runtime controls remain incomplete.
+- Fresh integration at `90f258ee05ddaadf58739327f4d4399ed0153cc4`:
+  `python3 verification/check_clean_rebuild.py` **PASS**, required full host
+  suite once from clean committed source and two audited unsigned builds with
+  matching SHA-256 `e45934a0a12a5f1787fdd66ffd31b64bb6595b2dce32885c507980f9767bba28`.
+  Package 2.2.5/code18, min26/target35 and all25assets preserved; no signing.
+- New completion coverage: 7cases/86assertions and six actual retry SIGKILL
+  boundaries, each inspected/retried in fresh JVMs; immutable v1 bytes retained.
+  One exact transaction-bound stage spends its byte/slot reservation once.
+  Partial/changed/foreign/duplicate stages fail closed; no automatic removal,
+  reduced-quota exemption, dynamic quota or shared admission claimed yet.
+- New line indexing: 46,564assertions/3,000seeded edits and matched benchmark
+  of exact extracted callbacks on existing 10k/100k/500k-word fixtures.
+  Valid insertion reads inserted chars only; deletion reads none. Remaining
+  offset shifts cost O(following lines); full resets scan once.
+  See `verification/line_index/README.md`; Android typing/IME latency NOT RUN.
+- Exact next work: finish opt-in persisted four-root policy/shared admission
+  and tested reduced-quota completion, then pure safe planner and journaled
+  executor from ADR-002. Independent affected-line syntax implementation is
+  underway with conservative full fallback for multiline marker documents.
+  Neither ongoing slice is included in the `90f258e` integration evidence.
 - GitHub branch API reports main `protected=false`; rulesets list is empty.
   Administration mutation is unavailable through the installed GitHub connector;
   the shell GitHub API call is denied by the current proxy. No protection claim.

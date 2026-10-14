@@ -69,3 +69,12 @@ Run targeted retention/store/coordinator/catalog suites after affected changes, 
 Task4 later needs a pinned, repeatable bounded serialized-record stream adapter for PrivateArchive.SourceEntry. The current codec alone does not validate history source graphs or authorize provider writes. Keep export destination protection and streaming access in that separate reviewed slice; no generic unprotected overwrite escape.
 
 Execution split: implement shared monitor/inventory/read-only graph/cache first, retaining existing constructor quotas and commit wire protocol. Implement shared admission, mutable quota and reservation-bound completion staging only after that slice is reviewed. The framing codec currently has no ownership INDEX wire type; define its serialization explicitly before the export/import adapter claims full history round-trip.
+
+
+2026-10-14 completion prerequisite checkpoint (`809d41b`): deterministic
+transaction-bound stages replace anonymous completion stages for new completion
+attempts. Exact prefix bytes occupy only the validated preparation reservation;
+partial or altered stages are retained and block retry. Exact full stages can
+retry sync/move/validation without new stage allocation. v1 committed wire bytes
+remain unchanged. Host tests and six SIGKILL retry boundaries pass; persistent
+shared capacity, dynamic quota and reduced-quota exemptions remain separate.
