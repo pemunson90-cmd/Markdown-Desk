@@ -51,9 +51,11 @@ bash verification/history_ui/run.sh
 bash verification/history_ui_integration/run.sh
 bash verification/private_archive/run.sh all
 bash verification/private_state/run.sh
+bash verification/history_archive_manifest/run.sh
 bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
 bash verification/history_capacity/run.sh all
 
 bash verification/history_pins/run.sh
 bash verification/history_maintenance/run.sh
+bash verification/history_executor/run.sh

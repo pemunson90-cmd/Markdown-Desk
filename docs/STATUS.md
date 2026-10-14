@@ -70,11 +70,20 @@ Active source boundaries: [draft PR #19](https://github.com/pemunson90-cmd/Markd
   import runtime caller is enabled. Android rendering/provider/device gates remain
   NOT RUN.
 
-Next: run one clean host/two-unsigned-build checkpoint for the reviewed selected
-executor and frozen manifest, then required hosted validation. Continue the
-history controller and narrow UI integration, runtime quiescence/terminal repair,
-persisted export capture, strict import/adoption and the remaining M0–M7 campaign.
-No full M1 workflow or milestone completion is claimed.
+PR #19's reviewed selected executor and frozen manifest are locally merged from
+`bd1d3e4`; required hosted run38656747429 is in progress. Draft run38656737069
+was skipped, not passing evidence. Its local gate at `715cdab` completed all
+required host checks across an unchanged-source interrupted session and produced
+two audited unsigned builds matching SHA-256
+`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
+This is the prior backend gate, not the combined UI gate.
+
+Next: final whole-branch review and one coherent clean host/two-unsigned-build
+gate for the combined history actions and backend source. Complete PR #19 after
+its independent hosted check passes, then the history UI's own required hosted
+check. Continue runtime quiescence/terminal repair, persisted export capture,
+strict import/adoption and the remaining M0–M7 campaign. No full M1 or release
+completion is claimed.
 
 Latest merged production recoverability is GREEN; current integration gates
 remain pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/

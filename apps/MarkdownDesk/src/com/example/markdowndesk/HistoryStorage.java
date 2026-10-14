@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryMaintenanceExecutor.Retirement retirement;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -31,6 +31,19 @@ final class HistoryStorage {
     static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
     static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
     static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}
+    static HistoryTombstoneView installedView(File root)throws IOException{return ((State)monitorFor(root)).tombstones;}
+    static HistoryMaintenanceExecutor.Retirement retirement(File root)throws IOException{return ((State)monitorFor(root)).retirement;}
+    static void requireOperational(File root)throws IOException{if(retirement(root)!=null)throw new IOException("Maintenance retirement requires explicit replay");}
+    static void startRetirement(File root,HistoryMaintenanceExecutor.Retirement capability)throws IOException {
+        requireMutation(root);State state=(State)monitorFor(root);
+        if(state.retirement!=null||state.tombstones!=capability.view)throw new IOException("Foreign retirement capability");
+        changed(root);state.retirement=capability;
+    }
+    static void finishRetirement(File root,HistoryMaintenanceExecutor.Retirement capability,HistoryCapacity candidate)throws IOException {
+        requireMutation(root);State state=(State)monitorFor(root);
+        if(state.retirement!=capability||state.tombstones!=capability.view||candidate==null)throw new IOException("Foreign retirement completion");
+        candidate.requireTerminalBinding(capability);changed(root);state.capacity=candidate;state.tombstones=null;state.retirement=null;
+    }
     static ProtectionStore.StoredRecord snapshotRecord(File root,String id)throws IOException {
         Path path=root.toPath().resolve(id+".snapshot");BasicFileAttributes before=attrs(path);
         if(!before.isRegularFile()||before.size()<45||before.size()>ProtectionStore.MAX_DOCUMENT_BYTES+32768L)throw new IOException("Invalid pin source envelope");
@@ -38,6 +51,7 @@ final class HistoryStorage {
     }
     static HistoryTombstoneView readView(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
+        if(state.retirement!=null)throw new IOException("Maintenance retirement requires explicit replay");
         if(state.tombstones!=null)return state.tombstones.revalidate();
         Path control=canonicalRoot(root).getParentFile().toPath().resolve(HistoryControlStore.ROOT_NAME);
         BasicFileAttributes directory;
@@ -52,7 +66,7 @@ final class HistoryStorage {
         return null;
     }
     static void installView(File root,HistoryTombstoneView view)throws IOException {
-        requireMutation(root);changed(root);((State)monitorFor(root)).tombstones=view;
+        requireMutation(root);requireOperational(root);if(view==null)throw new IOException("Exact retirement capability required to clear view");changed(root);((State)monitorFor(root)).tombstones=view;
     }
     static boolean controlled(File root)throws IOException {
         File canonical=canonicalRoot(root);
@@ -76,7 +90,7 @@ final class HistoryStorage {
     }
     static MutationScope mutation(File root)throws IOException {
         MutationScope scope=administration(root);
-        try{if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History control requires explicit open");authority.requireWriter(root);}return scope;}
+        try{requireOperational(root);if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History control requires explicit open");authority.requireWriter(root);}return scope;}
         catch(IOException|RuntimeException failure){scope.close();throw failure;}
     }
     static MutationScope mutation(File root,int role)throws IOException{

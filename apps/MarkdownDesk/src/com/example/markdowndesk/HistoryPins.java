@@ -35,7 +35,16 @@ final class HistoryPins {
     static HistoryPins open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
         HistoryPins pins=new HistoryPins(store,catalog,identity,index,durability);pins.reconcile();return pins;
     }
-    void reconcile()throws IOException {synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){reconcileLocked();}}}
+    void reconcile()throws IOException {synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){HistoryStorage.requireOperational(store.storageRoot());reconcileLocked();}}}
+    /** Closed audit durability only, under the executor's existing lease and exact intent/capability. */
+    static void reconcileMaintenanceAuditsLocked(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability,HistoryPruneIntent intent,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryControlStore.Inspection control=new HistoryControlStore(store.storageRoot().getParentFile()).inspect();
+        if(retirement!=null){retirement.require(retirement.view);retirement.control();}
+        else if(intent==null||control.committedIntent==null||control.committedIntent.intent==null||!intent.envelopeHash.equals(control.committedIntent.envelopeHash))throw new IOException("Exact committed maintenance authority required");
+        requireRetained(store.storageRoot(),control);
+        if(!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty())throw new IOException("Maintenance requires closed operation audits");
+        if(control.pins.present)new HistoryPins(store,catalog,identity,index,durability).reconcileLocked();
+    }
     private void reconcileLocked()throws IOException {
         HistoryControlStore.Inspection before=control(true);HistoryPinRecord newlyClosed=null;
         if(!before.pins.stages.isEmpty()){
@@ -71,14 +80,14 @@ final class HistoryPins {
     /** Exact input binding only: neither output progress nor provider authority is reconstructed. */
     HistoryPinRecord resume(String operationId,InputStream originalManifest)throws IOException {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
-            HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operationId);requireAcknowledged(before);
+            HistoryStorage.requireOperational(store.storageRoot());HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operationId);requireAcknowledged(before);
             Map<File,BasicFileAttributes> stable=capture(before);Map<File,BasicFileAttributes> directories=captureDirectories();Map<File,BasicFileAttributes> protectedFiles=captureSources(active);
             manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);return active;
         }}
     }
     void close(String operationId,Outcome outcome,InputStream originalManifest)throws IOException {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
-            if(outcome==null)throw new IOException("Missing pin outcome");HistoryMetadataIO.id(operationId);UUID operation=UUID.fromString(operationId);
+            HistoryStorage.requireOperational(store.storageRoot());if(outcome==null)throw new IOException("Missing pin outcome");HistoryMetadataIO.id(operationId);UUID operation=UUID.fromString(operationId);
             HistoryControlStore.Inspection before=control();HistoryPinRecord begin=find(before.pins.begins,operation);if(begin==null)throw new IOException("Unknown pin");
             HistoryPinRecord closed=find(before.pins.closes,operation);
             if(closed!=null){if(closed.outcome!=outcome)throw new IOException("Conflicting immutable pin outcome");reconcileLocked();return;}
