@@ -12,7 +12,7 @@ public final class ExtractMethods {
             JavacTask task=(JavacTask)compiler.getTask(null,manager,null,Arrays.asList("-proc:none"),null,manager.getJavaFileObjects(source.toFile()));
             CompilationUnitTree unit=task.parse().iterator().next(); SourcePositions positions=Trees.instance(task).getSourcePositions();
             String content=Files.readString(source); Map<String,String> extracted=new HashMap<>();
-            List<String> wanted=Arrays.asList("MODE_EDIT","MODE_PREVIEW","MAX_TABS","lambda$restoreSessionOrRecovery$42","mergeNewerRecovery");
+            List<String> wanted=args.length>3 ? Arrays.asList("lambda$restoreSessionOrRecovery$41","pruneRedundantUntitledTabs","recoveryRepresented","showPendingProtectedRecovery") : Arrays.asList("MODE_EDIT","MODE_PREVIEW","MAX_TABS","lambda$restoreSessionOrRecovery$42","mergeNewerRecovery","protectLegacyRecovery","lambda$writeRecoveryNow$46","lambda$writeRecoveryNow$45","lambda$clearRecoveryAsync$47");
             for(Tree declaration:unit.getTypeDecls()) {
                 if(!(declaration instanceof ClassTree) || !((ClassTree)declaration).getSimpleName().contentEquals("MainActivity")) continue;
                 for(Tree member:((ClassTree)declaration).getMembers()) {
@@ -30,7 +30,7 @@ public final class ExtractMethods {
             String template=Files.readString(Path.of(args[1]));
             if(!template.contains("/* EXTRACTED_MEMBERS */")) throw new IllegalStateException("Missing template marker");
             Files.writeString(Path.of(args[2]),template.replace("/* EXTRACTED_MEMBERS */",inserted));
-            System.out.println("Extracted exact recovery loader, merge helper and three constants via javac AST");
+            System.out.println("Extracted exact Activity recovery members via javac AST");
         }
     }
 }

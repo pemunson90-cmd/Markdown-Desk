@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -102,6 +103,20 @@ public final class DocumentIO {
         System.arraycopy(UTF8_BOM, 0, bArr, 0, 3);
         System.arraycopy(bytes, 0, bArr, 3, bytes.length);
         return bArr;
+    }
+
+    /** Capture valid Unicode without replacement characters; the legacy helper remains compatible. */
+    public static byte[] encodeStrict(String text, boolean bom) throws IOException {
+        if (text == null) throw new IOException("No edited text is available.");
+        if (text.length() > MAX_DOCUMENT_BYTES) throw new IOException("The edit exceeds the 8 MiB safety limit.");
+        ByteBuffer encoded = StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(text));
+        int length = encoded.remaining();
+        if (length > MAX_DOCUMENT_BYTES - (bom ? 3 : 0)) throw new IOException("The edit exceeds the 8 MiB safety limit.");
+        byte[] result = new byte[length + (bom ? 3 : 0)];
+        if (bom) System.arraycopy(UTF8_BOM, 0, result, 0, 3);
+        encoded.get(result, bom ? 3 : 0, length);
+        return result;
     }
 
     public static void write(ContentResolver contentResolver, Uri uri, byte[] bArr) throws IOException {

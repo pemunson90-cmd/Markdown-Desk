@@ -13,8 +13,8 @@ public final class ExtractSaveMethods {
             CompilationUnitTree unit=task.parse().iterator().next(); SourcePositions positions=Trees.instance(task).getSourcePositions();
             String content=Files.readString(source); Map<String,String> extracted=new HashMap<>();
             Set<String> signatures=new HashSet<>();
-            List<String> wanted=Arrays.asList("MODE_EDIT","MODE_PREVIEW","REQUEST_OPEN","REQUEST_CREATE","REQUEST_SPLASH_IMPORT",
-                "onActivityResult","captureActiveTab","findTabById","saveInternal","lambda$saveInternal$35","lambda$saveInternal$33","lambda$saveInternal$34");
+            List<String> wanted=Arrays.asList("MODE_EDIT","MODE_PREVIEW","REQUEST_OPEN","REQUEST_CREATE","REQUEST_SPLASH_IMPORT","REQUEST_PROTECTED_COPY",
+                "onActivityResult","captureActiveTab","findTabById","saveInternal","lambda$saveInternal$35","lambda$saveInternal$33","lambda$saveInternal$34","getProtectionStore","restoreProtectedCopy","lambda$saveInternal$32","resumeConflictSave","submitCapturedSave","showProtectedSaves","launchProtectedCopy");
             for(Tree declaration:unit.getTypeDecls()) {
                 if(!(declaration instanceof ClassTree) || !((ClassTree)declaration).getSimpleName().contentEquals("MainActivity")) continue;
                 for(Tree member:((ClassTree)declaration).getMembers()) {
@@ -41,7 +41,7 @@ public final class ExtractSaveMethods {
             String template=Files.readString(Path.of(args[1])); if(!template.contains("/* EXTRACTED_MEMBERS */"))throw new IllegalStateException("Missing marker");
             StringBuilder inserted=new StringBuilder(); for(String name:wanted)inserted.append('\n').append(extracted.get(name)).append('\n');
             Files.writeString(Path.of(args[2]),template.replace("/* EXTRACTED_MEMBERS */",inserted));
-            System.out.println("Extracted exact picker handler, capture/lookup, save worker/callbacks and five constants via javac AST");
+            System.out.println("Extracted exact picker handler, capture/lookup, save worker/callbacks and constants via javac AST");
         }
     }
 }

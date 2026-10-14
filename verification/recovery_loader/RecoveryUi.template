@@ -1,0 +1,26 @@
+package com.example.markdowndesk;
+import java.util.*;
+public final class MainActivity {
+    static class Intent { boolean external; }
+    final List<DocumentTab> tabs=new ArrayList<>(); int activeTab;
+    int restored, scheduled, untitled, recovered, pending, external, protectedViews; boolean legacyRecoveryProtectionFailed; AlertDialog.Builder dialog;
+    final List<String> errors=new ArrayList<>();
+    void restoreActiveTab(boolean focus){restored++;}
+    void scheduleSession(){scheduled++;}
+    boolean isExternalIntent(Intent i){return i!=null&&i.external;}
+    void handleIntent(Intent i){external++;}
+    void createUntitledTab(boolean focus){untitled++;}
+    void showRecovery(RecoveryStore.Draft d,Intent i){recovered++;}
+    void showProtectedSaves(){protectedViews++;}
+    interface DialogInterface {interface OnClickListener {void onClick(DialogInterface d,int which);}}
+    static class AlertDialog {static class Builder {
+     final MainActivity owner;DialogInterface.OnClickListener positive;String title,message;
+     Builder(MainActivity a){owner=a;}Builder setTitle(String s){title=s;return this;}Builder setMessage(String s){message=s;return this;}
+     Builder setPositiveButton(String label,DialogInterface.OnClickListener listener){positive=listener;return this;}
+     Builder setNegativeButton(String label,DialogInterface.OnClickListener listener){return this;}
+     void show(){owner.pending++;owner.dialog=this;}
+    }}
+    void showError(String error){errors.add(error);}
+    String message(Exception e){return e.getMessage();}
+    /* EXTRACTED_MEMBERS */
+}

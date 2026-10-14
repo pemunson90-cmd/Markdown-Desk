@@ -140,3 +140,19 @@ Two fresh committed-source checkouts at `081b610` pass the expanded host
 suite and produce identical unsigned APK SHA-256
 `51ef128c7dfc7903a10553578ccc48abb1e02cc315e31e86dd963eb3faa673c7`.
 The older `8462f79` build hash above remains historical evidence.
+
+## Production protected-save remediation
+
+Minimum mandatory protection is now implemented and integrated, superseding the
+earlier design-only state. Independent review reproduced and closed entry-cap
+self-invalidation, near-limit OOME after provider mutation, and conflict retry
+recapturing a newer revision. Core/store, Activity capture and explicit-copy
+recovery fixtures execute production code; separate models remain labeled.
+Legacy recovery survives full-tabs/session parse failures and failed protection
+blocks clear/replacement. Streaming records preserve v1 format and64MiB quota.
+Unmatched Unicode capture fails before worker/provider invocation.
+
+Current counts and remaining external gates are authoritative in STATUS.md.
+The two primitive provider truncation probes still fail; production protected
+transaction tests pass. Neither result is hidden or equated to atomic SAF saves.
+No M0, phone/Fold/durability or release completion is claimed.

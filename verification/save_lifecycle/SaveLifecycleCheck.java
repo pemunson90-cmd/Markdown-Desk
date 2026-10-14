@@ -8,6 +8,24 @@ public final class SaveLifecycleCheck {
     static final String ORIGINAL="content://fixture/original",DESTINATION="content://fixture/save-as",OTHER="content://fixture/other";
     public static void main(String[] args)throws Exception{
         boolean safety=Arrays.asList(args).contains("--safety");
+        run("RESTORE quota failure keeps existing evidence and blocks copy",()->restoreQuota());
+        run("RESTORE canceled and busy picker results cannot write",()->restoreCanceledBusy());
+        run("RESTORE versions list performs I/O asynchronously and launches explicit copy picker",()->versionsPicker());
+        run("CONSENT overwrite reuses original captured revision and preserves newer edits",()->consentRevision());
+        run("CONSENT dialog retains captured origin after active tab switch",()->consentOrigin());
+        run("CONSENT stale observed hash conflicts again",()->staleConsent());
+        run("CONSENT closed origin cannot retarget",()->closedConsent());
+        run("PROTECTION failed store blocks all provider writes",()->failedProtection());
+        run("PROTECTION failed provider read retains attempted edit",()->failedRead());
+        run("RESTORE corrupted selected snapshot fails closed",()->corruptedRestore());
+        run("RESTORE snapshot copy independent of twelve active tabs",()->restoreCopy(false));
+        run("RESTORE original URI cannot be overwritten",()->restoreCopy(true));
+        run("PROTECTION ordinary save retains exact original and captured attempted bytes",()->protectedSave(false));
+        run("PROTECTION Save As protects nonempty destination first",()->protectedSave(true));
+        run("PROTECTION generic force cannot bypass changed source",()->forceConflict());
+        run("PROTECTION unknown baseline must conflict",()->unknownBaseline());
+        run("PROTECTION uncertain outcome does not promise legacy recovery",()->uncertainty());
+        run("invalid Unicode capture stops before queuing save",()->invalidCapture());
         run("normal save commits verified version",()->normal());
         run("normal Save As success adopts verified destination",()->saveAsSuccess());
         run("untitled Save As succeeds without current URI",()->untitledSaveAs());
@@ -39,6 +57,67 @@ public final class SaveLifecycleCheck {
         t.baselineModified=100L;t.readOnly=false;return t;
     }
     static void complete(MainActivity a){eq(1,a.io.tasks.size(),"one pending worker");a.io.drain();eq(1,a.main.tasks.size(),"one completion posted");a.main.drain();}
+    static void restoreQuota(){MainActivity a=fixture();try{
+        ProtectionStore.Snapshot s=a.store().putSnapshot("orphan",ORIGINAL,"orphan.md",1,"retained evidence".getBytes(StandardCharsets.UTF_8),"attempted");
+        java.nio.file.Path store=a.filesDir.toPath().resolve("protected_saves");long quota=java.nio.file.Files.size(store.resolve(s.id+".snapshot"))+8;
+        a.protectionStore=new ProtectionStore(store.toFile(),new MainActivity.AndroidDurability(),quota);
+        a.restoreSnapshotId=s.id;a.chooseProtectedDestination(MainActivity.Uri.parse(DESTINATION));a.io.drain();a.main.drain();
+        eq(0,a.provider.writes,"quota never permits unprotected copy");eq(1,a.errors.size(),"quota protection failure surfaced");eq(1,a.store().snapshots().size(),"selected evidence retained");eq(true,a.dirty,"unsaved current editor retained");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void restoreCanceledBusy(){MainActivity a=fixture();a.restoreSnapshotId="selected";a.onActivityResult(1004,0,null);eq(null,a.restoreSnapshotId,"cancel consumes pending snapshot");eq(0,a.io.tasks.size(),"cancel no copy worker");a.restoreSnapshotId="selected";a.saveInProgress=true;a.chooseProtectedDestination(MainActivity.Uri.parse(DESTINATION));eq(null,a.restoreSnapshotId,"busy result consumed");eq(0,a.io.tasks.size(),"busy copy result no worker");eq(0,a.provider.writes,"no canceled or busy copy mutation");}
+    static void versionsPicker(){MainActivity a=fixture();try{
+        ProtectionStore.Snapshot v=a.store().putSnapshot("orphan-document",ORIGINAL,"orphan.md",17,"protected copy".getBytes(StandardCharsets.UTF_8),"attempted");
+        a.openProtectedSaves();eq(null,a.dialog,"enumeration does not synchronously block UI");eq(1,a.io.tasks.size(),"list queued on existing I/O executor");a.io.drain();eq(null,a.dialog,"dialog waits for UI callback");a.main.drain();eq(1,a.dialog.labels.length,"orphan visible independently");
+        a.dialog.items.onClick(null,0);eq(0,a.pickerRequest,"selection first requires explicit restore choice");a.dialog.positive.onClick(null,0);eq(1004,a.pickerRequest,"separate restore-to-copy picker");eq(v.id,a.restoreSnapshotId,"selected snapshot ID captured");
+        a.chooseProtectedDestination(MainActivity.Uri.parse(DESTINATION));a.io.drain();a.main.drain();eq("protected copy",new String(a.provider.bytes.get(DESTINATION),StandardCharsets.UTF_8),"selected evidence restored");
+        eq(ORIGINAL,a.currentUri.toString(),"listing and restoring never adopt editor identity");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static MainActivity conflicting(){MainActivity a=fixture();a.provider.bytes.put(ORIGINAL,"external".getBytes(StandardCharsets.UTF_8));a.beginSave(false);complete(a);return a;}
+    static void consentRevision(){MainActivity a=conflicting();try{
+        long revision=a.store().snapshots().get(0).revision;a.editor.text="newer text while conflict dialog is open";a.dirty=true;
+        a.dialog.positive.onClick(null,0);complete(a);
+        eq("edited café 😀\r\n",new String(a.provider.bytes.get(ORIGINAL),StandardCharsets.UTF_8),"consent saves captured A only");
+        eq("newer text while conflict dialog is open",a.tabs.get(0).text,"newer B retained");eq(true,a.dirty,"newer B remains unsaved");
+        eq(revision,a.store().transactions().get(0).attempted.revision,"consent retains request revision");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void consentOrigin(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.tabs.add(tab("other",OTHER,"other text"));a.switchToTab(1,false);dialog.positive.onClick(null,0);complete(a);eq(ORIGINAL,a.provider.writeUris.get(0),"captured origin destination");eq("other text",a.tabs.get(1).text,"other tab unchanged");}
+    static void staleConsent(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.provider.bytes.put(ORIGINAL,"new external version".getBytes(StandardCharsets.UTF_8));dialog.positive.onClick(null,0);complete(a);eq(0,a.provider.writes,"stale consent never writes");eq(true,a.dialog!=dialog,"new conflict decision required");}
+    static void closedConsent(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.tabs.clear();a.tabs.add(tab("other",OTHER,"other text"));a.activeTab=0;a.restoreFixtureTab();dialog.positive.onClick(null,0);eq(0,a.io.tasks.size(),"no worker for removed origin");eq(0,a.provider.writes,"no retargeted overwrite");}
+    static void failedProtection(){MainActivity a=fixture();try{java.nio.file.Files.writeString(a.filesDir.toPath().resolve("protected_saves"),"blocking file");}catch(java.io.IOException e){throw new AssertionError(e);}a.beginSave(false);complete(a);eq(0,a.provider.writes,"protection failure blocks mutation");eq(0,a.provider.reads,"protection failure blocks provider read as well");eq(1,a.errors.size(),"protection error surfaced");}
+    static void failedRead(){MainActivity a=fixture();a.provider.fault="read";a.beginSave(false);complete(a);eq(0,a.provider.writes,"read failure never writes");try{eq(1,a.store().snapshots().size(),"attempt protected on read failure");}catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void corruptedRestore(){MainActivity a=fixture();try{ProtectionStore.Snapshot s=a.store().putSnapshot("orphan",ORIGINAL,"orphan.md",1,"restored edit".getBytes(StandardCharsets.UTF_8),"attempted");java.nio.file.Files.write(a.filesDir.toPath().resolve("protected_saves").resolve(s.id+".snapshot"),new byte[]{1,2,3});a.restoreSnapshotId=s.id;a.chooseProtectedDestination(MainActivity.Uri.parse(DESTINATION));a.io.drain();a.main.drain();eq(0,a.provider.writes,"disk corruption blocks copy");eq(1,a.errors.size(),"copy validation error reported");eq(true,a.dirty,"unsaved current tab retained");}catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void restoreCopy(boolean original){
+        MainActivity a=fixture();try{
+            ProtectionStore.Snapshot snapshot=a.store().putSnapshot("orphan-document",ORIGINAL,"orphan.md",17,"protected recovered edit".getBytes(StandardCharsets.UTF_8),"attempted");
+            for(int i=1;i<12;i++)a.tabs.add(tab("other-"+i,OTHER+i,"other content"));
+            a.restoreSnapshotId=snapshot.id;a.chooseProtectedDestination(MainActivity.Uri.parse(original?ORIGINAL:DESTINATION));a.io.drain();a.main.drain();
+            eq(original?0:1,a.provider.writes,"explicit restore provider writes");eq(12,a.tabs.size(),"no recovery tab eviction");
+            eq(ORIGINAL,a.currentUri.toString(),"active tab identity untouched");eq("edited café 😀\r\n",a.editor.text,"active editor untouched");
+            eq(true,a.dirty,"active unsaved editor retained");eq(null,a.restoreSnapshotId,"one-time picker evidence consumed");
+            if(!original){eq("protected recovered edit",new String(a.provider.bytes.get(DESTINATION),StandardCharsets.UTF_8),"snapshot bytes copied");eq(3,a.store().snapshots().size(),"all protected evidence retained");}
+        }catch(java.io.IOException e){throw new AssertionError(e);}
+    }
+    static void protectedSave(boolean copy){
+        MainActivity a=fixture();a.provider.bytes.put(DESTINATION,"previous destination".getBytes(StandardCharsets.UTF_8));
+        if(copy){a.saveAsTabId="origin";a.chooseDestination(MainActivity.Uri.parse(DESTINATION));}else a.beginSave(false);
+        a.editor.text="newer edits made before worker";complete(a);
+        try{
+            java.util.List<ProtectionStore.Snapshot> versions=a.store().snapshots();
+            eq(2,versions.size(),"two durable protected versions");
+            for(ProtectionStore.Snapshot v:versions){eq("origin",v.documentId,"captured identity");eq(copy?DESTINATION:ORIGINAL,v.uri,"captured target");
+                eq(v.role.equals("original")?(copy?"previous destination":"original text"):"edited café 😀\r\n",new String(v.bytes(),StandardCharsets.UTF_8),"exact captured bytes");}
+            eq(true,a.store().transactions().get(0).verified,"verified durable completion");
+        }catch(java.io.IOException e){throw new AssertionError(e);}
+    }
+    static void forceConflict(){MainActivity a=fixture();a.provider.bytes.put(ORIGINAL,"external".getBytes(StandardCharsets.UTF_8));a.beginSave(true);complete(a);eq(0,a.provider.writes,"force cannot overwrite external bytes");eq(true,a.dialog!=null,"conflict dialog surfaced");}
+    static void unknownBaseline(){MainActivity a=fixture();a.baselineHash=null;a.beginSave(false);complete(a);eq(0,a.provider.writes,"unknown baseline cannot write");eq(true,a.dialog!=null,"unknown baseline conflict");}
+    static void uncertainty(){MainActivity a=fixture();a.provider.fault="write";a.beginSave(false);complete(a);eq(true,a.errors.get(0).contains("may be incomplete"),"uncertain provider warning");eq(false,a.errors.get(0).contains("recovery draft is still available"),"no false draft promise");}
+    static void invalidCapture(){
+        MainActivity a=fixture();a.editor.text="draft\ud800";a.pendingAfterSave=()->{throw new AssertionError("invalid capture continued");};a.beginSave(false);
+        eq(0,a.io.tasks.size(),"invalid Unicode queues no worker");eq(0,a.provider.writes,"invalid Unicode no provider write");
+        eq(true,a.dirty,"invalid Unicode remains dirty");eq(false,a.saveInProgress,"invalid Unicode not saving");
+        eq(null,a.pendingAfterSave,"invalid Unicode clears continuation");eq(1,a.errors.size(),"invalid Unicode reported");
+    }
     static void normal(){
         MainActivity a=fixture();final int[] followup={0};a.pendingAfterSave=()->followup[0]++;a.beginSave(false);
         eq(true,a.saveInProgress,"saving flag");eq(false,a.saveButton.enabled,"save disabled");eq(0,a.provider.writes,"worker not yet run");complete(a);

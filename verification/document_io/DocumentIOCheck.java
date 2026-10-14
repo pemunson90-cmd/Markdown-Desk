@@ -131,6 +131,9 @@ public final class DocumentIOCheck {
         test("BOM only document", () -> roundTrip("", true));
         test("embedded BOM remains content", () -> roundTrip("a\ufeffb", false));
         test("encode independent UTF8 golden bytes", () -> bytes(new byte[]{0x41, (byte)0xc3, (byte)0xa9, (byte)0xf0, (byte)0x9f, (byte)0x98, (byte)0x80, 13, 10}, DocumentIO.encode("Aé😀\r\n", false)));
+        test("strict capture preserves independent UTF8 BOM bytes", () -> bytes(bom(new byte[]{0x41, (byte)0xc3, (byte)0xa9, (byte)0xf0, (byte)0x9f, (byte)0x98, (byte)0x80, 13, 10}), DocumentIO.encodeStrict("Aé😀\r\n", true)));
+        test("strict capture rejects unmatched high surrogate", () -> throwsType(IOException.class, () -> DocumentIO.encodeStrict("draft\ud800", false)));
+        test("strict capture rejects unmatched low surrogate", () -> throwsType(IOException.class, () -> DocumentIO.encodeStrict("draft\udc00", true)));
         byte[][] malformed = {{(byte)0xc3, 0x28}, {(byte)0xe2, (byte)0x82}, {(byte)0xc0, (byte)0xaf}, {(byte)0xed, (byte)0xa0, (byte)0x80}, {(byte)0xff}, {(byte)0xef, (byte)0xbb}};
         for (int i = 0; i < malformed.length; i++) {
             final byte[] invalid = malformed[i];

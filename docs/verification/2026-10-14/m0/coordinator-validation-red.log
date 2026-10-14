@@ -1,0 +1,33 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS verified save/restart exact bytes
+PASS provider zero retains both versions
+PASS provider partial retains both versions
+PASS provider flush retains both versions
+PASS provider close retains both versions
+PASS provider mismatch retains both versions
+PASS provider readback retains both versions
+PASS failed source read keeps attempt
+PASS unknown/stale baseline conflict
+PASS unknown/stale baseline conflict
+PASS bound overwrite consent
+PASS stale consent rejected
+PASS source change after preparation
+PASS protection fault 1
+PASS protection fault 2
+PASS protection fault 3
+PASS protection fault 4
+PASS protection fault 5
+PASS protection fault 6
+PASS protection fault 7
+PASS protection fault 8
+PASS protection fault 9
+PASS new destination protects its existing bytes
+PASS completion fault 1
+PASS completion fault 2
+PASS completion fault 3
+PASS invalid/oversized source rejected
+PASS invalid/oversized source rejected
+Exception in thread "main" java.lang.AssertionError: corrupt protection prevents provider invocation
+	at com.example.markdowndesk.SaveCoordinatorCheck.check(SaveCoordinatorCheck.java:14)
+	at com.example.markdowndesk.SaveCoordinatorCheck.main(SaveCoordinatorCheck.java:125)

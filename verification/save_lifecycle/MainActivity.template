@@ -1,8 +1,15 @@
 package com.example.markdowndesk;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CodingErrorAction;
+import java.io.File;
+import java.io.FileDescriptor;
+import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.text.SimpleDateFormat;
 
 /** Model only the Android boundary; app lifecycle method bodies are inserted unchanged. */
 class HostActivity {
@@ -15,8 +22,11 @@ public final class MainActivity extends HostActivity {
         @Override public String toString(){return value;}
     }
     public static final class Intent {
-        final Uri data; final int flags;
+        Uri data; int flags; String title;
         Intent(Uri data,int flags){this.data=data;this.flags=flags;}
+        Intent(String action){}
+        Intent addCategory(String category){return this;} Intent setType(String type){return this;}
+        void putExtra(String key,String value){title=value;} Intent addFlags(int value){flags=value;return this;}
         public Uri getData(){return data;} public int getFlags(){return flags;}
     }
     static final class Queue {
@@ -34,6 +44,27 @@ public final class MainActivity extends HostActivity {
     static final class Button { boolean enabled=true; public void setEnabled(boolean value){enabled=value;} }
     static final class Status { int value; public void setText(int value){this.value=value;} }
     static final class R { static final class string { static final int saving=11; } }
+    interface DialogInterface { interface OnClickListener {void onClick(DialogInterface dialog,int which);} }
+    static final class AlertDialog {
+        static final class Builder {
+            final MainActivity owner; String[] labels; DialogInterface.OnClickListener positive,negative,neutral,items;
+            Builder(MainActivity a){owner=a;}
+            Builder setItems(String[] values,DialogInterface.OnClickListener cb){labels=values;items=cb;return this;}
+            Builder setTitle(String value){return this;} Builder setMessage(String value){return this;}
+            Builder setPositiveButton(String value,DialogInterface.OnClickListener cb){positive=cb;return this;}
+            Builder setNegativeButton(String value,DialogInterface.OnClickListener cb){negative=cb;return this;}
+            Builder setNeutralButton(String value,DialogInterface.OnClickListener cb){neutral=cb;return this;}
+            void show(){owner.dialog=this;}
+        }
+    }
+    static class ActivityNotFoundException extends RuntimeException {}
+    boolean isFinishing(){return false;}
+    String markdownName(String s){return s;}
+    int pickerRequest; Intent pickerIntent;
+    void startActivityForResult(Intent i,int request){pickerIntent=i;pickerRequest=request;}
+    void openProtectedSaves(){showProtectedSaves();}
+    AlertDialog.Builder dialog;
+    void launchSaveAs(){captureActiveTab();saveAsTabId=tabs.get(activeTab).id;}
     static final class RecentStore { static void touch(MainActivity a,String uri,String name){a.recents.add(uri);} }
     static final class Toast {
         static Toast makeText(MainActivity a,String text,int duration){a.toasts.add(text);return new Toast();} void show(){}
@@ -41,7 +72,7 @@ public final class MainActivity extends HostActivity {
     static final class Provider {
         final Map<String,byte[]> bytes=new HashMap<>();
         int writes,reads; String fault; final List<String> writeUris=new ArrayList<>();
-        byte[] read(Uri uri)throws IOException{reads++;return bytes.getOrDefault(uri.toString(),new byte[0]).clone();}
+        byte[] read(Uri uri)throws IOException{reads++;if("read".equals(fault))throw new IOException("modeled revoked read permission");return bytes.getOrDefault(uri.toString(),new byte[0]).clone();}
         void write(Uri uri,byte[] data)throws IOException{
             writes++;writeUris.add(uri.toString());
             if("write".equals(fault))throw new IOException("modeled provider write failure");
@@ -49,6 +80,7 @@ public final class MainActivity extends HostActivity {
         }
     }
     static final class DocumentIO {
+        /* EXTRACTED_STRICT_ENCODING */
         static final class Metadata { String displayName; long lastModified; }
         static final class ReadResult { byte[] sourceBytes; }
         static Metadata metadata(Provider provider,Uri uri){Metadata m=new Metadata();m.displayName="destination.md";m.lastModified=200L;return m;}
@@ -56,9 +88,19 @@ public final class MainActivity extends HostActivity {
         static ReadResult read(Provider provider,Uri uri)throws IOException{ReadResult r=new ReadResult();r.sourceBytes=provider.read(uri);return r;}
         static void write(Provider provider,Uri uri,byte[] data)throws IOException{provider.write(uri,data);}
     }
+    static final class AndroidDurability implements ProtectionStore.Durability {
+        public void syncFile(FileDescriptor fd)throws IOException{fd.sync();}
+        public void move(File from,File to)throws IOException{Files.move(from.toPath(),to.toPath(),StandardCopyOption.ATOMIC_MOVE);}
+        public void syncDirectory(File dir)throws IOException{try(java.nio.channels.FileChannel c=java.nio.channels.FileChannel.open(dir.toPath(),StandardOpenOption.READ)){c.force(true);}}
+    }
+    File filesDir;
+    ProtectionStore protectionStore;
+    MainActivity(){try{filesDir=Files.createTempDirectory("activity-save-").toFile();}catch(IOException e){throw new RuntimeException(e);}}
+    File getFilesDir(){return filesDir;}
+    long capturedSaveRevision;
     final List<DocumentTab> tabs=new ArrayList<>(); int activeTab=-1;
     Uri currentUri; String displayName,baselineHash; long baselineModified; boolean utf8Bom,readOnly,editorLocked,dirty; int mode;
-    String saveAsTabId,savingTabId; boolean saveInProgress; Runnable pendingAfterSave;
+    String saveAsTabId,savingTabId,restoreSnapshotId; boolean saveInProgress; Runnable pendingAfterSave;
     final Editor editor=new Editor(); final Preview preview=new Preview(); final Button saveButton=new Button(); final Status statusView=new Status();
     final Queue io=new Queue(),main=new Queue(); final Provider provider=new Provider();
     final List<String> errors=new ArrayList<>(),recents=new ArrayList<>(),toasts=new ArrayList<>();
@@ -71,7 +113,7 @@ public final class MainActivity extends HostActivity {
     String message(Exception error){return error.getMessage();}
     void scheduleRecovery(){recoveriesScheduled++;} void clearRecoveryAsync(){recoveriesCleared++;}
     void scheduleSession(){sessionsScheduled++;} void updateStatus(){statusUpdates++;} void updateTabsUi(){tabsUpdates++;}
-    void lambda$saveInternal$32(String id){throw new AssertionError("conflict dialog branch not covered");}
+    ProtectionStore store()throws IOException{return getProtectionStore();}
     void beginSave(boolean saveAs){saveInternal(saveAs);}
     // UI restoration modeled at the seam; captureActiveTab itself is actual extracted app source.
     void switchToTab(int index,boolean unused){captureActiveTab();activeTab=index;restoreFixtureTab();}
@@ -80,6 +122,7 @@ public final class MainActivity extends HostActivity {
         baselineHash=t.baselineHash;baselineModified=t.baselineModified;utf8Bom=t.utf8Bom;readOnly=t.readOnly;editorLocked=t.editorLocked;dirty=t.dirty;mode=t.mode;
         editor.text=t.text;editor.start=t.selectionStart;editor.end=t.selectionEnd;editor.scroll=t.editorScrollY;preview.scroll=t.previewScrollY;
     }
+    void chooseProtectedDestination(Uri uri){onActivityResult(1004,-1,new Intent(uri,67));}
     void chooseDestination(Uri uri){onActivityResult(REQUEST_CREATE,-1,new Intent(uri,67));}
     void cancelPicker(){onActivityResult(REQUEST_CREATE,0,null);}
     /* EXTRACTED_MEMBERS */

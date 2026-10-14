@@ -1,0 +1,44 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact picker handler, capture/lookup, save worker/callbacks and constants via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS RESTORE quota failure keeps existing evidence and blocks copy
+PASS RESTORE canceled and busy picker results cannot write
+PASS RESTORE versions list performs I/O asynchronously and launches explicit copy picker
+PASS CONSENT overwrite reuses original captured revision and preserves newer edits
+PASS CONSENT dialog retains captured origin after active tab switch
+PASS CONSENT stale observed hash conflicts again
+PASS CONSENT closed origin cannot retarget
+PASS PROTECTION failed store blocks all provider writes
+PASS PROTECTION failed provider read retains attempted edit
+PASS RESTORE corrupted selected snapshot fails closed
+PASS RESTORE snapshot copy independent of twelve active tabs
+PASS RESTORE original URI cannot be overwritten
+PASS PROTECTION ordinary save retains exact original and captured attempted bytes
+PASS PROTECTION Save As protects nonempty destination first
+PASS PROTECTION generic force cannot bypass changed source
+PASS PROTECTION unknown baseline must conflict
+PASS PROTECTION uncertain outcome does not promise legacy recovery
+FAIL invalid Unicode capture stops before queuing save: invalid Unicode queues no worker: expected=0, actual=1
+PASS normal save commits verified version
+PASS normal Save As success adopts verified destination
+PASS untitled Save As succeeds without current URI
+PASS newer active edits remain dirty and retain recovery
+PASS switched-tab callback updates only saving tab
+PASS Save As newer edits remain dirty
+PASS Save As switched-tab callback preserves active identity
+PASS closed-tab callback does not resurrect original tab
+PASS provider write and readback failures retain dirty content
+PASS cancelled Save As leaves origin unchanged
+PASS SAFETY Save As does not adopt identity before verification
+PASS SAFETY provider-write-failed Save As retains original identity and baseline
+PASS SAFETY readback-mismatched Save As retains original identity and baseline
+PASS SAFETY removed Save As origin never retargets active tab
+PASS SAFETY busy picker result never adopts destination
+PASS SAFETY closed Save As tab clears stale continuation
+FAIL save-lifecycle safety: 34 cases, 228 assertions, 1 failures
+Exception in thread "main" java.lang.AssertionError: save lifecycle failures: 1
+	at com.example.markdowndesk.SaveLifecycleCheck.main(SaveLifecycleCheck.java:48)

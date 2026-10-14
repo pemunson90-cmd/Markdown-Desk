@@ -30,68 +30,78 @@ As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d5
 
 See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-## Active continuous campaign — M0 safety and measurement
+## Active campaign — production save protection and M0 integration
 
-- Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
-- Issue #2: host provider/UTF8/BOM/size and session/recovery fixtures and independent renderer/mode-method fixtures integrated:39provider,
-  568session/recovery,467renderer/palette,117mode/lock plus43label assertions pass; ten
-  inventory audit tests pass. Actual Android boundaries are simulated.
-- Issue #3: deterministic10k/100k/500k-word and8MiB host benchmarks recorded;
-  full UI/device/Fold timing remains NOT RUN.
-- Runtime changes now deliberately fix encoded-byte write preflight/null-descriptor
-  metadata, readable derived foregrounds and hint backing, contiguous nested
-  lists, independent session/recovery loading and duplicate status snapshots.
-  Nine palette definitions,25artworkfiles, storage formats and modes/locks remain
-  preserved. Test doubles do not establish real Android/phone/Fold acceptance.
-- Provider safety probes now3pass/2fail; destructive partial/zero-byte provider
-  writes remain unresolved. Nesting, wide-table stack-overflow and sampled/context contrast fixes pass locally.
-  The desired-safety gate remains RED, so M0 is not complete.
-- Recovery loader10cases134assertions and status28assertions pass after RED-first
-  fixes; status snapshot count2→1. No reliable timing speedup or device claim.
-- Chromium host layout proxy passes108cases (9themes×3sizes×4viewports);
-  this is browser overflow coverage, not screenshots or Android/Fold acceptance.
-- Independent review and two fresh committed-source builds PASS at `081b610`.
-  Unsigned APK SHA-256: `51ef128c7dfc7903a10553578ccc48abb1e02cc315e31e86dd963eb3faa673c7`.
-  JDK17/SDK37.0/build-tools36.0.0 reused; no dependency downloads in clean rebuild.
-  Independent CI run38564454893 failed in status-test tooling: a hard-coded
-  local Java path; desired safety step was skipped. Scripts now use PATH and
-  locally pass. Rerun38564818234 passes behavioral preservation and fails
-  the safety step on the same two destructive provider assertions; no overall
-  green claim. See GitHub Actions run evidence.
-- Save As lifecycle repair:10baseline cases/80assertions and16desired cases/
-  127assertions pass after6independent failures. Destination stays pending until
-  verified success; missing/busy origin results abort; failed writes preserve
-  URI/name/hash/time/readOnly/BOM; newer edits remain dirty; closed origins clear
-  stale continuations. Real Android/provider boundaries are simulated.
-- Label repairs:source/reading size actions distinguished; helpers expose
-  descriptions; Focus Enter/Exit/selected state tracks existing behavior; Save
-  action/state descriptions follow Saving/Copy/Save/Saved precedence.
-  Static accessibility audit records remaining divider/target/device gaps.
-- Safe-save preparation:20model-contract tests and4real host filesystem probe
-  methods pass. Host file+directory fsync/rename and SIGKILL/restart observed;
-  this is not power-loss/Android/production durability proof. No existing
-  provider assertion weakened.
-- Remaining recovery boundary:with a valid full12-tab session, an unmatched
-  legacy draft is forwarded by the loader but not surfaced by the actual UI
-  callback. Its protection/reconciliation still needs a coordinator/UI test;
-  passing loader collectors do not establish recovery acceptance.
-- Current next action: implement/test a reviewed Android durability adapter
-  seam and recovery reconciliation after prerequisite/sequencing review;
-  independently continue remaining accessible names/selection and divider
-  operation tests. Measure actual Android targets/phone/Fold when available under
-  ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
-  both original and attempted edit durably, fail closed if protection fails,
-  restore only to a new copy. This is recoverability, not unchanged provider URI.
-  M1 history integration and later milestones still require prerequisites.
-- M0 is not complete and no M1–M7 implementation/release is claimed. Continue
-  independent eligible work while hardware-dependent checks remain NOT RUN.
+Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
+The owner renewed the instruction to finish the entire app continuously; do not
+hand back after a successful task or PR checkpoint.
 
+Implemented locally, independently reviewed:
 
-Historical Library versions/SDK/recovery archives are a secondary provenance
-request, not retrieved/uploaded in this session. Exact 2.2.5 source and historical
-records shipped inside its archive are now accessible in Git; protect unrelated
-private recovery/signing material from any later publication.
+- Immutable private snapshot/preparation/completion records with integrity hashes,
+  exact bytes, file sync, atomic same-directory commit and directory sync. Quota
+  is64MiB, fails closed, counts staged records and reserves completion bytes and
+  entry slots. No automatic deletion or retention/history acceptance claimed.
+- Actual save coordinator protects the captured edit before reading the source,
+  protects the observed original, binds conflict consent to its hash and captured
+  revision, rechecks both source and stored protection, writes once and verifies.
+  Failed/uncertain writes retain both versions; no automatic rollback/retry.
+- Ordinary saves, pending Save As and protected-copy restoration use the
+  coordinator. Identity changes only after verified success. Newer edits remain
+  dirty. Workspace exposes protected versions and restore to a new copy; same
+  source URI is rejected and existing tabs/records are retained.
+- Legacy draft is protected independently of session parsing/full12-tab state.
+  If protection fails, legacy replacement/clear fails closed. Storage repair can
+  retry without a restart. Unmatched recovery is explicitly surfaced.
+- Streaming envelopes/lazy disk-backed snapshot handles remove the reviewed
+  memory failure. Three paired8MiB saves (~48MiB persisted) and six complete
+  restores pass at128MiB host heap with32MiB retained headroom. This is a host
+  regression criterion, not an Android memory/latency budget.
+- Strict captured UTF8 rejects unmatched surrogate text before queuing a save;
+  valid Unicode/BOM/CRLF retains exact bytes. Legacy encode API remains intact.
+- Previously reviewed preflight/metadata, nested lists, wide tables, palette
+  foregrounds, independent recovery loading and status snapshots remain intact.
+  Tabs expose full accessible names/selection; gallery removal is named; the
+  existing Split divider supports accessible/keyboard adjustment with unchanged
+  drag bounds. Nine palettes and25owner-cleared assets remain unchanged.
 
-Local Library directory contains0files in this workspace; no older version/SDK
-archives were available there to inventory or publish. The installed SDK remains
-local tooling, not a provenance archive upload. No connected Android device.
+Current observed host evidence:
+
+- Full host suite PASS.42DocumentIO cases;568session/recovery assertions;
+  467renderer/palette +12list +14,020divider assertions;117mode +43labels;
+  28status;42Split UI +8ratio assertions;10inventory checker tests.
+- Production store19cases/96assertions plus3real OS write-limit assertions;
+  Android adapter double27assertions. Coordinator35cases/157assertions.
+- Activity save lifecycle34cases/233assertions including actual strict codec;
+  recovery13cases/179assertions plus7actual UI callback/dialog assertions.
+- Full desired-safety command still exits1 on the same2unprotected low-level
+  provider truncation assertions. Production transaction/recovery assertions
+  pass separately. These outcomes are both preserved; there is no atomic URI
+  guarantee or overall green/M0 completion claim.
+- Unsigned JDK17/SDK37.0/build-tools36.0.0 build PASS; package2.2.5/code18,
+  min26/target35 and25asset bytes preserved. Final committed-source clean rebuild
+  pending. No credentials, replacement key or signed release produced.
+
+Next required work:
+
+1. Finish committed-source rebuild/evidence reconciliation and independent CI.
+2. Obtain actual Galaxy Z Fold7 device context/ADB or owner-run baseline checks.
+   Model is confirmed; Android version/access route remains pending. Current
+   Codex ADB has no connected device. See [device checklist](M0_DEVICE_ACCEPTANCE.md)
+   and `verification/device_context.py`; matched synthetic fixtures are available
+   locally under ignored `verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`.
+3. Complete M0 physical baseline/UI/durability evidence and reconcile the selected
+   recoverability guarantee with roadmap acceptance, keeping primitive limits
+   visible. Do not claim a physical, milestone or release gate passed from host
+   doubles. Preserve M0→M1 sequencing before optional history/retention, then
+   continue M1–M7 without a checkpoint handoff.
+
+Named history/diff/configurable retention, private backup/restore and M2–M7
+features are not complete. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death
+and actual Android durability checks remain NOT RUN. Canonical signing inputs
+will be required only for authorized release preparation, never in Git/logs/CI.
+
+Exact2.2.5 source/provenance and owner-approved artwork are already accessible
+in Git. The local Library directory contains0files; older version/SDK/private
+archives were unavailable there and not published. Installed SDK remains local
+tooling. Preserve private recovery/signing material in any later provenance work.

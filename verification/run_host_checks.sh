@@ -32,3 +32,10 @@ bash verification/recovery_loader/run.sh
 bash verification/status_behavior/run.sh test
 
 bash verification/save_lifecycle/run.sh
+
+# Actual immutable protection + coordinator fixtures (model/probes stay separate).
+bash verification/protection_store/run.sh
+bash verification/protection_store/run_adapter.sh
+bash verification/save_coordinator/run.sh
+bash verification/save_coordinator/run_memory.sh
+bash verification/split_resize/run.sh

@@ -9,6 +9,9 @@ public final class RecoveryLoaderCheck {
     public static void main(String[] args) throws Exception {
         root=Files.createTempDirectory("recovery-loader-");
         try {
+            run("legacy recovery replacement retries protection after storage repair", () -> protectionRetry());
+            run("startup protection is immutable and deduplicates across restart", () -> deduplicate());
+            run("protection failure blocks legacy replace and clear", () -> protectionFailure());
             run("valid session, missing recovery", () -> validSession());
             run("valid session, malformed recovery", () -> invalidRecovery());
             run("both missing", () -> bothMissing());
@@ -43,6 +46,29 @@ public final class RecoveryLoaderCheck {
         eq(0,a.deliveries,"callback asynchronous"); eq(1,a.main.queue.size(),"one posted callback");
         a.main.drain(); eq(1,a.deliveries,"one delivered callback"); eq(intent,a.deliveredIntent,"same intent forwarded");
     }
+    private static void protectionRetry() throws Exception {
+        MainActivity a=fixture("retry-protection");RecoveryStore.write(a,draft(200L,"content://fixture/old"));put(a,"protected_saves","blocking file");load(a);
+        Files.delete(a.getFilesDir().toPath().resolve("protected_saves"));RecoveryStore.Draft replacement=draft(300L,"content://replacement");replacement.text="newer recovery";
+        a.lambda$writeRecoveryNow$46(replacement);a.main.drain();eq("newer recovery",RecoveryStore.read(a).text,"storage repair permits recovery replacement");
+        eq(1,a.getProtectionStore().snapshots().size(),"old draft protected before replacement");eq(true,a.legacyRecoveryProtected,"retry succeeded");
+    }
+    private static void deduplicate() throws Exception {
+        MainActivity a=fixture("deduplicate");RecoveryStore.write(a,draft(200L,"content://fixture/old"));load(a);
+        eq(1,a.getProtectionStore().snapshots().size(),"first protection");
+        MainActivity b=new MainActivity(a.getFilesDir());load(b);eq(1,b.getProtectionStore().snapshots().size(),"no startup duplicate");
+        eq(true,b.legacyRecoveryProtected,"legacy protected before UI callback");
+        b.lambda$clearRecoveryAsync$47();eq(null,RecoveryStore.read(b),"protected legacy slot can clear");
+        eq(1,b.getProtectionStore().snapshots().size(),"immutable protection survives clear");
+    }
+    private static void protectionFailure() throws Exception {
+        MainActivity a=fixture("blocked-protection");RecoveryStore.Draft old=draft(200L,"content://fixture/old");RecoveryStore.write(a,old);
+        put(a,"protected_saves","blocking file");load(a);
+        eq(false,a.legacyRecoveryProtected,"failed protection never permits slot mutation");yes(a.deliveredError!=null,"actionable protection error delivered");
+        a.lambda$clearRecoveryAsync$47();assertDraft(RecoveryStore.read(a));
+        RecoveryStore.Draft replacement=draft(300L,"content://replacement");replacement.text="different latest edit";
+        a.lambda$writeRecoveryNow$46(replacement);a.main.drain();assertDraft(RecoveryStore.read(a));
+        eq(2,a.errors.size(),"blocked clear and replacement report recovery preservation");
+    }
     private static void validSession() throws Exception {
         MainActivity a=fixture("valid"); SessionStore.write(a,Arrays.asList(tab(0)),0,100L); load(a);
         eq(null,a.deliveredError,"no error"); eq(null,a.deliveredDraft,"no recovery"); eq("session text 0",a.deliveredState.tabs.get(0).text,"session retained");
@@ -70,6 +96,7 @@ public final class RecoveryLoaderCheck {
         yes(a.deliveredDraft!=null,"valid recovery must survive malformed session"); assertDraft(a.deliveredDraft);
         eq("{broken",Files.readString(a.getFilesDir().toPath().resolve("open-tabs.json")),"loader does not rewrite malformed checkpoint");
         assertDraft(RecoveryStore.read(a));
+        eq(1,a.getProtectionStore().snapshots().size(),"malformed-session orphan protected");
     }
     private static void assertDraft(RecoveryStore.Draft d) {
         eq("  café 😀\r\nrecovered draft  \r\n",d.text,"draft text intact"); eq("Recovered.md",d.displayName,"draft name");
@@ -99,6 +126,7 @@ public final class RecoveryLoaderCheck {
         MainActivity a=fixture("full"); List<DocumentTab> tabs=new ArrayList<>(); for(int i=0;i<12;i++)tabs.add(tab(i)); SessionStore.write(a,tabs,4,100L); RecoveryStore.write(a,draft(200L,"content://fixture/new")); load(a);
         eq(12,a.deliveredState.tabs.size(),"12 tabs preserved"); eq(4,a.deliveredState.activeIndex,"active index retained"); eq(100L,a.deliveredState.timestamp,"no merge timestamp");
         for(int i=0;i<12;i++)eq("session text "+i,a.deliveredState.tabs.get(i).text,"full-session tab "+i+" preserved"); yes(a.deliveredDraft!=null,"unmerged recovery still forwarded");
+        eq(1,a.getProtectionStore().snapshots().size(),"full-session orphan protected");
     }
     private interface Action { void run() throws Exception; }
     private static void run(String name,Action action) throws Exception {
