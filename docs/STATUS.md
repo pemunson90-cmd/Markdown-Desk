@@ -147,13 +147,19 @@ Integration evidence and next executable work:
 1. Merged UI source `727112133d556f44c68cdb11b95afade8a4880c6` passed required
    clean-checkout host tests and two unsigned builds, matching SHA-256
    `d07d660df8438f5f0ff16a6b5b2439c12bffe7bb7b0986b3e7e79fee968ecee9`.
-   Current combined backend clean-checkout host/build verification is pending;
-   run once, then publish one reviewed source boundary and deliberate required CI.
+   Combined backend verification **PASS** at
+   `e612e3b0e875ce07fbfe1f69980458f2c7ebdaa6`: required host suite once from
+   clean source; two unsigned builds match SHA-256
+   `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
+   Independent integration review approved; deliberate hosted validation pending.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
    shared lock/validated inventory/combined quotas/read-only graph before any
    destructive executor. Crash-safe deletion, verified export, strict import and
-   history UI remain next tasks. Retention protocol review is underway against
-   the actual source; no source reconstruction or coordinator redesign.
+   history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
+   defines the reviewed retention protocol. Its first implementation is deliberately
+   narrowed to shared monitoring, validated inventory/read-only graph and bounded
+   per-operation validation cache; dynamic quota, reservation-bound staging and
+   deletion follow separately. No source reconstruction or coordinator redesign.
 3. Reconcile local M0 prerequisites before optional runtime enablement. Keep
    physical milestone acceptance and user-facing release gates open. Preserve
    canonical signing, migration/rollback and actual Fold/SAF/IME/TalkBack/upgrade
