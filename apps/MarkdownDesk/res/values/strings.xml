@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Markdown Desk</string>
+    <string name="opening">Opening…</string>
+    <string name="replace_all">Replace all</string>
+    <string name="saving">Saving…</string>
+</resources>

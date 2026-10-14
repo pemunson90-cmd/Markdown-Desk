@@ -1,0 +1,19 @@
+--- a/apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java
++++ b/apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java
+@@ -2941,9 +2941,15 @@
+             preferences.edit().putFloat(PREF_FONT, fontSp).putFloat(PREF_PREVIEW_FONT, previewFontSp).apply();
+             sourceLabel.setText("Source text · 18 sp"); readLabel.setText("Reading text · 18 sp"); if (mode != MODE_EDIT) renderPreview();
+         } }), matchWrap());
++        // Keep every setting reachable on cover displays, in landscape, and
++        // with larger system fonts. The dialog's Done action stays outside
++        // the scrolling content, just as it does in the splash gallery.
++        ScrollView appearanceScroll = new ScrollView(this);
++        appearanceScroll.setFillViewport(true);
++        appearanceScroll.addView(linearLayout, matchWrap());
+         final AlertDialog appearanceDialog = new AlertDialog.Builder(this)
+                 .setTitle("Appearance · " + this.palette.name)
+-                .setView(linearLayout)
++                .setView(appearanceScroll)
+                 .setPositiveButton("Done", (DialogInterface.OnClickListener) null)
+                 .create();
+         appearanceDialog.setOnShowListener(new DialogInterface.OnShowListener() {

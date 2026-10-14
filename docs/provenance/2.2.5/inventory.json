@@ -1,0 +1,628 @@
+{
+  "archive_sha256": "f57fe34ac489eb1f651fd1f6fe840ffddf189f4322c4bdc32b3ad285c187e6ef",
+  "files": [
+    {
+      "archive_path": "README.md",
+      "repository_path": "docs/provenance/2.2.5/README.md",
+      "bytes": 3673,
+      "sha256": "f21562f07e9e9b47fb154eaab7e2979c19486a9376190a50ed81c8dbd858a855",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "SPLASH_ASSET_PROVENANCE.md",
+      "repository_path": "docs/provenance/2.2.5/SPLASH_ASSET_PROVENANCE.md",
+      "bytes": 524,
+      "sha256": "1fb46a31663a33562276a6a331e77087834099790e688c30ed7512d8272a104c",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "appearance-scroll.patch",
+      "repository_path": "docs/provenance/2.2.5/appearance-scroll.patch",
+      "bytes": 1269,
+      "sha256": "caf3c378c9bcaae3d15426f3b443f29703d47e8fe180c8cfb8a7c4d3460abfae",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/AndroidManifest.xml",
+      "repository_path": "apps/MarkdownDesk/AndroidManifest.xml",
+      "bytes": 2801,
+      "sha256": "6cbc7f79bc7d313c87e05661dc4b497e663e4e99ec16c30835150d6035d36e5a",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/CHECKPOINT.md",
+      "repository_path": "apps/MarkdownDesk/CHECKPOINT.md",
+      "bytes": 259,
+      "sha256": "1a2d1fe9febcb57e122f93f1a750509987514fef2d7ddebfc2da3e99d6572337",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_01_cardigan.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_01_cardigan.webp",
+      "bytes": 269082,
+      "sha256": "b628473d5101ed5bab6cad257d17ff00e520c45c455442742d59774d9d09ba00",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_02_seconds.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_02_seconds.webp",
+      "bytes": 362164,
+      "sha256": "b72dc2fefa9003bbc30e817338b4f7b507d782137556fcfa7af8b9da015f8e62",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_03_silver.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_03_silver.webp",
+      "bytes": 247514,
+      "sha256": "d172c2e2a3bf58d58ae2dc5351019cd63dcb843b87cdd017f84b45c7ec77a05d",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_04_striped.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_04_striped.webp",
+      "bytes": 244188,
+      "sha256": "1d538cd4c8b9170a422b4c9b7677851d0586da984d36691a9dd14e68f831eda4",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_05_chin.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_05_chin.webp",
+      "bytes": 162576,
+      "sha256": "7c38ecf95346a6ecf5b2a9c7c68d14449c15ba458062f80a5fccc6b09b3d53e3",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_06_garters.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_06_garters.webp",
+      "bytes": 117616,
+      "sha256": "0c195257ac06f98194f5463c097c495d15fd91580bd51ca7ea389f59761c0e4a",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_07_scrap.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_07_scrap.webp",
+      "bytes": 94798,
+      "sha256": "ddb0f06f7e1fbc996ef9306df613e7dc35ad80a4ba445357646c29370ee13146",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_08_fanned.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_08_fanned.webp",
+      "bytes": 144312,
+      "sha256": "d5db50931520687c56dd05e209328f18f6f8b4d55b6c7ce49d48afd259e39e95",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_09_turtleneck.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_09_turtleneck.webp",
+      "bytes": 253990,
+      "sha256": "093be34c0f7c05aef5cd88b3a57c409e4f549f0a30bd89e668e4c50858aed022",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_10_shoulder.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_10_shoulder.webp",
+      "bytes": 97216,
+      "sha256": "dfbf12ac2f183113493cc59fad42f3f62b331743b104df9aa9f9c731b4074efa",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_11_banner.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_11_banner.webp",
+      "bytes": 67746,
+      "sha256": "49b4801755d26bd02dbe9929ffb4979464db3261f015717f3071fe97d4a24605",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_12_lookback.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_12_lookback.webp",
+      "bytes": 69086,
+      "sha256": "bc078afc291bb6590ff20dea4c37f1c8bdc57c64022f5f1d0da9bed344eb4b7f",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_13_profile.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_13_profile.webp",
+      "bytes": 67306,
+      "sha256": "33b39adb9f86f8ed0a9b427ccb70edac70a203aad032f28f1272645df20e9e7f",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_14_armraised.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_14_armraised.webp",
+      "bytes": 77028,
+      "sha256": "c2e9ffbea623fcc2014a419643c99fa939311881e334bc61422966a89cb369d6",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_15_kneesup.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_15_kneesup.webp",
+      "bytes": 62978,
+      "sha256": "1f184430e1fd3b17fbf91421cf327d14244c0ae672ce1f689324c6b0a426e231",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_16_lace.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_16_lace.webp",
+      "bytes": 30454,
+      "sha256": "2d9b818a6c46b7e518e589b2abb8ff6057bc3d009eb4ef7a9fc5afd306e6ada8",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_17_sigil.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_17_sigil.webp",
+      "bytes": 28280,
+      "sha256": "ed8548aa00c26a386b07bcae246c64ca47885141bd563e9a854f2beecd33b332",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_18_whitetee.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_18_whitetee.webp",
+      "bytes": 33964,
+      "sha256": "8f80e2c6db3566725022f25b69ce4dcdafea43dcb5c48a3f40b945b81414cdfd",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_19_fishnet.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_19_fishnet.webp",
+      "bytes": 38322,
+      "sha256": "c38f5c31544fa5b30a863a8d0c82e818c656d8b35156ce19bd1495bb1607b0ab",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_20_sweater.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_20_sweater.webp",
+      "bytes": 30006,
+      "sha256": "a1ca200b97304082ad494293db048326010ffa559fbcf48afbc6f8f7659601a6",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_21_bunny.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_21_bunny.webp",
+      "bytes": 32888,
+      "sha256": "ee649ab983bdcff76f14b0745b86d62af9462e88f483d525669c862dc229bf7c",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_22_chibi_avatar.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_22_chibi_avatar.webp",
+      "bytes": 559194,
+      "sha256": "fcace005e571e2189f4d2973eeaee76f34932a21892164459320f1485b46ff80",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_23_fullbody_cutout.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_23_fullbody_cutout.webp",
+      "bytes": 389458,
+      "sha256": "8440634185491a78c4f5a59d7c5e73fd0a0804ce979ea743ee21d10d2c5f4fb4",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_24_folder_chew.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_24_folder_chew.webp",
+      "bytes": 415648,
+      "sha256": "6c7aa3fd0ce8709676a058dfee8ab3dc33ca5f746d71e96ee3b493db103cc50e",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/assets/splash/splash_25_folder_devour.webp",
+      "repository_path": "apps/MarkdownDesk/assets/splash/splash_25_folder_devour.webp",
+      "bytes": 1085424,
+      "sha256": "513809ae0c482f6c7e76f7b4d7bf4f1fbf6965f92509193f26ea2c93afa4e5fa",
+      "publication": "cleared-by-owner-2026-10-14"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/build.sh",
+      "repository_path": "apps/MarkdownDesk/build.sh",
+      "bytes": 3771,
+      "sha256": "07bbba1183945c9e339e930798b8fe6c76a7489c765c3851f9013e0297c70fcb",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/drawable/ic_launcher_foreground.xml",
+      "repository_path": "apps/MarkdownDesk/res/drawable/ic_launcher_foreground.xml",
+      "bytes": 543,
+      "sha256": "44905fb27671976cc691a4fd95485c102e4c04cbe4ca23298e854e0541053a0b",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/drawable/ic_lock.xml",
+      "repository_path": "apps/MarkdownDesk/res/drawable/ic_lock.xml",
+      "bytes": 413,
+      "sha256": "47638c821def65994d7fb7932edab5862c27fc24d12dc9327be5d6da0534796b",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/drawable/ic_lock_open.xml",
+      "repository_path": "apps/MarkdownDesk/res/drawable/ic_lock_open.xml",
+      "bytes": 422,
+      "sha256": "4bc5fee1de8413213f089e9430780b4b22a13fb1b175d4d2381c98b7b3d009b1",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/drawable/ic_visibility.xml",
+      "repository_path": "apps/MarkdownDesk/res/drawable/ic_visibility.xml",
+      "bytes": 467,
+      "sha256": "d961c9cf656ffc831fe4a9975186d575d5525b29c77452bf1356e7eb5e59b664",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/mipmap-anydpi-v21/ic_launcher.xml",
+      "repository_path": "apps/MarkdownDesk/res/mipmap-anydpi-v21/ic_launcher.xml",
+      "bytes": 265,
+      "sha256": "8f9250ff49ec1d8a7ed1a29e219ff3bff77ce9d99f89192ad84be6c5677dceca",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/mipmap-anydpi-v33/ic_launcher.xml",
+      "repository_path": "apps/MarkdownDesk/res/mipmap-anydpi-v33/ic_launcher.xml",
+      "bytes": 335,
+      "sha256": "c421f9eababc792d363a8f44c8be3f20221d0b26db51cb4564afe382082985f3",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values/colors.xml",
+      "repository_path": "apps/MarkdownDesk/res/values/colors.xml",
+      "bytes": 118,
+      "sha256": "e4f61c1d8167752424030cf80696e89feadf0f7184d5796de140b5bd41c8fe35",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values/drawables.xml",
+      "repository_path": "apps/MarkdownDesk/res/values/drawables.xml",
+      "bytes": 64,
+      "sha256": "bfbb57a7801bd4275be84b2dc91bcfa4d5d71a7db4f40edd8dbd7681c8665495",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values/plurals.xml",
+      "repository_path": "apps/MarkdownDesk/res/values/plurals.xml",
+      "bytes": 355,
+      "sha256": "8f9b5ab696398e2160532c931db7e3d3968283c399e6c1aae949326b0dff9765",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values/strings.xml",
+      "repository_path": "apps/MarkdownDesk/res/values/strings.xml",
+      "bytes": 259,
+      "sha256": "c833e9e4839ce20e04a3267e8b7b4c50a0387464c76b4f4fa6ef1e1bef7badbc",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values/styles.xml",
+      "repository_path": "apps/MarkdownDesk/res/values/styles.xml",
+      "bytes": 652,
+      "sha256": "33f3a5335b6e72b7a398267dd2dd376d1c9727fce78b6e889cd9e25a11fa3ea8",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values-night/styles.xml",
+      "repository_path": "apps/MarkdownDesk/res/values-night/styles.xml",
+      "bytes": 647,
+      "sha256": "a1b6aee23de5de777496e78244e14ce9eb4bba77c393118c03a1fa0f17b99311",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/values-nodpi/drawables.xml",
+      "repository_path": "apps/MarkdownDesk/res/values-nodpi/drawables.xml",
+      "bytes": 64,
+      "sha256": "bfbb57a7801bd4275be84b2dc91bcfa4d5d71a7db4f40edd8dbd7681c8665495",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/xml/backup_rules.xml",
+      "repository_path": "apps/MarkdownDesk/res/xml/backup_rules.xml",
+      "bytes": 512,
+      "sha256": "54939e0d3361eb61e20b24df23fb93e760ebe9d6f855cd18a330b7c73195667a",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/res/xml/data_extraction_rules.xml",
+      "repository_path": "apps/MarkdownDesk/res/xml/data_extraction_rules.xml",
+      "bytes": 1172,
+      "sha256": "314ebfa1cb73d71ae325fed4e614e88a9786cfc534db506558d0606e9c1b19da",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/AtomicCommit.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/AtomicCommit.java",
+      "bytes": 835,
+      "sha256": "4daf96c897c550c0d73a20cbd148663deb5713f2e63f05396dba97df3f25f2b6",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+      "bytes": 9511,
+      "sha256": "bdc091df981fa0b38ed2b86da2e093a6ecc796e95f9db0adafbbdfd0ee224cae",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+      "bytes": 1938,
+      "sha256": "1e7f31bc5edcda833ba32e7c20062b2f6884eb60446d00fb188d5a377ec1f591",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+      "bytes": 1600,
+      "sha256": "3fc3536bc954962a0adbc6904d1eada021ccea24c9c583647e02325e2bd388a1",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/KineticEditText.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/KineticEditText.java",
+      "bytes": 10633,
+      "sha256": "1569d5ed4abe341e5deb4f0ec4a5df08c870889c60817cd651b734c493755547",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+      "bytes": 190847,
+      "sha256": "9164134b923aea26181e36775813c60e9eb728b14d80783f9fec54d52638cf0f",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+      "bytes": 18836,
+      "sha256": "ae633f30c97f0f9c139d48daabb1ba76876b090bc2aea4f0f5d74108f8555ec5",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownStructure.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownStructure.java",
+      "bytes": 2856,
+      "sha256": "be3cef51e0fc5161cb7a45f753c096dde2345304c4b65d9dc7945aeb647bb75c",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownSyntaxHighlighter.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownSyntaxHighlighter.java",
+      "bytes": 4579,
+      "sha256": "da46a7e1725b3297bc434bbc1391614e9ae53d0b11e0349eadc385df48198d30",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/PreviewWebView.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/PreviewWebView.java",
+      "bytes": 1749,
+      "sha256": "b1c676ce8473534cd225976dbee398ee8cc7f588cfc8ee1c5b7fe2f00ecd1ba4",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/RecentStore.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/RecentStore.java",
+      "bytes": 3100,
+      "sha256": "417364d3b19fbe9bbd351255446e4c9593fddf3072869228c58f808a8f2a7541",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/RecoveryStore.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/RecoveryStore.java",
+      "bytes": 5172,
+      "sha256": "a4e12b42a54ad8225b10ce06d6d9781265fe1f5e4055ad541c3e588a22f6d25a",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java",
+      "bytes": 3145,
+      "sha256": "9fc1db2c7d2065bcfcf5c06a335170b97c88b3a80e4b098e839dd9760aa3c369",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java",
+      "bytes": 8462,
+      "sha256": "2cf32250665640ebc5d4dd5ba3249f4a44977506f0d89e34d70add5cc1b120f7",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SplashStore.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SplashStore.java",
+      "bytes": 16450,
+      "sha256": "71fecd16f32577265266645dc33287e4b2489e4898dc96f243518d139708f50e",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SuiteEditorActivity.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SuiteEditorActivity.java",
+      "bytes": 16672,
+      "sha256": "d3ffb3831f404377204569d0f5f5dff739121832373e431482d469a8a248e96d",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SuiteResultProvider.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/SuiteResultProvider.java",
+      "bytes": 2667,
+      "sha256": "65350dc7c5792e4ee6e5a86270445e3ca816395234078e6a1e1d9f6f29a1f82c",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+      "repository_path": "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+      "bytes": 4050,
+      "sha256": "1704231e2a7f86dfdf42ea2c5925db54bfc0993d9066890ffae77d394d8cd3d2",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/SplashStoreTest.java",
+      "repository_path": "apps/MarkdownDesk/test/SplashStoreTest.java",
+      "bytes": 9596,
+      "sha256": "40c5587dd66c38e118b6eed3628335e7bb3d15ef47b2531c6b8f34b33b81168e",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/content/ContentResolver.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/content/ContentResolver.java",
+      "bytes": 463,
+      "sha256": "8cffc81e8d20edcba36a161ddd59ed6b8e257aa087562a2a42c4783d45b183ee",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/content/Context.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/content/Context.java",
+      "bytes": 1112,
+      "sha256": "8346db2452d55b0e5b4a7fb89999dbd0bc3faa89eeb8ea45968c2e35312f65d0",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/content/SharedPreferences.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/content/SharedPreferences.java",
+      "bytes": 249,
+      "sha256": "8caff7facf95fbb0759d94d6074c7922c360298aa30c68d55e48a187a070e3c3",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/content/res/AssetManager.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/content/res/AssetManager.java",
+      "bytes": 193,
+      "sha256": "e0b83b7402456286f48454eae521cf760f7ba6a6b8f1d8d9a0349a896cd5377c",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/database/Cursor.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/database/Cursor.java",
+      "bytes": 146,
+      "sha256": "6c25a545729c94bea99dca8b3f9fbe8973a6a8cfc891078abb3d89bf68617153",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/graphics/Bitmap.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/graphics/Bitmap.java",
+      "bytes": 83,
+      "sha256": "4bb7bbcf1682e85fcd8b103d1e9c38c8b824e941fee52efd41c8d50162b20c07",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/graphics/BitmapFactory.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/graphics/BitmapFactory.java",
+      "bytes": 1317,
+      "sha256": "85bf2f72173842252eccdaed63802d5de1a96b92872526e64e810cc2edb99e20",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/net/Uri.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/net/Uri.java",
+      "bytes": 396,
+      "sha256": "7790941da1f191f2a4953b965aca0a16e17cd3f2e4941ab99eae40e80e151c62",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "apps/MarkdownDesk/test/stub/android/provider/OpenableColumns.java",
+      "repository_path": "apps/MarkdownDesk/test/stub/android/provider/OpenableColumns.java",
+      "bytes": 118,
+      "sha256": "fa73b92f62e5a7e49474ec20bebc7cd32b5fd16ec4667ff809f2815eab7361ac",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "shared/editor_bridge/org/mothership/suite/EditorJson.java",
+      "repository_path": "shared/editor_bridge/org/mothership/suite/EditorJson.java",
+      "bytes": 3545,
+      "sha256": "06708f0b172a526840fb7a58322c8746662caf25230e3169735b2d7995d6302f",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "shared/editor_bridge/org/mothership/suite/EditorProtocol.java",
+      "repository_path": "shared/editor_bridge/org/mothership/suite/EditorProtocol.java",
+      "bytes": 5757,
+      "sha256": "3cac68fb2af8105d13ebf67b7e95f055e69e4e1e9e167f255fd91d6300fe72bd",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "shared/editor_bridge/org/mothership/suite/SuiteTrust.java",
+      "repository_path": "shared/editor_bridge/org/mothership/suite/SuiteTrust.java",
+      "bytes": 1428,
+      "sha256": "a46fa87a9584589a241acb725777663cfd81211655de90f87985951dde28611f",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/HOST_RESULTS.txt",
+      "repository_path": "verification/HOST_RESULTS.txt",
+      "bytes": 458,
+      "sha256": "a0949e8ee9ee693f006b593282b50c00ee38c577a80882ed3e842ef39156a8b5",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/ParseJava.java",
+      "repository_path": "verification/ParseJava.java",
+      "bytes": 1035,
+      "sha256": "8b4dab2773fe97096893990cb38e87575707f5b4b70e49918a9d0e0bf8d17d52",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/RELEASE225_RESULTS.txt",
+      "repository_path": "verification/RELEASE225_RESULTS.txt",
+      "bytes": 1036,
+      "sha256": "f763983246ad86530f95cf5b96e2b453f54be42f2a19351a7da8b31c32456dba",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/RendererCheck.java",
+      "repository_path": "verification/RendererCheck.java",
+      "bytes": 1359,
+      "sha256": "32dd4b581600302f2038861a59f1ea6d19c70f4dff7d6afce783b4e2f0d3e028",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/SDK35_RESULTS.txt",
+      "repository_path": "verification/SDK35_RESULTS.txt",
+      "bytes": 1328,
+      "sha256": "355568abf89d95c6f89457b2dadf31c7c4ab588298501c6b0a34754fdc0c4d03",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/check_layout.py",
+      "repository_path": "verification/check_layout.py",
+      "bytes": 1458,
+      "sha256": "a8f8e1e964ea4b1e7571c89b095c8983233662ab795b378a6dd32a799b9fbba6",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/check_live_appearance.py",
+      "repository_path": "verification/check_live_appearance.py",
+      "bytes": 2509,
+      "sha256": "01abfc4523c9091b87318d3f93503650724cfc6392f5e980c1a173159247b0d8",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/compile_unsigned.sh",
+      "repository_path": "verification/compile_unsigned.sh",
+      "bytes": 2285,
+      "sha256": "c64224d977060d967a76c63b5b333212e117c2362496559b72e9f1454c2e1020",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/reader_layout.cjs",
+      "repository_path": "verification/reader_layout.cjs",
+      "bytes": 1361,
+      "sha256": "a717b8de9b27b593307e44295a87379a8d75ae5a3685b0770e5444d829d0b115",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/run_host_checks.sh",
+      "repository_path": "verification/run_host_checks.sh",
+      "bytes": 708,
+      "sha256": "d1a3d5baf88ed3bbe9c2d3a524fbf11e7704b57a9aea080b4840407eee26ac30",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "verification/stubs/android/graphics/drawable/GradientDrawable.java",
+      "repository_path": "verification/stubs/android/graphics/drawable/GradientDrawable.java",
+      "bytes": 248,
+      "sha256": "242b627cfed609f5154cbe7737626b24f5f001eea4ead4d9e699402ebb026f2d",
+      "publication": "source-or-provenance"
+    },
+    {
+      "archive_path": "SHA256SUMS.txt",
+      "repository_path": "docs/provenance/2.2.5/SHA256SUMS.txt",
+      "bytes": 10421,
+      "sha256": "0a833cb5d7010743bf482eed2f794d912bca0a25205d4ab0c80e98de7d0e863b",
+      "publication": "source-or-provenance"
+    }
+  ]
+}

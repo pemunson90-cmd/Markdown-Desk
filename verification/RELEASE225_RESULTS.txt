@@ -1,0 +1,13 @@
+Markdown Desk 2.2.5 — executed release checks
+Package com.example.markdowndesk, versionCode 18, versionName 2.2.5, min 26, target 35
+PASS: Android Java compilation, aapt2 resource packaging, D8 dex compilation, zipalign
+PASS: Signed with original canonical release PKCS#12
+PASS: APK v2/v3 signature verification and signer comparison to installed 2.2.4 release APK
+PASS: Certificate SHA-256 a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01
+PASS: All 25 packaged splash WebP assets byte-identical to 2.2.4 release APK
+PASS: Source Java syntax parse (31 sources); actual MarkdownRenderer output for 9 themes × 3 sizes
+PASS: Existing Appearance scrolling, lock/focus centering, splash gallery guards
+PASS: New live-dialog redraw and selected-marker refresh static guards
+PASS: All theme foreground/background combinations used by Appearance title/body/buttons >= 4.5:1 contrast
+APK SHA-256 ec5e790343b45a56f2580f3f5ec97eae3fb3096e10e012e58eb76bc89e683601
+NOT RUN: Device/emulator UI acceptance or actual install on Fold

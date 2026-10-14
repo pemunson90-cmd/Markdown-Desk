@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MarkdownDesk" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">#c85c32</item>
+        <item name="android:statusBarColor">#f7f3ec</item>
+        <item name="android:navigationBarColor">#f7f3ec</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
