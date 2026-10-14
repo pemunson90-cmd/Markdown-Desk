@@ -34,7 +34,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m1-safe-retention`. The separately reviewed issue #3/#4 slice
+`codex/m1-safe-retention`, [draft PR #13](https://github.com/pemunson90-cmd/Markdown-Desk/pull/13). Local iteration continues; its skipped draft CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -155,6 +155,15 @@ Current retention slice, independently reviewed at `f244e0e` (Task3A1):
 - Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
   store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
   cases/233assertions PASS locally after required-runner registration. Clean committed-source host suite PASS at `904d7bfb9dcf8a9721930aae745c79df4eef2814`; two genuinely unsigned builds PASS and match SHA-256 `4caf117b90159dbbbb9ba1585551769d0a95c77d42f44cd29366195edecc6856`. No signatures/credentials or device acceptance.
+
+Additional local framing prerequisite: explicit INDEX wire ID9 preserves IDs1–8
+and framing version;68 assertions pass using a byte-identical real production
+ownership envelope plus category/size/integrity faults. This does not implement
+full history export/import. New optional completion-retry SIGKILL tests observed
+RED on the old anonymous-stage implementation; original16 restart checks still
+PASS. Deterministic staging is under implementation and independent review;
+these new probes must pass before the integrated retention PR becomes ready.
+Pure planning and read-only control-codec preparation have separate file ownership.
 
 Integration evidence and next executable work:
 
