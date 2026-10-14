@@ -6,3 +6,5 @@
 - **2026-10-13 — Existing feature correction:** Focus/View mode already hides substantial UI and works in Read mode; do not list immersive mode as a missing feature or duplicate it.
 - **2026-10-13 — Privacy:** The repository is public; protect canonical signer and private Library artifacts, and audit artwork before source import.
 - **2026-10-13 — Release discipline:** Source truth and test evidence beat plan documents; never label compilable work device-accepted without real device testing.
+
+- **2026-10-14 — M0.1 blocked-source audit:** Exact 2.2.5 source is unavailable in the attached workspace and this session cannot retrieve ChatGPT Library artifacts. Stop source import/build work rather than reconstruct code; record the blocker in a documentation-only draft PR. Reuse configured JDK/SDK; build-tools 36.1.0 remains missing. No baseline tag or functional/release claim until actual gates pass.
