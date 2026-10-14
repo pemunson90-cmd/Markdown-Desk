@@ -38,8 +38,11 @@ Active independent work:
   These are host queue observations, not typing/device latency or peak memory.
 - The same review found an independent statistics completion backlog: repeated
   scans while main delivery is held can retain many request/result callbacks.
-  A separate helper-only repair is in progress, preserving250ms debounce and
-  exact counts, and will join this coherent bounded-worker integration.
+  Repair `719c8ae` (integration `26e1fa9`) preserves250ms debounce and exact
+  counts. Worker29delivery+94existing assertions and independent22concurrency
+  checks passed; baseline100held callbacks became1in the independent probe.
+  Posted closures retain counts/keys, not full source. Both bounded workers are
+  independently approved; the combined clean host/unsigned gate is next.
 
 Next: verify and integrate the preview change while implementing reviewed durable
 pins; then intent publication and explicit journaled retention, backup/import and
