@@ -13,8 +13,4 @@ This is a **reusable session entry point**, not a one-issue task order.
 
 If task execution is interrupted by context, runtime or limits, commit a clean checkpoint and record the exact next command/task in `STATUS.md`. If an approval/hardware/private-key gate blocks a specific task, continue independent work without bypassing that gate.
 
-**Current note (2026-10-14):** PRs #9–#13 are merged; the source-only `v2.2.5-baseline` remains protected. [PR #15](https://github.com/pemunson90-cmd/Markdown-Desk/pull/15) reconciles independently reviewed retention hardening and editor memory fixes; draft PR #14 capacity/syntax requires reconciliation and safety review. Consult live `STATUS.md` and inspect remote heads before continuing so existing work is preserved. Device/release acceptance remains separate.
-
-## Short prompt for new Codex sessions
-
-> Read `AGENTS.md`, `docs/STATUS.md`, and `docs/ROADMAP.md`. Resume the continuous Markdown Desk Professional M0–M7 campaign from the latest verified Git state. Orchestrate with the strongest available capable lead and adaptive effort, delegate to the cheapest capable agents, do routine work inside Codex, use GitHub/Actions only when necessary, keep docs current, and continue through successive unblocked milestones. Preserve release and safety gates. Do not stop after one issue.
+**Current note (2026-10-14):** PRs #9–#13 and #15 are merged; `v2.2.5-baseline` remains protected. Draft PR #14 is being reconciled with independently reviewed shared authority, pressure planning and foreign-style syntax repairs. Consult live `STATUS.md` and inspect remote heads before continuing; preserve both environments' work. Device/release acceptance remains separate.

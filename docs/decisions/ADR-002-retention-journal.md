@@ -44,7 +44,7 @@ The implemented graph includes store records, catalog pins, identity routing/pro
 
 Task3A2 planned admission contract (not implemented by the read-only graph): policy defaults remain 64MiB/20 successful changes; quota choices 64/128/256/512MiB/1GiB and counts 0/5/10/20/50. Zero disables optional retention only. Lowering quota records over-quota state and never deletes data. All registered roots must be known before admitting shared-quota writes; lazily adding a root cannot omit pre-existing disk usage.
 
-Use checked long arithmetic: chargedBytes = actual serialized bytes across protection/catalog/identity/index/policy and every stage + outstanding completion bytes. Fresh writes require chargedBytes + peak additional bytes/reservations <= quota and each affected root's occupied+reserved slots within its existing cap. Preserve metadata 8MiB/4096-entry limits and store 65536 slots. Read/report over-quota inventories without comparing intermediate sums against the reduced quota. Do not mistake logical admission for physical free space or successful sync.
+Use checked long arithmetic: dataChargedBytes = actual serialized bytes across protection/catalog/identity/index and every data-root stage + outstanding completion bytes. Enrollment/registration/policy/future maintenance are separately counted in the ONE shared control allowance below; they cannot fund data capacity. Fresh writes require chargedBytes + peak additional bytes/reservations <= quota and each affected root's occupied+reserved slots within its existing cap. Preserve metadata 8MiB/4096-entry limits and store 65536 slots. Read/report over-quota inventories without comparing intermediate sums against the reduced quota. Do not mistake logical admission for physical free space or successful sync.
 
 Completion converts an EXACT validated preparation's prior byte/slot reservation; it is permitted below the reduced quota only when net charged growth is zero and all integrity/physical durability checks pass. New snapshots, preparations and metadata receive no exemption. Replace current quota-limited unresolvedReservation accumulation with quota-independent validated accounting before implementing setQuotaBytes.
 
@@ -114,3 +114,40 @@ before/after retry SIGKILL cases in its environment. Its test fixtures are retai
 in reconciliation; the live producer uses reviewed `b511fee` with stronger fresh/
 reused-stage inode checks and read-only retries. These are source checkpoints,
 not shared-policy or physical-device acceptance.
+
+## Reviewed opt-in authority checkpoint — 2026-10-14
+
+`HistoryCapacity` now implements explicit registration/open/reconciliation and
+all-writer shared admission (source reviewed at `1fa6d80`, tests at `7e474cb`).
+A durable parent enrollment marker prevents fresh-process legacy fallback when
+control storage is missing. Marker and marker stage count in the same1MiB/256
+allowance as control records. Interrupted enrollment without complete binding
+stays blocked; no reconstruction/default inference is performed. Constructors
+open existing canonical roles read-only before reconciliation. Every public
+writer validates its role/dependencies and rejects same-thread nested mutation
+before callbacks. Policy publication binds synced inode identity; post-move
+uncertainty blocks ALL writes until explicit validated reconciliation.
+
+Known optional damaged metadata remains physically charged and prune-blocking;
+it does not by itself invalidate complete native protection accounting. Unknown,
+nonregular, unreadable or uncertain inputs still fail closed. Exact zero-growth
+completion requires native proof, ready authority and root binding; lowering
+quota does not authorize any fresh write or bypass native caps. Graph binds the
+exact registered roles and acknowledged effective policy separately from the
+caller profile. Profile planner previews are hypothetical, not mutation authority.
+
+An explicit pure pressure mode is now source-reviewed (`8baa6eb`), separately
+bound from legacy count-floor/selected proofs. It performs no unlink or admission.
+Future execution still requires durable pins, exact authorization, intent codec,
+maintenance recovery/tombstones and all interruption tests described above.
+The parallel extra-root/allowance proposal in ADR-003 is historical and superseded
+for accounting; preserve one existing control allowance. No runtime activation
+or physical/signing/upgrade acceptance follows from these source checkpoints.
+
+Inert intent framing is now reviewed at `7c422a2`: complete envelope <=64KiB,
+strict typed canonical proof/closure/anchor decoding, explicit metadata bindings
+and bounded identity descriptors. It has no filesystem caller and grants no
+policy/confirmation/deletion authority. The next maintenance-recovery slice must
+validate stable authority and every unaffected survivor before installing an
+exact logical tombstone, while retaining physical charges for present members.
+Ordinary control reconciliation must never promote an intent stage.

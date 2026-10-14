@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/verification/build/protection-store"
 mkdir -p "$OUT/memory" "$OUT/tmp"
-javac --release 11 -d "$OUT/memory" \
+javac --release 11 -sourcepath "$ROOT/apps/MarkdownDesk/src" -d "$OUT/memory" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java" "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java" \
  "$ROOT/apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java" \

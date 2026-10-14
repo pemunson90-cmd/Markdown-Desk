@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -26,6 +26,54 @@ final class HistoryStorage {
     }
     static Object monitorFor(File root)throws IOException {
         File canonical=canonicalRoot(root);return MONITORS.computeIfAbsent(canonical.getParent(),unused->new State());
+    }
+    static HistoryCapacity capacity(File root)throws IOException{return ((State)monitorFor(root)).capacity;}
+    static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
+    static boolean controlled(File root)throws IOException {
+        File canonical=canonicalRoot(root);
+        for(String name:Arrays.asList(HistoryControlStore.ENROLLMENT_NAME,HistoryControlStore.ENROLLMENT_STAGE)){
+            try{Files.readAttributes(new File(canonical.getParentFile(),name).toPath(),BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);return true;}
+            catch(NoSuchFileException absent){/* genuine absence only */}
+        }
+        Path control=new File(canonical.getParentFile(),HistoryControlStore.ROOT_NAME).toPath();
+        try{Files.readAttributes(control,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);return true;}
+        catch(NoSuchFileException absent){if(capacity(root)!=null)throw new IOException("Registered control root disappeared",absent);return false;}
+    }
+    static final class MutationScope implements AutoCloseable {
+        private State state;
+        MutationScope(State state){this.state=state;}
+        public void close(){if(state!=null){state.mutator=null;state=null;}}
+    }
+    static MutationScope administration(File root)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
+        if(state.mutator!=null)throw new IOException("Nested history mutation rejected");
+        state.mutator=Thread.currentThread();return new MutationScope(state);
+    }
+    static MutationScope mutation(File root)throws IOException {
+        MutationScope scope=administration(root);
+        try{if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History control requires explicit open");authority.requireWriter(root);}return scope;}
+        catch(IOException|RuntimeException failure){scope.close();throw failure;}
+    }
+    static MutationScope mutation(File root,int role)throws IOException{
+        MutationScope scope=mutation(root);
+        try{requireRole(root,role);return scope;}catch(IOException|RuntimeException failure){scope.close();throw failure;}
+    }
+    static void requireRole(File root,int role)throws IOException{
+        requireMutation(root);
+        if(controlled(root)){HistoryCapacity authority=capacity(root);if(authority==null)throw new IOException("History role requires explicit open");authority.requireRole(root,role);}
+    }
+    static void requireMutation(File root)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.mutator!=Thread.currentThread())throw new IOException("History mutation scope required");
+    }
+    static boolean constructorReadOnly(File root,int role,Long bootstrap)throws IOException {
+        requireMutation(root);if(!controlled(root))return false;
+        if(!Files.isDirectory(root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Controlled roots must already exist");
+        HistoryControlStore.Inspection control=new HistoryControlStore(root.getParentFile()).inspect();
+        HistoryControlStore.Registration registration=control.registration;
+        if(registration==null&&control.stages.size()==1&&control.stages.get(0).record instanceof HistoryControlStore.Registration)registration=(HistoryControlStore.Registration)control.stages.get(0).record;
+        if(registration!=null){if(!registration.roles.get(role-1).basename.equals(root.getName()))throw new IOException("Unlisted controlled root");
+            if(bootstrap!=null&&bootstrap.longValue()!=registration.bootstrapQuotaBytes)throw new IOException("Conflicting constructor bootstrap hint");}
+        return true;
     }
     static long generation(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");return state.generation;

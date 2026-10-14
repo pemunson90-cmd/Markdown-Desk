@@ -25,14 +25,15 @@ final class HistoryMetadataIO {
         ancestors(root.getAbsoluteFile().toPath());
         this.root=HistoryStorage.canonicalRoot(root);this.extension=extension;this.magic=magic;this.durability=durability;
         lock=HistoryStorage.monitorFor(this.root);
-        synchronized(lock){
+        synchronized(lock){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(this.root)){
+            if(HistoryStorage.constructorReadOnly(this.root,(".identity".equals(extension)?3:4),null))return;
             ancestors(this.root.toPath());File parent=this.root.getParentFile();
             if(parent==null||!Files.isDirectory(parent.toPath(),LinkOption.NOFOLLOW_LINKS)||!parent.getCanonicalFile().equals(parent))
                 throw new IOException("History metadata parent is not canonical directory");
             if(!Files.exists(this.root.toPath(),LinkOption.NOFOLLOW_LINKS))Files.createDirectory(this.root.toPath());
             if(!Files.isDirectory(this.root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Invalid history metadata directory");
             durability.syncDirectory(parent);durability.syncDirectory(this.root);inventory();
-        }
+        }}
     }
     private static final class Inventory {final List<File> files=new ArrayList<>();long bytes;}
     private Inventory inventory()throws IOException {
@@ -72,10 +73,11 @@ final class HistoryMetadataIO {
         return in;
     }
     void commit(String id,byte[] record,Check check)throws IOException {
-        id(id);Inventory inventory=inventory();
+        HistoryStorage.requireMutation(root);id(id);Inventory inventory=inventory();
         if(inventory.files.size()>=MAX_ENTRIES||record.length>MAX_BYTES-inventory.bytes)throw new IOException("History metadata quota exhausted including stages");
         File destination=new File(root,id+extension),stage=new File(root,UUID.randomUUID()+".stage");
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable history record exists");
+        if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admit(root,record.length,0,1,0);
         HistoryStorage.changed(root);Files.createFile(stage.toPath());
         try(FileOutputStream out=new FileOutputStream(stage)){out.write(record);out.flush();durability.syncFile(out.getFD());}
         check.validate();durability.move(stage,destination);

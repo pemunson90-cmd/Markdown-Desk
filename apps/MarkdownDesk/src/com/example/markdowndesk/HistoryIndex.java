@@ -73,7 +73,7 @@ public final class HistoryIndex {
             throw new IOException("Index dependencies require same private parent and source");
         this.store=store;this.catalog=catalog;this.identity=identity;
         io=new HistoryMetadataIO(root,".index",0x4d444858,durability);
-        synchronized(io.lock){readAll(sources());}
+        synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(io.root)){if(!HistoryStorage.controlled(io.root))readAll(sources());}}
     }
     /**
      * Use the native URI bound to historyId, never a content hash to infer identity.
@@ -83,7 +83,8 @@ public final class HistoryIndex {
      */
     public void recordVerified(String historyId,String transactionId)throws IOException {
         HistoryMetadataIO.id(historyId);HistoryMetadataIO.id(transactionId);
-        synchronized(io.lock){
+        synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(io.root,4)){
+            HistoryStorage.requireRole(store.storageRoot(),1);HistoryStorage.requireRole(catalog.storageRoot(),2);HistoryStorage.requireRole(identity.storageRoot(),3);
             Sources sources=sources();List<Ownership> records=readAll(sources);
             ProtectionStore.Transaction transaction=sources.groups.get(transactionId);
             HistoryIdentity.Descriptor descriptor=history(sources,historyId);
@@ -102,7 +103,7 @@ public final class HistoryIndex {
                 HistoryMetadataIO.string(out,record.transactionId);out.writeLong(record.sequence);record.original.write(out);record.attempted.write(out);});
             // Fresh source/identity/catalog validation immediately before optional publication.
             io.commit(record.id,bytes,()->validate(record,sources()));readAll(sources());
-        }
+        }}
     }
     /** Complete validated graph before filtering. Indexed order is persisted sequence; timestamps display only. */
     public List<Version> list(String historyId)throws IOException {

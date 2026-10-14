@@ -1,44 +1,107 @@
 # Current project status
 
-## Current integration checkpoint — 2026-10-14
+## Current integration checkpoint — shared authority and syntax, 2026-10-14
 
-Remote [PR #13](https://github.com/pemunson90-cmd/Markdown-Desk/pull/13)
-merged independently at `6afd3a1` after hosted run38630847829 passed on `e4839d2`.
-Reviewed work absent from that merge is preserved with all remote fixtures in
-[PR #15](https://github.com/pemunson90-cmd/Markdown-Desk/pull/15), branch
-`codex/reconciled-retention-editor`: stronger native completion durability,
-read-only control codec, pure no-deletion planner, INDEX framing and dense-editor fix.
+Main is `2ae2930`: PR #15 merged after required hosted run38635569038 passed on
+`57124d7`. Its combined completion/editor/control/planning source passed the full
+clean host suite and two unsigned builds (SHA-256
+`2957c32061cb072fda8bb3bcbf640ba2768113f2cfef2cbb663c5fc77f16f216`).
 
-Clean committed-source verification **PASS** at `0621202`: required full host
-suite once, two audited unsigned builds matching SHA-256
-`2957c32061cb072fda8bb3bcbf640ba2768113f2cfef2cbb663c5fc77f16f216`.
-Published `8ad0c2b` has the identical source tree; only unpublished author emails
-were protected after GitHub's privacy rejection. No published history was rewritten.
-The combined gate includes both environments' completion tests and all required
-production recovery paths. Raw-provider hazard assertions remain separate and unchanged.
+Current local branch `codex/capacity-syntax-integration` reconciles existing draft
+[PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14). Both environments'
+published histories are preserved; the alternate quota authority is replaced as
+one coherent unit after independent production probes exposed policy uncertainty,
+reentrancy, inode-durability and fresh-process fallback defects. No alternate
+protocol is enabled in the app, and no existing native records are rewritten.
+Superseded fixtures remain retrievable from their original commits; current
+executable coverage lives in `verification/history_capacity`/`history_planner`.
 
-Review reproduced heap failures opening an 8MiB LF-only document and pasting
-almost all its lines. Exact two-pass reset/large-paste allocation and capped
-array slack now pass 46,564 assertions/3,000 edits plus eight LF-dense checks
-at 128MiB heap/32MiB held. Independent reviewer reproduced the formerly failing
-paste and confirmed the fix. Historical `90f258e` timings below predate the fix;
-Android Editable/IME/Fold acceptance remains NOT RUN.
+Reviewed authority `1fa6d80` (test follow-up `7e474cb`) binds four existing sibling
+roots, acknowledged generation/hash policy and a durable parent enrollment marker.
+The marker, registration, policy and future maintenance share ONE1MiB/256-entry
+control allowance. Every writer uses a typed role/dependency check and common
+mutation lease before callbacks. Missing/uncertain authority blocks writes;
+complete accounting charges optional damaged metadata without pretending it is
+safe to prune. Only freshly validated zero-growth completion may proceed above
+quota, including legitimate second handles. No completion proceeds under uncertain
+policy. Controlled startup is read-only until explicit reconciliation.
 
-Draft [PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14) is a
-parallel environment's capacity/syntax implementation. Review of its capacity
-commit `1171338` reproduced blocked-policy completion, callback reentrant writes,
-equal-byte unsynced policy-inode acknowledgement and fresh-process legacy fallback
-when its sole enrollment directory is missing. Its alternate control allowance
-also conflicts with ADR-002. Do not integrate that authority as verified.
-The separate `codex/shared-history-capacity` controller is completing all-writer
-hooks, durable enrollment evidence, effective graph policy and restart tests;
-partial tests are not acceptance. Independent runtime-syntax review and explicit
-pure quota-pressure planning continue in separate owned worktrees.
+Scoped worker evidence: codec14cases/209assertions; policy49, admission61,
+integration42checks;10real SIGKILL boundaries and7additional fresh-process cases,
+each reopened twice. Independent review approved exact source and reproduced
+missing-root, second-handle, wrong-bundle and wrong-role repairs. First combined gate at `34ff18c` stopped at the archive runner dependency closure.
+The sourcepath repair passed460+68 scoped archive assertions. Final coherent
+gate **PASS** at `b67995ddad152c27bc4f095aa810c9f04bc3abcb`: required full host
+suite once from clean committed source, two audited unsigned builds matching
+SHA-256 `2a7e843fa00802789874a577083b18b17a336f0c28c9992cecbb2839cf632e69`.
+No downloads, signatures, keys or device claims; package2.2.5/code18/min26/target35
+and all25assets preserved. This evidence supersedes the failed integration
+attempt without relabeling its failure.
 
-Next: required hosted validation for PR #15 once final docs/privacy checks finish;
-complete and review one coherent capacity authority before enabling it, reconcile
-verified PR #14 syntax, then journaled retention, verified backup/import and history UI.
-No installable release or milestone/device/signing acceptance is claimed.
+Reviewed syntax fix `4c2fda6` preserves equal-priority search/foreign style
+precedence, with baseline full fallback whenever a foreign CharacterStyle exists.
+Worker39,137assertions +90ms scheduler and SDK37 compilation passed; independent
+review56focused checks passed. The global span query costs O(spans) work/storage;
+physical IME latency is NOT RUN. Historical pre-fix timings remain labeled.
+Reviewed pressure mode `8baa6eb`: existing81+5 and new60+9checks pass; floor/selected
+proof encoding remains compatible. Profile previews grant no execution/admission;
+newest same-history anchors, labels, pins, stages and unresolved data stay protected.
+
+Hosted run38643656351 on `016f7a6` failed: the syntax runner used `rg`, absent
+on the independent runner, so stub discovery returned no files and compilation
+stopped. No application source changed. PR14 returned to draft; portable `find`
+with an explicit nonempty-stub guard passed all39,137syntax and scheduler checks
+in a restricted PATH with `rg` absent. The first restricted-PATH probe lacked
+`dirname` and failed its setup; the corrected probe above completed. Production
+source/unsigned APK inputs are unchanged from `b67995d`.
+Next: publish this scoped portability repair, then one new required hosted check
+for changed inputs; merge only the verified exact head. No force-push. An inert bounded intent
+codec is reviewed at `7c422a2`:73 native and103 bounded-heap checks plus planner
+compatibility pass. It performs no filesystem operations and the control parser
+still treats intent files as unknown until separately reviewed integration. No
+deletion, durable live pins, maintenance projection/replay, runtime history,
+export/import or M1 completion is claimed.
+Continue those next slices with explicit authority and complete framing bounds.
+Physical Fold7/Android16/OneUI8, SAF/IME/TalkBack, power-loss, canonical signing and
+upgrade gates remain NOT RUN. Raw-provider hazard diagnostics are unchanged RED.
+
+## Parallel-environment checkpoint — historical, before reconciliation
+
+## Current checkpoint — quota/syntax/planner integration
+
+- Verified main: `6afd3a1`, PR #13 merged after hosted run38630847829 PASS.
+- Active `codex/m1-capacity-syntax`, [draft PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14).
+  Committed syntax `c2cd90c`, shared quota `1171338`, pure planner `6d55d9a`.
+- Targeted checks PASS: syntax39,081 + production watcher/scheduler; shared quota
+  18cases/91checks +17actual host SIGKILL boundaries; planner427regular +19
+  constrained-memory assertions. Reviews found and repaired initial-registration
+  parent-sync, fresh-stage retry, graph-root binding and planner batching/ordering
+  gaps. Host Editable relocation is a model, not Android IME proof.
+- First combined gate at `6d55d9a` failed in the statistics-only host adapter:
+  the extracted watcher gained syntax coordination dependencies. The adapter
+  boundary was updated without changing product behavior; targeted status
+  checks PASS. Rerun at `7bc928dc4db28cefd80bc1437204a6633417d667` **PASS**:
+  full required host suite once from clean committed source, two audited unsigned
+  builds with matching SHA-256 `b1176663dbe9cb44e54548d551cf1bb904625702368e07f37d88d76af1c34557`.
+  All25assets and package2.2.5/code18/min26/target35 preserved. Hosted review-ready
+  validation is next; no hardware/signing/upgrade acceptance is implied.
+  Earlier `90f258e` full evidence remains attributed to that exact revision.
+- Shared capacity is opt-in only; legacy constructor paths remain unchanged.
+  Pure planner performs no deletion. No runtime quota/history control acceptance,
+  private-backup adoption or M1 completion is claimed.
+- Exact next action: complete the current combined gate, record its actual result,
+  update PR #14 and run hosted validation when ready. Then implement explicit
+  maintenance registration/accounting from [ADR-003](decisions/ADR-003-retention-maintenance.md),
+  durable pins and journaled projection/replay before wiring runtime pruning.
+  Explicit v2 maintenance enrollment/accounting is implemented locally and under
+  independent review:12cases/101checks +11host SIGKILL boundaries reported by
+  the implementer. Root integration is pending; it is outside `7bc928d` proof.
+- Four initial merged remote branches and merged retention branch were cleaned
+  safely; current draft branch/main and all committed history are preserved.
+  Main remains unprotected; connector administration is unavailable (403).
+- No connected device or signing inputs: Android/SAF/IME/Fold/TalkBack/canonical
+  signed upgrade remain NOT RUN. Use the single candidate matrix already prepared.
+
 
 ## Independent-environment snapshot — historical evidence, 2026-10-14
 
@@ -131,7 +194,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/reconciled-retention-editor`, [PR #15](https://github.com/pemunson90-cmd/Markdown-Desk/pull/15). PR #13 merged independently; the current combined evidence is recorded above. Draft skipped CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
+`codex/capacity-syntax-integration`, preparing the reconciled [draft PR #14](https://github.com/pemunson90-cmd/Markdown-Desk/pull/14). PR #15 is merged; current evidence is recorded above. Draft skipped CI is not passing hosted evidence. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -281,7 +344,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   complete review-ready hosted validation for PR15, then integrate explicit durable registration, complete all-writer admission and effective policy before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
+   finish review-ready hosted validation for the locally verified reconciled PR14, then implement journaled maintenance before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded

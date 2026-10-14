@@ -12,6 +12,8 @@ import java.util.*;
  */
 public final class HistoryPruner {
     public static final int MAX_MEMBERS=256, MAX_PROOF_BYTES=64*1024, MAX_EXTERNAL_PINS=256;
+    /** Floor previews retain the configured count; pressure previews may retain only fixed anchors. */
+    public enum Mode { AUTOMATIC_FLOOR, AUTOMATIC_PRESSURE, SELECTED }
     public enum BlockedReason {
         INVALID_REQUEST, MISSING_POLICY, INCOMPLETE_GRAPH, UNKNOWN_EXTERNAL_PIN,
         AUTOMATIC_DISABLED, UNKNOWN_CHECKPOINT, PARTIAL_CHECKPOINT_SELECTION,
@@ -40,6 +42,7 @@ public final class HistoryPruner {
     }
     public static final class DeletePlan {
         public final boolean automatic;
+        public final Mode mode;
         public final long requiredBytes, requiredEntries, bytes, entries;
         public final HistoryPolicy policy;
         public final String graphFingerprint, proofFingerprint;
@@ -52,12 +55,12 @@ public final class HistoryPruner {
          * and every unaffected reference remain bound by graphFingerprint. Identity is never a member. */
         public final List<HistoryIdentity.Descriptor> identities;
         public final Map<String,Long> entriesByRoot, bytesByRoot;
-        private DeletePlan(boolean automatic,long requiredBytes,long requiredEntries,HistoryGraph.Graph graph,
+        private DeletePlan(Mode mode,long requiredBytes,long requiredEntries,HistoryGraph.Graph graph,
                            Collection<String> selected,Collection<String> pins,List<GroupProof> groups,
                            List<GroupProof> anchors,List<HistoryIdentity.Descriptor> identities,
                            List<ProtectionStore.StoredRecord> members,Capacity capacity,
                            Map<String,Long> entriesByRoot,Map<String,Long> bytesByRoot)throws IOException {
-            this.automatic=automatic;this.requiredBytes=requiredBytes;this.requiredEntries=requiredEntries;
+            this.mode=mode;automatic=mode!=Mode.SELECTED;this.requiredBytes=requiredBytes;this.requiredEntries=requiredEntries;
             bytes=capacity.bytes;entries=capacity.entries;policy=graph.policy;graphFingerprint=graph.fingerprint;
             selectedCheckpointIds=freezeSet(selected);externalProtectedSnapshotIds=freezeSet(pins);
             this.groups=freeze(groups);this.anchors=freeze(anchors);this.identities=freeze(identities);this.members=freeze(members);
@@ -178,14 +181,22 @@ public final class HistoryPruner {
     }
     public Result planAutomatic(long requiredBytes,long requiredEntries)throws IOException {
         if(requiredBytes<0||requiredEntries<0)return unavailable(BlockedReason.INVALID_REQUEST,requiredBytes,requiredEntries);
-        return plan(true,requiredBytes,requiredEntries,Collections.emptySet());
+        return plan(Mode.AUTOMATIC_FLOOR,requiredBytes,requiredEntries,Collections.emptySet());
+    }
+    /** Explicit quota-pressure preview: count is a desired target, while newest indexed pairs
+     * remain fixed anchors. The caller supplies actual capacity demand; this pure plan does not
+     * perform admission, acquire live pins, or authorize deletion. Count zero disables this mode. */
+    public Result planAutomaticPressure(long requiredBytes,long requiredEntries)throws IOException {
+        if(requiredBytes<0||requiredEntries<0)return unavailable(BlockedReason.INVALID_REQUEST,requiredBytes,requiredEntries);
+        return plan(Mode.AUTOMATIC_PRESSURE,requiredBytes,requiredEntries,Collections.emptySet());
     }
     public Result planSelected(Collection<String> checkpointIds)throws IOException {
         if(checkpointIds==null||checkpointIds.isEmpty()||checkpointIds.size()>MAX_MEMBERS)return unavailable(BlockedReason.INVALID_REQUEST,0,0);
         Set<String> selection=new TreeSet<>();for(String id:checkpointIds)if(!validId(id)||!selection.add(id))return unavailable(BlockedReason.INVALID_REQUEST,0,0);
-        return plan(false,0,0,selection);
+        return plan(Mode.SELECTED,0,0,selection);
     }
-    private Result plan(boolean automatic,long requiredBytes,long requiredEntries,Set<String> selection)throws IOException {
+    private Result plan(Mode mode,long requiredBytes,long requiredEntries,Set<String> selection)throws IOException {
+        boolean automatic=mode!=Mode.SELECTED;
         HistoryGraph.Graph fresh;
         try{fresh=graph.scan();}catch(IOException invalid){return unavailable(BlockedReason.INCOMPLETE_GRAPH,requiredBytes,requiredEntries);}
         if(!fresh.complete||fresh.pruneBlocked)return unavailable(BlockedReason.INCOMPLETE_GRAPH,requiredBytes,requiredEntries);
@@ -198,7 +209,7 @@ public final class HistoryPruner {
             if(automatic&&fresh.policy.automaticCount==0)return result(null,BlockedReason.AUTOMATIC_DISABLED,requiredBytes,requiredEntries,new Capacity(),fresh);
             Set<String> retained=new HashSet<>();
             for(List<Candidate> history:m.histories.values()){
-                int keep=automatic?Math.max(1,fresh.policy.automaticCount):1;
+                int keep=mode==Mode.AUTOMATIC_FLOOR?Math.max(1,fresh.policy.automaticCount):1;
                 for(int i=Math.max(0,history.size()-keep);i<history.size();i++)retained.add(history.get(i).transaction.id);
             }
             List<Candidate> eligible=new ArrayList<>();
@@ -246,7 +257,7 @@ public final class HistoryPruner {
                 byteCounts.put(r.rootRole,Math.addExact(byteCounts.getOrDefault(r.rootRole,0L),r.serializedBytes));
             }
             try{
-                DeletePlan plan=new DeletePlan(automatic,requiredBytes,requiredEntries,fresh,selection,externalPins,groups,anchors,identities,members,capacity,entryCounts,byteCounts);
+                DeletePlan plan=new DeletePlan(mode,requiredBytes,requiredEntries,fresh,selection,externalPins,groups,anchors,identities,members,capacity,entryCounts,byteCounts);
                 return result(plan,null,requiredBytes,requiredEntries,available,fresh);
             }catch(ProofLimit exceeded){return result(null,BlockedReason.PLAN_LIMIT,requiredBytes,requiredEntries,available,fresh);}
         }catch(ArithmeticException overflow){return unavailable(BlockedReason.ACCOUNTING_OVERFLOW,requiredBytes,requiredEntries);}
@@ -264,15 +275,28 @@ public final class HistoryPruner {
     private static <T> List<T> freeze(Collection<T> values){return Collections.unmodifiableList(new ArrayList<>(values));}
     private static <T> Set<T> freezeSet(Collection<T> values){return Collections.unmodifiableSet(new LinkedHashSet<>(values));}
     private static final class ProofLimit extends IOException {private static final long serialVersionUID=1L;}
+    /** Inert codec bridge: preserves canonical preview bytes, never closes the supplied sink. */
+    static void writeCanonicalProof(DeletePlan plan,OutputStream sink)throws IOException {
+        if(plan==null||sink==null)throw new IOException("Missing canonical proof");
+        DataOutputStream out=new DataOutputStream(new ProofOutput(sink));writeProof(out,plan);out.flush();
+    }
     /** Count/hash canonical proof without allocating an encoded proof-sized array. */
     private static final class ProofOutput extends OutputStream {
         int count;
-        @Override public void write(int b)throws IOException{charge(1);}
-        @Override public void write(byte[] b,int offset,int length)throws IOException{charge(length);}
+        final OutputStream sink;
+        ProofOutput(){sink=null;}
+        ProofOutput(OutputStream sink){this.sink=sink;}
+        @Override public void write(int b)throws IOException{charge(1);if(sink!=null)sink.write(b);}
+        @Override public void write(byte[] b,int offset,int length)throws IOException{charge(length);if(sink!=null)sink.write(b,offset,length);}
+        @Override public void flush()throws IOException{if(sink!=null)sink.flush();}
         void charge(int n)throws IOException{if(n>MAX_PROOF_BYTES-count)throw new ProofLimit();count+=n;}
     }
     private static void writeProof(DataOutputStream out,DeletePlan plan)throws IOException {
-        text(out,"history-retention-preview-v1");text(out,plan.graphFingerprint);out.writeBoolean(plan.automatic);
+        // Preserve existing floor/selected v1 proof bytes. Pressure has its own domain and mode;
+        // an otherwise identical selection cannot be mistaken for a legacy floor preview.
+        if(plan.mode==Mode.AUTOMATIC_PRESSURE){text(out,"history-retention-pressure-preview-v1");text(out,plan.mode.name());}
+        else text(out,"history-retention-preview-v1");
+        text(out,plan.graphFingerprint);out.writeBoolean(plan.automatic);
         out.writeLong(plan.requiredBytes);out.writeLong(plan.requiredEntries);out.writeLong(plan.bytes);out.writeLong(plan.entries);
         out.writeLong(plan.policy.quotaBytes);out.writeInt(plan.policy.automaticCount);
         strings(out,plan.externalProtectedSnapshotIds);strings(out,plan.selectedCheckpointIds);

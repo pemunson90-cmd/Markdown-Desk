@@ -17,6 +17,7 @@ import java.util.*;
  */
 final class HistoryControlStore {
     static final String ROOT_NAME="history_control", REGISTRATION_NAME="registration.control";
+    static final String ENROLLMENT_NAME="history_enrollment.control", ENROLLMENT_STAGE=ENROLLMENT_NAME+".stage";
     static final int MAGIC=0x4d444843, VERSION=1, MAX_RECORD=16384, MAX_ENTRIES=256;
     static final long MAX_BYTES=1024L*1024;
     private static final int HEADER=13, CHECKSUM=32, MAX_NAME=64;
@@ -177,18 +178,38 @@ final class HistoryControlStore {
         List<Entry> entries=new ArrayList<>();List<StageDescriptor> stages=new ArrayList<>();List<String> diagnostics=new ArrayList<>();
         long bytes=0;int count=0;boolean usageComplete=true,inventoryValid=true;
         Registration registration=null;Record latest=null;SortedMap<Long,Policy> policies=new TreeMap<>();
+        // Fixed parent enrollment survives loss of the complete control directory. Its
+        // presence (including a partial stage) is permanent evidence of opt-in.
+        Registration enrollment=null;
+        for(String name:Arrays.asList(ENROLLMENT_NAME,ENROLLMENT_STAGE)){
+            Path path=parent.toPath().resolve(name);BasicFileAttributes before;
+            try{before=attributes(path);}catch(NoSuchFileException absent){continue;}
+            catch(IOException failure){diagnostics.add("control: enrollment unreadable");usageComplete=false;inventoryValid=false;entries.add(new Entry(name,0,null,null,name.equals(ENROLLMENT_STAGE)));count++;continue;}
+            count++;long size=before.size();String hash=null;Record record=null;
+            try{
+                if(!before.isRegularFile()||size<0)throw new IOException("Nonregular enrollment");
+                bytes=Math.addExact(bytes,size);
+                if(size>MAX_RECORD)throw new IOException("Oversized enrollment");
+                byte[] envelope=read(path,before);hash=hex(sha(envelope));record=decode(envelope);
+                if(!(record instanceof Registration))throw new IOException("Invalid enrollment type");
+                validatePhysicalRoles((Registration)record);
+                if(name.equals(ENROLLMENT_NAME))enrollment=(Registration)record;
+                else throw new IOException("Retained enrollment stage");
+            }catch(IOException|ArithmeticException failure){diagnostics.add("control: invalid enrollment");inventoryValid=false;if(!before.isRegularFile()||size<0)usageComplete=false;}
+            entries.add(new Entry(name,size,hash,record,name.equals(ENROLLMENT_STAGE)));
+        }
         BasicFileAttributes directoryBefore;
         try {
             canonicalDirectory(parent);
             // readAttributes distinguishes genuine absence from permission/read failures.
             try{directoryBefore=attributes(root);}catch(NoSuchFileException absent) {
                 canonicalDirectory(parent);
-                return new Inspection(State.UNREGISTERED,null,null,entries,stages,0,0,true,false,diagnostics);
+                return new Inspection(entries.isEmpty()?State.UNREGISTERED:State.BLOCKED,null,null,entries,stages,bytes,count,usageComplete,false,diagnostics);
             }
             canonicalDirectory(root.toFile());
         }catch(IOException invalid) {
             diagnostics.add("control: invalid root");
-            return new Inspection(State.BLOCKED,null,null,entries,stages,0,0,false,false,diagnostics);
+            return new Inspection(State.BLOCKED,null,null,entries,stages,bytes,count,false,false,diagnostics);
         }
         try(DirectoryStream<Path> paths=Files.newDirectoryStream(root)) {
             for(Path path:paths) {
@@ -228,6 +249,11 @@ final class HistoryControlStore {
             diagnostics.add("control: inventory unavailable");usageComplete=false;inventoryValid=false;
         }
         if(bytes>MAX_BYTES){diagnostics.add("control: byte limit");inventoryValid=false;}
+        if(enrollment!=null){
+            Registration bound=registration;
+            if(bound==null)for(Entry entry:entries)if(!ENROLLMENT_STAGE.equals(entry.filename)&&entry.stage&&entry.record instanceof Registration)bound=(Registration)entry.record;
+            if(bound==null||!enrollment.envelopeHash.equals(bound.envelopeHash)){diagnostics.add("control: enrollment mismatch");inventoryValid=false;}
+        }
         boolean chainComplete=inventoryValid&&usageComplete&&registration!=null;
         if(registration==null)diagnostics.add("control: missing registration");
         latest=registration;
@@ -253,7 +279,7 @@ final class HistoryControlStore {
         for(Entry entry:pending) {
             boolean provisional=false;
             if(pending.size()==1&&inventoryValid&&usageComplete&&entry.record!=null) {
-                if(entry.record instanceof Registration)provisional=registration==null&&policies.isEmpty()&&entries.size()==1;
+                if(entry.record instanceof Registration)provisional=registration==null&&policies.isEmpty()&&entries.size()==1+(enrollment==null?0:1);
                 else if(chainComplete&&latest!=null) {
                     Policy policy=(Policy)entry.record;
                     try{provisional=policy.generation==nextGeneration(latest.generation)&&policy.bundleId.equals(latest.bundleId)&&policy.previousHash.equals(latest.envelopeHash);}
@@ -273,7 +299,7 @@ final class HistoryControlStore {
         Set<File> roots=new HashSet<>();
         for(Role role:registration.roles) {
             File roleRoot=canonicalDirectory(new File(parent,role.basename));
-            if(!parent.equals(roleRoot.getParentFile())||ROOT_NAME.equals(role.basename)||!roots.add(roleRoot))throw new IOException("Invalid physical role bundle");
+            if(!parent.equals(roleRoot.getParentFile())||(ROOT_NAME.equals(role.basename)||ENROLLMENT_NAME.equals(role.basename)||ENROLLMENT_STAGE.equals(role.basename))||!roots.add(roleRoot))throw new IOException("Invalid physical role bundle");
         }
     }
     private static boolean recordMatches(String name,Record record)throws IOException {
@@ -289,7 +315,7 @@ final class HistoryControlStore {
         Set<String> names=new HashSet<>();
         for(int i=0;i<4;i++) {
             Role role=roles.get(i);
-            if(role==null||role.id!=i+1||!names.add(role.basename)||ROOT_NAME.equals(role.basename))throw new IOException("Invalid ordered control roles");
+            if(role==null||role.id!=i+1||!names.add(role.basename)||(ROOT_NAME.equals(role.basename)||ENROLLMENT_NAME.equals(role.basename)||ENROLLMENT_STAGE.equals(role.basename)))throw new IOException("Invalid ordered control roles");
             nameBytes(role.basename);
         }
     }
