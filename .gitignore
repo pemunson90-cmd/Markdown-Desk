@@ -26,3 +26,6 @@ local.properties
 **/secrets/
 **/*credentials*
 **/*CREDENTIALS*
+
+/verification/classes/
+/verification/rendered/

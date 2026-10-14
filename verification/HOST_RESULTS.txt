@@ -1,0 +1,5 @@
+PASS static layout guards: scrolling Appearance, all nine themes, external Done, existing scrolling gallery, centered utility icons, configuration callbacks, 25 splash assets, candidate identity
+PASS Java 11 syntax parse: 31 files (not Android type-check or APK compilation)
+warning: [options] system modules path not set in conjunction with -source 11
+1 warning
+PASS actual renderer output: 9 themes x 3 reading sizes; heading ceilings and Markdown samples

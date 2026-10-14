@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude
+            domain="file"
+            path="recovery-draft.md"/>
+        <exclude
+            domain="file"
+            path="recovery-draft.md.tmp"/>
+        <exclude
+            domain="file"
+            path="recovery-meta.json"/>
+        <exclude
+            domain="file"
+            path="recovery-meta.json.tmp"/>
+        <exclude
+            domain="file"
+            path="open-tabs.json"/>
+        <exclude
+            domain="file"
+            path="open-tabs.json.tmp"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude
+            domain="file"
+            path="recovery-draft.md"/>
+        <exclude
+            domain="file"
+            path="recovery-draft.md.tmp"/>
+        <exclude
+            domain="file"
+            path="recovery-meta.json"/>
+        <exclude
+            domain="file"
+            path="recovery-meta.json.tmp"/>
+        <exclude
+            domain="file"
+            path="open-tabs.json"/>
+        <exclude
+            domain="file"
+            path="open-tabs.json.tmp"/>
+    </device-transfer>
+</data-extraction-rules>

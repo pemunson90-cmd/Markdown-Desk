@@ -1,0 +1,26 @@
+Android Asset Packaging Tool (aapt) 2.19-11948202
+Compiling 22 sources
+warning: [options] system modules path not set in conjunction with -source 11
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 warning
+package: name='com.example.markdowndesk' versionCode='17' versionName='2.2.4' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'
+minSdkVersion:'26'
+targetSdkVersion:'35'
+application-label:'Markdown Desk'
+application-icon-160:'res/mipmap-anydpi-v33/ic_launcher.xml'
+application-icon-65534:'res/mipmap-anydpi-v33/ic_launcher.xml'
+application: label='Markdown Desk' icon='res/mipmap-anydpi-v33/ic_launcher.xml'
+launchable-activity: name='com.example.markdowndesk.MainActivity'  label='' icon=''
+feature-group: label=''
+  uses-feature: name='android.hardware.faketouch'
+  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'
+main
+other-activities
+supports-screens: 'small' 'normal' 'large' 'xlarge'
+supports-any-density: 'true'
+locales: '--_--'
+densities: '160' '65534'
+PASS compile, package, D8, alignment; UNSIGNED VALIDATION ONLY, no device test

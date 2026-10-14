@@ -1,0 +1,4093 @@
+package com.example.markdowndesk;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+import android.graphics.Typeface;
+import android.net.Uri;
+import android.util.DisplayMetrics;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.print.PrintManager;
+import android.text.Editable;
+import android.text.Layout;
+import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.text.method.KeyListener;
+import android.text.style.BackgroundColorSpan;
+import android.view.KeyEvent;
+import android.view.Gravity;
+import android.view.MenuItem;
+import android.view.SubMenu;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
+import android.webkit.ValueCallback;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.PopupMenu;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+/* JADX INFO: loaded from: classes.dex */
+public class MainActivity extends Activity {
+    private static final int MAX_TABS = 12;
+    private static final int MODE_EDIT = 0;
+    private static final int MODE_PREVIEW = 1;
+    private static final int MODE_SPLIT = 2;
+    private static final String PREFS = "markdown_desk";
+    private static final String PREF_DARK = "dark_theme";
+    private static final String PREF_FONT = "font_size";
+    private static final String PREF_PREVIEW_FONT = "preview_font_size";
+    private static final String PREF_GOAL = "word_goal";
+    private static final String PREF_LAUNCH_SPLASH = "launch_splash";
+    private static final String PREF_LINES = "line_numbers";
+    private static final String PREF_THEME = "ui_theme";
+    private static final String PREF_TYPEWRITER = "typewriter";
+    private static final String PREF_SPLIT_RATIO = "split_ratio";
+    private static final int REQUEST_CREATE = 1002;
+    private static final int REQUEST_OPEN = 1001;
+    private static final int REQUEST_SPLASH_IMPORT = 1003;
+    private LinearLayout body;
+    private Uri currentUri;
+    private boolean dark;
+    private boolean dirty;
+    private Button editModeButton;
+    private KineticEditText editor;
+    private Runnable editorSyncRunnable;
+    private TextView eyebrowView;
+    private Button focusButton;
+    private boolean focusMode;
+    private Button lockButton;
+    private boolean editorLocked;
+    private KeyListener editorKeyListener;
+    private float fontSp;
+    private float previewFontSp;
+    private HorizontalScrollView formatScroll;
+    private LinearLayout formats;
+    private HorizontalScrollView readToolsScroll;
+    private LinearLayout readTools;
+    private LinearLayout header;
+    private Runnable highlightRunnable;
+    private View launchSplash;
+    private Runnable launchSplashDismissRunnable;
+    private boolean launchSplashEnabled;
+    private boolean lineNumbers;
+    private int loadToken;
+    private LinearLayout modeBar;
+    private UiTheme.Palette palette;
+    private Runnable pendingAfterSave;
+    private SharedPreferences preferences;
+    private PreviewWebView preview;
+    private Button previewModeButton;
+    private boolean previewReady;
+    private int previewRenderToken;
+    private int previewRestoreY;
+    private Runnable previewRunnable;
+    private Runnable previewSyncRunnable;
+    private boolean readOnly;
+    private Runnable recoveryRunnable;
+    private LinearLayout root;
+    private String saveAsTabId;
+    private Button saveButton;
+    private boolean saveInProgress;
+    private String savingTabId;
+    private Runnable sessionRunnable;
+    private AlertDialog splashDialog;
+    private boolean smartEditing;
+    private float splitRatio;
+    private Button splitModeButton;
+    private TextView statusView;
+    private boolean suppressChanges;
+    private boolean syncingFromEditor;
+    private boolean syncingFromPreview;
+    private LinearLayout tabsRow;
+    private HorizontalScrollView tabsScroll;
+    private int themeId;
+    private TextView titleView;
+    private LinearLayout topBar;
+    private boolean typewriterMode;
+    private boolean utf8Bom;
+    private int wordGoal;
+    private AlertDialog workspaceDialog;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService renderIo = Executors.newSingleThreadExecutor();
+    private final List<Button> buttons = new ArrayList();
+    private final List<Button> tabButtons = new ArrayList();
+    private final List<Button> modeButtons = new ArrayList();
+    private final List<DocumentTab> tabs = new ArrayList();
+    private String displayName = "Untitled.md";
+    private String baselineHash = EditorTools.sha256(new byte[MODE_EDIT]);
+    private long baselineModified = -1;
+    private int mode = MODE_EDIT;
+    private int activeTab = -1;
+
+    private static final class SearchHighlightSpan extends BackgroundColorSpan {
+        SearchHighlightSpan(int i) {
+            super(i);
+        }
+    }
+
+    @Override // android.app.Activity
+    protected void onCreate(Bundle bundle) {
+        int i;
+        super.onCreate(bundle);
+        this.preferences = getSharedPreferences(PREFS, MODE_EDIT);
+        if (this.preferences.contains(PREF_THEME)) {
+            i = this.preferences.getInt(PREF_THEME, MODE_EDIT);
+        } else {
+            i = systemDark() ? MODE_PREVIEW : MODE_EDIT;
+        }
+        this.themeId = i;
+        this.palette = UiTheme.palette(this.themeId, systemDark());
+        this.dark = this.palette.dark;
+        this.fontSp = this.preferences.getFloat(PREF_FONT, 18.0f);
+        this.previewFontSp = this.preferences.getFloat(PREF_PREVIEW_FONT, 18.0f);
+        this.lineNumbers = this.preferences.getBoolean(PREF_LINES, false);
+        this.typewriterMode = this.preferences.getBoolean(PREF_TYPEWRITER, false);
+        this.wordGoal = this.preferences.getInt(PREF_GOAL, MODE_EDIT);
+        this.splitRatio = Math.max(0.28f, Math.min(0.72f, this.preferences.getFloat(PREF_SPLIT_RATIO, 0.5f)));
+        this.launchSplashEnabled = this.preferences.getBoolean(PREF_LAUNCH_SPLASH, true);
+        getWindow().setSoftInputMode(16);
+        buildInterface();
+        showLaunchSplash();
+        restoreSessionOrRecovery(getIntent());
+    }
+
+    @Override // android.app.Activity
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    @Override // android.app.Activity, android.content.ComponentCallbacks
+    public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        captureActiveTab();
+        rebuildBody();
+        applyResponsiveChrome();
+    }
+
+    @Override // android.app.Activity
+    protected void onPause() {
+        captureActiveTab();
+        if (this.dirty) {
+            writeRecoveryNow();
+        }
+        writeSessionNow();
+        super.onPause();
+    }
+
+    @Override // android.app.Activity
+    protected void onDestroy() {
+        this.main.removeCallbacksAndMessages(null);
+        if (this.preview != null) {
+            this.preview.destroy();
+        }
+        this.io.shutdown();
+        this.renderIo.shutdown();
+        super.onDestroy();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$onBackPressed$0() {
+        captureActiveTab();
+        writeSessionNow();
+        finish();
+    }
+
+    @Override // android.app.Activity
+    public void onBackPressed() {
+        if (this.launchSplash != null) {
+            dismissLaunchSplash();
+        } else if (this.focusMode) {
+            toggleFocusMode();
+        } else {
+            confirmUnsaved(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda59
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$onBackPressed$0();
+                }
+            });
+        }
+    }
+
+    @Override // android.app.Activity
+    public boolean onKeyShortcut(int i, KeyEvent keyEvent) {
+        String str;
+        if (!keyEvent.isCtrlPressed()) {
+            return super.onKeyShortcut(i, keyEvent);
+        }
+        if (keyEvent.isShiftPressed() && i == 44) {
+            showCommandPalette();
+            return true;
+        }
+        switch (i) {
+            case 30:
+                str = "**";
+                break;
+            case 34:
+                showFindReplace();
+                return true;
+            case 37:
+                str = "_";
+                break;
+            case 39:
+                insertLink();
+                return true;
+            case 42:
+                showNewDocumentMenu();
+                return true;
+            case 43:
+                launchOpen();
+                return true;
+            case 44:
+                setMode(this.mode == MODE_PREVIEW ? MODE_EDIT : MODE_PREVIEW, false);
+                return true;
+            case 47:
+                saveDocument();
+                return true;
+            default:
+                return super.onKeyShortcut(i, keyEvent);
+        }
+        wrap(str, str);
+        return true;
+    }
+
+    private void buildInterface() {
+        this.root = new LinearLayout(this);
+        this.root.setOrientation(MODE_PREVIEW);
+        this.root.setFitsSystemWindows(true);
+        this.header = new LinearLayout(this);
+        this.header.setOrientation(MODE_PREVIEW);
+        this.header.setPadding(dp(14), dp(8), dp(14), dp(8));
+        this.topBar = new LinearLayout(this);
+        this.topBar.setOrientation(MODE_EDIT);
+        this.topBar.setGravity(16);
+        this.topBar.addView(createTopButton("M", "Workspace", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda27
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$1(view);
+            }
+        }), new LinearLayout.LayoutParams(dp(44), dp(44)));
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(MODE_PREVIEW);
+        linearLayout.setPadding(dp(MAX_TABS), MODE_EDIT, dp(8), MODE_EDIT);
+        this.eyebrowView = new TextView(this);
+        this.eyebrowView.setText("MARKDOWN DESK");
+        this.eyebrowView.setTextSize(10.0f);
+        this.eyebrowView.setLetterSpacing(0.16f);
+        this.titleView = new TextView(this);
+        this.titleView.setTextSize(20.0f);
+        this.titleView.setTypeface(Typeface.create("sans-serif", MODE_PREVIEW));
+        this.titleView.setSingleLine(true);
+        this.titleView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        linearLayout.addView(this.eyebrowView, matchWrap());
+        linearLayout.addView(this.titleView, matchWrap());
+        this.topBar.addView(linearLayout, new LinearLayout.LayoutParams(MODE_EDIT, -2, 1.0f));
+        this.saveButton = createTopButton("SAVE", "Save document", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda38
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$2(view);
+            }
+        });
+        this.saveButton.setSingleLine(true);
+        this.saveButton.setMaxLines(1);
+        this.saveButton.setPadding(dp(6), MODE_EDIT, dp(6), MODE_EDIT);
+        this.topBar.addView(this.saveButton, new LinearLayout.LayoutParams(dp(68), dp(44)));
+        this.topBar.addView(createTopButton("?", "Guide and shortcuts", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda39
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$3(view);
+            }
+        }), new LinearLayout.LayoutParams(dp(44), dp(44)));
+        this.topBar.addView(createTopButton("•••", "More actions", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda40
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.showOverflow(view);
+            }
+        }), new LinearLayout.LayoutParams(dp(48), dp(44)));
+        this.header.addView(this.topBar, matchWrap());
+        this.tabsScroll = new HorizontalScrollView(this);
+        this.tabsScroll.setHorizontalScrollBarEnabled(false);
+        this.tabsScroll.setFillViewport(true);
+        this.tabsRow = new LinearLayout(this);
+        this.tabsRow.setOrientation(MODE_EDIT);
+        this.tabsRow.setPadding(MODE_EDIT, dp(8), MODE_EDIT, dp(4));
+        this.tabsScroll.addView(this.tabsRow, wrapWrap());
+        this.header.addView(this.tabsScroll, matchWrap());
+        this.modeBar = new LinearLayout(this);
+        this.modeBar.setOrientation(MODE_EDIT);
+        this.modeBar.setGravity(16);
+        this.modeBar.setPadding(dp(6), dp(4), dp(6), MODE_EDIT);
+        this.editModeButton = addModeButton("Write", MODE_EDIT);
+        this.previewModeButton = addModeButton("Read", MODE_PREVIEW);
+        this.splitModeButton = addModeButton("Split", MODE_SPLIT);
+        this.focusButton = createPillButton("", "Focus mode", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda41
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$4(view);
+            }
+        });
+        this.focusButton.setContentDescription("Focus mode");
+        this.modeBar.addView(this.focusButton, utilityModeParams());
+        this.lockButton = createPillButton("", "Lock editing", new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public void onClick(View view) {
+                MainActivity.this.toggleEditorLock();
+            }
+        });
+        this.lockButton.setContentDescription("Lock editing");
+        this.modeBar.addView(this.lockButton, utilityModeParams());
+        this.header.addView(this.modeBar, matchWrap());
+        this.root.addView(this.header, matchWrap());
+        this.editor = new KineticEditText(this);
+        this.editor.setGravity(8388659);
+        this.editor.setTypeface(Typeface.MONOSPACE);
+        this.editor.setTextSize(this.fontSp);
+        this.editor.setLineSpacing(dp(3), 1.08f);
+        this.editor.setPadding(dp(22), dp(22), dp(22), dp(24));
+        this.editor.setInputType(147457);
+        this.editorKeyListener = this.editor.getKeyListener();
+        this.editor.setImeOptions(268435456);
+        this.editor.setHorizontallyScrolling(false);
+        this.editor.setVerticalScrollBarEnabled(true);
+        this.editor.setSaveEnabled(false);
+        this.editor.setOverScrollMode(MODE_PREVIEW);
+        this.editor.setOnTextScaleListener(new KineticEditText.OnTextScaleListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda42
+            @Override // com.example.markdowndesk.KineticEditText.OnTextScaleListener
+            public final void onTextScale(float f) {
+                MainActivity.this.lambda$buildInterface$5(f);
+            }
+        });
+        this.editor.addTextChangedListener(new TextWatcher() { // from class: com.example.markdowndesk.MainActivity.1
+            @Override // android.text.TextWatcher
+            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+            }
+
+            @Override // android.text.TextWatcher
+            public void afterTextChanged(Editable editable) {
+                MainActivity.this.continueMarkdownLine(editable);
+            }
+
+            @Override // android.text.TextWatcher
+            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                if (MainActivity.this.suppressChanges) {
+                    return;
+                }
+                boolean z = !MainActivity.this.dirty;
+                MainActivity.this.dirty = true;
+                if (MainActivity.this.activeTab >= 0 && MainActivity.this.activeTab < MainActivity.this.tabs.size()) {
+                    ((DocumentTab) MainActivity.this.tabs.get(MainActivity.this.activeTab)).dirty = true;
+                }
+                MainActivity.this.updateStatus();
+                if (z) {
+                    MainActivity.this.updateTabsUi();
+                }
+                MainActivity.this.scheduleRecovery();
+                MainActivity.this.schedulePreview();
+                MainActivity.this.scheduleHighlight();
+                MainActivity.this.scheduleSession();
+            }
+        });
+        this.editor.setOnScrollChangeListener(new View.OnScrollChangeListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda43
+            @Override // android.view.View.OnScrollChangeListener
+            public final void onScrollChange(View view, int i, int i2, int i3, int i4) {
+                MainActivity.this.lambda$buildInterface$6(view, i, i2, i3, i4);
+            }
+        });
+        this.preview = new PreviewWebView(this);
+        this.preview.setTextSp(this.previewFontSp);
+        this.preview.setOnTextScaleListener(new PreviewWebView.OnTextScaleListener() {
+            @Override public void onTextScale(float sp) {
+                MainActivity.this.previewFontSp = sp;
+                MainActivity.this.preferences.edit().putFloat(PREF_PREVIEW_FONT, sp).apply();
+                MainActivity.this.renderPreview();
+            }
+        });
+        this.preview.setOverScrollMode(MODE_PREVIEW);
+        WebSettings settings = this.preview.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(false);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccess(false);
+        settings.setBlockNetworkLoads(true);
+        settings.setLoadsImagesAutomatically(false);
+        this.preview.setWebViewClient(new AnonymousClass2());
+        this.preview.setOnScrollChangeListener(new View.OnScrollChangeListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda44
+            @Override // android.view.View.OnScrollChangeListener
+            public final void onScrollChange(View view, int i, int i2, int i3, int i4) {
+                MainActivity.this.lambda$buildInterface$7(view, i, i2, i3, i4);
+            }
+        });
+        this.body = new LinearLayout(this);
+        this.root.addView(this.body, new LinearLayout.LayoutParams(-1, MODE_EDIT, 1.0f));
+        this.formatScroll = new HorizontalScrollView(this);
+        this.formatScroll.setHorizontalScrollBarEnabled(false);
+        this.formats = new LinearLayout(this);
+        this.formats.setOrientation(MODE_EDIT);
+        this.formats.setPadding(dp(MAX_TABS), dp(7), dp(MAX_TABS), dp(7));
+        this.formatScroll.addView(this.formats, wrapWrap());
+        this.root.addView(this.formatScroll, matchWrap());
+        this.readToolsScroll = new HorizontalScrollView(this);
+        this.readToolsScroll.setHorizontalScrollBarEnabled(false);
+        this.readTools = new LinearLayout(this);
+        this.readTools.setOrientation(MODE_EDIT);
+        this.readTools.setPadding(dp(MAX_TABS), dp(7), dp(MAX_TABS), dp(7));
+        this.readToolsScroll.addView(this.readTools, wrapWrap());
+        this.root.addView(this.readToolsScroll, matchWrap());
+        addReadTool("A−", "Decrease reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); } });
+        addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
+        addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
+        addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$8(view);
+            }
+        });
+        addFormat("B", "Bold", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda46
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$9(view);
+            }
+        });
+        addFormat("I", "Italic", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda28
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$10(view);
+            }
+        });
+        addFormat("S", "Strikethrough", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda29
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$11(view);
+            }
+        });
+        addFormat("•", "Bulleted list", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda30
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$12(view);
+            }
+        });
+        addFormat("☐", "Task", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda31
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$13(view);
+            }
+        });
+        addFormat("❯", "Quote", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda32
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$14(view);
+            }
+        });
+        addFormat("↗", "Link", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda33
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$15(view);
+            }
+        });
+        addFormat("</>", "Code", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda34
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$16(view);
+            }
+        });
+        addFormat("▦", "Table", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda35
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$17(view);
+            }
+        });
+        addFormat("—", "Divider", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda36
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$18(view);
+            }
+        });
+        addFormat("Today", "Insert date", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda37
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$buildInterface$19(view);
+            }
+        });
+        this.statusView = new TextView(this);
+        this.statusView.setTextSize(13.0f);
+        this.statusView.setSingleLine(true);
+        this.statusView.setEllipsize(TextUtils.TruncateAt.END);
+        this.statusView.setPadding(dp(18), dp(8), dp(18), dp(10));
+        this.statusView.setContentDescription("Document statistics. Tap for details.");
+        this.statusView.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showDocumentInfo(); } });
+        this.root.addView(this.statusView, matchWrap());
+        applyResponsiveChrome();
+        setContentView(this.root);
+        applyEditorLockState(false);
+        rebuildBody();
+        applyColors();
+        updateStatus();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$1(View view) {
+        showWorkspace();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$2(View view) {
+        saveDocument();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$3(View view) {
+        showTutorial();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$4(View view) {
+        toggleFocusMode();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$5(float f) {
+        this.fontSp = f;
+        this.preferences.edit().putFloat(PREF_FONT, this.fontSp).apply();
+        updateStatus();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$6(View view, int i, int i2, int i3, int i4) {
+        if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
+            this.tabs.get(this.activeTab).editorScrollY = i2;
+        }
+        scheduleSession();
+        if (this.mode != MODE_SPLIT || this.syncingFromPreview) {
+            return;
+        }
+        schedulePreviewSyncFromEditor();
+    }
+
+    /* JADX INFO: renamed from: com.example.markdowndesk.MainActivity$2, reason: invalid class name */
+    class AnonymousClass2 extends WebViewClient {
+        AnonymousClass2() {
+        }
+
+        @Override // android.webkit.WebViewClient
+        public boolean shouldOverrideUrlLoading(WebView webView, WebResourceRequest webResourceRequest) {
+            return MainActivity.this.handlePreviewUri(webResourceRequest.getUrl());
+        }
+
+        @Override // android.webkit.WebViewClient
+        public boolean shouldOverrideUrlLoading(WebView webView, String str) {
+            return MainActivity.this.handlePreviewUri(Uri.parse(str));
+        }
+
+        @Override // android.webkit.WebViewClient
+        public void onPageFinished(WebView webView, String str) {
+            MainActivity.this.previewReady = true;
+            MainActivity.this.syncingFromEditor = true;
+            webView.scrollTo(MainActivity.MODE_EDIT, Math.max(MainActivity.MODE_EDIT, MainActivity.this.previewRestoreY));
+            MainActivity.this.main.postDelayed(new Runnable() {
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.syncingFromEditor = false;
+                }
+            }, 160L);
+            if (MainActivity.this.mode == MainActivity.MODE_SPLIT) {
+                MainActivity.this.schedulePreviewSyncFromEditor();
+            }
+        }
+
+        /* JADX INFO: Access modifiers changed from: private */
+        public /* synthetic */ void lambda$onPageFinished$0() {
+            MainActivity.this.syncingFromEditor = false;
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$7(View view, int i, int i2, int i3, int i4) {
+        if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
+            this.tabs.get(this.activeTab).previewScrollY = i2;
+        }
+        scheduleSession();
+        if (this.mode != MODE_SPLIT || this.syncingFromEditor) {
+            return;
+        }
+        scheduleEditorSyncFromPreview();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$10(View view) {
+        wrap("_", "_");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$8(View view) {
+        prefixLines("# ");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$9(View view) {
+        wrap("**", "**");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$11(View view) {
+        wrap("~~", "~~");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$12(View view) {
+        prefixLines("- ");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$13(View view) {
+        prefixLines("- [ ] ");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$14(View view) {
+        prefixLines("> ");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$15(View view) {
+        insertLink();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$16(View view) {
+        insertCode();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$17(View view) {
+        insertTable();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$18(View view) {
+        insertBlock("\n---\n");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$buildInterface$19(View view) {
+        insertBlock(new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date()));
+    }
+
+    private void showLaunchSplash() {
+        if (this.launchSplashEnabled) {
+            SplashStore.Item item = SplashStore.random(this);
+            if (item == null) {
+                return;
+            }
+            DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+            Bitmap bitmap = SplashStore.load(this, item, displayMetrics.widthPixels,
+                    displayMetrics.heightPixels);
+            if (bitmap == null) {
+                return;
+            }
+            FrameLayout frameLayout = new FrameLayout(this);
+            frameLayout.setBackgroundColor(this.palette.canvas);
+            frameLayout.setClickable(true);
+            frameLayout.setFocusable(true);
+            ImageView imageView = new ImageView(this);
+            imageView.setImageBitmap(bitmap);
+            imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            imageView.setAdjustViewBounds(true);
+            frameLayout.addView(imageView, new FrameLayout.LayoutParams(-1, -1));
+            TextView textView = new TextView(this);
+            textView.setText("Tap anywhere to begin");
+            textView.setTextSize(13.0f);
+            textView.setTextColor(-1);
+            textView.setGravity(17);
+            textView.setPadding(dp(16), dp(9), dp(16), dp(9));
+            textView.setBackground(UiTheme.rounded(withAlpha(-16777216, 125), dp(18), withAlpha(-1, 45), MODE_PREVIEW));
+            FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-2, -2, 81);
+            layoutParams.setMargins(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(24));
+            frameLayout.addView(textView, layoutParams);
+            frameLayout.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda89
+                @Override // android.view.View.OnClickListener
+                public final void onClick(View view) {
+                    MainActivity.this.lambda$showLaunchSplash$20(view);
+                }
+            });
+            this.launchSplash = frameLayout;
+            addContentView(frameLayout, new ViewGroup.LayoutParams(-1, -1));
+            this.launchSplashDismissRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda90
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.dismissLaunchSplash();
+                }
+            };
+            this.main.postDelayed(this.launchSplashDismissRunnable, 5000L);
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showLaunchSplash$20(View view) {
+        dismissLaunchSplash();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void dismissLaunchSplash() {
+        final View view = this.launchSplash;
+        if (view == null) {
+            return;
+        }
+        this.launchSplash = null;
+        if (this.launchSplashDismissRunnable != null) {
+            this.main.removeCallbacks(this.launchSplashDismissRunnable);
+        }
+        this.launchSplashDismissRunnable = null;
+        view.animate().alpha(0.0f).setDuration(180L).withEndAction(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda26
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.lambda$dismissLaunchSplash$21(view);
+            }
+        }).start();
+    }
+
+    static /* synthetic */ void lambda$dismissLaunchSplash$21(View view) {
+        if (view.getParent() instanceof ViewGroup) {
+            ((ViewGroup) view.getParent()).removeView(view);
+        }
+    }
+
+    /**
+     * A button for the transient splash gallery. It is styled once and kept out of
+     * the activity's button list so that reopening the gallery does not pile up
+     * references to dismissed dialogs.
+     */
+    private Button galleryButton(String label, View.OnClickListener onClickListener) {
+        Button button = createButton(label, onClickListener);
+        this.buttons.remove(button);
+        styleButton(button, false, false);
+        return button;
+    }
+
+    private void showSplashGallery() {
+        final List<SplashStore.Item> items = SplashStore.all(this);
+        int enabledCount = 0;
+        for (SplashStore.Item item : items) {
+            if (item.enabled) {
+                enabledCount++;
+            }
+        }
+
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(1);
+        column.setPadding(dp(20), dp(8), dp(20), dp(12));
+
+        TextView blurb = new TextView(this);
+        blurb.setText("Every image that is switched on takes its turn at random when the app opens. "
+                + "Tap an image to switch it on or off, or use ✕ to remove it.");
+        blurb.setTextSize(14.0f);
+        blurb.setLineSpacing(dp(3), 1.0f);
+        blurb.setTextColor(this.palette.muted);
+        blurb.setPadding(0, 0, 0, dp(12));
+        column.addView(blurb, matchWrap());
+
+        if (!this.launchSplashEnabled) {
+            TextView warning = new TextView(this);
+            warning.setText("The launch splash is currently switched off under Appearance, so none of "
+                    + "these will appear until you switch it back on.");
+            warning.setTextSize(13.0f);
+            warning.setTextColor(this.palette.accent);
+            warning.setPadding(dp(2), 0, dp(2), dp(12));
+            column.addView(warning, matchWrap());
+        }
+
+        Button addButton = galleryButton("＋  Add image…", new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.launchSplashImport();
+            }
+        });
+        addButton.setGravity(8388627);
+        column.addView(addButton, matchWrap());
+
+        LinearLayout bulkRow = new LinearLayout(this);
+        bulkRow.setOrientation(0);
+        Button allOn = galleryButton("All on", new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.setAllSplashesEnabled(true);
+            }
+        });
+        Button allOff = galleryButton("All off", new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.setAllSplashesEnabled(false);
+            }
+        });
+        bulkRow.addView(allOn, new LinearLayout.LayoutParams(0, dp(44), 1.0f));
+        bulkRow.addView(allOff, new LinearLayout.LayoutParams(0, dp(44), 1.0f));
+        column.addView(bulkRow, matchWrap());
+
+        TextView sectionLabel = new TextView(this);
+        sectionLabel.setText("IMAGES");
+        sectionLabel.setLetterSpacing(0.14f);
+        sectionLabel.setTextSize(11.0f);
+        sectionLabel.setTextColor(this.palette.accent);
+        sectionLabel.setPadding(dp(4), dp(18), 0, dp(8));
+        column.addView(sectionLabel, matchWrap());
+
+        if (items.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("No images left. Add one, or restore the images that came with the app.");
+            empty.setTextSize(14.0f);
+            empty.setTextColor(this.palette.muted);
+            empty.setPadding(dp(4), 0, dp(4), dp(8));
+            column.addView(empty, matchWrap());
+        }
+
+        for (final SplashStore.Item item : items) {
+            column.addView(buildSplashRow(item));
+        }
+
+        if (SplashStore.removedCount(this) > 0) {
+            Button restore = galleryButton("↺  Restore removed app images", new View.OnClickListener() {
+                @Override // android.view.View.OnClickListener
+                public final void onClick(View view) {
+                    MainActivity.this.restoreBundledSplashes();
+                }
+            });
+            restore.setGravity(8388627);
+            LinearLayout.LayoutParams restoreParams = new LinearLayout.LayoutParams(-1, -2);
+            restoreParams.setMargins(0, dp(10), 0, 0);
+            column.addView(restore, restoreParams);
+        }
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.addView(column, matchWrap());
+
+        this.splashDialog = new AlertDialog.Builder(this)
+                .setTitle("Splash images · " + enabledCount + " of " + items.size() + " on")
+                .setView(scrollView)
+                .setPositiveButton("Done", (DialogInterface.OnClickListener) null)
+                .create();
+        this.splashDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override // android.content.DialogInterface.OnShowListener
+            public final void onShow(DialogInterface dialogInterface) {
+                MainActivity.this.styleDialog(MainActivity.this.splashDialog);
+            }
+        });
+        this.splashDialog.show();
+    }
+
+    private View buildSplashRow(final SplashStore.Item item) {
+        final LinearLayout row = new LinearLayout(this);
+        row.setOrientation(0);
+        row.setGravity(16);
+        row.setPadding(dp(10), dp(8), dp(6), dp(8));
+        row.setClickable(true);
+        row.setFocusable(true);
+
+        ImageView thumb = new ImageView(this);
+        thumb.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        thumb.setBackground(UiTheme.rounded(withAlpha(this.palette.muted, 40), dp(9),
+                this.palette.border, 1));
+        Bitmap bitmap = SplashStore.load(this, item, dp(56), dp(56));
+        if (bitmap != null) {
+            thumb.setImageBitmap(bitmap);
+        }
+        LinearLayout.LayoutParams thumbParams = new LinearLayout.LayoutParams(dp(52), dp(52));
+        thumbParams.setMargins(0, 0, dp(12), 0);
+        row.addView(thumb, thumbParams);
+
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(1);
+        final TextView title = new TextView(this);
+        title.setText(item.label);
+        title.setTextSize(15.0f);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setTextColor(this.palette.text);
+        final TextView state = new TextView(this);
+        state.setTextSize(12.0f);
+        text.addView(title, matchWrap());
+        text.addView(state, matchWrap());
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1.0f));
+
+        Button remove = new Button(this);
+        remove.setText("✕");
+        remove.setAllCaps(false);
+        remove.setTextSize(15.0f);
+        remove.setPadding(0, 0, 0, 0);
+        remove.setMinWidth(dp(40));
+        remove.setMinHeight(dp(40));
+        remove.setTextColor(this.palette.muted);
+        remove.setBackground(UiTheme.rounded(0, dp(11), this.palette.border, 1));
+        remove.setStateListAnimator(null);
+        remove.setTooltipText("Remove " + item.label);
+        remove.setOnClickListener(new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.confirmSplashRemoval(item);
+            }
+        });
+        row.addView(remove, new LinearLayout.LayoutParams(dp(40), dp(40)));
+
+        paintSplashRow(row, state, item);
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                SplashStore.setEnabled(MainActivity.this, item, !item.enabled);
+                MainActivity.this.paintSplashRow(row, state, item);
+                MainActivity.this.updateSplashDialogTitle();
+            }
+        });
+
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+        rowParams.setMargins(0, 0, 0, dp(8));
+        row.setLayoutParams(rowParams);
+        return row;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void paintSplashRow(LinearLayout row, TextView state, SplashStore.Item item) {
+        row.setBackground(UiTheme.rounded(item.enabled ? this.palette.accentSoft : 0, dp(13),
+                item.enabled ? this.palette.accent : this.palette.border, 1));
+        state.setText(item.enabled
+                ? (item.bundled ? "On · in the rotation" : "On · imported")
+                : (item.bundled ? "Off" : "Off · imported"));
+        state.setTextColor(item.enabled ? this.palette.accent : this.palette.muted);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void updateSplashDialogTitle() {
+        if (this.splashDialog == null) {
+            return;
+        }
+        List<SplashStore.Item> items = SplashStore.all(this);
+        int enabledCount = 0;
+        for (SplashStore.Item item : items) {
+            if (item.enabled) {
+                enabledCount++;
+            }
+        }
+        this.splashDialog.setTitle("Splash images · " + enabledCount + " of " + items.size() + " on");
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void setAllSplashesEnabled(boolean enabled) {
+        SplashStore.setAllEnabled(this, enabled);
+        reopenSplashGallery();
+        Toast.makeText(this, enabled ? "All splash images on" : "All splash images off", 0).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void restoreBundledSplashes() {
+        SplashStore.restoreBundled(this);
+        reopenSplashGallery();
+        Toast.makeText(this, "Restored the images that came with the app", 0).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void confirmSplashRemoval(final SplashStore.Item item) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove " + item.label + "?")
+                .setMessage(item.bundled
+                        ? "This image came with the app. It will leave the gallery, and you can bring it back with Restore removed app images."
+                        : "This image was imported, so removing it deletes the copy Markdown Desk keeps. The original file on your device is untouched.")
+                .setPositiveButton("Remove", new DialogInterface.OnClickListener() {
+                    @Override // android.content.DialogInterface.OnClickListener
+                    public final void onClick(DialogInterface dialogInterface, int i) {
+                        SplashStore.remove(MainActivity.this, item);
+                        MainActivity.this.reopenSplashGallery();
+                    }
+                })
+                .setNegativeButton("Keep", (DialogInterface.OnClickListener) null)
+                .show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void reopenSplashGallery() {
+        if (this.splashDialog != null) {
+            this.splashDialog.dismiss();
+            this.splashDialog = null;
+        }
+        showSplashGallery();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void launchSplashImport() {
+        Intent intent = new Intent("android.intent.action.OPEN_DOCUMENT")
+                .addCategory("android.intent.category.OPENABLE")
+                .setType("image/*");
+        intent.putExtra("android.intent.extra.ALLOW_MULTIPLE", true);
+        intent.addFlags(1);
+        try {
+            startActivityForResult(intent, REQUEST_SPLASH_IMPORT);
+        } catch (ActivityNotFoundException e) {
+            showError("No image picker is available on this device.");
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void importSplashImages(Intent intent) {
+        List<Uri> sources = new ArrayList<Uri>();
+        ClipData clipData = intent.getClipData();
+        if (clipData != null) {
+            for (int i = 0; i < clipData.getItemCount(); i++) {
+                Uri uri = clipData.getItemAt(i).getUri();
+                if (uri != null) {
+                    sources.add(uri);
+                }
+            }
+        } else if (intent.getData() != null) {
+            sources.add(intent.getData());
+        }
+        if (sources.isEmpty()) {
+            return;
+        }
+        int added = 0;
+        String failure = null;
+        for (Uri uri : sources) {
+            try {
+                SplashStore.importImage(this, uri);
+                added++;
+            } catch (Exception e) {
+                failure = message(e);
+            }
+        }
+        if (added > 0) {
+            reopenSplashGallery();
+            Toast.makeText(this, added == 1 ? "Added 1 splash image" : "Added " + added + " splash images", 0).show();
+        }
+        if (failure != null) {
+            showError(added > 0
+                    ? "Some images could not be added. " + failure
+                    : "That image could not be added. " + failure);
+        }
+    }
+
+    private Button createButton(String str, View.OnClickListener onClickListener) {
+        Button button = new Button(this);
+        button.setText(str);
+        button.setAllCaps(false);
+        button.setTextSize(14.0f);
+        button.setGravity(17);
+        button.setMinHeight(dp(40));
+        button.setMinWidth(dp(40));
+        button.setPadding(dp(13), MODE_EDIT, dp(13), MODE_EDIT);
+        button.setOnClickListener(onClickListener);
+        button.setStateListAnimator(null);
+        this.buttons.add(button);
+        return button;
+    }
+
+    private Button createTopButton(String str, String str2, View.OnClickListener onClickListener) {
+        Button buttonCreateButton = createButton(str, onClickListener);
+        buttonCreateButton.setTextSize(str.length() > MODE_SPLIT ? 11.0f : 18.0f);
+        buttonCreateButton.setTypeface(Typeface.DEFAULT, MODE_PREVIEW);
+        buttonCreateButton.setTooltipText(str2);
+        return buttonCreateButton;
+    }
+
+    private Button createPillButton(String str, String str2, View.OnClickListener onClickListener) {
+        Button buttonCreateButton = createButton(str, onClickListener);
+        buttonCreateButton.setTooltipText(str2);
+        return buttonCreateButton;
+    }
+
+    private LinearLayout.LayoutParams utilityModeParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(40));
+        params.setMargins(dp(4), 0, 0, 0);
+        return params;
+    }
+
+    private void setButtonIcon(Button button, int resId, int color) {
+        if (button == null) return;
+        Drawable drawable = getDrawable(resId);
+        if (drawable != null) {
+            drawable = drawable.mutate();
+            drawable.setTint(color);
+            drawable.setBounds(0, 0, dp(21), dp(21));
+        }
+        button.setText("");
+        button.setCompoundDrawablePadding(0);
+        button.setCompoundDrawables(null, null, null, null);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(0, 0, 0, 0);
+        button.setForeground(drawable);
+        button.setForegroundGravity(Gravity.CENTER);
+    }
+
+    private Button addModeButton(String str, final int i) {
+        Button buttonCreatePillButton = createPillButton(str, str + " mode", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda21
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$addModeButton$22(i, view);
+            }
+        });
+        this.modeButtons.add(buttonCreatePillButton);
+        this.modeBar.addView(buttonCreatePillButton, new LinearLayout.LayoutParams(MODE_EDIT, dp(38), 1.0f));
+        return buttonCreatePillButton;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$addModeButton$22(int i, View view) {
+        setMode(i, i == 0);
+    }
+
+    private void addFormat(String str, String str2, View.OnClickListener onClickListener) {
+        Button buttonCreatePillButton = createPillButton(str, str2, onClickListener);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(42));
+        layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
+        this.formats.addView(buttonCreatePillButton, layoutParams);
+    }
+
+    private void addReadTool(String label, String description, View.OnClickListener listener) {
+        Button button = createPillButton(label, description, listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(42));
+        params.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
+        this.readTools.addView(button, params);
+    }
+
+    private void updateFormatAvailability() {
+        if (this.formats == null) return;
+        boolean enabled = !this.editorLocked;
+        for (int i = 0; i < this.formats.getChildCount(); i++) {
+            View child = this.formats.getChildAt(i);
+            child.setEnabled(enabled);
+            child.setAlpha(enabled ? 1.0f : 0.38f);
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void rebuildBody() {
+        if (this.body == null) {
+            return;
+        }
+        detach(this.editor);
+        detach(this.preview);
+        this.body.removeAllViews();
+        int i = getResources().getConfiguration().screenWidthDp;
+        int i2 = MODE_EDIT;
+        this.body.setOrientation((this.mode == MODE_SPLIT && i >= 600) ? MODE_EDIT : MODE_PREVIEW);
+        if (this.mode == 0) {
+            this.body.addView(this.editor, paneParams());
+        } else if (this.mode == MODE_PREVIEW) {
+            this.body.addView(this.preview, paneParams());
+        } else {
+            if (this.body.getOrientation() == LinearLayout.HORIZONTAL) {
+                this.body.addView(this.editor, paneParams(this.splitRatio));
+                final View divider = new View(this);
+                divider.setBackgroundColor(this.palette != null ? this.palette.border : 0xFF444444);
+                divider.setContentDescription("Drag to resize Split panes");
+                divider.setOnTouchListener(new View.OnTouchListener() {
+                    @Override public boolean onTouch(View v, MotionEvent event) {
+                        if (event.getActionMasked() == MotionEvent.ACTION_DOWN || event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                            int[] loc = new int[2]; body.getLocationOnScreen(loc);
+                            if (body.getWidth() > 0) {
+                                splitRatio = Math.max(0.28f, Math.min(0.72f, (event.getRawX() - loc[0]) / body.getWidth()));
+                                editor.setLayoutParams(paneParams(splitRatio));
+                                preview.setLayoutParams(paneParams(1.0f - splitRatio));
+                            }
+                            return true;
+                        }
+                        if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                            preferences.edit().putFloat(PREF_SPLIT_RATIO, splitRatio).apply();
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+                this.body.addView(divider, new LinearLayout.LayoutParams(dp(6), -1));
+                this.body.addView(this.preview, paneParams(1.0f - this.splitRatio));
+            } else {
+                this.body.addView(this.editor, paneParams());
+                this.body.addView(this.preview, paneParams());
+            }
+        }
+        this.formatScroll.setVisibility((this.mode == MODE_PREVIEW || this.focusMode) ? View.GONE : View.VISIBLE);
+        if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((this.mode == MODE_PREVIEW && !this.focusMode) ? View.VISIBLE : View.GONE);
+        updateFormatAvailability();
+        if (this.mode != 0) {
+            renderPreview();
+        }
+        this.body.setAlpha(0.0f);
+        this.body.animate().alpha(1.0f).setDuration(150L).start();
+        updateModeChrome();
+    }
+
+    private void setMode(int i, boolean z) {
+        this.mode = i;
+        if (i == MODE_SPLIT && !this.preferences.getBoolean("split_hint_seen", false)) {
+            Toast.makeText(this, "Split: Markdown source + rendered Read view", MODE_PREVIEW).show();
+            this.preferences.edit().putBoolean("split_hint_seen", true).apply();
+        }
+        if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
+            this.tabs.get(this.activeTab).mode = this.mode;
+        }
+        rebuildBody();
+        updateStatus();
+        scheduleSession();
+        if (!z || this.mode == MODE_PREVIEW) {
+            hideKeyboard();
+        } else {
+            this.editor.requestFocus();
+            showKeyboard(this.editor);
+        }
+    }
+
+    private void applyColors() {
+        int i;
+        this.palette = UiTheme.palette(this.themeId, systemDark());
+        this.dark = this.palette.dark;
+        this.root.setBackgroundColor(this.palette.canvas);
+        this.header.setBackgroundColor(this.palette.surface);
+        this.formatScroll.setBackgroundColor(this.palette.surface);
+        this.formats.setBackgroundColor(this.palette.surface);
+        if (this.readToolsScroll != null) this.readToolsScroll.setBackgroundColor(this.palette.surface);
+        if (this.readTools != null) this.readTools.setBackgroundColor(this.palette.surface);
+        this.statusView.setBackgroundColor(this.palette.surface);
+        this.body.setBackgroundColor(this.palette.canvas);
+        this.titleView.setTextColor(this.palette.text);
+        this.eyebrowView.setTextColor(this.palette.accent);
+        this.statusView.setTextColor(this.palette.muted);
+        this.editor.setTextColor(this.palette.text);
+        this.editor.setHintTextColor(this.palette.muted);
+        this.editor.setBackgroundColor(this.palette.canvas);
+        this.editor.setHighlightColor(withAlpha(this.palette.accent, 72));
+        this.editor.setEditorChrome(this.lineNumbers, true, withAlpha(this.palette.muted, 170), withAlpha(this.palette.accent, 20));
+        this.editor.setTypewriterMode(this.typewriterMode);
+        this.preview.setBackgroundColor(this.palette.canvas);
+        Iterator<Button> it = this.buttons.iterator();
+        while (true) {
+            boolean zHasNext = it.hasNext();
+            i = MODE_EDIT;
+            if (!zHasNext) {
+                break;
+            } else {
+                styleButton(it.next(), false, false);
+            }
+        }
+        this.saveButton.setTextColor(-1);
+        this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
+        updateModeChrome();
+        updateTabsUi();
+        getWindow().setStatusBarColor(this.palette.surface);
+        getWindow().setNavigationBarColor(this.palette.surface);
+        if (!this.palette.dark) {
+            i = 8208;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(i);
+        scheduleHighlight();
+        schedulePreview();
+    }
+
+    private void styleButton(Button button, boolean z, boolean z2) {
+        int i;
+        int i2;
+        if (z2) {
+            i = this.palette.accent;
+        } else {
+            i = z ? this.palette.accentSoft : MODE_EDIT;
+        }
+        UiTheme.Palette palette = this.palette;
+        int i3 = z ? palette.accent : palette.border;
+        if (z2) {
+            i2 = -1;
+        } else {
+            i2 = z ? this.palette.accent : this.palette.text;
+        }
+        button.setTextColor(i2);
+        button.setBackground(UiTheme.rounded(i, dp(13), i3, !z2 ? 1 : 0));
+    }
+
+    private void updateModeChrome() {
+        if (this.modeButtons.isEmpty() || this.palette == null) {
+            return;
+        }
+        styleButton(this.editModeButton, this.mode == MODE_EDIT, false);
+        styleButton(this.previewModeButton, this.mode == MODE_PREVIEW, false);
+        styleButton(this.splitModeButton, this.mode == MODE_SPLIT, false);
+        styleButton(this.focusButton, this.focusMode, false);
+        setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusMode ? this.palette.accent : this.palette.text);
+        if (this.lockButton != null) {
+            styleButton(this.lockButton, this.editorLocked, false);
+            boolean sourceVisible = this.mode != MODE_PREVIEW;
+            this.lockButton.setEnabled(sourceVisible && !this.readOnly);
+            this.lockButton.setAlpha((sourceVisible && !this.readOnly) ? 1.0f : 0.45f);
+            int iconColor = this.editorLocked ? this.palette.accent : this.palette.text;
+            setButtonIcon(this.lockButton, this.editorLocked ? R.drawable.ic_lock : R.drawable.ic_lock_open, iconColor);
+        }
+    }
+
+    private void applyResponsiveChrome() {
+        if (this.modeBar == null || this.saveButton == null) {
+            return;
+        }
+        boolean compact = getResources().getConfiguration().screenWidthDp < 500;
+        this.saveButton.setSingleLine(true);
+        this.saveButton.setMaxLines(1);
+        this.saveButton.setTextSize(compact ? 10.0f : 11.0f);
+        ViewGroup.LayoutParams saveParams = this.saveButton.getLayoutParams();
+        if (saveParams != null) {
+            saveParams.width = dp(compact ? 62 : 68);
+            this.saveButton.setLayoutParams(saveParams);
+        }
+        for (Button button : this.modeButtons) {
+            button.setSingleLine(true);
+            button.setMaxLines(1);
+            button.setTextSize(compact ? 13.0f : 14.0f);
+            button.setPadding(dp(compact ? 7 : 13), MODE_EDIT, dp(compact ? 7 : 13), MODE_EDIT);
+        }
+        if (this.splitModeButton != null) this.splitModeButton.setVisibility(compact ? View.GONE : View.VISIBLE);
+        if (this.focusButton != null) {
+            ViewGroup.LayoutParams p = this.focusButton.getLayoutParams();
+            if (p != null) { p.width = dp(48); p.height = dp(40); this.focusButton.setLayoutParams(p); }
+        }
+        if (this.lockButton != null) {
+            ViewGroup.LayoutParams p = this.lockButton.getLayoutParams();
+            if (p != null) { p.width = dp(48); p.height = dp(40); this.lockButton.setLayoutParams(p); }
+        }
+        if (this.readTools != null && this.readTools.getChildCount() >= 4) {
+            View outline = this.readTools.getChildAt(2);
+            View appearance = this.readTools.getChildAt(3);
+            if (outline instanceof Button) ((Button) outline).setText(compact ? "Outline" : "Outline");
+            if (appearance instanceof Button) ((Button) appearance).setText(compact ? "Style" : "Appearance");
+        }
+    }
+
+    private void toggleEditorLock() {
+        this.editorLocked = !this.editorLocked;
+        if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
+            this.tabs.get(this.activeTab).editorLocked = this.editorLocked;
+        }
+        applyEditorLockState(true);
+        scheduleSession();
+    }
+
+    private void applyEditorLockState(boolean showToast) {
+        if (this.editor == null) return;
+        if (this.editorKeyListener == null) this.editorKeyListener = this.editor.getKeyListener();
+        if (this.editorLocked) {
+            this.editor.setKeyListener(null);
+            this.editor.setCursorVisible(false);
+            hideKeyboard();
+            if (this.lockButton != null) this.lockButton.setContentDescription("Unlock editing");
+        } else {
+            this.editor.setKeyListener(this.editorKeyListener);
+            this.editor.setCursorVisible(true);
+            if (this.lockButton != null) this.lockButton.setContentDescription("Lock editing");
+        }
+        applyResponsiveChrome();
+        updateModeChrome();
+        updateFormatAvailability();
+        if (showToast) Toast.makeText(this, this.editorLocked ? "Editing locked" : "Editing unlocked", MODE_EDIT).show();
+    }
+
+    private boolean canMutate() {
+        if (!this.editorLocked) return true;
+        Toast.makeText(this, "Unlock this document to edit it.", MODE_EDIT).show();
+        return false;
+    }
+
+    private void toggleTheme() {
+        this.themeId = (this.palette == null || !this.palette.dark) ? MODE_PREVIEW : MODE_EDIT;
+        this.preferences.edit().putInt(PREF_THEME, this.themeId).apply();
+        applyColors();
+    }
+
+    private void changeFont(int delta) {
+        this.fontSp = Math.max(12.0f, Math.min(32.0f, this.fontSp + delta));
+        this.editor.setTextSize(this.fontSp);
+        this.preferences.edit().putFloat(PREF_FONT, this.fontSp).apply();
+        updateStatus();
+    }
+
+    private void changePreviewFont(int delta) {
+        this.previewFontSp = Math.max(12.0f, Math.min(32.0f, this.previewFontSp + delta));
+        this.preview.setTextSp(this.previewFontSp);
+        this.preferences.edit().putFloat(PREF_PREVIEW_FONT, this.previewFontSp).apply();
+        if (this.mode != MODE_EDIT) renderPreview();
+    }
+
+    private void changeActiveFont(int delta) {
+        if (this.mode == MODE_PREVIEW || (this.mode == MODE_SPLIT && this.preview.hasFocus())) changePreviewFont(delta);
+        else changeFont(delta);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void updateTabsUi() {
+        if (this.tabsRow == null || this.palette == null) {
+            return;
+        }
+        this.buttons.removeAll(this.tabButtons);
+        this.tabButtons.clear();
+        this.tabsRow.removeAllViews();
+        for (int tabIndex = MODE_EDIT; tabIndex < this.tabs.size(); tabIndex += MODE_PREVIEW) {
+            final int i = tabIndex;
+            DocumentTab documentTab = this.tabs.get(i);
+            String str = documentTab.displayName == null ? "Untitled" : documentTab.displayName;
+            if (str.length() > 22) {
+                str = str.substring(0, 10) + "…" + str.substring(str.length() - 9);
+            }
+            Button buttonCreatePillButton = createPillButton((documentTab.dirty ? "●  " : "") + str, "Switch to " + str, new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda65
+                @Override // android.view.View.OnClickListener
+                public final void onClick(View view) {
+                    MainActivity.this.lambda$updateTabsUi$23(i, view);
+                }
+            });
+            buttonCreatePillButton.setTextSize(12.0f);
+            boolean z = true;
+            buttonCreatePillButton.setSingleLine(true);
+            buttonCreatePillButton.setEllipsize(TextUtils.TruncateAt.END);
+            if (i != this.activeTab) {
+                z = false;
+            }
+            styleButton(buttonCreatePillButton, z, false);
+            buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda66
+                @Override // android.view.View.OnLongClickListener
+                public final boolean onLongClick(View view) {
+                    return MainActivity.this.lambda$updateTabsUi$24(i, view);
+                }
+            });
+            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(38));
+            layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
+            this.tabsRow.addView(buttonCreatePillButton, layoutParams);
+            this.tabButtons.add(buttonCreatePillButton);
+        }
+        Button buttonCreatePillButton2 = createPillButton("＋", "New document", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda67
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$updateTabsUi$25(view);
+            }
+        });
+        buttonCreatePillButton2.setTextSize(18.0f);
+        styleButton(buttonCreatePillButton2, false, false);
+        this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(44), dp(38)));
+        this.tabButtons.add(buttonCreatePillButton2);
+        if (this.activeTab >= 0) {
+            this.tabsScroll.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda68
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$updateTabsUi$26();
+                }
+            });
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$updateTabsUi$23(int i, View view) {
+        switchToTab(i, false);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ boolean lambda$updateTabsUi$24(int i, View view) {
+        if (i != this.activeTab) {
+            switchToTab(i, false);
+        }
+        closeCurrentTab();
+        return true;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$updateTabsUi$25(View view) {
+        showNewDocumentMenu();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$updateTabsUi$26() {
+        this.tabsScroll.smoothScrollTo(Math.max(MODE_EDIT, (this.activeTab * dp(116)) - dp(30)), MODE_EDIT);
+    }
+
+    private void createUntitledTab(boolean z) {
+        if (this.tabs.size() >= MAX_TABS) {
+            Toast.makeText(this, "Close a tab before opening another.", MODE_PREVIEW).show();
+            return;
+        }
+        captureActiveTab();
+        DocumentTab documentTab = new DocumentTab();
+        documentTab.mode = MODE_EDIT;
+        this.tabs.add(documentTab);
+        switchToTab(this.tabs.size() - MODE_PREVIEW, z);
+        updateTabsUi();
+        scheduleSession();
+    }
+
+    private void showTabs() {
+        if (this.tabs.isEmpty()) {
+            return;
+        }
+        captureActiveTab();
+        String[] strArr = new String[this.tabs.size()];
+        int i = MODE_EDIT;
+        while (i < this.tabs.size()) {
+            DocumentTab documentTab = this.tabs.get(i);
+            String str = "";
+            String str2 = i == this.activeTab ? "▶ " : "";
+            String str3 = documentTab.displayName;
+            if (documentTab.dirty) {
+                str = "  •";
+            }
+            strArr[i] = str2 + str3 + str;
+            i += MODE_PREVIEW;
+        }
+        new AlertDialog.Builder(this).setTitle("Open documents").setItems(strArr, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda87
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i2) {
+                MainActivity.this.lambda$showTabs$27(dialogInterface, i2);
+            }
+        }).setNegativeButton("Close", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showTabs$27(DialogInterface dialogInterface, int i) {
+        switchToTab(i, false);
+    }
+
+    private void closeCurrentTab() {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        confirmUnsaved(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda96
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.removeActiveTab();
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void removeActiveTab() {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        this.tabs.remove(this.activeTab);
+        if (this.tabs.isEmpty()) {
+            this.activeTab = -1;
+            createUntitledTab(false);
+        } else {
+            this.activeTab = Math.min(this.activeTab, this.tabs.size() - 1);
+            restoreActiveTab(false);
+            updateTabsUi();
+            scheduleSession();
+        }
+    }
+
+    private void captureActiveTab() {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size() || this.editor == null) {
+            return;
+        }
+        DocumentTab documentTab = this.tabs.get(this.activeTab);
+        documentTab.uri = this.currentUri == null ? null : this.currentUri.toString();
+        documentTab.displayName = this.displayName;
+        documentTab.text = this.editor.getText().toString();
+        documentTab.baselineHash = this.baselineHash;
+        documentTab.baselineModified = this.baselineModified;
+        documentTab.utf8Bom = this.utf8Bom;
+        documentTab.readOnly = this.readOnly;
+        documentTab.editorLocked = this.editorLocked;
+        documentTab.dirty = this.dirty;
+        documentTab.selectionStart = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        documentTab.selectionEnd = Math.max(documentTab.selectionStart, this.editor.getSelectionEnd());
+        documentTab.editorScrollY = Math.max(MODE_EDIT, this.editor.getScrollY());
+        documentTab.previewScrollY = this.preview == null ? documentTab.previewScrollY : Math.max(MODE_EDIT, this.preview.getScrollY());
+        documentTab.mode = this.mode;
+    }
+
+    private void switchToTab(int i, boolean z) {
+        if (i < 0 || i >= this.tabs.size()) {
+            return;
+        }
+        captureActiveTab();
+        this.activeTab = i;
+        restoreActiveTab(z);
+        updateTabsUi();
+        scheduleSession();
+    }
+
+    private void restoreActiveTab(boolean z) {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        final DocumentTab documentTab = this.tabs.get(this.activeTab);
+        this.currentUri = documentTab.uri == null ? null : Uri.parse(documentTab.uri);
+        this.displayName = documentTab.displayName;
+        this.baselineHash = documentTab.baselineHash;
+        this.baselineModified = documentTab.baselineModified;
+        this.utf8Bom = documentTab.utf8Bom;
+        this.readOnly = documentTab.readOnly;
+        this.editorLocked = documentTab.editorLocked;
+        this.dirty = documentTab.dirty;
+        this.mode = documentTab.mode;
+        this.suppressChanges = true;
+        this.editor.setText(documentTab.text);
+        int iClamp = clamp(documentTab.selectionStart, MODE_EDIT, documentTab.text.length());
+        this.editor.setSelection(iClamp, clamp(documentTab.selectionEnd, iClamp, documentTab.text.length()));
+        this.suppressChanges = false;
+        this.previewRestoreY = documentTab.previewScrollY;
+        this.previewReady = false;
+        applyEditorLockState(false);
+        rebuildBody();
+        applyColors();
+        updateStatus();
+        this.editor.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda86
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$restoreActiveTab$28(documentTab);
+            }
+        });
+        if (!z || this.mode == MODE_PREVIEW) {
+            hideKeyboard();
+        } else {
+            this.editor.requestFocus();
+            showKeyboard(this.editor);
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$restoreActiveTab$28(DocumentTab documentTab) {
+        this.editor.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, documentTab.editorScrollY));
+    }
+
+    private int findTabByUri(Uri uri) {
+        String string = uri == null ? null : uri.toString();
+        if (string == null) {
+            return -1;
+        }
+        for (int i = MODE_EDIT; i < this.tabs.size(); i += MODE_PREVIEW) {
+            if (string.equals(this.tabs.get(i).uri)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int findTabById(String str) {
+        if (str == null) {
+            return -1;
+        }
+        for (int i = MODE_EDIT; i < this.tabs.size(); i += MODE_PREVIEW) {
+            if (str.equals(this.tabs.get(i).id)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void launchOpen() {
+        Intent type = new Intent("android.intent.action.OPEN_DOCUMENT").addCategory("android.intent.category.OPENABLE").setType("text/*");
+        type.putExtra("android.intent.extra.MIME_TYPES", new String[]{"text/markdown", "text/x-markdown", "text/plain", "application/markdown"});
+        type.addFlags(67);
+        try {
+            startActivityForResult(type, REQUEST_OPEN);
+        } catch (ActivityNotFoundException e) {
+            showError("No document picker is available on this device.");
+        }
+    }
+
+    private void launchSaveAs() {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        captureActiveTab();
+        this.saveAsTabId = this.tabs.get(this.activeTab).id;
+        Intent type = new Intent("android.intent.action.CREATE_DOCUMENT").addCategory("android.intent.category.OPENABLE").setType("text/markdown");
+        type.putExtra("android.intent.extra.TITLE", markdownName(this.displayName));
+        type.addFlags(67);
+        try {
+            startActivityForResult(type, REQUEST_CREATE);
+        } catch (ActivityNotFoundException e) {
+            this.pendingAfterSave = null;
+            showError("No document picker is available on this device.");
+        }
+    }
+
+    @Override // android.app.Activity
+    protected void onActivityResult(int i, int i2, Intent intent) {
+        super.onActivityResult(i, i2, intent);
+        if (i == REQUEST_SPLASH_IMPORT) {
+            if (i2 == -1 && intent != null) {
+                importSplashImages(intent);
+            }
+            return;
+        }
+        if (i2 != -1 || intent == null || intent.getData() == null) {
+            if (i == REQUEST_CREATE) {
+                this.pendingAfterSave = null;
+                this.saveAsTabId = null;
+                return;
+            }
+            return;
+        }
+        Uri data = intent.getData();
+        takePermission(data, intent.getFlags());
+        if (i != REQUEST_OPEN) {
+            if (i == REQUEST_CREATE) {
+                int iFindTabById = findTabById(this.saveAsTabId);
+                this.saveAsTabId = null;
+                if (iFindTabById >= 0) {
+                    switchToTab(iFindTabById, false);
+                }
+                this.currentUri = data;
+                DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), data);
+                this.displayName = metadata.displayName;
+                this.readOnly = false;
+                this.baselineHash = null;
+                this.baselineModified = metadata.lastModified;
+                captureActiveTab();
+                saveInternal(true);
+                return;
+            }
+            return;
+        }
+        openDocument(data, intent.getFlags(), false);
+    }
+
+    private void handleIntent(Intent intent) {
+        if (intent == null) {
+            return;
+        }
+        String action = intent.getAction();
+        if ("android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action)) {
+            if (intent.getData() != null) {
+                takePermission(intent.getData(), intent.getFlags());
+                openDocument(intent.getData(), intent.getFlags(), false, Intent.ACTION_VIEW.equals(action));
+                return;
+            }
+            return;
+        }
+        if ("android.intent.action.SEND".equals(action)) {
+            Uri uriStreamFrom = streamFrom(intent);
+            if (uriStreamFrom != null) {
+                takePermission(uriStreamFrom, intent.getFlags());
+                openDocument(uriStreamFrom, intent.getFlags(), false);
+                return;
+            }
+            CharSequence charSequenceExtra = intent.getCharSequenceExtra("android.intent.extra.TEXT");
+            if (charSequenceExtra != null) {
+                if (charSequenceExtra.length() > 8388608) {
+                    showError("The shared text is larger than the 8 MB safety limit.");
+                    return;
+                }
+                createUntitledTab(false);
+                this.suppressChanges = true;
+                this.editor.setText(charSequenceExtra);
+                this.suppressChanges = false;
+                this.dirty = true;
+                this.displayName = "Shared text.md";
+                captureActiveTab();
+                scheduleRecovery();
+                scheduleSession();
+                updateStatus();
+                scheduleHighlight();
+            }
+        }
+    }
+
+    private boolean isExternalIntent(Intent intent) {
+        if (intent == null) {
+            return false;
+        }
+        String action = intent.getAction();
+        return "android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action) || "android.intent.action.SEND".equals(action);
+    }
+
+    private Uri streamFrom(Intent intent) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            Uri uri = (Uri) intent.getParcelableExtra("android.intent.extra.STREAM", Uri.class);
+            if (uri != null) {
+                return uri;
+            }
+        } else {
+            Uri uri2 = (Uri) intent.getParcelableExtra("android.intent.extra.STREAM");
+            if (uri2 != null) {
+                return uri2;
+            }
+        }
+        ClipData clipData = intent.getClipData();
+        if (clipData == null || clipData.getItemCount() <= 0) {
+            return null;
+        }
+        return clipData.getItemAt(MODE_EDIT).getUri();
+    }
+
+    private void openDocument(final Uri uri, final int i, final boolean z) {
+        openDocument(uri, i, z, false);
+    }
+
+    private void openDocument(final Uri uri, final int i, final boolean z, final boolean viewOnly) {
+        if (uri == null || !"content".equalsIgnoreCase(uri.getScheme())) {
+            showError("For safety, Markdown Desk can only open documents supplied through Android's document system.");
+            return;
+        }
+        int iFindTabByUri = findTabByUri(uri);
+        if (iFindTabByUri >= 0) {
+            switchToTab(iFindTabByUri, false);
+            if (viewOnly) setMode(MODE_PREVIEW, false);
+            return;
+        }
+        if (this.tabs.size() >= MAX_TABS) {
+            Toast.makeText(this, "Close a tab before opening another.", MODE_PREVIEW).show();
+            return;
+        }
+        final int i2 = this.loadToken + MODE_PREVIEW;
+        this.loadToken = i2;
+        this.statusView.setText(R.string.opening);
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda64
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$openDocument$31(uri, i2, i, z, viewOnly);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$openDocument$31(final Uri uri, final int i, final int i2, final boolean z, final boolean viewOnly) {
+        try {
+            final DocumentIO.ReadResult readResult = DocumentIO.read(getContentResolver(), uri);
+            final DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), uri);
+            final String strSha256 = EditorTools.sha256(readResult.sourceBytes);
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda93
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$openDocument$29(i, uri, metadata, readResult, strSha256, i2, viewOnly);
+                }
+            });
+        } catch (Exception e) {
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda94
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$openDocument$30(i, z, uri, e);
+                }
+            });
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$openDocument$29(int i, Uri uri, DocumentIO.Metadata metadata, DocumentIO.ReadResult readResult, String str, int i2, boolean viewOnly) {
+        if (i != this.loadToken || isFinishing()) {
+            return;
+        }
+        captureActiveTab();
+        DocumentTab documentTab = new DocumentTab();
+        documentTab.uri = uri.toString();
+        documentTab.displayName = metadata.displayName;
+        documentTab.text = readResult.text;
+        documentTab.baselineHash = str;
+        documentTab.baselineModified = metadata.lastModified;
+        documentTab.utf8Bom = readResult.utf8Bom;
+        documentTab.readOnly = viewOnly || !(metadata.writable || (i2 & MODE_SPLIT) != 0);
+        documentTab.mode = viewOnly ? MODE_PREVIEW : MODE_EDIT;
+        this.tabs.add(documentTab);
+        this.activeTab = this.tabs.size() - MODE_PREVIEW;
+        RecentStore.touch(this, uri.toString(), documentTab.displayName);
+        restoreActiveTab(false);
+        scheduleSession();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$openDocument$30(int i, boolean z, Uri uri, Exception exc) {
+        if (i != this.loadToken || isFinishing()) {
+            return;
+        }
+        updateStatus();
+        if (z) {
+            showRecentFailure(uri, exc);
+        } else {
+            showError(message(exc));
+        }
+    }
+
+    private void saveDocument() {
+        if (this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        if (this.currentUri == null || this.readOnly) {
+            launchSaveAs();
+        } else {
+            saveInternal(false);
+        }
+    }
+
+    private void saveInternal(final boolean z) {
+        if (this.currentUri == null || this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+            return;
+        }
+        captureActiveTab();
+        final String str = this.tabs.get(this.activeTab).id;
+        final Uri uri = this.currentUri;
+        final String string = this.editor.getText().toString();
+        final byte[] bArrEncode = DocumentIO.encode(string, this.utf8Bom);
+        final String str2 = this.baselineHash;
+        this.saveInProgress = true;
+        this.savingTabId = str;
+        this.saveButton.setEnabled(false);
+        this.statusView.setText(R.string.saving);
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda70
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$saveInternal$35(z, str2, uri, str, bArrEncode, string);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$saveInternal$35(boolean z, String str, final Uri uri, final String str2, byte[] bArr, final String str3) {
+        try {
+            if (!z && str != null) {
+                if (!str.equals(EditorTools.sha256(DocumentIO.read(getContentResolver(), uri).sourceBytes))) {
+                    this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda0
+                        @Override // java.lang.Runnable
+                        public final void run() {
+                            MainActivity.this.lambda$saveInternal$32(str2);
+                        }
+                    });
+                    return;
+                }
+            }
+            DocumentIO.write(getContentResolver(), uri, bArr);
+            if (!Arrays.equals(bArr, DocumentIO.read(getContentResolver(), uri).sourceBytes)) {
+                throw new IOException("The provider reported success but the saved bytes did not match. Your recovery draft was retained.");
+            }
+            final DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), uri);
+            final String strSha256 = EditorTools.sha256(bArr);
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda1
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$saveInternal$33(str2, uri, str3, strSha256, metadata);
+                }
+            });
+        } catch (final Exception e) {
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda2
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$saveInternal$34(e);
+                }
+            });
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    /* JADX INFO: renamed from: saveSucceeded, reason: merged with bridge method [inline-methods] */
+    public void lambda$saveInternal$33(String str, Uri uri, String str2, String str3, DocumentIO.Metadata metadata) {
+        int iFindTabById = findTabById(str);
+        this.saveInProgress = false;
+        this.savingTabId = null;
+        this.saveButton.setEnabled(true);
+        if (iFindTabById < 0) {
+            updateStatus();
+            return;
+        }
+        if (iFindTabById == this.activeTab) {
+            captureActiveTab();
+        }
+        DocumentTab documentTab = this.tabs.get(iFindTabById);
+        documentTab.uri = uri.toString();
+        documentTab.baselineHash = str3;
+        documentTab.baselineModified = metadata.lastModified;
+        documentTab.displayName = metadata.displayName;
+        documentTab.readOnly = false;
+        documentTab.dirty = !documentTab.text.equals(str2);
+        RecentStore.touch(this, uri.toString(), documentTab.displayName);
+        if (iFindTabById == this.activeTab) {
+            this.currentUri = uri;
+            this.baselineHash = str3;
+            this.baselineModified = metadata.lastModified;
+            this.displayName = metadata.displayName;
+            this.readOnly = false;
+            this.dirty = documentTab.dirty;
+            if (this.dirty) {
+                scheduleRecovery();
+                Toast.makeText(this, "Saved that version; newer edits remain unsaved.", MODE_PREVIEW).show();
+            } else {
+                clearRecoveryAsync();
+                Toast.makeText(this, "Saved", MODE_EDIT).show();
+            }
+            updateStatus();
+        }
+        scheduleSession();
+        Runnable runnable = this.pendingAfterSave;
+        this.pendingAfterSave = null;
+        updateTabsUi();
+        if (runnable == null || iFindTabById != this.activeTab || documentTab.dirty) {
+            return;
+        }
+        runnable.run();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    /* JADX INFO: renamed from: saveFailed, reason: merged with bridge method [inline-methods] */
+    public void lambda$saveInternal$34(Exception exc) {
+        this.saveInProgress = false;
+        this.savingTabId = null;
+        this.saveButton.setEnabled(true);
+        this.pendingAfterSave = null;
+        updateStatus();
+        showError("Save failed. Your recovery draft is still available.\n\n" + message(exc));
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    /* JADX INFO: renamed from: showConflict, reason: merged with bridge method [inline-methods] */
+    public void lambda$saveInternal$32(String str) {
+        this.saveInProgress = false;
+        this.savingTabId = null;
+        this.saveButton.setEnabled(true);
+        int iFindTabById = findTabById(str);
+        if (iFindTabById >= 0) {
+            switchToTab(iFindTabById, false);
+        }
+        updateStatus();
+        new AlertDialog.Builder(this).setTitle("File changed elsewhere").setMessage("The source file changed after you opened it. Choose how to protect both versions.").setPositiveButton("Overwrite", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda83
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showConflict$36(dialogInterface, i);
+            }
+        }).setNegativeButton("Save as", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda84
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showConflict$37(dialogInterface, i);
+            }
+        }).setNeutralButton("Cancel", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda85
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showConflict$38(dialogInterface, i);
+            }
+        }).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showConflict$36(DialogInterface dialogInterface, int i) {
+        saveInternal(true);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showConflict$37(DialogInterface dialogInterface, int i) {
+        launchSaveAs();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showConflict$38(DialogInterface dialogInterface, int i) {
+        this.pendingAfterSave = null;
+    }
+
+    private void confirmUnsaved(final Runnable runnable) {
+        if (this.dirty) {
+            new AlertDialog.Builder(this).setTitle("Unsaved changes").setMessage("Save your changes before continuing?").setPositiveButton("Save", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda78
+                @Override // android.content.DialogInterface.OnClickListener
+                public final void onClick(DialogInterface dialogInterface, int i) {
+                    MainActivity.this.lambda$confirmUnsaved$39(runnable, dialogInterface, i);
+                }
+            }).setNegativeButton("Discard", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda79
+                @Override // android.content.DialogInterface.OnClickListener
+                public final void onClick(DialogInterface dialogInterface, int i) {
+                    MainActivity.this.lambda$confirmUnsaved$40(runnable, dialogInterface, i);
+                }
+            }).setNeutralButton("Cancel", (DialogInterface.OnClickListener) null).show();
+        } else {
+            runnable.run();
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$confirmUnsaved$39(Runnable runnable, DialogInterface dialogInterface, int i) {
+        this.pendingAfterSave = runnable;
+        saveDocument();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$confirmUnsaved$40(Runnable runnable, DialogInterface dialogInterface, int i) {
+        this.dirty = false;
+        if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
+            this.tabs.get(this.activeTab).dirty = false;
+        }
+        this.pendingAfterSave = null;
+        clearRecoveryAsync();
+        runnable.run();
+    }
+
+    private void restoreSessionOrRecovery(final Intent intent) {
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda3
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$restoreSessionOrRecovery$42(intent);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$restoreSessionOrRecovery$42(final Intent intent) {
+        RecoveryStore.Draft draft;
+        SessionStore.State state;
+        Exception e = null;
+        try {
+            state = SessionStore.read(this);
+            try {
+                draft = RecoveryStore.read(this);
+                if (state != null && draft != null) {
+                    try {
+                        if (draft.timestamp > state.timestamp) {
+                            mergeNewerRecovery(state, draft);
+                        }
+                    } catch (Exception e2) {
+                        e = e2;
+                    }
+                }
+            } catch (Exception e3) {
+                draft = null;
+                e = e3;
+            }
+        } catch (Exception e4) {
+            draft = null;
+            e = e4;
+            state = null;
+        }
+        final Exception exc = e;
+        final SessionStore.State state2 = state;
+        final RecoveryStore.Draft draft2 = draft;
+        this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda82
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$restoreSessionOrRecovery$41(state2, intent, exc, draft2);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$restoreSessionOrRecovery$41(SessionStore.State state, Intent intent, Exception exc, RecoveryStore.Draft draft) {
+        if (state != null && !state.tabs.isEmpty()) {
+            this.tabs.clear();
+            this.tabs.addAll(state.tabs);
+            this.activeTab = state.activeIndex;
+            pruneRedundantUntitledTabs();
+            restoreActiveTab(false);
+            scheduleSession();
+            if (isExternalIntent(intent)) {
+                handleIntent(intent);
+                return;
+            }
+            return;
+        }
+        if (exc != null) {
+            showError("Previous editor state could not be read: " + message(exc));
+        }
+        if (draft == null) {
+            if (!isExternalIntent(intent)) {
+                createUntitledTab(false);
+                return;
+            } else {
+                handleIntent(intent);
+                return;
+            }
+        }
+        showRecovery(draft, intent);
+    }
+
+    private void pruneRedundantUntitledTabs() {
+        if (this.tabs.size() <= 1) return;
+        for (int i = this.tabs.size() - 1; i >= 0; i--) {
+            DocumentTab tab = this.tabs.get(i);
+            boolean pristine = tab.uri == null && !tab.dirty && (tab.text == null || tab.text.isEmpty())
+                    && (tab.displayName == null || "Untitled.md".equals(tab.displayName));
+            if (pristine && this.tabs.size() > 1) {
+                this.tabs.remove(i);
+                if (i < this.activeTab) this.activeTab--;
+                else if (i == this.activeTab) this.activeTab = Math.min(this.activeTab, this.tabs.size() - 1);
+            }
+        }
+        if (this.activeTab < 0 && !this.tabs.isEmpty()) this.activeTab = 0;
+    }
+
+    private static void mergeNewerRecovery(SessionStore.State state, RecoveryStore.Draft draft) {
+        int size;
+        DocumentTab documentTab;
+        if (draft.uri != null) {
+            size = MODE_EDIT;
+            while (true) {
+                if (size >= state.tabs.size()) {
+                    size = -1;
+                    break;
+                } else if (draft.uri.equals(state.tabs.get(size).uri)) {
+                    break;
+                } else {
+                    size += MODE_PREVIEW;
+                }
+            }
+        } else {
+            size = -1;
+        }
+        if (size < 0 && state.activeIndex >= 0 && state.activeIndex < state.tabs.size()) {
+            DocumentTab documentTab2 = state.tabs.get(state.activeIndex);
+            if (draft.uri == null && documentTab2.uri == null && draft.displayName.equals(documentTab2.displayName)) {
+                size = state.activeIndex;
+            }
+        }
+        if (size >= 0) {
+            documentTab = state.tabs.get(size);
+        } else {
+            if (state.tabs.size() >= MAX_TABS) {
+                return;
+            }
+            documentTab = new DocumentTab();
+            state.tabs.add(documentTab);
+            size = state.tabs.size() - MODE_PREVIEW;
+        }
+        documentTab.text = draft.text;
+        documentTab.displayName = draft.displayName;
+        documentTab.uri = draft.uri;
+        documentTab.utf8Bom = draft.utf8Bom;
+        documentTab.baselineHash = draft.baselineHash;
+        documentTab.baselineModified = draft.baselineModified;
+        documentTab.readOnly = draft.readOnly;
+        documentTab.dirty = true;
+        documentTab.selectionStart = draft.selectionStart;
+        documentTab.selectionEnd = draft.selectionEnd;
+        documentTab.mode = MODE_EDIT;
+        state.activeIndex = size;
+        state.timestamp = draft.timestamp;
+    }
+
+    private void showRecovery(final RecoveryStore.Draft draft, final Intent intent) {
+        new AlertDialog.Builder(this).setTitle("Recover unsaved draft?").setMessage("Markdown Desk preserved unsaved changes from " + draft.displayName + ".").setPositiveButton("Recover", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda4
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showRecovery$43(draft, intent, dialogInterface, i);
+            }
+        }).setNegativeButton("Discard", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda5
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showRecovery$44(intent, dialogInterface, i);
+            }
+        }).setCancelable(false).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showRecovery$43(RecoveryStore.Draft draft, Intent intent, DialogInterface dialogInterface, int i) {
+        recover(draft, intent);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showRecovery$44(Intent intent, DialogInterface dialogInterface, int i) {
+        clearRecoveryAsync();
+        if (isExternalIntent(intent)) {
+            handleIntent(intent);
+        } else {
+            createUntitledTab(false);
+        }
+    }
+
+    private void recover(RecoveryStore.Draft draft, Intent intent) {
+        DocumentTab documentTab = new DocumentTab();
+        documentTab.text = draft.text;
+        documentTab.displayName = draft.displayName;
+        documentTab.uri = draft.uri;
+        documentTab.utf8Bom = draft.utf8Bom;
+        documentTab.baselineHash = draft.baselineHash;
+        documentTab.baselineModified = draft.baselineModified;
+        documentTab.readOnly = draft.readOnly;
+        documentTab.dirty = true;
+        documentTab.selectionStart = draft.selectionStart;
+        documentTab.selectionEnd = draft.selectionEnd;
+        documentTab.mode = MODE_EDIT;
+        this.tabs.add(documentTab);
+        this.activeTab = this.tabs.size() - MODE_PREVIEW;
+        restoreActiveTab(false);
+        if (this.currentUri != null) {
+            this.readOnly = !DocumentIO.metadata(getContentResolver(), this.currentUri).writable;
+        }
+        captureActiveTab();
+        scheduleSession();
+        if (isExternalIntent(intent)) {
+            handleIntent(intent);
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void scheduleRecovery() {
+        if (this.dirty) {
+            if (this.recoveryRunnable != null) {
+                this.main.removeCallbacks(this.recoveryRunnable);
+            }
+            this.recoveryRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda18
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.writeRecoveryNow();
+                }
+            };
+            this.main.postDelayed(this.recoveryRunnable, 700L);
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void writeRecoveryNow() {
+        if (!this.dirty || this.editor == null) {
+            return;
+        }
+        if (this.recoveryRunnable != null) {
+            this.main.removeCallbacks(this.recoveryRunnable);
+        }
+        final RecoveryStore.Draft draft = new RecoveryStore.Draft();
+        draft.text = this.editor.getText().toString();
+        draft.displayName = this.displayName;
+        draft.uri = this.currentUri == null ? null : this.currentUri.toString();
+        draft.utf8Bom = this.utf8Bom;
+        draft.baselineHash = this.baselineHash;
+        draft.baselineModified = this.baselineModified;
+        draft.readOnly = this.readOnly;
+        draft.selectionStart = this.editor.getSelectionStart();
+        draft.selectionEnd = this.editor.getSelectionEnd();
+        draft.timestamp = System.currentTimeMillis();
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda47
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$writeRecoveryNow$46(draft);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$writeRecoveryNow$45() {
+        Toast.makeText(this, "Could not update recovery draft", MODE_PREVIEW).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$writeRecoveryNow$46(RecoveryStore.Draft draft) {
+        try {
+            RecoveryStore.write(this, draft);
+        } catch (IOException e) {
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda91
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$writeRecoveryNow$45();
+                }
+            });
+        }
+    }
+
+    private void clearRecoveryAsync() {
+        if (this.recoveryRunnable != null) {
+            this.main.removeCallbacks(this.recoveryRunnable);
+        }
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda62
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$clearRecoveryAsync$47();
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$clearRecoveryAsync$47() {
+        RecoveryStore.clear(this);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void scheduleSession() {
+        if (this.sessionRunnable != null) {
+            this.main.removeCallbacks(this.sessionRunnable);
+        }
+        this.sessionRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda69
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.writeSessionNow();
+            }
+        };
+        this.main.postDelayed(this.sessionRunnable, 900L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void writeSessionNow() {
+        if (this.editor == null) {
+            return;
+        }
+        if (this.sessionRunnable != null) {
+            this.main.removeCallbacks(this.sessionRunnable);
+        }
+        captureActiveTab();
+        final ArrayList arrayList = new ArrayList();
+        Iterator<DocumentTab> it = this.tabs.iterator();
+        while (it.hasNext()) {
+            arrayList.add(it.next().copy());
+        }
+        final int i = this.activeTab;
+        final long jCurrentTimeMillis = System.currentTimeMillis();
+        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda49
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$writeSessionNow$49(arrayList, i, jCurrentTimeMillis);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$writeSessionNow$49(ArrayList arrayList, int i, long j) {
+        try {
+            if (arrayList.isEmpty()) {
+                SessionStore.clear(this);
+            } else {
+                SessionStore.write(this, arrayList, i, j);
+            }
+        } catch (IOException e) {
+            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda88
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.lambda$writeSessionNow$48();
+                }
+            });
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$writeSessionNow$48() {
+        Toast.makeText(this, "Could not persist open tabs", MODE_PREVIEW).show();
+    }
+
+    private void showRecents() {
+        final List<RecentStore.Item> list = RecentStore.read(this);
+        boolean zIsEmpty = list.isEmpty();
+        if (zIsEmpty) {
+            Toast.makeText(this, "No recent documents", MODE_EDIT).show();
+            return;
+        }
+        String[] strArr = new String[list.size()];
+        for (int i = MODE_EDIT; i < list.size(); i += MODE_PREVIEW) {
+            strArr[i] = list.get(i).name;
+        }
+        new AlertDialog.Builder(this).setTitle("Recent documents").setItems(strArr, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda61
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i2) {
+                MainActivity.this.lambda$showRecents$50(list, dialogInterface, i2);
+            }
+        }).setNegativeButton("Cancel", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showRecents$50(List list, DialogInterface dialogInterface, int i) {
+        openDocument(Uri.parse(((RecentStore.Item) list.get(i)).uri), 3, true);
+    }
+
+    private void showWorkspace() {
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(MODE_PREVIEW);
+        linearLayout.setPadding(dp(22), dp(8), dp(22), dp(MAX_TABS));
+        TextView textView = new TextView(this);
+        textView.setText("Your writing desk");
+        textView.setTextSize(26.0f);
+        textView.setTypeface(Typeface.create("sans-serif", MODE_PREVIEW));
+        textView.setTextColor(this.palette.text);
+        TextView textView2 = new TextView(this);
+        textView2.setText("Pick up where you left off, begin from a template, or open any Markdown file on your device.");
+        textView2.setTextSize(15.0f);
+        textView2.setLineSpacing(dp(3), 1.0f);
+        textView2.setTextColor(this.palette.muted);
+        textView2.setPadding(MODE_EDIT, dp(6), MODE_EDIT, dp(18));
+        linearLayout.addView(textView, matchWrap());
+        linearLayout.addView(textView2, matchWrap());
+        linearLayout.addView(workspaceAction("＋  New document", "Blank page or template", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda72
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showWorkspace$51(view);
+            }
+        }), matchWrap());
+        linearLayout.addView(workspaceAction("↗  Open a file", "Local storage or a document provider", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda73
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showWorkspace$52(view);
+            }
+        }), matchWrap());
+        List<RecentStore.Item> list = RecentStore.read(this);
+        if (!list.isEmpty()) {
+            TextView textView3 = new TextView(this);
+            textView3.setText("RECENT");
+            textView3.setLetterSpacing(0.14f);
+            textView3.setTextSize(11.0f);
+            textView3.setTextColor(this.palette.accent);
+            textView3.setPadding(dp(4), dp(22), MODE_EDIT, dp(8));
+            linearLayout.addView(textView3, matchWrap());
+            for (final RecentStore.Item item : list) {
+                linearLayout.addView(workspaceAction(item.name, "Tap to reopen", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda74
+                    @Override // android.view.View.OnClickListener
+                    public final void onClick(View view) {
+                        MainActivity.this.lambda$showWorkspace$53(item, view);
+                    }
+                }), matchWrap());
+            }
+        }
+        scrollView.addView(linearLayout, matchWrap());
+        this.workspaceDialog = new AlertDialog.Builder(this).setView(scrollView).setNegativeButton("Close", (DialogInterface.OnClickListener) null).create();
+        this.workspaceDialog.setOnShowListener(new DialogInterface.OnShowListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda75
+            @Override // android.content.DialogInterface.OnShowListener
+            public final void onShow(DialogInterface dialogInterface) {
+                MainActivity.this.lambda$showWorkspace$54(dialogInterface);
+            }
+        });
+        this.workspaceDialog.show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showWorkspace$51(View view) {
+        if (this.workspaceDialog != null) {
+            this.workspaceDialog.dismiss();
+        }
+        showNewDocumentMenu();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showWorkspace$52(View view) {
+        if (this.workspaceDialog != null) {
+            this.workspaceDialog.dismiss();
+        }
+        launchOpen();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showWorkspace$53(RecentStore.Item item, View view) {
+        if (this.workspaceDialog != null) {
+            this.workspaceDialog.dismiss();
+        }
+        openDocument(Uri.parse(item.uri), 3, true);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showWorkspace$54(DialogInterface dialogInterface) {
+        styleDialog(this.workspaceDialog);
+    }
+
+    private Button workspaceAction(String str, String str2, View.OnClickListener onClickListener) {
+        Button buttonCreateButton = createButton(str + "\n" + str2, onClickListener);
+        buttonCreateButton.setGravity(8388627);
+        buttonCreateButton.setTextSize(15.0f);
+        buttonCreateButton.setAllCaps(false);
+        buttonCreateButton.setPadding(dp(16), dp(8), dp(16), dp(8));
+        buttonCreateButton.setMinHeight(dp(64));
+        styleButton(buttonCreateButton, false, false);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-1, -2);
+        layoutParams.setMargins(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(8));
+        buttonCreateButton.setLayoutParams(layoutParams);
+        return buttonCreateButton;
+    }
+
+    private void showNewDocumentMenu() {
+        final String[] strArr = {"Blank document", "Meeting notes", "Daily journal", "Project README", "Checklist"};
+        String str = new SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(new Date());
+        final String[] strArr2 = {"", "# Meeting notes\n\n**Date:** " + str + "\n\n## Attendees\n\n- \n\n## Agenda\n\n- \n\n## Decisions\n\n- \n\n## Action items\n\n- [ ] ", "# " + str + "\n\n## Today\n\n\n## Notes\n\n\n## Tomorrow\n\n- [ ] ", "# Project name\n\nA short description of the project.\n\n## Getting started\n\n```\n\n```\n\n## Usage\n\n\n## License\n\n", "# Checklist\n\n- [ ] First item\n- [ ] Second item\n- [ ] Third item\n"};
+        new AlertDialog.Builder(this).setTitle("Start something").setItems(strArr, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda20
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showNewDocumentMenu$55(strArr, strArr2, dialogInterface, i);
+            }
+        }).setNegativeButton("Cancel", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showNewDocumentMenu$55(String[] strArr, String[] strArr2, DialogInterface dialogInterface, int i) {
+        createTemplateDocument(strArr[i], strArr2[i]);
+    }
+
+    private void createTemplateDocument(String str, String str2) {
+        String str3;
+        if (this.tabs.size() >= MAX_TABS) {
+            Toast.makeText(this, "Close a tab before opening another.", MODE_PREVIEW).show();
+            return;
+        }
+        captureActiveTab();
+        DocumentTab documentTab = new DocumentTab();
+        documentTab.mode = MODE_EDIT;
+        documentTab.text = str2;
+        documentTab.dirty = !str2.isEmpty();
+        if ("Blank document".equals(str)) {
+            str3 = "Untitled.md";
+        } else {
+            str3 = str.replace(" ", "-").toLowerCase(Locale.ROOT) + ".md";
+        }
+        documentTab.displayName = str3;
+        int length = str2.length();
+        documentTab.selectionEnd = length;
+        documentTab.selectionStart = length;
+        this.tabs.add(documentTab);
+        this.activeTab = this.tabs.size() - MODE_PREVIEW;
+        restoreActiveTab(true);
+        updateTabsUi();
+        scheduleSession();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void showOverflow(View view) {
+        PopupMenu popupMenu = new PopupMenu(this, view);
+        popupMenu.getMenu().add(MODE_EDIT, MODE_PREVIEW, MODE_EDIT, "New document");
+        popupMenu.getMenu().add(MODE_EDIT, MODE_SPLIT, MODE_PREVIEW, "Open file");
+        popupMenu.getMenu().add(MODE_EDIT, 3, MODE_SPLIT, "Recent files");
+        popupMenu.getMenu().add(MODE_EDIT, 4, 3, "Document outline");
+        popupMenu.getMenu().add(MODE_EDIT, 5, 4, "Find and replace");
+        popupMenu.getMenu().add(MODE_EDIT, 6, 5, "Command palette");
+
+        SubMenu viewMenu = popupMenu.getMenu().addSubMenu("View and appearance");
+        viewMenu.add(MODE_EDIT, 9, 0, this.focusMode ? "Exit focus mode" : "Focus mode");
+        viewMenu.add(MODE_EDIT, 10, 1, "Appearance");
+        viewMenu.add(MODE_EDIT, 16, 2, "Splash images");
+        viewMenu.add(MODE_EDIT, 11, 3, "Writing goal");
+
+        SubMenu exportMenu = popupMenu.getMenu().addSubMenu("Share and export");
+        exportMenu.add(MODE_EDIT, MAX_TABS, 0, "Share Markdown");
+        exportMenu.add(MODE_EDIT, 13, 1, "Share rendered HTML");
+        exportMenu.add(MODE_EDIT, 14, 2, "Print / Save PDF");
+
+        popupMenu.getMenu().add(MODE_EDIT, 8, 20, "Save as");
+        popupMenu.getMenu().add(MODE_EDIT, 7, 21, "Guide and shortcuts");
+        popupMenu.getMenu().add(MODE_EDIT, 15, 22, "Close document");
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override public boolean onMenuItemClick(MenuItem menuItem) {
+                return MainActivity.this.lambda$showOverflow$56(menuItem);
+            }
+        });
+        popupMenu.show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ boolean lambda$showOverflow$56(MenuItem menuItem) {
+        return runMenuAction(menuItem.getItemId());
+    }
+
+    private boolean runMenuAction(int i) {
+        switch (i) {
+            case MODE_PREVIEW /* 1 */:
+                showNewDocumentMenu();
+                return true;
+            case MODE_SPLIT /* 2 */:
+                launchOpen();
+                return true;
+            case 3:
+                showRecents();
+                return true;
+            case 4:
+                showOutline();
+                return true;
+            case 5:
+                showFindReplace();
+                return true;
+            case 6:
+                showCommandPalette();
+                return true;
+            case 7:
+                showTutorial();
+                return true;
+            case 8:
+                launchSaveAs();
+                return true;
+            case 9:
+                toggleFocusMode();
+                return true;
+            case 10:
+                showAppearance();
+                return true;
+            case 11:
+                showWordGoal();
+                return true;
+            case MAX_TABS /* 12 */:
+                shareDocument(false);
+                return true;
+            case 13:
+                shareDocument(true);
+                return true;
+            case 14:
+                printDocument();
+                return true;
+            case 15:
+                closeCurrentTab();
+                return true;
+            case 16:
+                showSplashGallery();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void showTutorial() {
+        hideKeyboard();
+        this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda9
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$showTutorial$57();
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showTutorial$57() {
+        if (isFinishing()) {
+            return;
+        }
+        showTutorialPanel();
+    }
+
+    private void showTutorialPanel() {
+        String[] strArr = {"The writing desk", "Tabs and documents", "Formatting buttons", "Write, Read, and Split", "Outline and search", "Focus, typewriter, and text size", "Saving and recovery", "Sharing and PDF", "Keyboard shortcuts", "Splash images"};
+        String[] strArr2 = {"Tap the M button to open your writing desk. From there you can start from a template, open a file, or return to a recent document. SAVE changes its label to show whether the document is saved, dirty, read-only, or currently saving.", "Every open document appears in the tab strip. Tap a tab to switch to it. A dot marks unsaved changes. Long-press a tab to close it. The + tab creates a new document, and the app restores each tab's cursor, scroll position, mode, and dirty state after a restart.", "The bottom dock inserts Markdown without changing how your source is stored. H1 creates a heading; B, I, and S wrap selected text; •, ☐, and ❯ start lists, tasks, and quotes; ↗ inserts a link; </> inserts inline or fenced code; ▦ creates a table; — creates a divider; Today inserts the date.", "Write shows the source editor. Read shows the rendered page. Split shows both and keeps their positions synchronized. Tap a paragraph in Read or Split to jump to its source. Ordinary web links still open in your browser.", "Outline lists every real Markdown heading and jumps to the selected section. Find supports ordinary, case-sensitive, whole-word, and regular-expression searches. Matches highlight live in the document; Replace and Replace all support regex capture groups.", "Focus removes secondary chrome so the page can breathe. Typewriter mode keeps the active line near the center. Source and Read keep separate text sizes. Pinch in the editor to change source size, or pinch in Read to change reading size. Read also has A− and A+ controls, and Appearance exposes both sizes. Each choice is remembered.", "The app preserves UTF-8, Unicode, line endings, trailing whitespace, and an existing BOM. Saves are read back and verified. If another app changes the file, Markdown Desk stops before overwriting it. Dirty drafts and open tabs are recovered after interruption or restart.", "Share Markdown sends the original source. Share rendered HTML sends the styled document. Print / Save PDF opens Android's print service, where you can print or choose Save as PDF.", "Ctrl+S saves · Ctrl+O opens · Ctrl+N creates · Ctrl+F finds · Ctrl+P toggles Read · Ctrl+Shift+P opens the command palette · Ctrl+B bolds · Ctrl+I italicizes · Ctrl+K inserts a link.", "The app opens with a splash image drawn at random from the ones that are switched on, and it avoids repeating the last one you saw. Splash images under Appearance, or Splash images in the ••• menu, lists every image: tap one to switch it on or off, use ✕ to remove it, and Add image… to bring in your own from anywhere on your device. Imported images are copied into the app, so they keep working after the original moves. Images that came with the app can be brought back with Restore removed app images. Show launch splash under Appearance still turns the whole thing off."};
+        StringBuilder sb = new StringBuilder("Everything in one place. You can reopen this guide any time from the ? button.\n\n");
+        int i = MODE_EDIT;
+        while (i < strArr.length) {
+            sb.append(strArr[i]).append("\n").append(strArr2[i]);
+            i += MODE_PREVIEW;
+            if (i < strArr.length) {
+                sb.append("\n\n");
+            }
+        }
+        TextView textView = new TextView(this);
+        textView.setText(sb);
+        textView.setTextSize(16.0f);
+        textView.setTextColor(this.palette.text);
+        textView.setLineSpacing(dp(5), 1.0f);
+        textView.setPadding(dp(6), dp(MODE_SPLIT), dp(6), dp(8));
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setPadding(dp(18), dp(4), dp(18), dp(MODE_SPLIT));
+        scrollView.addView(textView, matchWrap());
+        final AlertDialog alertDialogCreate = new AlertDialog.Builder(this).setTitle("Markdown Desk guide").setView(scrollView).setPositiveButton("Done", (DialogInterface.OnClickListener) null).create();
+        alertDialogCreate.setOnShowListener(new DialogInterface.OnShowListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda50
+            @Override // android.content.DialogInterface.OnShowListener
+            public final void onShow(DialogInterface dialogInterface) {
+                MainActivity.this.lambda$showTutorialPanel$58(alertDialogCreate, dialogInterface);
+            }
+        });
+        alertDialogCreate.show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showTutorialPanel$58(AlertDialog alertDialog, DialogInterface dialogInterface) {
+        styleDialog(alertDialog);
+    }
+
+    private void showCommandPalette() {
+        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showCommandPalette$59(dialogInterface, i);
+            }
+        }).setNegativeButton("Close", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showCommandPalette$59(DialogInterface dialogInterface, int i) {
+        int i2 = MODE_PREVIEW;
+        switch (i) {
+            case MODE_EDIT /* 0 */:
+                showNewDocumentMenu();
+                break;
+            case MODE_PREVIEW /* 1 */:
+                launchOpen();
+                break;
+            case MODE_SPLIT /* 2 */:
+                saveDocument();
+                break;
+            case 3:
+                showTabs();
+                break;
+            case 4:
+                showOutline();
+                break;
+            case 5:
+                showFindReplace();
+                break;
+            case 6:
+                setMode(MODE_EDIT, true);
+                break;
+            case 8:
+                i2 = MODE_SPLIT;
+            case 7:
+                setMode(i2, false);
+                break;
+            case 9:
+                toggleFocusMode();
+                break;
+            case 10:
+                showAppearance();
+                break;
+            case 11:
+                showSplashGallery();
+                break;
+            case MAX_TABS /* 12 */:
+                changeActiveFont(MODE_PREVIEW);
+                break;
+            case 13:
+                changeActiveFont(-1);
+                break;
+            case 14:
+                insertTable();
+                break;
+            case 15:
+                printDocument();
+                break;
+        }
+    }
+
+    /** The live Appearance dialog owns its controls; dismissed controls must not be retained
+     * in the activity-wide toolbar button list. */
+    private static final class AppearanceUi {
+        AlertDialog dialog;
+        TextView title;
+        TextView description;
+        TextView sourceLabel;
+        TextView readLabel;
+        Button linesButton;
+        Button typewriterButton;
+        Button splashButton;
+        Button galleryButton;
+        final String[] themeNames = {"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
+        final Button[] themeButtons = new Button[9];
+        final List<Button> buttons = new ArrayList<>();
+    }
+
+    private Button appearanceButton(AppearanceUi ui, String label, View.OnClickListener listener) {
+        Button button = createButton(label, listener);
+        // The Activity's global applyColors() list is for persistent chrome only.
+        // Dialog controls are owned and refreshed by their dialog instead.
+        this.buttons.remove(button);
+        ui.buttons.add(button);
+        return button;
+    }
+
+    /** Refresh the *existing* window, not just the main activity behind it. */
+    private void refreshAppearance(AppearanceUi ui) {
+        final UiTheme.Palette colors = this.palette;
+        ui.title.setText("Appearance · " + colors.name);
+        ui.title.setTextColor(colors.text);
+        ui.description.setTextColor(colors.muted);
+        ui.sourceLabel.setTextColor(colors.muted);
+        ui.readLabel.setTextColor(colors.muted);
+        ui.sourceLabel.setText("Source text · " + Math.round(this.fontSp) + " sp");
+        ui.readLabel.setText("Reading text · " + Math.round(this.previewFontSp) + " sp");
+        for (Button button : ui.buttons) {
+            // Always use readable foreground/background pairs, even during live changes.
+            button.setTextColor(colors.text);
+            button.setBackground(UiTheme.rounded(colors.surface, dp(13), colors.border, 1));
+        }
+        for (int index = 0; index < ui.themeButtons.length; index++) {
+            Button button = ui.themeButtons[index];
+            boolean selected = index == this.themeId;
+            button.setText((selected ? "●  " : "○  ") + ui.themeNames[index]);
+            button.setBackground(UiTheme.rounded(selected ? colors.accentSoft : colors.surface,
+                    dp(13), selected ? colors.accent : colors.border, 1));
+        }
+        ui.linesButton.setText((this.lineNumbers ? "✓  " : "○  ") + "Line numbers");
+        ui.typewriterButton.setText((this.typewriterMode ? "✓  " : "○  ") + "Typewriter mode");
+        ui.splashButton.setText((this.launchSplashEnabled ? "✓  " : "○  ") + "Show launch splash");
+        ui.galleryButton.setText("⋯  Splash images (" + SplashStore.enabled(this).size() + " on)");
+        if (ui.dialog != null && ui.dialog.isShowing()) {
+            styleDialog(ui.dialog);
+        }
+    }
+
+    private void showAppearance() {
+        final AppearanceUi ui = new AppearanceUi();
+        String[] strArr = ui.themeNames;
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(MODE_PREVIEW);
+        linearLayout.setPadding(dp(20), dp(8), dp(20), MODE_EDIT);
+        TextView textView = new TextView(this);
+        ui.description = textView;
+        textView.setText("Choose a complete reading and writing atmosphere.");
+        textView.setTextColor(this.palette.muted);
+        textView.setTextSize(14.0f);
+        textView.setPadding(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(MAX_TABS));
+        linearLayout.addView(textView, matchWrap());
+        int themeIndex = MODE_EDIT;
+        while (true) {
+            final int i = themeIndex;
+            String str = "○  ";
+            if (i >= strArr.length) {
+                break;
+            }
+            if (i == this.themeId) {
+                str = "●  ";
+            }
+            Button buttonCreateButton = appearanceButton(ui, str + strArr[i], new View.OnClickListener() {
+                @Override public void onClick(View view) {
+                    MainActivity.this.lambda$showAppearance$60(i, view);
+                    MainActivity.this.refreshAppearance(ui);
+                }
+            });
+            ui.themeButtons[i] = buttonCreateButton;
+            buttonCreateButton.setGravity(8388627);
+            linearLayout.addView(buttonCreateButton, matchWrap());
+            themeIndex = i + MODE_PREVIEW;
+        }
+        ui.linesButton = appearanceButton(ui, (this.lineNumbers ? "✓  " : "○  ") + "Line numbers", new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                MainActivity.this.lambda$showAppearance$61(view);
+                MainActivity.this.refreshAppearance(ui);
+            }
+        });
+        linearLayout.addView(ui.linesButton, matchWrap());
+        ui.typewriterButton = appearanceButton(ui, (this.typewriterMode ? "✓  " : "○  ") + "Typewriter mode", new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                MainActivity.this.lambda$showAppearance$62(view);
+                MainActivity.this.refreshAppearance(ui);
+            }
+        });
+        linearLayout.addView(ui.typewriterButton, matchWrap());
+        final Button buttonCreateButton2 = appearanceButton(ui, (this.launchSplashEnabled ? "✓  " : "○  ") + "Show launch splash", null);
+        ui.splashButton = buttonCreateButton2;
+        buttonCreateButton2.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                MainActivity.this.lambda$showAppearance$63(buttonCreateButton2, view);
+                MainActivity.this.refreshAppearance(ui);
+            }
+        });
+        linearLayout.addView(buttonCreateButton2, matchWrap());
+        Button splashGalleryButton = appearanceButton(ui, "⋯  Splash images ("
+                + SplashStore.enabled(this).size() + " on)", new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                MainActivity.this.showSplashGallery();
+            }
+        });
+        ui.galleryButton = splashGalleryButton;
+        splashGalleryButton.setGravity(8388627);
+        linearLayout.addView(splashGalleryButton, matchWrap());
+        TextView sourceLabel = new TextView(this);
+        ui.sourceLabel = sourceLabel;
+        sourceLabel.setText("Source text · " + Math.round(this.fontSp) + " sp");
+        sourceLabel.setTextColor(this.palette.muted);
+        sourceLabel.setPadding(dp(4), dp(10), dp(4), dp(4));
+        linearLayout.addView(sourceLabel, matchWrap());
+        LinearLayout sourceRow = new LinearLayout(this);
+        sourceRow.setOrientation(MODE_EDIT);
+        sourceRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(-1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        sourceRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        linearLayout.addView(sourceRow, matchWrap());
+
+        TextView readLabel = new TextView(this);
+        ui.readLabel = readLabel;
+        readLabel.setText("Reading text · " + Math.round(this.previewFontSp) + " sp");
+        readLabel.setTextColor(this.palette.muted);
+        readLabel.setPadding(dp(4), dp(10), dp(4), dp(4));
+        linearLayout.addView(readLabel, matchWrap());
+        LinearLayout readRow = new LinearLayout(this);
+        readRow.setOrientation(MODE_EDIT);
+        readRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        readRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        linearLayout.addView(readRow, matchWrap());
+        linearLayout.addView(appearanceButton(ui, "Reset text sizes", new View.OnClickListener() { @Override public void onClick(View v) {
+            fontSp = 18f; previewFontSp = 18f; editor.setTextSize(fontSp); preview.setTextSp(previewFontSp);
+            preferences.edit().putFloat(PREF_FONT, fontSp).putFloat(PREF_PREVIEW_FONT, previewFontSp).apply();
+            sourceLabel.setText("Source text · 18 sp"); readLabel.setText("Reading text · 18 sp"); if (mode != MODE_EDIT) renderPreview();
+        } }), matchWrap());
+        // Keep every setting reachable on cover displays, in landscape, and
+        // with larger system fonts. Done stays outside scrolling content.
+        ScrollView appearanceScroll = new ScrollView(this);
+        appearanceScroll.setFillViewport(true);
+        appearanceScroll.addView(linearLayout, matchWrap());
+
+        TextView appearanceTitle = new TextView(this);
+        ui.title = appearanceTitle;
+        appearanceTitle.setText("Appearance · " + this.palette.name);
+        appearanceTitle.setTextSize(20f);
+        appearanceTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        appearanceTitle.setPadding(dp(24), dp(20), dp(24), dp(6));
+        final AlertDialog appearanceDialog = new AlertDialog.Builder(this)
+                .setCustomTitle(appearanceTitle)
+                .setView(appearanceScroll)
+                .setPositiveButton("Done", (DialogInterface.OnClickListener) null)
+                .create();
+        ui.dialog = appearanceDialog;
+        appearanceDialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override public void onShow(DialogInterface dialog) {
+                MainActivity.this.refreshAppearance(ui);
+            }
+        });
+        appearanceDialog.show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$60(int i, View view) {
+        this.themeId = i;
+        this.preferences.edit().putInt(PREF_THEME, this.themeId).apply();
+        applyColors();
+        Toast.makeText(this, UiTheme.palette(this.themeId, systemDark()).name + " theme", MODE_EDIT).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$61(View view) {
+        this.lineNumbers = !this.lineNumbers;
+        this.preferences.edit().putBoolean(PREF_LINES, this.lineNumbers).apply();
+        applyColors();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$62(View view) {
+        toggleTypewriter();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$63(Button button, View view) {
+        this.launchSplashEnabled = !this.launchSplashEnabled;
+        this.preferences.edit().putBoolean(PREF_LAUNCH_SPLASH, this.launchSplashEnabled).apply();
+        button.setText((this.launchSplashEnabled ? "✓  " : "○  ") + "Show launch splash");
+        Toast.makeText(this, this.launchSplashEnabled ? "Launch splash on" : "Launch splash off", MODE_EDIT).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$64(View view) {
+        changeFont(-1);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showAppearance$65(View view) {
+        changeFont(MODE_PREVIEW);
+    }
+
+    private void toggleFocusMode() {
+        this.focusMode = !this.focusMode;
+        this.tabsScroll.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+        this.modeBar.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+        this.eyebrowView.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+        this.statusView.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+        this.formatScroll.setVisibility((this.focusMode || this.mode == MODE_PREVIEW) ? View.GONE : View.VISIBLE);
+        if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((!this.focusMode && this.mode == MODE_PREVIEW) ? View.VISIBLE : View.GONE);
+        this.header.setPadding(dp(14), this.focusMode ? dp(4) : dp(8), dp(14), this.focusMode ? dp(4) : dp(8));
+        updateModeChrome();
+        Toast.makeText(this, this.focusMode ? "Focus mode" : "Focus mode off", MODE_EDIT).show();
+    }
+
+    private void toggleTypewriter() {
+        this.typewriterMode = !this.typewriterMode;
+        this.preferences.edit().putBoolean(PREF_TYPEWRITER, this.typewriterMode).apply();
+        this.editor.setTypewriterMode(this.typewriterMode);
+        Toast.makeText(this, this.typewriterMode ? "Typewriter mode on" : "Typewriter mode off", MODE_EDIT).show();
+    }
+
+    private void showWordGoal() {
+        final EditText editText = new EditText(this);
+        editText.setInputType(MODE_SPLIT);
+        editText.setHint("Words");
+        if (this.wordGoal > 0) {
+            editText.setText(Integer.toString(this.wordGoal));
+        }
+        editText.setSelectAllOnFocus(true);
+        new AlertDialog.Builder(this).setTitle("Writing goal").setMessage("Set a word target for the active writing session. Use 0 to clear it.").setView(editText).setPositiveButton("Set", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda81
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showWordGoal$66(editText, dialogInterface, i);
+            }
+        }).setNegativeButton("Cancel", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showWordGoal$66(EditText editText, DialogInterface dialogInterface, int i) {
+        try {
+            this.wordGoal = Math.max(MODE_EDIT, Integer.parseInt(editText.getText().toString().trim()));
+        } catch (NumberFormatException e) {
+            this.wordGoal = MODE_EDIT;
+        }
+        this.preferences.edit().putInt(PREF_GOAL, this.wordGoal).apply();
+        updateStatus();
+    }
+
+    private void shareDocument(boolean z) {
+        String string = this.editor.getText().toString();
+        Intent intent = new Intent("android.intent.action.SEND");
+        intent.setType(z ? "text/html" : "text/markdown");
+        intent.putExtra("android.intent.extra.SUBJECT", this.displayName);
+        if (z) {
+            string = MarkdownRenderer.render(string, this.palette, this.previewFontSp);
+        }
+        intent.putExtra("android.intent.extra.TEXT", string);
+        try {
+            startActivity(Intent.createChooser(intent, z ? "Share rendered document" : "Share Markdown"));
+        } catch (ActivityNotFoundException e) {
+            showError("No app is available to share this document.");
+        }
+    }
+
+    private void printDocument() {
+        final int i = this.mode;
+        if (this.mode == 0) {
+            this.mode = MODE_PREVIEW;
+            rebuildBody();
+        }
+        renderPreview();
+        this.preview.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda6
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$printDocument$67(i);
+            }
+        }, 350L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$printDocument$67(int i) {
+        PrintManager printManager = (PrintManager) getSystemService("print");
+        if (printManager == null) {
+            showError("Printing is not available on this device.");
+            return;
+        }
+        printManager.print("Markdown Desk · " + this.displayName, this.preview.createPrintDocumentAdapter(this.displayName), null);
+        if (i == 0) {
+            this.mode = i;
+            this.preview.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda71
+                @Override // java.lang.Runnable
+                public final void run() {
+                    MainActivity.this.rebuildBody();
+                }
+            }, 300L);
+        }
+    }
+
+    private void styleDialog(AlertDialog alertDialog) {
+        if (alertDialog.getWindow() != null) {
+            alertDialog.getWindow().setBackgroundDrawable(UiTheme.rounded(this.palette.raised, dp(24), this.palette.border, MODE_PREVIEW));
+        }
+        Button positive = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+        Button negative = alertDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+        Button neutral = alertDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
+        if (positive != null) positive.setTextColor(this.palette.accent);
+        if (negative != null) negative.setTextColor(this.palette.accent);
+        if (neutral != null) neutral.setTextColor(this.palette.accent);
+    }
+
+    private void showRecentFailure(final Uri uri, Exception exc) {
+        new AlertDialog.Builder(this).setTitle("Could not open recent file").setMessage(message(exc) + "\n\nIts permission may have been revoked, or the file may have moved.").setPositiveButton("Remove from recents", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda48
+            @Override // android.content.DialogInterface.OnClickListener
+            public final void onClick(DialogInterface dialogInterface, int i) {
+                MainActivity.this.lambda$showRecentFailure$68(uri, dialogInterface, i);
+            }
+        }).setNegativeButton("Keep", (DialogInterface.OnClickListener) null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showRecentFailure$68(Uri uri, DialogInterface dialogInterface, int i) {
+        RecentStore.remove(this, uri.toString());
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void schedulePreview() {
+        if (this.mode == 0 || this.preview == null || this.editor == null) {
+            return;
+        }
+        if (this.previewRunnable != null) {
+            this.main.removeCallbacks(this.previewRunnable);
+        }
+        this.previewRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda63
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.renderPreview();
+            }
+        };
+        this.main.postDelayed(this.previewRunnable, 180L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void renderPreview() {
+        if (this.mode == MODE_EDIT) return;
+        if (this.previewReady) this.previewRestoreY = this.preview.getScrollY();
+        this.previewReady = false;
+        final int token = ++this.previewRenderToken;
+        final String source = this.editor.getText().toString();
+        final UiTheme.Palette renderPalette = this.palette;
+        final float readSize = this.previewFontSp;
+        this.renderIo.execute(new Runnable() {
+            @Override public void run() {
+                final String html = MarkdownRenderer.render(source, renderPalette, readSize);
+                MainActivity.this.main.post(new Runnable() {
+                    @Override public void run() {
+                        if (token != MainActivity.this.previewRenderToken || MainActivity.this.preview == null || MainActivity.this.isFinishing()) return;
+                        MainActivity.this.preview.loadDataWithBaseURL("https://markdown.local/", html, "text/html", "UTF-8", null);
+                    }
+                });
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void scheduleHighlight() {
+        if (this.editor == null) {
+            return;
+        }
+        if (this.highlightRunnable != null) {
+            this.main.removeCallbacks(this.highlightRunnable);
+        }
+        this.highlightRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda10
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$scheduleHighlight$69();
+            }
+        };
+        this.main.postDelayed(this.highlightRunnable, 90L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$scheduleHighlight$69() {
+        MarkdownSyntaxHighlighter.apply(this.editor.getText(), this.dark);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void schedulePreviewSyncFromEditor() {
+        if (!this.previewReady || this.mode != MODE_SPLIT) {
+            return;
+        }
+        if (this.editorSyncRunnable != null) {
+            this.main.removeCallbacks(this.editorSyncRunnable);
+        }
+        this.editorSyncRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda77
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$schedulePreviewSyncFromEditor$72();
+            }
+        };
+        this.main.postDelayed(this.editorSyncRunnable, 55L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$72() {
+        if (!this.previewReady || this.syncingFromPreview) {
+            return;
+        }
+        int iEditorOffsetAtViewport = editorOffsetAtViewport();
+        this.syncingFromEditor = true;
+        this.preview.evaluateJavascript("window.mdScrollToSource&&window.mdScrollToSource(" + iEditorOffsetAtViewport + ")", new ValueCallback() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda80
+            @Override // android.webkit.ValueCallback
+            public final void onReceiveValue(Object obj) {
+                MainActivity.this.lambda$schedulePreviewSyncFromEditor$71((String) obj);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$70() {
+        this.syncingFromEditor = false;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$71(String str) {
+        this.main.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda60
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$schedulePreviewSyncFromEditor$70();
+            }
+        }, 120L);
+    }
+
+    private void scheduleEditorSyncFromPreview() {
+        if (!this.previewReady || this.mode != MODE_SPLIT) {
+            return;
+        }
+        if (this.previewSyncRunnable != null) {
+            this.main.removeCallbacks(this.previewSyncRunnable);
+        }
+        this.previewSyncRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda58
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$scheduleEditorSyncFromPreview$75();
+            }
+        };
+        this.main.postDelayed(this.previewSyncRunnable, 75L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$75() {
+        if (!this.previewReady || this.syncingFromEditor) {
+            return;
+        }
+        this.preview.evaluateJavascript("window.mdSourceAtViewport?window.mdSourceAtViewport():0", new ValueCallback() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda7
+            @Override // android.webkit.ValueCallback
+            public final void onReceiveValue(Object obj) {
+                MainActivity.this.lambda$scheduleEditorSyncFromPreview$74((String) obj);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$74(String str) {
+        if (this.syncingFromEditor) {
+            return;
+        }
+        int jsInt = parseJsInt(str);
+        this.syncingFromPreview = true;
+        scrollEditorToOffset(jsInt, false);
+        this.main.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda57
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$scheduleEditorSyncFromPreview$73();
+            }
+        }, 120L);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$73() {
+        this.syncingFromPreview = false;
+    }
+
+    private int editorOffsetAtViewport() {
+        Layout layout = this.editor.getLayout();
+        return (layout == null || this.editor.length() == 0) ? MODE_EDIT : clamp(layout.getLineStart(clamp(layout.getLineForVertical(Math.max(MODE_EDIT, this.editor.getScrollY() + dp(8))), MODE_EDIT, layout.getLineCount() - 1)), MODE_EDIT, this.editor.length());
+    }
+
+    private int parseJsInt(String str) {
+        if (str == null) {
+            return MODE_EDIT;
+        }
+        try {
+            return Math.max(MODE_EDIT, Integer.parseInt(str.replace("\"", "").trim()));
+        } catch (NumberFormatException e) {
+            return MODE_EDIT;
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public boolean handlePreviewUri(Uri uri) {
+        if (uri != null && "mdsrc".equalsIgnoreCase(uri.getScheme())) {
+            try {
+                jumpToSourceOffset(Integer.parseInt(uri.toString().substring("mdsrc:".length())));
+                return true;
+            } catch (NumberFormatException e) {
+                return true;
+            }
+        }
+        return openExternal(uri);
+    }
+
+    private void jumpToSourceOffset(int i) {
+        if (this.mode == MODE_PREVIEW) {
+            setMode(MODE_EDIT, false);
+        }
+        scrollEditorToOffset(i, true);
+    }
+
+    private void scrollEditorToOffset(int i, boolean z) {
+        final int iClamp = clamp(i, MODE_EDIT, this.editor.length());
+        if (z) {
+            this.editor.setSelection(iClamp);
+        }
+        this.editor.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda92
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$scrollEditorToOffset$76(iClamp);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$scrollEditorToOffset$76(int i) {
+        Layout layout = this.editor.getLayout();
+        if (layout == null) {
+            return;
+        }
+        this.editor.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, layout.getLineTop(layout.getLineForOffset(i)) - dp(36)));
+    }
+
+    private void showOutline() {
+        final List<MarkdownStructure.Heading> headings = MarkdownStructure.headings(this.editor.getText().toString());
+        if (headings.isEmpty()) {
+            Toast.makeText(this, "No headings in this document", MODE_EDIT).show();
+            return;
+        }
+        final AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Document outline").setNegativeButton("Close", null).create();
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setPadding(dp(10), dp(4), dp(10), dp(72));
+        for (final MarkdownStructure.Heading heading : headings) {
+            TextView row = new TextView(this);
+            row.setText(heading.text + "   ·   L" + heading.line);
+            row.setTextColor(this.palette.text);
+            row.setTextSize(heading.level == 1 ? 17.0f : heading.level == 2 ? 15.5f : 14.0f);
+            row.setTypeface(Typeface.DEFAULT, heading.level <= 2 ? Typeface.BOLD : Typeface.NORMAL);
+            row.setPadding(dp(10 + Math.max(0, heading.level - 1) * 16), dp(10), dp(8), dp(10));
+            row.setBackground(UiTheme.rounded(0, dp(8), this.palette.border, 0));
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    int offset = heading.offset;
+                    dialog.dismiss();
+                    if (mode == MODE_PREVIEW) scrollPreviewToSourceOffset(offset);
+                    else jumpToSourceOffset(offset);
+                }
+            });
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
+            rp.setMargins(0, 0, 0, dp(3));
+            column.addView(row, rp);
+        }
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.addView(column, matchWrap());
+        dialog.setView(scroll);
+        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override public void onShow(DialogInterface d) { styleDialog(dialog); }
+        });
+        dialog.show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showOutline$77(List list, DialogInterface dialogInterface, int i) {
+        int offset = ((MarkdownStructure.Heading) list.get(i)).offset;
+        if (this.mode == MODE_PREVIEW) {
+            scrollPreviewToSourceOffset(offset);
+        } else {
+            jumpToSourceOffset(offset);
+        }
+    }
+
+    private void scrollPreviewToSourceOffset(int offset) {
+        if (!this.previewReady) {
+            final int pending = offset;
+            this.preview.postDelayed(new Runnable() { @Override public void run() { scrollPreviewToSourceOffset(pending); } }, 180L);
+            return;
+        }
+        this.preview.evaluateJavascript("window.mdScrollToSource(" + Math.max(0, offset) + ");", null);
+    }
+
+    private void wrap(String str, String str2) {
+        if (!canMutate()) return;
+        ensureEditor(true);
+        int iMax = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        int iMax2 = Math.max(iMax, this.editor.getSelectionEnd());
+        Editable text = this.editor.getText();
+        text.insert(iMax2, str2);
+        text.insert(iMax, str);
+        KineticEditText kineticEditText = this.editor;
+        if (iMax == iMax2) {
+            kineticEditText.setSelection(iMax + str.length());
+        } else {
+            kineticEditText.setSelection(iMax + str.length(), iMax2 + str.length());
+        }
+    }
+
+    private void prefixLines(String str) {
+        if (!canMutate()) return;
+        ensureEditor(true);
+        String string = this.editor.getText().toString();
+        int iMax = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        int iMax2 = Math.max(iMax, this.editor.getSelectionEnd());
+        int iLastIndexOf = string.lastIndexOf(10, Math.max(MODE_EDIT, iMax - MODE_PREVIEW)) + MODE_PREVIEW;
+        int iIndexOf = string.indexOf(10, iMax2);
+        if (iIndexOf < 0) {
+            iIndexOf = string.length();
+        }
+        String str2 = str + string.substring(iLastIndexOf, iIndexOf).replace("\n", "\n" + str);
+        this.editor.getText().replace(iLastIndexOf, iIndexOf, str2);
+        this.editor.setSelection(iLastIndexOf, str2.length() + iLastIndexOf);
+    }
+
+    private void insertLink() {
+        if (!canMutate()) return;
+        ensureEditor(true);
+        int iMax = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        int iMax2 = Math.max(iMax, this.editor.getSelectionEnd());
+        String string = this.editor.getText().subSequence(iMax, iMax2).toString();
+        if (string.isEmpty()) {
+            string = "link text";
+        }
+        this.editor.getText().replace(iMax, iMax2, "[" + string + "](https://)");
+        int length = iMax + string.length() + 3;
+        this.editor.setSelection(length, length + 8);
+    }
+
+    private void insertCode() {
+        int iMax = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        if (this.editor.getText().subSequence(iMax, Math.max(iMax, this.editor.getSelectionEnd())).toString().contains("\n")) {
+            wrap("```\n", "\n```");
+        } else {
+            wrap("`", "`");
+        }
+    }
+
+    private void insertTable() {
+        insertBlock("\n| Column | Column |\n| --- | --- |\n| Value | Value |\n");
+    }
+
+    private void insertBlock(String str) {
+        if (!canMutate()) return;
+        ensureEditor(true);
+        int iMax = Math.max(MODE_EDIT, this.editor.getSelectionStart());
+        this.editor.getText().insert(iMax, str);
+        this.editor.setSelection(iMax + str.length());
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void continueMarkdownLine(Editable editable) {
+        int selectionStart;
+        String strReplaceFirst;
+        if (this.suppressChanges || this.smartEditing || this.editorLocked || this.editor == null || (selectionStart = this.editor.getSelectionStart()) <= 0 || selectionStart > editable.length()) {
+            return;
+        }
+        int i = selectionStart - 1;
+        if (editable.charAt(i) != '\n') {
+            return;
+        }
+        String string = editable.subSequence(editable.toString().lastIndexOf(10, Math.max(MODE_EDIT, selectionStart - 2)) + MODE_PREVIEW, i).toString();
+        Matcher matcher = Pattern.compile("^(\\s*)(\\d+)\\.\\s+.*$").matcher(string);
+        if (string.matches("^\\s*[-+*] \\[([ xX])\\] .+$")) {
+            strReplaceFirst = string.replaceFirst("^(\\s*[-+*] \\[)[ xX](\\] ).*$", "$1 $2");
+        } else if (string.matches("^\\s*[-+*] .+$")) {
+            strReplaceFirst = string.replaceFirst("^(\\s*[-+*] ).*$", "$1");
+        } else if (string.matches("^\\s*> .+$")) {
+            strReplaceFirst = string.replaceFirst("^(\\s*> ).*$", "$1");
+        } else if (matcher.matches()) {
+            strReplaceFirst = matcher.group(MODE_PREVIEW) + (Integer.parseInt(matcher.group(MODE_SPLIT)) + MODE_PREVIEW) + ". ";
+        } else {
+            strReplaceFirst = null;
+        }
+        if (strReplaceFirst == null || strReplaceFirst.isEmpty()) {
+            return;
+        }
+        this.smartEditing = true;
+        editable.insert(selectionStart, strReplaceFirst);
+        this.editor.setSelection(selectionStart + strReplaceFirst.length());
+        this.smartEditing = false;
+    }
+
+    private void showFindReplace() {
+        ensureEditor(false);
+        final DocumentTab searchTab = (this.activeTab >= 0 && this.activeTab < this.tabs.size()) ? this.tabs.get(this.activeTab) : null;
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(MODE_PREVIEW);
+        linearLayout.setPadding(dp(20), dp(4), dp(20), MODE_EDIT);
+        final EditText editText = new EditText(this);
+        editText.setHint("Find");
+        editText.setSingleLine(true);
+        if (searchTab != null) editText.setText(searchTab.findQuery);
+        final EditText editText2 = new EditText(this);
+        editText2.setHint("Replace with");
+        editText2.setSingleLine(true);
+        if (searchTab != null) editText2.setText(searchTab.replaceQuery);
+        linearLayout.addView(editText, matchWrap());
+        linearLayout.addView(editText2, matchWrap());
+        LinearLayout linearLayout2 = new LinearLayout(this);
+        linearLayout2.setOrientation(MODE_EDIT);
+        final CheckBox checkBox = new CheckBox(this);
+        checkBox.setText("Case");
+        final CheckBox checkBox2 = new CheckBox(this);
+        checkBox2.setText("Whole word");
+        final CheckBox checkBox3 = new CheckBox(this);
+        checkBox3.setText("Regex");
+        if (searchTab != null) {
+            checkBox.setChecked(searchTab.findCaseSensitive);
+            checkBox2.setChecked(searchTab.findWholeWord);
+            checkBox3.setChecked(searchTab.findRegex);
+        }
+        linearLayout2.addView(checkBox, wrapWrap());
+        linearLayout2.addView(checkBox2, wrapWrap());
+        linearLayout2.addView(checkBox3, wrapWrap());
+        linearLayout.addView(linearLayout2, matchWrap());
+        final TextView textView = new TextView(this);
+        textView.setPadding(dp(4), dp(8), dp(4), dp(8));
+        linearLayout.addView(textView, matchWrap());
+        LinearLayout linearLayout3 = new LinearLayout(this);
+        linearLayout3.setOrientation(MODE_EDIT);
+        final Button button = new Button(this);
+        button.setText("All matches");
+        button.setAllCaps(false);
+        final Button button2 = new Button(this);
+        button2.setText(R.string.replace_all);
+        button2.setAllCaps(false);
+        linearLayout3.addView(button, new LinearLayout.LayoutParams(MODE_EDIT, -2, 1.0f));
+        linearLayout3.addView(button2, new LinearLayout.LayoutParams(MODE_EDIT, -2, 1.0f));
+        linearLayout.addView(linearLayout3, matchWrap());
+        final AlertDialog alertDialogCreate = new AlertDialog.Builder(this).setTitle("Find and replace").setView(linearLayout).setPositiveButton("Find next", (DialogInterface.OnClickListener) null).setNegativeButton("Close", (DialogInterface.OnClickListener) null).setNeutralButton("Replace", (DialogInterface.OnClickListener) null).create();
+        final Runnable runnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda11
+            @Override // java.lang.Runnable
+            public final void run() {
+                if (searchTab != null) {
+                    searchTab.findQuery = editText.getText().toString();
+                    searchTab.replaceQuery = editText2.getText().toString();
+                    searchTab.findCaseSensitive = checkBox.isChecked();
+                    searchTab.findWholeWord = checkBox2.isChecked();
+                    searchTab.findRegex = checkBox3.isChecked();
+                    MainActivity.this.scheduleSession();
+                }
+                MainActivity.this.lambda$showFindReplace$78(editText, checkBox, checkBox2, checkBox3, textView);
+            }
+        };
+        editText.addTextChangedListener(simpleWatcher(runnable));
+        editText2.addTextChangedListener(simpleWatcher(runnable));
+        checkBox.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda12
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                runnable.run();
+            }
+        });
+        checkBox2.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda13
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                runnable.run();
+            }
+        });
+        checkBox3.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda14
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                runnable.run();
+            }
+        });
+        alertDialogCreate.setOnShowListener(new DialogInterface.OnShowListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda15
+            @Override // android.content.DialogInterface.OnShowListener
+            public final void onShow(DialogInterface dialogInterface) {
+                MainActivity.this.lambda$showFindReplace$86(alertDialogCreate, editText, checkBox, checkBox2, checkBox3, textView, editText2, button, button2, dialogInterface);
+            }
+        });
+        alertDialogCreate.setOnDismissListener(new DialogInterface.OnDismissListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda16
+            @Override // android.content.DialogInterface.OnDismissListener
+            public final void onDismiss(DialogInterface dialogInterface) {
+                MainActivity.this.lambda$showFindReplace$87(dialogInterface);
+            }
+        });
+        alertDialogCreate.show();
+        editText.requestFocus();
+        showKeyboard(editText);
+        runnable.run();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$78(EditText editText, CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3, TextView textView) {
+        updateSearchCount(editText.getText().toString(), searchOptions(checkBox, checkBox2, checkBox3), textView);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$82(EditText editText, CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3, TextView textView, View view) {
+        findNext(editText.getText().toString(), searchOptions(checkBox, checkBox2, checkBox3), textView);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$86(AlertDialog alertDialog, final EditText editText, final CheckBox checkBox, final CheckBox checkBox2, final CheckBox checkBox3, final TextView textView, final EditText editText2, Button button, Button button2, DialogInterface dialogInterface) {
+        alertDialog.getButton(-1).setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda22
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showFindReplace$82(editText, checkBox, checkBox2, checkBox3, textView, view);
+            }
+        });
+        alertDialog.getButton(-3).setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda23
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showFindReplace$83(editText, editText2, checkBox, checkBox2, checkBox3, textView, view);
+            }
+        });
+        button.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda24
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showFindReplace$84(editText, checkBox, checkBox2, checkBox3, textView, view);
+            }
+        });
+        button2.setOnClickListener(new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda25
+            @Override // android.view.View.OnClickListener
+            public final void onClick(View view) {
+                MainActivity.this.lambda$showFindReplace$85(editText, editText2, checkBox, checkBox2, checkBox3, textView, view);
+            }
+        });
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$83(EditText editText, EditText editText2, CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3, TextView textView, View view) {
+        replaceOne(editText.getText().toString(), editText2.getText().toString(), searchOptions(checkBox, checkBox2, checkBox3), textView);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$84(EditText editText, CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3, TextView textView, View view) {
+        showSearchMatches(editText.getText().toString(), searchOptions(checkBox, checkBox2, checkBox3), textView);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$85(EditText editText, EditText editText2, CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3, TextView textView, View view) {
+        replaceAll(editText.getText().toString(), editText2.getText().toString(), searchOptions(checkBox, checkBox2, checkBox3), textView);
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showFindReplace$87(DialogInterface dialogInterface) {
+        clearSearchHighlights();
+    }
+
+    private TextWatcher simpleWatcher(final Runnable runnable) {
+        return new TextWatcher() { // from class: com.example.markdowndesk.MainActivity.3
+            @Override // android.text.TextWatcher
+            public void afterTextChanged(Editable editable) {
+                runnable.run();
+            }
+
+            @Override // android.text.TextWatcher
+            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+            }
+
+            @Override // android.text.TextWatcher
+            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+            }
+        };
+    }
+
+    private SearchEngine.Options searchOptions(CheckBox checkBox, CheckBox checkBox2, CheckBox checkBox3) {
+        return new SearchEngine.Options(checkBox.isChecked(), checkBox2.isChecked(), checkBox3.isChecked());
+    }
+
+    private void updateSearchCount(String str, SearchEngine.Options options, TextView textView) {
+        clearSearchHighlights();
+        try {
+            List<SearchEngine.Match> listFindAll = SearchEngine.findAll(this.editor.getText().toString(), str, options);
+            for (SearchEngine.Match match : listFindAll) {
+                this.editor.getText().setSpan(new SearchHighlightSpan(this.palette.accentSoft), match.start, match.end, 33);
+            }
+            int size = listFindAll.size();
+            textView.setText(str.isEmpty() ? "" : size + (size == MODE_PREVIEW ? " match" : " matches"));
+        } catch (PatternSyntaxException e) {
+            textView.setText("Regex error: " + e.getDescription());
+        }
+    }
+
+    private void clearSearchHighlights() {
+        if (this.editor == null) {
+            return;
+        }
+        Editable text = this.editor.getText();
+        int length = text.length();
+        SearchHighlightSpan[] searchHighlightSpanArr = (SearchHighlightSpan[]) text.getSpans(MODE_EDIT, length, SearchHighlightSpan.class);
+        int length2 = searchHighlightSpanArr.length;
+        for (int i = MODE_EDIT; i < length2; i += MODE_PREVIEW) {
+            text.removeSpan(searchHighlightSpanArr[i]);
+        }
+    }
+
+    private boolean findNext(String str, SearchEngine.Options options, TextView textView) {
+        if (str.isEmpty()) {
+            return false;
+        }
+        try {
+            List<SearchEngine.Match> listFindAll = SearchEngine.findAll(this.editor.getText().toString(), str, options);
+            updateSearchCount(str, options, textView);
+            if (listFindAll.isEmpty()) {
+                Toast.makeText(this, "No match", MODE_EDIT).show();
+                return false;
+            }
+            int iMax = Math.max(MODE_EDIT, this.editor.getSelectionEnd());
+            SearchEngine.Match match = listFindAll.get(MODE_EDIT);
+            for (SearchEngine.Match match2 : listFindAll) {
+                if (match2.start >= iMax) {
+                    match = match2;
+                    break;
+                }
+            }
+            this.editor.setSelection(match.start, match.end);
+            scrollEditorToOffset(match.start, false);
+            return true;
+        } catch (PatternSyntaxException e) {
+            Toast.makeText(this, "Regex error: " + e.getDescription(), MODE_PREVIEW).show();
+            return false;
+        }
+    }
+
+    private void showSearchMatches(String str, SearchEngine.Options options, TextView textView) {
+        if (str.isEmpty()) {
+            return;
+        }
+        try {
+            String string = this.editor.getText().toString();
+            final List<SearchEngine.Match> listFindAll = SearchEngine.findAll(string, str, options);
+            updateSearchCount(str, options, textView);
+            boolean zIsEmpty = listFindAll.isEmpty();
+            if (zIsEmpty) {
+                Toast.makeText(this, "No match", MODE_EDIT).show();
+                return;
+            }
+            String[] strArr = new String[listFindAll.size()];
+            for (int i = MODE_EDIT; i < listFindAll.size(); i += MODE_PREVIEW) {
+                SearchEngine.Match match = listFindAll.get(i);
+                strArr[i] = "L" + match.line + "  " + lineSnippet(string, match.start);
+            }
+            new AlertDialog.Builder(this).setTitle(listFindAll.size() + (listFindAll.size() == MODE_PREVIEW ? " match" : " matches")).setItems(strArr, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda8
+                @Override // android.content.DialogInterface.OnClickListener
+                public final void onClick(DialogInterface dialogInterface, int i2) {
+                    MainActivity.this.lambda$showSearchMatches$88(listFindAll, dialogInterface, i2);
+                }
+            }).setNegativeButton("Close", (DialogInterface.OnClickListener) null).show();
+        } catch (PatternSyntaxException e) {
+            Toast.makeText(this, "Regex error: " + e.getDescription(), MODE_PREVIEW).show();
+        }
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showSearchMatches$88(List list, DialogInterface dialogInterface, int i) {
+        SearchEngine.Match match = (SearchEngine.Match) list.get(i);
+        this.editor.setSelection(match.start, match.end);
+        scrollEditorToOffset(match.start, false);
+    }
+
+    private String lineSnippet(String str, int i) {
+        int iLastIndexOf = str.lastIndexOf(10, Math.max(MODE_EDIT, i - 1)) + MODE_PREVIEW;
+        int iIndexOf = str.indexOf(10, i);
+        if (iIndexOf < 0) {
+            iIndexOf = str.length();
+        }
+        String strTrim = str.substring(iLastIndexOf, iIndexOf).trim();
+        if (strTrim.length() <= 80) {
+            return strTrim;
+        }
+        return strTrim.substring(MODE_EDIT, 77) + "…";
+    }
+
+    private void replaceOne(String str, String str2, SearchEngine.Options options, TextView textView) {
+        if (!canMutate()) return;
+        if (str.isEmpty()) {
+            return;
+        }
+        try {
+            int selectionStart = this.editor.getSelectionStart();
+            int selectionEnd = this.editor.getSelectionEnd();
+            String string = (selectionStart < 0 || selectionEnd < selectionStart) ? "" : this.editor.getText().subSequence(selectionStart, selectionEnd).toString();
+            if (!SearchEngine.matchesSelection(string, str, options)) {
+                if (!findNext(str, options, textView)) {
+                    return;
+                }
+                selectionStart = this.editor.getSelectionStart();
+                selectionEnd = this.editor.getSelectionEnd();
+                string = this.editor.getText().subSequence(selectionStart, selectionEnd).toString();
+            }
+            SearchEngine.Replacement replacementReplaceAll = SearchEngine.replaceAll(string, str, str2, options);
+            if (replacementReplaceAll.count == 0) {
+                return;
+            }
+            this.editor.getText().replace(selectionStart, selectionEnd, replacementReplaceAll.text);
+            this.editor.setSelection(selectionStart + replacementReplaceAll.text.length());
+            updateSearchCount(str, options, textView);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "Replace error: " + message(e), MODE_PREVIEW).show();
+        }
+    }
+
+    private void replaceAll(String str, String str2, SearchEngine.Options options, TextView textView) {
+        if (!canMutate()) return;
+        if (str.isEmpty()) {
+            return;
+        }
+        try {
+            SearchEngine.Replacement replacementReplaceAll = SearchEngine.replaceAll(this.editor.getText().toString(), str, str2, options);
+            if (replacementReplaceAll.count == 0) {
+                Toast.makeText(this, "No match", MODE_EDIT).show();
+                return;
+            }
+            this.editor.getText().replace(MODE_EDIT, this.editor.length(), replacementReplaceAll.text);
+            this.editor.setSelection(this.editor.length());
+            updateSearchCount(str, options, textView);
+            Toast.makeText(this, "Replaced " + replacementReplaceAll.count + (replacementReplaceAll.count == MODE_PREVIEW ? " match" : " matches"), MODE_EDIT).show();
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "Replace error: " + message(e), MODE_PREVIEW).show();
+        }
+    }
+
+    private void ensureEditor(boolean z) {
+        if (this.mode == MODE_PREVIEW) {
+            setMode(MODE_EDIT, z);
+            return;
+        }
+        this.editor.requestFocus();
+        if (z) {
+            showKeyboard(this.editor);
+        }
+    }
+
+    private void showDocumentInfo() {
+        String text = this.editor.getText().toString();
+        int words = EditorTools.wordCount(text);
+        int chars = text.length();
+        int lines = EditorTools.lineCount(text);
+        int minutes = words == 0 ? 0 : Math.max(1, (int)Math.ceil(words / 220.0d));
+        int start = Math.max(0, this.editor.getSelectionStart());
+        int line = 1, column = 1;
+        for (int i = 0; i < Math.min(start, text.length()); i++) {
+            if (text.charAt(i) == '\n') { line++; column = 1; } else column++;
+        }
+        StringBuilder info = new StringBuilder();
+        info.append(words).append(" words\n")
+            .append(chars).append(" characters\n")
+            .append(lines).append(" lines\n")
+            .append(minutes).append(" min read\n")
+            .append("Cursor: line ").append(line).append(", column ").append(column).append("\n")
+            .append("Source text: ").append(Math.round(this.fontSp)).append(" sp\n")
+            .append("Reading text: ").append(Math.round(this.previewFontSp)).append(" sp\n")
+            .append("Mode: ").append(this.mode == MODE_EDIT ? "Write" : this.mode == MODE_PREVIEW ? "Read" : "Split");
+        if (this.editorLocked) info.append("\nEditing: locked");
+        if (this.readOnly) info.append("\nProvider: read-only source");
+        if (this.currentUri != null) info.append("\n\n").append(this.currentUri.toString());
+        new AlertDialog.Builder(this).setTitle(this.displayName).setMessage(info.toString()).setPositiveButton("Done", null).show();
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public void updateStatus() {
+        String str;
+        String str2;
+        if (this.titleView == null || this.editor == null) {
+            return;
+        }
+        String str3 = "";
+        this.titleView.setText(this.displayName + (this.dirty ? "  •" : "") + (this.readOnly ? "  ·  Read-only" : ""));
+        if (this.mode == 0) {
+            str = "Write";
+        } else {
+            str = this.mode == MODE_PREVIEW ? "Read" : "Split";
+        }
+        int iWordCount = EditorTools.wordCount(this.editor.getText().toString());
+        int length = this.editor.length();
+        String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
+        String quantityString2 = getResources().getQuantityString(R.plurals.character_count, length, Integer.valueOf(length));
+        int lineCount = EditorTools.lineCount(this.editor.getText().toString());
+        int iMax = iWordCount == 0 ? 0 : Math.max(1, (int) Math.ceil(((double) iWordCount) / 220.0d));
+        if (this.wordGoal > 0) {
+            str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
+        }
+        this.statusView.setText(quantityString + " · " + quantityString2 + " · " + lineCount + " lines · " + iMax + " min read" + str3 + " · " + str);
+        Button button = this.saveButton;
+        if (this.saveInProgress) {
+            str2 = "•••";
+        } else if (this.readOnly) {
+            str2 = "COPY";
+        } else {
+            str2 = this.dirty ? "SAVE" : "SAVED";
+        }
+        button.setText(str2);
+        this.saveButton.setEnabled(!this.saveInProgress);
+        if (this.palette != null) {
+            if (this.dirty || this.readOnly) {
+                this.saveButton.setTextColor(-1);
+                this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
+            } else {
+                styleButton(this.saveButton, true, false);
+            }
+        }
+    }
+
+    private boolean openExternal(Uri uri) {
+        if (uri == null) {
+            return true;
+        }
+        String scheme = uri.getScheme();
+        if (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme) && !"mailto".equalsIgnoreCase(scheme)) {
+            return true;
+        }
+        try {
+            startActivity(new Intent("android.intent.action.VIEW", uri));
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "No app can open this link", MODE_EDIT).show();
+        }
+        return true;
+    }
+
+    private void takePermission(Uri uri, int i) {
+        int i2 = i & 3;
+        if (i2 == 0) {
+            return;
+        }
+        try {
+            getContentResolver().takePersistableUriPermission(uri, i2);
+        } catch (SecurityException e) {
+        }
+    }
+
+    private void showError(String str) {
+        if (isFinishing()) {
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Markdown Desk").setMessage(str).setPositiveButton("OK", (DialogInterface.OnClickListener) null).show();
+    }
+
+    private String message(Throwable th) {
+        return (th.getMessage() == null || th.getMessage().trim().isEmpty()) ? th.getClass().getSimpleName() : th.getMessage();
+    }
+
+    private String markdownName(String str) {
+        String lowerCase = str.toLowerCase(Locale.ROOT);
+        return (lowerCase.endsWith(".md") || lowerCase.endsWith(".markdown") || lowerCase.endsWith(".txt")) ? str : str + ".md";
+    }
+
+    private boolean systemDark() {
+        return (getResources().getConfiguration().uiMode & 48) == 32;
+    }
+
+    /* JADX INFO: Access modifiers changed from: private */
+    public /* synthetic */ void lambda$showKeyboard$89(View view) {
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService("input_method");
+        if (inputMethodManager != null) {
+            inputMethodManager.showSoftInput(view, MODE_PREVIEW);
+        }
+    }
+
+    private void showKeyboard(final View view) {
+        view.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda17
+            @Override // java.lang.Runnable
+            public final void run() {
+                MainActivity.this.lambda$showKeyboard$89(view);
+            }
+        });
+    }
+
+    private void hideKeyboard() {
+        InputMethodManager inputMethodManager;
+        View currentFocus = getCurrentFocus();
+        if (currentFocus == null || (inputMethodManager = (InputMethodManager) getSystemService("input_method")) == null) {
+            return;
+        }
+        inputMethodManager.hideSoftInputFromWindow(currentFocus.getWindowToken(), MODE_EDIT);
+    }
+
+    private static void detach(View view) {
+        if (view == null || !(view.getParent() instanceof ViewGroup)) {
+            return;
+        }
+        ((ViewGroup) view.getParent()).removeView(view);
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(-1, -2);
+    }
+
+    private LinearLayout.LayoutParams wrapWrap() {
+        return new LinearLayout.LayoutParams(-2, -2);
+    }
+
+    private LinearLayout.LayoutParams paneParams() {
+        return paneParams(1.0f);
+    }
+
+    private LinearLayout.LayoutParams paneParams(float weight) {
+        return this.body.getOrientation() == LinearLayout.HORIZONTAL
+                ? new LinearLayout.LayoutParams(MODE_EDIT, -1, weight)
+                : new LinearLayout.LayoutParams(-1, MODE_EDIT, weight);
+    }
+
+    private int dp(int i) {
+        return Math.round(i * getResources().getDisplayMetrics().density);
+    }
+
+    private static int withAlpha(int i, int i2) {
+        return (i & 16777215) | (Math.max(MODE_EDIT, Math.min(255, i2)) << 24);
+    }
+
+    private static int clamp(int i, int i2, int i3) {
+        return Math.max(i2, Math.min(i3, i));
+    }
+}
