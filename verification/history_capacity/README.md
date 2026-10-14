@@ -79,7 +79,7 @@ register, reconcile, promote or delete files.
 - Admission: 61 checks covering all writers, reentrancy, typed roles/dependencies,
   aggregate data/stages/reservations, the last-capacity two-handle race, native
   metadata limits, optional damage and independent legacy constructor quotas.
-- Integration: 40 checks covering desired/effective policy, exact graph role binding,
+- Integration: 42 checks covering desired/effective policy, exact graph role binding,
   final enrollment recheck, lowering quota, second-handle completion and negative
   conversion proofs. A valid chain at exactly 256 shared entries rejects another
   policy without a stage while allowing ordinary data and exact completion.
