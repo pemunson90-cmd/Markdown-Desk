@@ -34,7 +34,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
 at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
-`codex/m1-history-foundation`. The separately reviewed issue #3/#4 slice
+`codex/m1-safe-retention`. The separately reviewed issue #3/#4 slice
 [PR #11](https://github.com/pemunson90-cmd/Markdown-Desk/pull/11) merged at
 `c42de9d84c223feba773c849da7c7a21cac724d0` after required CI run38595113245 passed.
 The owner renewed the instruction to finish the entire app continuously; do not
@@ -81,7 +81,7 @@ Merged foundation evidence (production save/UI paths unchanged by the new backen
   source at `727112133d556f44c68cdb11b95afade8a4880c6`.
 - Production store19cases/96assertions plus3real OS write-limit assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
-- Activity save lifecycle34cases/233assertions including actual strict codec;
+- Activity save lifecycle34cases/233assertions including actual strict codec (previously six Save As cases required the separate `--safety` invocation; the current runner now includes all34);
   recovery13cases/179assertions plus7actual UI callback/dialog assertions.
 - Production SIGKILL/restart suite PASS at16 actual store/coordinator boundaries:
   snapshot/preparation/completion file-sync, move and directory-sync; provider
@@ -139,8 +139,23 @@ All four backends are registered in the required host runner. They are not wired
 into Activity actions and do not implement pruning, combined quota, private-state
 import/adoption or the full M1 user flow. Retained stages/corruption fail visibly;
 no implicit cleanup or partial pin set. Calls must remain off the UI thread;
-shared graph locking and duplicate-checkpoint validation costs need resolution
-before runtime integration.
+shared graph locking and operation-scoped source validation are implemented in the next reviewed slice below. Shared admission and runtime integration remain pending.
+
+Current retention slice, independently reviewed at `f244e0e` (Task3A1):
+
+- One canonical-private-parent monitor coordinates store/catalog/identity/index;
+  mixed/aliased roots are rejected. Existing constructor quotas, native record
+  formats and write admission remain unchanged.
+- Read-only inventory and complete-envelope hashes bind exact metadata, edges,
+  staged/corrupt inputs, byte/slot completion reservations and policy choices.
+  All snapshots remain protected; there is no pruning or shared-admission API.
+- A bounded operation-scoped validated-source cache avoids repeated checkpoint
+  payload hashing; generation checks before and after callbacks reject mutation.
+  Independent review caught and fixed a stale proof and an API33-only sink.
+- Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
+  store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
+  cases/233assertions PASS locally after required-runner registration. Clean
+  integration host/build evidence for this slice is pending, not inherited from PR12.
 
 Integration evidence and next executable work:
 
@@ -151,10 +166,9 @@ Integration evidence and next executable work:
    `e612e3b0e875ce07fbfe1f69980458f2c7ebdaa6`: required host suite once from
    clean source; two unsigned builds match SHA-256
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
-   Independent integration review approved; deliberate hosted validation pending.
+   Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   shared lock/validated inventory/combined quotas/read-only graph before any
-   destructive executor. Crash-safe deletion, verified export, strict import and
+   finish clean integration of shared lock/validated inventory/read-only graph, then implement combined admission and reservation-bound completion staging before any destructive executor. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded
