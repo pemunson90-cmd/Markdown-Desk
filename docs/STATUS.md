@@ -36,9 +36,13 @@ Active integration is `codex/m1-operation-foundations`. Independent ownership:
   allowance funds retained BEGIN/CLOSE pairs and terminal reservations. Partial
   stages remain preserved/blocked; reservation does not guarantee cancellation.
 - `codex/private-state-codec`: approved pure streaming schema over current source
-  fields and eight actual allowlisted settings. New codec implementation/tests
-  are in progress, unverified. URI/baseline/clean fields are provenance only;
-  no grant, native state adoption, provider write or runtime caller is enabled.
+  fields and eight actual allowlisted settings. Source `3cd61fc` is integrated
+  byte-identically at `9c157c0`: worker848functional+99streaming assertions and
+  independent301checks passed. Independent8MiB streaming used48MiBheap/32MiBheld;
+  this is host memory evidence, not an Android budget. URI/baseline/clean fields
+  remain provenance only; no grant, native adoption, provider write or runtime
+  caller. Its default functional/memory runner is now required at integration.
+  Frozen native-history archive mapping is the next independent source task.
 - Next executor plan is independently reviewed on `codex/journaled-retention`.
   Implement selected deletion/replay only after completed-pin compatibility
   review; exact effective authority and explicit terminal recovery are required.
