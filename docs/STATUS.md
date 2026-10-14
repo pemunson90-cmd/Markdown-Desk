@@ -2,18 +2,20 @@
 
 ## Current checkpoint — selected retention and history workflow, 2026-10-14
 
-Main is `31d4309cfd8798e1a388c9ccc5b26a7597189efd`: [PR #18](https://github.com/pemunson90-cmd/Markdown-Desk/pull/18)
-merged at reviewed head `e589563` after required hosted run38651804113 passed.
-Draft run38651784968 was skipped, not passing evidence. PR #17 bounded preview/
-statistics and PR #16 read-only maintenance recovery are also merged; exact
-baseline import PR #9 and protected-save foundations remain preserved.
+Main is `116b180c80d7395a7c23297979f0cdc90ae9c7e2`: [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
+merged at reviewed head `bd1d3e4` after required hosted run38656747429 passed.
+Draft run38656737069 was skipped, not passing evidence. PR #18 operation
+foundations, PR #17 bounded workers and earlier exact-source/protected-save
+changes remain merged. No installable release is claimed.
 
-Latest clean gate at `6bba85431e0cc2c340cd945551fb5c4d96ebda38` passed the required
-host suite once and two audited unsigned builds matching SHA-256
-`c646e0757b027d5de003ba904d9787e5daa8d092bd326f7155044386736b4d5e`.
+Latest clean backend gate at `715cdab92808f278b933ab160fe5579c0aae5304` completed
+all required host checks across an unchanged-source interrupted session, then two
+audited unsigned builds matching SHA-256
+`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
+Every archived source file was verified before resuming only unfinished checks.
 No downloads/signing inputs; package 2.2.5/code 18/min 26/target 35 and all 25
-approved assets preserved. Scoped credential-pattern scan: 367 tracked files,
-zero matches; not a whole-history proof.
+approved assets preserved. Scoped credential-pattern scan: 381 tracked files,
+zero matches; not a whole-history proof. This is not the combined UI gate.
 
 Verified backend additions:
 
@@ -31,8 +33,7 @@ Verified backend additions:
   promise, runtime consumer, operation quiescence, terminal repair, compaction
   or fresh-process arbitrary-evidence-loss anchor is implemented.
 
-Active source boundaries: [draft PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
-(`codex/history-execution-export`) and local `codex/history-ui-integration`.
+Active integration: `codex/history-ui-integration`, with verified main merged normally.
 
 - Frozen native archive manifest `73655d5` is integrated byte-identically through
   `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
@@ -70,20 +71,11 @@ Active source boundaries: [draft PR #19](https://github.com/pemunson90-cmd/Markd
   import runtime caller is enabled. Android rendering/provider/device gates remain
   NOT RUN.
 
-PR #19's reviewed selected executor and frozen manifest are locally merged from
-`bd1d3e4`; required hosted run38656747429 is in progress. Draft run38656737069
-was skipped, not passing evidence. Its local gate at `715cdab` completed all
-required host checks across an unchanged-source interrupted session and produced
-two audited unsigned builds matching SHA-256
-`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
-This is the prior backend gate, not the combined UI gate.
-
-Next: final whole-branch review and one coherent clean host/two-unsigned-build
-gate for the combined history actions and backend source. Complete PR #19 after
-its independent hosted check passes, then the history UI's own required hosted
-check. Continue runtime quiescence/terminal repair, persisted export capture,
-strict import/adoption and the remaining M0–M7 campaign. No full M1 or release
-completion is claimed.
+Next: finish final whole-branch review and run one coherent clean host/two-
+unsigned-build gate for the history actions and current backend source, then its
+required hosted check. Continue runtime quiescence/terminal repair, persisted
+export capture, strict import/adoption and the remaining M0–M7 campaign. No full
+M1 or release completion is claimed.
 
 Latest merged production recoverability is GREEN; current integration gates
 remain pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
