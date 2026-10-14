@@ -86,6 +86,9 @@ public class MainActivity extends Activity {
     private static final int REQUEST_SPLASH_IMPORT = 1003;
     // Accessed only by the single I/O executor; the trusted Android parent may be an OS alias.
     private ProtectionStore protectionStore;
+    private HistoryController historyController;
+    private long historyRequest;
+    private AlertDialog historyDialog;
     private long capturedSaveRevision;
     private String restoreSnapshotId;
     private volatile boolean legacyRecoveryProtected;
@@ -1733,6 +1736,7 @@ public class MainActivity extends Activity {
     }
 
     private void restoreActiveTab(boolean z) {
+        invalidateHistory();
         if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
             return;
         }
@@ -1880,11 +1884,12 @@ public class MainActivity extends Activity {
         this.io.execute(() -> {
             try {
                 // Revalidate the selected immutable record on disk, never trust dialog-cached bytes.
-                ProtectionStore.Snapshot snapshot = getProtectionStore().snapshot(snapshotId);
+                ProtectionStore readyStore = getHistoryController().protectionStore();
+                ProtectionStore.Snapshot snapshot = readyStore.snapshot(snapshotId);
                 if (destination.toString().equals(snapshot.uri)) throw new IOException("Choose a new copy; the original document URI cannot be used for restore.");
                 SaveCoordinator.Request request = new SaveCoordinator.Request(snapshot.documentId, destination.toString(), snapshot.title,
                         snapshot.revision, snapshot.bytes(), null, null, true);
-                new SaveCoordinator(getProtectionStore()).save(request, new SaveCoordinator.Provider() {
+                new SaveCoordinator(readyStore).save(request, new SaveCoordinator.Provider() {
                     @Override public byte[] read() throws IOException { return DocumentIO.read(getContentResolver(), destination).sourceBytes; }
                     @Override public void write(byte[] bytes) throws IOException { DocumentIO.write(getContentResolver(), destination, bytes); }
                 });
@@ -2074,6 +2079,14 @@ public class MainActivity extends Activity {
         return this.protectionStore;
     }
 
+    // I/O queue only. Failed initialization never publishes a writable fallback.
+    private HistoryController getHistoryController() throws IOException {
+        if (this.historyController == null) {
+            this.historyController = HistoryController.open(getProtectionStore(), new AndroidDurability());
+        }
+        return this.historyController;
+    }
+
     private void saveInternal(final boolean z) {
         // Historical force boolean is never overwrite authorization.
         saveInternal(false, this.currentUri);
@@ -2088,32 +2101,46 @@ public class MainActivity extends Activity {
             final SaveCoordinator.Request request = new SaveCoordinator.Request(tab.id, destination.toString(), tab.displayName,
                     ++this.capturedSaveRevision, DocumentIO.encodeStrict(text, tab.utf8Bom), tab.baselineHash, null,
                     newDestination && !destination.toString().equals(tab.uri));
-            submitCapturedSave(request, destination, text);
+            HistoryController.SaveRoute route = new HistoryController.SaveRoute(tab.id, tab.uri,
+                    destination.toString(), request.revision);
+            submitCapturedSave(request, destination, text, route);
         } catch (IOException invalidEdit) {
             this.pendingAfterSave = null;
             showError("The edited text could not be safely encoded. No document was written.\n\n" + message(invalidEdit));
         }
     }
 
-    private void submitCapturedSave(final SaveCoordinator.Request request, final Uri destination, final String text) {
+    private void submitCapturedSave(final SaveCoordinator.Request request, final Uri destination, final String text,
+                                    final HistoryController.SaveRoute route) {
         if (this.saveInProgress || findTabById(request.documentId) < 0) { this.pendingAfterSave = null; return; }
         this.saveInProgress = true;
         this.savingTabId = request.documentId;
         this.saveButton.setEnabled(false);
         this.statusView.setText(R.string.saving);
-        this.io.execute(() -> lambda$saveInternal$35(request, destination, text));
+        this.io.execute(() -> lambda$saveInternal$35(request, destination, text, route));
     }
 
-    public void lambda$saveInternal$35(final SaveCoordinator.Request request, final Uri uri, final String capturedText) {
+    public void lambda$saveInternal$35(final SaveCoordinator.Request request, final Uri uri, final String capturedText,
+                                     final HistoryController.SaveRoute route) {
         try {
-            SaveCoordinator.Result result = new SaveCoordinator(getProtectionStore()).save(request, new SaveCoordinator.Provider() {
+            HistoryController history = getHistoryController();
+            SaveCoordinator.Result result = new SaveCoordinator(history.protectionStore()).save(request, new SaveCoordinator.Provider() {
                 @Override public byte[] read() throws IOException { return DocumentIO.read(getContentResolver(), uri).sourceBytes; }
                 @Override public void write(byte[] bytes) throws IOException { DocumentIO.write(getContentResolver(), uri, bytes); }
             });
+            // Optional provenance cannot turn an actually verified provider save into failure.
+            final HistoryController.IndexResult indexed = history.recordVerifiedSave(route, result.transaction.id);
             final DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), uri);
-            this.main.post(() -> lambda$saveInternal$33(request.documentId, uri, capturedText, result.hash, metadata));
+            this.main.post(() -> {
+                lambda$saveInternal$33(request.documentId, uri, capturedText, result.hash, metadata);
+                if (!indexed.indexed && !isFinishing() && this.activeTab >= 0 && this.activeTab < this.tabs.size()
+                        && request.documentId.equals(this.tabs.get(this.activeTab).id)
+                        && uri.toString().equals(this.tabs.get(this.activeTab).uri)) {
+                    Toast.makeText(this, "Saved. Document history metadata could not be confirmed; protected versions remain in Workspace.", Toast.LENGTH_LONG).show();
+                }
+            });
         } catch (SaveCoordinator.ConflictException conflict) {
-            this.main.post(() -> lambda$saveInternal$32(request, uri, capturedText, conflict.observedHash));
+            this.main.post(() -> lambda$saveInternal$32(request, uri, capturedText, conflict.observedHash, route));
         } catch (Exception failure) {
             this.main.post(() -> lambda$saveInternal$34(failure));
         }
@@ -2135,6 +2162,7 @@ public class MainActivity extends Activity {
             captureActiveTab();
         }
         DocumentTab documentTab = this.tabs.get(iFindTabById);
+        if (iFindTabById == this.activeTab && !java.util.Objects.equals(documentTab.uri, uri.toString())) invalidateHistory();
         documentTab.uri = uri.toString();
         documentTab.baselineHash = str3;
         documentTab.baselineModified = metadata.lastModified;
@@ -2183,7 +2211,8 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     /* JADX INFO: renamed from: showConflict, reason: merged with bridge method [inline-methods] */
-    public void lambda$saveInternal$32(final SaveCoordinator.Request request, final Uri destination, final String capturedText, final String observedHash) {
+    public void lambda$saveInternal$32(final SaveCoordinator.Request request, final Uri destination, final String capturedText, final String observedHash,
+                                     final HistoryController.SaveRoute route) {
         final String tabId = request.documentId;
         this.saveInProgress = false;
         this.savingTabId = null;
@@ -2192,7 +2221,7 @@ public class MainActivity extends Activity {
         if (findTabById(tabId) < 0) { this.pendingAfterSave = null; return; }
         new AlertDialog.Builder(this).setTitle("File changed elsewhere")
                 .setMessage("The source changed or its original version is unknown. Both versions will be protected before an approved overwrite.")
-                .setPositiveButton("Overwrite", (dialog, which) -> resumeConflictSave(request, destination, capturedText, observedHash))
+                .setPositiveButton("Overwrite", (dialog, which) -> resumeConflictSave(request, destination, capturedText, observedHash, route))
                 .setNegativeButton("Save as", (dialog, which) -> {
                     int index = findTabById(tabId);
                     if (index < 0 || this.saveInProgress) { this.pendingAfterSave = null; return; }
@@ -2202,10 +2231,11 @@ public class MainActivity extends Activity {
                 .setNeutralButton("Cancel", (dialog, which) -> this.pendingAfterSave = null).show();
     }
 
-    private void resumeConflictSave(SaveCoordinator.Request request, Uri destination, String capturedText, String observedHash) {
+    private void resumeConflictSave(SaveCoordinator.Request request, Uri destination, String capturedText, String observedHash,
+                                    HistoryController.SaveRoute route) {
         if (findTabById(request.documentId) < 0 || this.saveInProgress) { this.pendingAfterSave = null; return; }
         // Consent authorizes only the originally captured identity, revision and bytes.
-        submitCapturedSave(request.withConsent(observedHash), destination, capturedText);
+        submitCapturedSave(request.withConsent(observedHash), destination, capturedText, route);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -2306,7 +2336,7 @@ public class MainActivity extends Activity {
                         && java.util.Objects.equals(draft.uri, snapshot.uri) && java.util.Objects.equals(draft.displayName, snapshot.title)
                         && snapshot.revision == revision && hash.equals(snapshot.hash)) { found = true; break; }
             }
-            if (!found) getProtectionStore().putSnapshot("legacy-recovery", draft.uri, draft.displayName, revision, bytes, "attempted");
+            if (!found) getHistoryController().protectionStore().putSnapshot("legacy-recovery", draft.uri, draft.displayName, revision, bytes, "attempted");
         }
         this.legacyRecoveryProtected = true;
         this.legacyRecoveryProtectionFailed = false;
@@ -2677,6 +2707,201 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void invalidateHistory() {
+        ++this.historyRequest;
+        if (this.historyDialog != null) {
+            this.historyDialog.dismiss();
+            this.historyDialog = null;
+        }
+    }
+
+    private boolean historyCurrent(long request, String tabId, String exactUri) {
+        return request == this.historyRequest && !isFinishing() && !isDestroyed()
+                && this.activeTab >= 0 && this.activeTab < this.tabs.size()
+                && tabId.equals(this.tabs.get(this.activeTab).id)
+                && java.util.Objects.equals(exactUri, this.tabs.get(this.activeTab).uri);
+    }
+
+    private void presentHistoryDialog(AlertDialog dialog, long request) {
+        if (this.historyDialog != null) this.historyDialog.dismiss();
+        this.historyDialog = dialog;
+        dialog.setOnCancelListener(ignored -> { if (request == this.historyRequest) invalidateHistory(); });
+        dialog.setOnShowListener(ignored -> {
+            styleDialog(dialog);
+            TextView message = dialog.findViewById(android.R.id.message);
+            if (message != null) message.setTextColor(this.palette.text);
+        });
+        dialog.show();
+    }
+
+    private AlertDialog.Builder historyDialogBuilder(String title) {
+        TextView heading = new TextView(this);
+        heading.setText(title); heading.setTextColor(this.palette.text); heading.setTextSize(20);
+        heading.setPadding(dp(24), dp(20), dp(24), dp(12));
+        if (Build.VERSION.SDK_INT >= 28) heading.setAccessibilityHeading(true);
+        return new AlertDialog.Builder(this).setCustomTitle(heading);
+    }
+
+    private String historyVersionStatus(HistoryIndex.Status status) {
+        switch (status) {
+            case INDEXED_VERIFIED: return "Verified save";
+            case UNINDEXED_VERIFIED: return "Verified save · history indexing unconfirmed";
+            case PENDING: return "Save not confirmed";
+            default: return "Protected snapshot · no completed save";
+        }
+    }
+
+    private void showDocumentHistory() {
+        if (this.activeTab < 0 || this.activeTab >= this.tabs.size() || isFinishing() || isDestroyed()) return;
+        captureActiveTab();
+        final DocumentTab tab = this.tabs.get(this.activeTab);
+        final String tabId = tab.id, exactUri = tab.uri;
+        invalidateHistory();
+        final long request = this.historyRequest;
+        this.io.execute(() -> {
+            try {
+                HistoryController history = getHistoryController();
+                final String historyId = history.resolveDocument(exactUri, tabId);
+                final List<HistoryIndex.Version> versions = history.list(historyId);
+                this.main.post(() -> {
+                    if (historyCurrent(request, tabId, exactUri))
+                        showHistoryPage(request, tabId, exactUri, historyId, versions, 0, null);
+                });
+            } catch (Exception failure) {
+                this.main.post(() -> {
+                    if (historyCurrent(request, tabId, exactUri)) showError("Document history could not be read. Protected saves and recovery remain available.\n\n" + message(failure));
+                });
+            }
+        });
+    }
+
+    private void showHistoryPage(long request, String tabId, String exactUri, String historyId,
+                                 List<HistoryIndex.Version> versions, int start, String compareLeft) {
+        if (!historyCurrent(request, tabId, exactUri)) return;
+        final int end = Math.min(versions.size(), start + 100);
+        final boolean previous = start > 0, next = end < versions.size();
+        final int offset = previous ? 1 : 0;
+        String[] labels = new String[end - start + offset + (next ? 1 : 0)];
+        if (previous) labels[0] = "Previous 100 versions";
+        SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        for (int i = start; i < end; i++) {
+            HistoryIndex.Version version = versions.get(i);
+            StringBuilder label = new StringBuilder();
+            for (int n = 0; n < Math.min(3, version.names.size()); n++) {
+                HistoryCatalog.Checkpoint name = version.names.get(n);
+                if (label.length() > 0) label.append(" · ");
+                label.append(name.label);
+            }
+            if (version.names.size() > 3) label.append(" · ").append(version.names.size() - 3).append(" more names");
+            if (label.length() == 0) label.append("original".equals(version.sourceKind) ? "Original" : "Edited version");
+            labels[offset + i - start] = label + "\n" + dates.format(new Date(version.timestamp))
+                    + " · " + version.byteCount + " bytes · "
+                    + historyVersionStatus(version.status);
+        }
+        if (next) labels[labels.length - 1] = "Next 100 versions";
+        android.widget.ArrayAdapter<String> rows = new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+            @Override public View getView(int position, View recycled, ViewGroup parent) {
+                TextView row = (TextView) super.getView(position, recycled, parent);
+                row.setTextColor(MainActivity.this.palette.text);
+                return row;
+            }
+        };
+        AlertDialog dialog = historyDialogBuilder((compareLeft == null ? "Document history" : "Choose a version to compare") + " (" + versions.size() + ")")
+                .setAdapter(rows, (ignored, position) -> {
+                    if (!historyCurrent(request, tabId, exactUri)) return;
+                    if (previous && position == 0) { showHistoryPage(request, tabId, exactUri, historyId, versions, Math.max(0, start - 100), compareLeft); return; }
+                    if (next && position == labels.length - 1) { showHistoryPage(request, tabId, exactUri, historyId, versions, end, compareLeft); return; }
+                    HistoryIndex.Version version = versions.get(start + position - offset);
+                    if (compareLeft != null) {
+                        compareHistory(request, tabId, exactUri, historyId, compareLeft, version.snapshotId);
+                    } else {
+                        AlertDialog actions = historyDialogBuilder("Protected document version")
+                                .setMessage("Restore to a new copy keeps the original and all protected versions.")
+                                .setPositiveButton("Restore to new copy", (confirm, which) -> restoreHistoryVersion(request, tabId, exactUri, historyId, version.snapshotId))
+                                .setNeutralButton("Compare", (confirm, which) -> showHistoryPage(request, tabId, exactUri, historyId, versions, 0, version.snapshotId))
+                                .setNegativeButton("Back", (confirm, which) -> showHistoryPage(request, tabId, exactUri, historyId, versions, start, null)).create();
+                        presentHistoryDialog(actions, request);
+                    }
+                })
+                .setPositiveButton("Name current revision", (ignored, which) -> nameHistoryRevision(request, tabId, exactUri, historyId))
+                .setNegativeButton("Close", (ignored, which) -> { if (request == this.historyRequest) invalidateHistory(); }).create();
+        presentHistoryDialog(dialog, request);
+    }
+
+    private void nameHistoryRevision(long request, String tabId, String exactUri, String historyId) {
+        if (!historyCurrent(request, tabId, exactUri)) return;
+        final EditText label = new EditText(this);
+        label.setSingleLine(true);
+        label.setHint("Checkpoint name (up to 256 UTF-8 bytes)");
+        label.setTextColor(this.palette.text);
+        label.setHintTextColor(this.palette.muted);
+        AlertDialog dialog = historyDialogBuilder("Name current revision").setView(label)
+                .setPositiveButton("Protect revision", (ignored, which) -> {
+                    if (!historyCurrent(request, tabId, exactUri)) return;
+                    captureActiveTab();
+                    DocumentTab tab = this.tabs.get(this.activeTab);
+                    try {
+                        final HistoryController.CapturedRevision capture = new HistoryController.CapturedRevision(tabId, historyId, exactUri,
+                                tab.displayName, ++this.capturedSaveRevision, DocumentIO.encodeStrict(tab.text, tab.utf8Bom));
+                        final String name = label.getText().toString();
+                        this.io.execute(() -> {
+                            try {
+                                HistoryController.NameResult result = getHistoryController().nameCapturedRevision(capture, name);
+                                this.main.post(() -> {
+                                    if (!historyCurrent(request, tabId, exactUri)) return;
+                                    if (!result.named()) showError(result.diagnostic);
+                                    else showDocumentHistory();
+                                });
+                            } catch (Exception failure) {
+                                this.main.post(() -> { if (historyCurrent(request, tabId, exactUri)) showError("Revision could not be named. Existing protected versions were kept.\n\n" + message(failure)); });
+                            }
+                        });
+                    } catch (IOException invalid) { showError("The revision could not be safely captured.\n\n" + message(invalid)); }
+                }).setNegativeButton("Cancel", (ignored, which) -> { if (historyCurrent(request, tabId, exactUri)) showDocumentHistory(); }).create();
+        presentHistoryDialog(dialog, request);
+    }
+
+    private void restoreHistoryVersion(long request, String tabId, String exactUri, String historyId, String snapshotId) {
+        if (!historyCurrent(request, tabId, exactUri)) return;
+        this.io.execute(() -> {
+            try {
+                boolean member = false;
+                for (HistoryIndex.Version version : getHistoryController().list(historyId)) if (snapshotId.equals(version.snapshotId)) member = true;
+                if (!member) throw new IOException("The selected version is no longer in this document history");
+                final ProtectionStore.Snapshot snapshot = getProtectionStore().snapshot(snapshotId);
+                this.main.post(() -> { if (historyCurrent(request, tabId, exactUri)) launchProtectedCopy(snapshotId, snapshot.title); });
+            } catch (Exception failure) {
+                this.main.post(() -> { if (historyCurrent(request, tabId, exactUri)) showError("Version could not be selected.\n\n" + message(failure)); });
+            }
+        });
+    }
+
+    private void compareHistory(long request, String tabId, String exactUri, String historyId, String leftId, String rightId) {
+        if (!historyCurrent(request, tabId, exactUri)) return;
+        this.io.execute(() -> {
+            try {
+                final HistoryDiff.Preview preview = getHistoryController().preview(historyId, leftId, rightId);
+                this.main.post(() -> {
+                    if (!historyCurrent(request, tabId, exactUri)) return;
+                    StringBuilder text = new StringBuilder("Left: ").append(preview.leftByteCount).append(" bytes, BOM ").append(preview.leftBom)
+                            .append("\nRight: ").append(preview.rightByteCount).append(" bytes, BOM ").append(preview.rightBom).append('\n');
+                    if (!preview.complete) text.append(preview.reason).append('\n');
+                    for (HistoryDiff.DisplayLine line : preview.lines) text.append(line.display()).append('\n');
+                    TextView content = new TextView(this);
+                    content.setText(text); content.setTextColor(this.palette.text); content.setTextSize(14);
+                    content.setTypeface(Typeface.MONOSPACE); content.setTextIsSelectable(true); content.setPadding(dp(16), dp(12), dp(16), dp(12));
+                    ScrollView scroll = new ScrollView(this); scroll.addView(content);
+                    AlertDialog dialog = historyDialogBuilder(preview.complete ? "Exact version comparison" : "Incomplete version comparison")
+                            .setView(scroll).setPositiveButton("Back to history", (ignored, which) -> { if (historyCurrent(request, tabId, exactUri)) showDocumentHistory(); })
+                            .setNegativeButton("Close", (ignored, which) -> { if (request == this.historyRequest) invalidateHistory(); }).create();
+                    presentHistoryDialog(dialog, request);
+                });
+            } catch (Exception failure) {
+                this.main.post(() -> { if (historyCurrent(request, tabId, exactUri)) showError("Versions could not be compared.\n\n" + message(failure)); });
+            }
+        });
+    }
+
     private void launchProtectedCopy(String snapshotId, String title) {
         if (this.saveInProgress) { showError("Wait for the current save to finish before restoring a copy."); return; }
         this.restoreSnapshotId = snapshotId;
@@ -2720,6 +2945,10 @@ public class MainActivity extends Activity {
         linearLayout.addView(workspaceAction("↶  Protected saves", "Originals and edited versions · restore to a new copy", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showProtectedSaves();
+        }), matchWrap());
+        linearLayout.addView(workspaceAction("History for this document", "Named versions, comparison and restore to a new copy", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            showDocumentHistory();
         }), matchWrap());
         List<RecentStore.Item> list = RecentStore.read(this);
         if (!list.isEmpty()) {

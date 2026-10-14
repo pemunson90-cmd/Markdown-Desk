@@ -25,3 +25,27 @@ The controller worker owns only its new backend and controller fixtures until ha
 
 No automatic pruning, export/import, pin-consuming runtime operation or new native
 format. Physical Fold/SAF/IME/TalkBack, signing and upgrade gates remain open.
+
+
+## Integration checkpoint
+
+Controller source is independently approved at `43f7094`; the captured-array race
+was reproduced and fixed before handoff. Activity and extracted callbacks now
+have scoped source review, 39/320 save checks, 15/223 recovery checks plus seven
+recovery UI callbacks, and 84 real-backend history-action assertions. The action
+runner also passed through a path containing spaces; three temporary-source
+sensitivity probes were observed RED. These do not prove Android paint or SAF.
+
+Ruling: keep the existing metadata fallback unchanged; no ordinary provider
+metadata failure after coordinator success was reproduced. Optional indexing
+owns its diagnostic channel. Real quota saturation replaces the old constructor-
+quota fixture because acknowledged shared policy is now authoritative; protection
+assertions still require zero provider writes and retained exact evidence.
+
+Ruling: no durable pin is needed for the nonresumable comparison held under the
+common parent monitor and generation guard. Runtime export remains unavailable
+until enforced operation quiescence and terminal recovery are reviewed.
+
+Next: reconcile PR #19's backend integration, final whole-branch review, then one
+clean host/two-unsigned-build gate and required hosted validation. All physical
+and canonical release gates remain separate and uncompleted.

@@ -1,77 +1,87 @@
 # Current project status
 
-## Current checkpoint — M1 operation foundations, 2026-10-14
+## Current checkpoint — selected retention and history workflow, 2026-10-14
 
-Main is `c0b7b80fd5e1a0c879d57ebe1399d726f4bc3b6b`: [PR #17](https://github.com/pemunson90-cmd/Markdown-Desk/pull/17)
-merged at reviewed head `607bfd0` after required hosted run38649285065 passed.
-Draft run38649273039 was skipped, not passing evidence. [PR #16](https://github.com/pemunson90-cmd/Markdown-Desk/pull/16)
-previously merged at `6630609`, after required hosted run38646423423 passed.
-PR #9 exact-source import and PRs #10–#15 remain merged.
+Main is `31d4309cfd8798e1a388c9ccc5b26a7597189efd`: [PR #18](https://github.com/pemunson90-cmd/Markdown-Desk/pull/18)
+merged at reviewed head `e589563` after required hosted run38651804113 passed.
+Draft run38651784968 was skipped, not passing evidence. PR #17 bounded preview/
+statistics and PR #16 read-only maintenance recovery are also merged; exact
+baseline import PR #9 and protected-save foundations remain preserved.
 
-Latest verified source:
-
-- Preview holds one active render/delivery plus one replaceable snapshot; stale
-  edits, suppressed loads, tabs, palette/font/mode and shutdown invalidate it.
-  Existing180ms cadence, exact HTML and scroll capture remain. Worker402checks,
-  independent18concurrency checks, renderer goldens and SDK37 compilation passed.
-- Statistics now also holds delivery backpressure: worker29delivery+94existing
-  checks and independent22checks passed. Posted callbacks retain counts/keys,
-  not source text; existing250ms cadence and count semantics remain.
-- Clean integration gate at `f0527060da0fefbbeda3ffb82dad323db4d45a69` passed the
-  full required host suite once and two audited unsigned builds matching
-  SHA-256 `eb1a95566fb8520c2de317e4c187bfec7fa166dda7e481bdc1bac414c442ac07`.
-  Package2.2.5/code18/min26/target35 and all25approved assets preserved; no
-  downloads/signing inputs. Scoped tracked-file credential scan348files/0matches
-  is a pattern check, not whole-history proof. Reviewed production bytes match.
-- Read-only maintenance recovery validates committed intents and survivors before
-  installing a revalidated logical tombstone. Its clean gate at `98577d5` matched
-  unsigned SHA-256 `0526c4e0cecf2bfe32a2a4c601536f1085d67e45ee3735a804778ea7d0218fe1`.
-  It publishes/deletes nothing; synthetic partial states are not executor crash proof.
-
-Active integration is `codex/m1-operation-foundations`, [draft PR #18](https://github.com/pemunson90-cmd/Markdown-Desk/pull/18). Independent ownership:
-
-- `codex/durable-history-pins`: corrected source `092c12b` (codec `478eb42`),
-  carried unchanged at `a9e58e1`, is integrated with independent approval.
-  Worker909codec/332lifecycle/4streamed-manifest checks and20SIGKILL boundaries
-  with42fresh JVM reopens passed. Independent review reproduced and repaired
-  reservation-before-policy-promotion, closed-audit/maintenance restart and
-  known-evidence omission defects, including capacity guards. One shared control
-  allowance retains BEGIN/CLOSE pairs and terminal reservations; every planner
-  mode freezes while pins are active/unreconciled. Partial stages stay blocked;
-  no cancellation availability or arbitrary fresh-process omission detection.
-- `codex/private-state-codec`: approved pure streaming schema over current source
-  fields and eight actual allowlisted settings. Source `3cd61fc` is integrated
-  byte-identically at `9c157c0`: worker848functional+99streaming assertions and
-  independent301checks passed. Independent8MiB streaming used48MiBheap/32MiBheld;
-  this is host memory evidence, not an Android budget. URI/baseline/clean fields
-  remain provenance only; no grant, native adoption, provider write or runtime
-  caller. Its default functional/memory runner is now required at integration.
-  Frozen native-history archive mapping is the next independent source task.
-- Next executor plan is independently reviewed on `codex/journaled-retention`.
-  Implement selected deletion/replay only after completed-pin compatibility
-  review; exact effective authority and explicit terminal recovery are required.
-  Automatic execution waits for typed per-root capacity-demand proofs. Existing
-  pure previews do not authorize deletion.
-
-Combined clean gate PASS at `6bba85431e0cc2c340cd945551fb5c4d96ebda38`:
-required host suite once and two audited unsigned builds matching SHA-256
+Latest clean gate at `6bba85431e0cc2c340cd945551fb5c4d96ebda38` passed the required
+host suite once and two audited unsigned builds matching SHA-256
 `c646e0757b027d5de003ba904d9787e5daa8d092bd326f7155044386736b4d5e`.
-No downloads/signing inputs; package/assets preserved. Required hosted validation
-is pending before source merge. Scoped367tracked-file credential pattern scan
-had0matches; not a whole-history proof.
+No downloads/signing inputs; package 2.2.5/code 18/min 26/target 35 and all 25
+approved assets preserved. Scoped credential-pattern scan: 367 tracked files,
+zero matches; not a whole-history proof.
 
-Next: complete the required hosted gate for reviewed pins/private-state validation.
-Continue journaled retention,
-operation quiescence/partial-stage resolution, persisted export manifests, strict
-import/adoption and runtime history. Continue eligible M2–M7 without treating a PR
-as campaign completion. No destructive executor or full M1 workflow is enabled.
+Verified backend additions:
 
-Required production recoverability remains GREEN; raw-provider hazards remain
-unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
+- Durable pins (`092c12b`, codec `478eb42`) retain immutable BEGIN/CLOSE audits
+  within the existing 1 MiB/256-entry control allowance. Terminal reservations
+  survive policy-stage promotion; known missing evidence blocks writers/pruning.
+  Closed audit reconciliation supports interrupted maintenance. Worker 909 codec,
+  332 lifecycle, four streamed-manifest checks and 20 SIGKILL boundaries with
+  42 fresh JVM reopens passed; independent persistence review approved corrections.
+- Private-state codec (`3cd61fc`) streams tab/recovery bytes and eight allowlisted
+  preferences. URI/baseline/clean fields are provenance only. Worker 848 functional
+  and 99 streaming checks plus 301 independent checks passed. An independent
+  8 MiB stream passed at 48 MiB heap with 32 MiB retained; not an Android budget.
+- Pin stages remain preserved/blocked when partial. No eventual-cancellation
+  promise, runtime consumer, operation quiescence, terminal repair, compaction
+  or fresh-process arbitrary-evidence-loss anchor is implemented.
+
+Active source boundaries: [draft PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
+(`codex/history-execution-export`) and local `codex/history-ui-integration`.
+
+- Frozen native archive manifest `73655d5` is integrated byte-identically through
+  `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
+  plus 62 independent checks passed. MAX 16,380 entries; serialized and conservative
+  retained-index budgets are separate. Preparation/completion get distinct archive
+  IDs despite sharing a native UUID. Retries must read persisted mapping.
+  This pure artifact proves no current filesystem freshness, atomic capture, pin
+  publication or verified export; its default runner is registered for next gate.
+- Selected retention executor `367ca34` (source `c36b093`) is integrated unchanged.
+  Worker 747 behavioral and 22 memory checks passed, with 44 crash/OS-limit/
+  corruption fixtures and 88 fresh JVM reopens. Independent 25 boundary checks
+  and the reproduced bootstrap-admission defect passed after its repair. It
+  requires exact acknowledged capacity, durable intent, per-victim fresh proofs
+  and shared terminal retirement; no runtime caller or automatic execution.
+  Retained intent stages remain blocked. Its default runner is now required.
+- Independently approved controller `43f7094` is integrated unchanged as `ce59d69`.
+  Worker 123 functional checks, six fresh-JVM assertions and a capture-race
+  regression passed; reviewer 30 raced captures and 23 native-backend checks passed.
+  Owned-copy validation fixes the reproduced validate-before-clone race.
+- Activity startup/save-route hooks and guarded history actions have passed scoped
+  fixtures and source review. Worker save lifecycle: 39 cases/320 assertions;
+  recovery loader: 15 cases/223 assertions plus seven actual UI callbacks. New
+  history actions: 84 assertions, including a spaced checkout path; three copied-
+  source guard/color/status sensitivity probes failed as expected. These are new
+  API sensitivity checks, not regressions against a preceding production UI.
+  Exact Activity blob `73be90c5076916c8221b29ab7bcdae0d36ef7d15` also passed
+  whole-app JDK17/SDK37 Java compilation. The new required runners still await
+  the coherent clean host/build gate and final whole-branch review.
+- Mandatory writes require acknowledged shared startup. Save As origin/revision
+  survives conflict consent; optional indexing failure preserves actual provider
+  success, dirty edits and recovery. Global Protected saves remains independently
+  readable. History offers 100-row pages, captured named revisions, bounded exact
+  comparison and the existing restore-to-new-copy picker, with tab/URI/request/
+  Activity guards and palette-colored dialogs. No automatic deletion or export/
+  import runtime caller is enabled. Android rendering/provider/device gates remain
+  NOT RUN.
+
+Next: run one clean host/two-unsigned-build checkpoint for the reviewed selected
+executor and frozen manifest, then required hosted validation. Continue the
+history controller and narrow UI integration, runtime quiescence/terminal repair,
+persisted export capture, strict import/adoption and the remaining M0–M7 campaign.
+No full M1 workflow or milestone completion is claimed.
+
+Latest merged production recoverability is GREEN; current integration gates
+remain pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
 TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
 Existing same-URL WebView completion/scroll ordering and fixed-delay printing
 remain separate Android gaps. Host queue observations are not typing latency,
-peak memory or device acceptance. No milestone or installable release is claimed.
+peak memory or device acceptance. No installable release is claimed.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
