@@ -1,7 +1,8 @@
 # Journaled retention execution — next prerequisite
 
-Status: draft for independent review; no executor implemented or enabled.
-Base: main6630609 plus the pending reviewed durable-pin prerequisite. This plan
+Status: selected-only backend host checks passed; exact-source review pending.
+No runtime caller is enabled.
+Base: e2e3b815 with the completed reviewed durable-pin prerequisite. This plan
 continues ADR-002, not the superseded extra-root/allowance proposal in ADR-003.
 Owner standing authorization permits local implementation after technical review;
 physical acceptance and production release remain separate gates.
@@ -80,7 +81,12 @@ an intent while an installed projection exists. Add an explicit lease-aware
 terminal validator that inspects survivors without recursively revalidating the
 missing-intent view. It must retain closure and anchor proof, reject conflicting
 control inputs/root replacements, and establish directory durability before
-clearing exactly the matching view. Never use unconditional installView(null).
+clearing exactly the matching view. The terminal helper refreshes CLOSED pin audit
+acknowledgement under the existing lease after intent removal, since a cold replay
+acknowledgement includes the intent inode. It then prepares an unpublished capacity
+from the explicit physical survivor graph. Final installation and exact view/
+retirement clearing occur together after the last callback and proof. Never use
+unconditional installView(null).
 Public recovery open and reconcile remain wrappers over internal helpers which
 require an existing lease rather than acquiring nested administration.
 
@@ -92,29 +98,29 @@ intent unlink; a restored intent remains idempotently replayable.
 
 ## Meaningful verification before runtime enablement
 
-- [ ] Independent review of this plan against the completed pin API and actual
+- [x] Independent review of this plan against the completed pin API and actual
       recovery locking; resolve publication retry and final retirement states.
-- [ ] RED production executor fixtures: stale policy/profile, changed preview,
+- [x] Production executor fixtures: stale policy/profile, changed preview,
       selected IDs, unsupported automatic demands, anchors, members, active pins
       and unknown stages
       cause zero unlinks; same-history newest anchors survive.
-- [ ] Actual OS write-limit/ENOSPC-like publication failure before intent commit
+- [x] Actual OS write-limit/ENOSPC-like publication failure before intent commit
       causes zero unlinks and retains source/stage evidence.
-- [ ] Functional whole-group and selected-checkpoint deletion; all survivors'
+- [x] Functional whole-group and selected-checkpoint deletion; all survivors'
       exact original/attempted bytes, catalog/index readers, physical charges and
       reservations remain correct after each interrupted physical prefix.
-- [ ] Superseded authority handle and policy A→B→A with equal final values reject
+- [x] Superseded authority handle and policy A→B→A with equal final values reject
       stale authorization; exact generation/hash still bind the plan.
-- [ ] Final control-sync failure with same-process retry and second-handle open;
+- [x] Final control-sync failure with same-process retry and second-handle open;
       intent-unlink failure with present/absent outcomes; last data-directory sync
       callback changes a survivor and causes zero subsequent unlinks.
-- [ ] Callback/reentrant/second-handle tests at sync/move/unlink boundaries,
+- [x] Callback/reentrant/second-handle tests at sync/move/unlink boundaries,
       same-byte inode replacement and no callbacks after final validation.
-- [ ] Child JVM SIGKILL before/after intent sync, move, directory sync, each
+- [x] Child JVM SIGKILL before/after intent sync, move, directory sync, each
       member kind unlink, each affected directory sync, intent unlink and final
       control sync. Two independent fresh-process reopens/replays per boundary;
       no extra members or unrelated bytes removed. Retained invalid input blocks.
-- [ ] Bounded256-member/64KiB proof and control allowance boundaries; constrained
+- [x] Bounded256-member/64KiB proof and control allowance boundaries; constrained
       heap with near-limit snapshot pairs, no payload materialization.
 - [ ] Independent persistence review of exact committed source, then scoped
       dependency regressions and one clean full host/two-unsigned-build gate.
@@ -136,5 +142,24 @@ existing pure previews remain available without execution authority.
 Independent plan review at463983b identified terminal-state, typed-demand and
 exact-authority gaps above. This revision addresses the selected-only contract;
 independent revised-plan review approved bdd95ed, with SELECTED-only enforcement
-required for replay too. Compatibility review against completed pin source is
-still required before code.
+required for replay too. Compatibility review against completed pin source approved the explicit locked
+recovery, closed-audit refresh, shared retirement capability and unpublished
+terminal capacity design before destructive implementation. Final exact-source
+review remains required.
+
+## Scoped implementation evidence
+
+`bash verification/history_executor/run.sh`: 738 behavioral checks and22 memory
+checks passed;44 SIGKILL/OS-limit/corruption fixtures passed88 fresh JVM reopens.
+The memory case uses near-limit native pairs with32MiB held live at128MiB heap.
+Publication OS write-size failure and actual intent-unlink permission failure
+retain evidence; byte and slot allowance boundaries reject before publication.
+Partial member prefixes retain exact physical charges and genuine reservations.
+
+Affected dependency runners passed: pins909 codec/332 lifecycle/4 manifest and
+20 SIGKILL boundaries/42 fresh reopens; capacity209 codec plus49 policy/61
+admission/42 integration and10 SIGKILL/7 fresh cases; maintenance73/103 codec,
+578 projection checks, memory and14 fresh reopens; planner81/5 and60/9 pressure;
+retention graph94/6. No unchanged broad benchmark or full gate was repeated.
+The parent integrator owns central runner registration and the full host/build
+gate. Independent exact-source review remains pending at this checkpoint.
