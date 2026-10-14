@@ -47,8 +47,12 @@ Reviewed pressure mode `8baa6eb`: existing81+5 and new60+9checks pass; floor/sel
 proof encoding remains compatible. Profile previews grant no execution/admission;
 newest same-history anchors, labels, pins, stages and unresolved data stay protected.
 
-Next: finish documentation/privacy checks, mark reconciled PR #14 ready once for
-required hosted validation, then merge only its verified exact head. No force-push. An inert bounded intent
+Hosted run38643656351 on `016f7a6` failed: the syntax runner used `rg`, absent
+on the independent runner, so stub discovery returned no files and compilation
+stopped. No application source changed. PR14 returned to draft; portable `find`
+with an explicit nonempty-stub guard is being checked locally without `rg`.
+Next: publish this scoped portability repair, then one new required hosted check
+for changed inputs; merge only the verified exact head. No force-push. An inert bounded intent
 codec is reviewed at `7c422a2`:73 native and103 bounded-heap checks plus planner
 compatibility pass. It performs no filesystem operations and the control parser
 still treats intent files as unknown until separately reviewed integration. No
