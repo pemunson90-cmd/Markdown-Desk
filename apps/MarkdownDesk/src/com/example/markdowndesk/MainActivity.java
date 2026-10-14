@@ -31,6 +31,7 @@ import android.view.SubMenu;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
@@ -1408,6 +1409,9 @@ public class MainActivity extends Activity {
         styleButton(this.editModeButton, this.mode == MODE_EDIT, false);
         styleButton(this.previewModeButton, this.mode == MODE_PREVIEW, false);
         styleButton(this.splitModeButton, this.mode == MODE_SPLIT, false);
+        this.editModeButton.setSelected(this.mode == MODE_EDIT);
+        this.previewModeButton.setSelected(this.mode == MODE_PREVIEW);
+        this.splitModeButton.setSelected(this.mode == MODE_SPLIT);
         styleButton(this.focusButton, this.focusMode, false);
         this.focusButton.setContentDescription(this.focusMode ? "Exit focus mode" : "Enter focus mode");
         this.focusButton.setSelected(this.focusMode);
@@ -3057,6 +3061,19 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    /** Only actual Appearance choices expose checked state; action buttons keep their semantics. */
+    private void setAppearanceSelection(Button button, String label, boolean selected) {
+        button.setSelected(selected);
+        button.setContentDescription(label);
+        button.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setCheckable(true);
+                info.setChecked(host.isSelected());
+            }
+        });
+    }
+
     /** Refresh the *existing* window, not just the main activity behind it. */
     private void refreshAppearance(AppearanceUi ui) {
         final UiTheme.Palette colors = this.palette;
@@ -3076,12 +3093,16 @@ public class MainActivity extends Activity {
             Button button = ui.themeButtons[index];
             boolean selected = index == this.themeId;
             button.setText((selected ? "●  " : "○  ") + ui.themeNames[index]);
+            setAppearanceSelection(button, ui.themeNames[index], selected);
             button.setBackground(UiTheme.rounded(selected ? colors.accentSoft : colors.surface,
                     dp(13), selected ? colors.accent : colors.border, 1));
         }
         ui.linesButton.setText((this.lineNumbers ? "✓  " : "○  ") + "Line numbers");
         ui.typewriterButton.setText((this.typewriterMode ? "✓  " : "○  ") + "Typewriter mode");
         ui.splashButton.setText((this.launchSplashEnabled ? "✓  " : "○  ") + "Show launch splash");
+        setAppearanceSelection(ui.linesButton, "Line numbers", this.lineNumbers);
+        setAppearanceSelection(ui.typewriterButton, "Typewriter mode", this.typewriterMode);
+        setAppearanceSelection(ui.splashButton, "Show launch splash", this.launchSplashEnabled);
         ui.galleryButton.setText("⋯  Splash images (" + SplashStore.enabled(this).size() + " on)");
         if (ui.dialog != null && ui.dialog.isShowing()) {
             styleDialog(ui.dialog);

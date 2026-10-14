@@ -10,3 +10,7 @@ java -cp "$out" ExtractLabels apps/MarkdownDesk/src/com/example/markdowndesk/Mai
 javac --release 11 -d "$out" "$out/ModeHarness.java" "$out/LabelHarness.java" verification/mode_behavior/ModeBehaviorTest.java verification/mode_behavior/LabelBehaviorTest.java
 java -cp "$out" LabelBehaviorTest
 java -cp "$out" ModeBehaviorTest
+javac --release 11 -d "$out" verification/mode_behavior/ExtractAppearance.java
+java -cp "$out" ExtractAppearance apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java verification/mode_behavior/AppearanceHarness.template "$out/AppearanceHarness.java"
+javac --release 11 -d "$out" "$out/AppearanceHarness.java" verification/mode_behavior/AppearanceBehaviorTest.java
+java -cp "$out" AppearanceBehaviorTest
