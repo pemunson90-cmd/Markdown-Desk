@@ -46,18 +46,17 @@ def kill_at(root, mode, point):
 def verify(root, point, mode="verify"):
     subprocess.run(["java", "-cp", classpath, main, mode, root, point], check=True, timeout=10)
 
-if "--completion-retry" in sys.argv[2:]:
-    for boundary in range(1, 4):
-        with tempfile.TemporaryDirectory(prefix="completion-retry-restart-") as root:
-            kill_at(root, "save", "durable-10")
-            verify(root, "durable-10")
-            kill_at(root, "completion-retry", f"durable-{boundary}")
-            verify(root, f"durable-{boundary}", "verify-retry")
-            verify(root, f"durable-{boundary}", "verify-retry")
-    print("PASS 3 transaction-bound completion retry SIGKILL boundaries, each reopened twice")
-else:
+if "--completion-retry" not in sys.argv[2:]:
     for point in points:
         with tempfile.TemporaryDirectory(prefix="protected-restart-") as root:
             kill_at(root, "save", point)
             verify(root, point)
     print("PASS 16 production SIGKILL/restart boundaries; host process death, Android/power loss NOT RUN")
+for boundary in range(1, 4):
+    with tempfile.TemporaryDirectory(prefix="completion-retry-restart-") as root:
+        kill_at(root, "save", "durable-10")
+        verify(root, "durable-10")
+        kill_at(root, "completion-retry", f"durable-{boundary}")
+        verify(root, f"durable-{boundary}", "verify-retry")
+        verify(root, f"durable-{boundary}", "verify-retry")
+print("PASS 3 transaction-bound completion retry SIGKILL boundaries, each reopened twice")

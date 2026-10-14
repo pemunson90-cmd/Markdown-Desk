@@ -43,6 +43,5 @@ diagnostic while reporting all actual regular-file usage. This is bounded host
 heap evidence, not an Android memory or latency budget.
 
 Private multi-process writers are unsupported. Combined accounting does not
-implement shared quota admission. Dynamic quota/persisted policy, transaction-bound
-completion stages, pruning plans/execution, UI integration, Android/provider/Fold,
+implement shared quota admission. Transaction-bound completion stages now conserve native reservations but always block pruning. Dynamic quota/persisted policy, pruning execution, UI integration, Android/provider/Fold,
 power-loss and release acceptance remain separate work.

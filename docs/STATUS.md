@@ -79,7 +79,7 @@ Merged foundation evidence (production save/UI paths unchanged by the new backen
   42Split UI +8ratio assertions;10inventory checker tests. New issue #3/#4
   scoped suites PASS. Combined required host suite PASS from clean committed
   source at `727112133d556f44c68cdb11b95afade8a4880c6`.
-- Production store19cases/96assertions plus3real OS write-limit assertions;
+- Production store31cases/272assertions plus3real OS snapshot write-limit assertions and11zero-prefix/11partial-prefix completion assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
 - Activity save lifecycle34cases/233assertions including actual strict codec (previously six Save As cases required the separate `--safety` invocation; the current runner now includes all34);
   recovery13cases/179assertions plus7actual UI callback/dialog assertions.
@@ -152,18 +152,27 @@ Current retention slice, independently reviewed at `f244e0e` (Task3A1):
 - A bounded operation-scoped validated-source cache avoids repeated checkpoint
   payload hashing; generation checks before and after callbacks reject mutation.
   Independent review caught and fixed a stale proof and an API33-only sink.
-- Scoped tests PASS:81 functional +6 constrained-memory checks; affected native
+- Scoped tests PASS:94 functional +6 constrained-memory checks (including completion staging); affected native
   store/coordinator/restart/catalog/index/diff/recovery paths PASS. All34 lifecycle
   cases/233assertions PASS locally after required-runner registration. Clean committed-source host suite PASS at `904d7bfb9dcf8a9721930aae745c79df4eef2814`; two genuinely unsigned builds PASS and match SHA-256 `4caf117b90159dbbbb9ba1585551769d0a95c77d42f44cd29366195edecc6856`. No signatures/credentials or device acceptance.
 
 Additional local framing prerequisite: explicit INDEX wire ID9 preserves IDs1–8
 and framing version;68 assertions pass using a byte-identical real production
 ownership envelope plus category/size/integrity faults. This does not implement
-full history export/import. New optional completion-retry SIGKILL tests observed
-RED on the old anonymous-stage implementation; original16 restart checks still
-PASS. Deterministic staging is under implementation and independent review;
-these new probes must pass before the integrated retention PR becomes ready.
-Pure planning and read-only control-codec preparation have separate file ownership.
+full history export/import. Completion-stage tests observed RED on the old anonymous-stage implementation,
+then GREEN against the reviewed prerequisite `b511fee` (integrated `a53127e`).
+One deterministic stage conserves its exact completion byte/slot reservation;
+full matching stages may retry without rewriting, partial/changed stages cannot.
+Current constructor quotas and v1 envelope bytes remain unchanged; no reduced-
+quota exemption. Review reproduced and fixed fresh-stage inode substitution before
+move; same-target recursion and generation invalidation are checked. Original16
+restart boundaries plus3full-stage retry SIGKILL boundaries (each reopened twice)
+are now required. Independent pure planner review approved `6f02af3` (integrated
+`11fdf74`):81 functional +5 memory checks, bounded exact proofs with no partial
+plans or deletion. Current count remains a protected floor; future pressure mode
+requires its own tests. Read-only control codec `786745c` (integrated `85d2bc2`)
+passes14cases/209assertions at64MiB; it publishes/adopts no policy. Combined clean
+integration evidence for these latest source changes is pending below.
 
 Integration evidence and next executable work:
 
@@ -176,7 +185,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   finish clean integration of shared lock/validated inventory/read-only graph, then implement combined admission and reservation-bound completion staging before any destructive executor. Crash-safe deletion, verified export, strict import and
+   finish the combined graph/completion/planner/control-codec integration gate, then implement explicit durable registration, complete all-writer admission and effective policy before any destructive executor. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded
