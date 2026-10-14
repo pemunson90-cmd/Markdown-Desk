@@ -13,7 +13,11 @@
 - First combined gate at `6d55d9a` failed in the statistics-only host adapter:
   the extracted watcher gained syntax coordination dependencies. The adapter
   boundary was updated without changing product behavior; targeted status
-  checks PASS. Combined host/two-build rerun and review-ready CI remain pending.
+  checks PASS. Rerun at `7bc928dc4db28cefd80bc1437204a6633417d667` **PASS**:
+  full required host suite once from clean committed source, two audited unsigned
+  builds with matching SHA-256 `b1176663dbe9cb44e54548d551cf1bb904625702368e07f37d88d76af1c34557`.
+  All25assets and package2.2.5/code18/min26/target35 preserved. Hosted review-ready
+  validation is next; no hardware/signing/upgrade acceptance is implied.
   Earlier `90f258e` full evidence remains attributed to that exact revision.
 - Shared capacity is opt-in only; legacy constructor paths remain unchanged.
   Pure planner performs no deletion. No runtime quota/history control acceptance,
@@ -22,7 +26,9 @@
   update PR #14 and run hosted validation when ready. Then implement explicit
   maintenance registration/accounting from [ADR-003](decisions/ADR-003-retention-maintenance.md),
   durable pins and journaled projection/replay before wiring runtime pruning.
-  A separate maintenance prerequisite is beginning; it is outside `6d55d9a` proof.
+  Explicit v2 maintenance enrollment/accounting is implemented locally and under
+  independent review:12cases/101checks +11host SIGKILL boundaries reported by
+  the implementer. Root integration is pending; it is outside `7bc928d` proof.
 - Four initial merged remote branches and merged retention branch were cleaned
   safely; current draft branch/main and all committed history are preserved.
   Main remains unprotected; connector administration is unavailable (403).
