@@ -5,8 +5,9 @@ final class StatusHarness {
     static final class R { static final class plurals { static final int word_count = 1, character_count = 2; } }
     static final class TextView { String text; void setText(String value) { text = value; } }
     static final class Button {
-        String text; boolean enabled = true; int textColor; Object background;
+        String text, contentDescription; boolean enabled = true; int textColor; Object background;
         void setText(String value) { text = value; }
+        void setContentDescription(String value) { contentDescription = value; }
         void setEnabled(boolean value) { enabled = value; }
         void setTextColor(int value) { textColor = value; }
         void setBackground(Object value) { background = value; }

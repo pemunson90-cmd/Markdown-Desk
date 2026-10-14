@@ -120,3 +120,18 @@ JDK17, installed SDK37.0 and build-tools36.0.0 reused without dependency
 downloads. Chromium overflow proxy passes108cases; no screenshot comparison
 or Android device acceptance is implied. The safety gate still fails exactly
 two destructive provider probes. PR10 stays draft.
+
+## Save As and accessible action repair
+
+Expanded extracted lifecycle tests reproduced6failures: premature destination
+adoption, failed-write/readback identity loss, missing/busy origin result handling
+and stale closed-origin continuation. A pending URI overload now adopts identity
+only on verified success. Untitled, newer-edit and tab-switch cases remain valid.
+10baseline cases/80assertions and16desired cases/127assertions pass.
+
+Helper action descriptions, four size-control names and dynamic Focus state
+pass43label and117mode assertions. Independent review identified a fixed Save
+description hiding COPY/SAVED; updateStatus now uses matching dynamic descriptions,
+with28status assertions. No layout or click-routing changes. Remaining static
+accessibility findings: [audit](M0_UI_ACCESSIBILITY_AUDIT.md). Real Android
+TalkBack/IME/Fold/provider/process-death verification remains NOT RUN.

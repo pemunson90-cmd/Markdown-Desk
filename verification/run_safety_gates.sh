@@ -4,6 +4,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 failed=0
 bash verification/document_io/run.sh --safety || failed=1
+bash verification/save_lifecycle/run.sh --safety || failed=1
 # Compile renderer fixtures but do not turn the nested-list assertion into an expected pass.
 bash verification/renderer_golden/run.sh || failed=1
 java -cp verification/build/renderer-golden com.example.markdowndesk.NestedListKnownFailure || failed=1

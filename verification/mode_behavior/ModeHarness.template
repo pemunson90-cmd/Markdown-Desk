@@ -6,12 +6,13 @@ public final class ModeHarness {
     static class View {
         static final int VISIBLE = 0, GONE = 8;
         int visibility = VISIBLE, alphaPercent = 100, scrollY = 321;
-        boolean enabled = true;
+        boolean enabled = true, selected;
         String description;
         void setVisibility(int value) { visibility = value; }
         void setEnabled(boolean value) { enabled = value; }
         void setAlpha(float value) { alphaPercent = Math.round(value * 100); }
         void setContentDescription(String value) { description = value; }
+        void setSelected(boolean value) { selected = value; }
     }
     static final class Button extends View { int icon, iconColor, textColor; boolean styledActive; int getCurrentTextColor(){return textColor;} }
     static final class Header extends View {

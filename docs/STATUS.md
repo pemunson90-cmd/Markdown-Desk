@@ -34,7 +34,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
 - Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
 - Issue #2: host provider/UTF8/BOM/size and session/recovery fixtures and independent renderer/mode-method fixtures integrated:39provider,
-  568session/recovery,467renderer/palette,99mode/lock assertions pass; ten
+  568session/recovery,467renderer/palette,117mode/lock plus43label assertions pass; ten
   inventory audit tests pass. Actual Android boundaries are simulated.
 - Issue #3: deterministic10k/100k/500k-word and8MiB host benchmarks recorded;
   full UI/device/Fold timing remains NOT RUN.
@@ -46,7 +46,7 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 - Provider safety probes now3pass/2fail; destructive partial/zero-byte provider
   writes remain unresolved. Nesting, wide-table stack-overflow and sampled/context contrast fixes pass locally.
   The desired-safety gate remains RED, so M0 is not complete.
-- Recovery loader10cases134assertions and status24assertions pass after RED-first
+- Recovery loader10cases134assertions and status28assertions pass after RED-first
   fixes; status snapshot count2→1. No reliable timing speedup or device claim.
 - Chromium host layout proxy passes108cases (9themes×3sizes×4viewports);
   this is browser overflow coverage, not screenshots or Android/Fold acceptance.
@@ -55,11 +55,23 @@ See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
   JDK17/SDK37.0/build-tools36.0.0 reused; no dependency downloads in clean rebuild.
   Independent CI run38564454893 failed in status-test tooling: a hard-coded
   local Java path; desired safety step was skipped. Scripts now use PATH and
-  locally pass; independent rerun pending. No hosted green claim.
+  locally pass. Rerun38564818234 passes behavioral preservation and fails
+  the safety step on the same two destructive provider assertions; no overall
+  green claim. See GitHub Actions run evidence.
+- Save As lifecycle repair:10baseline cases/80assertions and16desired cases/
+  127assertions pass after6independent failures. Destination stays pending until
+  verified success; missing/busy origin results abort; failed writes preserve
+  URI/name/hash/time/readOnly/BOM; newer edits remain dirty; closed origins clear
+  stale continuations. Real Android/provider boundaries are simulated.
+- Label repairs:source/reading size actions distinguished; helpers expose
+  descriptions; Focus Enter/Exit/selected state tracks existing behavior; Save
+  action/state descriptions follow Saving/Copy/Save/Saved precedence.
+  Static accessibility audit records remaining divider/target/device gaps.
 - Safe-save preparation:20model-contract tests pass, explicitly not production
   persistence/durability proof; no existing provider assertion weakened.
-- Current next action: prepare executable pre-write protection acceptance cases
-  and audit remaining accessibility/UI seams; then implement/review protection under
+- Current next action: complete clean committed rebuild of Save As/label repair;
+  then prepare real storage durability adapter/fault cases and remaining
+  accessibility/UI seams under
   ADR-001 before claiming data-safety gates. Owner delegated policy: preserve
   both original and attempted edit durably, fail closed if protection fails,
   restore only to a new copy. This is recoverability, not unchanged provider URI.

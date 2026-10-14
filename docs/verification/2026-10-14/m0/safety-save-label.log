@@ -1,0 +1,134 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS SAFETY oversized write must reject before provider access
+PASS SAFETY UTF8 BOM oversized write must reject before provider access
+PASS SAFETY null descriptor must not mark metadata writable
+FAIL SAFETY failed truncated output must preserve original: java.lang.AssertionError: original destroyed: retained bytes=re
+FAIL SAFETY rejected write immediately after truncate must preserve original: java.lang.AssertionError: original destroyed: retained length=0
+DocumentIO host fixtures: 3 passed, 2 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact picker handler, capture/lookup, save worker/callbacks and five constants via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS normal save commits verified version
+PASS normal Save As success adopts verified destination
+PASS untitled Save As succeeds without current URI
+PASS newer active edits remain dirty and retain recovery
+PASS switched-tab callback updates only saving tab
+PASS Save As newer edits remain dirty
+PASS Save As switched-tab callback preserves active identity
+PASS closed-tab callback does not resurrect original tab
+PASS provider write and readback failures retain dirty content
+PASS cancelled Save As leaves origin unchanged
+PASS SAFETY Save As does not adopt identity before verification
+PASS SAFETY provider-write-failed Save As retains original identity and baseline
+PASS SAFETY readback-mismatched Save As retains original identity and baseline
+PASS SAFETY removed Save As origin never retargets active tab
+PASS SAFETY busy picker result never adopts destination
+PASS SAFETY closed Save As tab clears stale continuation
+PASS save-lifecycle safety: 16 cases, 127 assertions, 0 failures
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CONTRAST Paper      body/canvas    14.68:1 AA
+CONTRAST Paper      muted/canvas   4.82:1 AA
+CONTRAST Paper      rendered link/canvas 4.50:1 AA
+CONTRAST Midnight   body/canvas    16.49:1 AA
+CONTRAST Midnight   muted/canvas   7.65:1 AA
+CONTRAST Midnight   rendered link/canvas 8.02:1 AA
+CONTRAST Sepia      body/canvas    10.58:1 AA
+CONTRAST Sepia      muted/canvas   4.51:1 AA
+CONTRAST Sepia      rendered link/canvas 4.81:1 AA
+CONTRAST Forest     body/canvas    15.79:1 AA
+CONTRAST Forest     muted/canvas   8.06:1 AA
+CONTRAST Forest     rendered link/canvas 7.85:1 AA
+CONTRAST Bubblegum  body/canvas    13.17:1 AA
+CONTRAST Bubblegum  muted/canvas   4.65:1 AA
+CONTRAST Bubblegum  rendered link/canvas 4.51:1 AA
+CONTRAST Amethyst   body/canvas    16.88:1 AA
+CONTRAST Amethyst   muted/canvas   9.31:1 AA
+CONTRAST Amethyst   rendered link/canvas 6.29:1 AA
+CONTRAST Black Rose body/canvas    16.77:1 AA
+CONTRAST Black Rose muted/canvas   7.82:1 AA
+CONTRAST Black Rose rendered link/canvas 5.56:1 AA
+CONTRAST Ocean      body/canvas    17.08:1 AA
+CONTRAST Ocean      muted/canvas   8.82:1 AA
+CONTRAST Ocean      rendered link/canvas 9.12:1 AA
+CONTRAST Arcade     body/canvas    18.01:1 AA
+CONTRAST Arcade     muted/canvas   8.33:1 AA
+CONTRAST Arcade     rendered link/canvas 13.03:1 AA
+PASS 467 renderer/palette assertions; 9 palettes x 5 reading sizes; contrast observations above
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 12 independent nested-list body/structure assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 14020 table-divider assertions (2k/5k rendered columns, manual grammar, 14k seeded short differential cases)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 12 independent nested-list body/structure assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 6264 independent contrast/blend assertions across palette pairs and 2048 seeded pairs
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 512 sRGB/linear-light composited splash hint cases including worst-case white; real image/UI paint NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+theme,pair,contrast,required,result
+Paper,Save readable/accent,4.525,4.5,PASS
+Paper,body/canvas,14.681,4.5,PASS
+Paper,muted/raised,5.104,4.5,PASS
+Paper,selected accent/accentSoft,4.525,4.5,PASS
+Paper,link accent/canvas,4.501,4.5,PASS
+Paper,dialog accent/raised,4.512,4.5,PASS
+Midnight,Save readable/accent,4.546,4.5,PASS
+Midnight,body/canvas,16.487,4.5,PASS
+Midnight,muted/raised,6.433,4.5,PASS
+Midnight,selected accent/accentSoft,5.987,4.5,PASS
+Midnight,link accent/canvas,8.022,4.5,PASS
+Midnight,dialog accent/raised,6.749,4.5,PASS
+Sepia,Save readable/accent,5.944,4.5,PASS
+Sepia,body/canvas,10.582,4.5,PASS
+Sepia,muted/raised,5.265,4.5,PASS
+Sepia,selected accent/accentSoft,4.529,4.5,PASS
+Sepia,link accent/canvas,4.810,4.5,PASS
+Sepia,dialog accent/raised,5.620,4.5,PASS
+Forest,Save readable/accent,4.545,4.5,PASS
+Forest,body/canvas,15.792,4.5,PASS
+Forest,muted/raised,6.125,4.5,PASS
+Forest,selected accent/accentSoft,5.056,4.5,PASS
+Forest,link accent/canvas,7.849,4.5,PASS
+Forest,dialog accent/raised,5.965,4.5,PASS
+Bubblegum,Save readable/accent,4.559,4.5,PASS
+Bubblegum,body/canvas,13.173,4.5,PASS
+Bubblegum,muted/raised,4.771,4.5,PASS
+Bubblegum,selected accent/accentSoft,4.521,4.5,PASS
+Bubblegum,link accent/canvas,4.512,4.5,PASS
+Bubblegum,dialog accent/raised,4.514,4.5,PASS
+Amethyst,Save readable/accent,4.548,4.5,PASS
+Amethyst,body/canvas,16.876,4.5,PASS
+Amethyst,muted/raised,7.889,4.5,PASS
+Amethyst,selected accent/accentSoft,4.679,4.5,PASS
+Amethyst,link accent/canvas,6.294,4.5,PASS
+Amethyst,dialog accent/raised,5.333,4.5,PASS
+Black Rose,Save readable/accent,4.521,4.5,PASS
+Black Rose,body/canvas,16.767,4.5,PASS
+Black Rose,muted/raised,6.739,4.5,PASS
+Black Rose,selected accent/accentSoft,4.514,4.5,PASS
+Black Rose,link accent/canvas,5.557,4.5,PASS
+Black Rose,dialog accent/raised,4.789,4.5,PASS
+Ocean,Save readable/accent,4.511,4.5,PASS
+Ocean,body/canvas,17.083,4.5,PASS
+Ocean,muted/raised,6.500,4.5,PASS
+Ocean,selected accent/accentSoft,5.828,4.5,PASS
+Ocean,link accent/canvas,9.117,4.5,PASS
+Ocean,dialog accent/raised,6.718,4.5,PASS
+Arcade,Save readable/accent,4.532,4.5,PASS
+Arcade,body/canvas,18.010,4.5,PASS
+Arcade,muted/raised,6.977,4.5,PASS
+Arcade,selected accent/accentSoft,9.145,4.5,PASS
+Arcade,link accent/canvas,13.028,4.5,PASS
+Arcade,dialog accent/raised,10.917,4.5,PASS
+Observed active contrast failures: 0; Android rendering NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 72 foreground/background assertions on AST-extracted production styleButton; Android paint NOT RUN
+FAIL safety/spec gate: do not claim M0 complete or production readiness

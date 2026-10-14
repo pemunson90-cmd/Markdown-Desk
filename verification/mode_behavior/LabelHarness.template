@@ -1,0 +1,39 @@
+import java.util.ArrayList;
+import java.util.List;
+
+final class LabelHarness {
+    static final int MODE_EDIT=0, MODE_PREVIEW=1, MODE_SPLIT=2;
+    static class View { interface OnClickListener { void onClick(View view); } }
+    static class TextView extends View { String text; void setText(String value) { text=value; } }
+    static final class Button extends TextView {
+        String description, tooltip;
+        View.OnClickListener listener;
+        void setContentDescription(String value) { description=value; }
+        void setTooltipText(String value) { tooltip=value; }
+        void setTextSize(float value) {}
+        void setTypeface(Object value, int style) {}
+    }
+    static final class Typeface { static final Object DEFAULT=new Object(); }
+    static final class LinearLayout {
+        static final class LayoutParams { LayoutParams(int width, int height, float weight) {} }
+        final List<Button> children=new ArrayList<>();
+        void addView(Button button, LayoutParams params) { children.add(button); }
+    }
+    static final class AppearanceUi { final List<Button> buttons=new ArrayList<>(); }
+    final List<Button> buttons=new ArrayList<>();
+    final AppearanceUi ui=new AppearanceUi();
+    final LinearLayout sourceRow=new LinearLayout(), readRow=new LinearLayout();
+    final TextView sourceLabel=new TextView(), readLabel=new TextView();
+    float fontSp=18, previewFontSp=18;
+    int sourceChanges, readingChanges;
+    int dp(int value) { return value; }
+    Button createButton(String text, View.OnClickListener listener) {
+        Button button=new Button(); button.text=text; button.listener=listener; buttons.add(button); return button;
+    }
+    void changeFont(int delta) { sourceChanges++; fontSp+=delta; }
+    void changePreviewFont(int delta) { readingChanges++; previewFontSp+=delta; }
+    Button top(String text, String description, View.OnClickListener listener) { return createTopButton(text, description, listener); }
+    Button pill(String text, String description, View.OnClickListener listener) { return createPillButton(text, description, listener); }
+    void buildSizeControls() { /* CONTROLS */ }
+    /* METHODS */
+}

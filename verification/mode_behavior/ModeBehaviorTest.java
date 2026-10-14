@@ -27,6 +27,8 @@ public final class ModeBehaviorTest {
             h.readToolsScroll.scrollY=654;
             invoke(h, "toggleFocusMode");
             check("focus on " + mode, h.focusMode);
+            check("focus exit action " + mode, "Exit focus mode".equals(h.focusButton.description));
+            check("focus selected state " + mode, h.focusButton.selected);
             check("mode retained on " + mode, h.mode==mode && h.tabs.get(0).mode==mode);
             check("chrome hidden on " + mode, h.tabsScroll.visibility==8 && h.modeBar.visibility==8 && h.eyebrowView.visibility==8 && h.statusView.visibility==8);
             check("tools hidden on " + mode, h.formatScroll.visibility==8 && h.readToolsScroll.visibility==8);
@@ -35,6 +37,8 @@ public final class ModeBehaviorTest {
             check("focus preserved scroll on " + mode, h.editor.scrollY==456 && h.readToolsScroll.scrollY==654 && h.previewScrollY==777);
             invoke(h, "toggleFocusMode");
             check("focus off " + mode, !h.focusMode);
+            check("focus enter action " + mode, "Enter focus mode".equals(h.focusButton.description));
+            check("focus unselected state " + mode, !h.focusButton.selected);
             check("chrome restored " + mode, h.tabsScroll.visibility==0 && h.modeBar.visibility==0 && h.eyebrowView.visibility==0 && h.statusView.visibility==0);
             check("format visibility " + mode, h.formatScroll.visibility==(mode==1?8:0));
             check("read tools visibility " + mode, h.readToolsScroll.visibility==(mode==1?0:8));
@@ -66,10 +70,12 @@ public final class ModeBehaviorTest {
             invoke(h, "toggleEditorLock");
             check("lock state tab " + mode, h.editorLocked && h.tabs.get(0).editorLocked);
             check("locked editor " + mode, h.editor.keyListener==null && !h.editor.cursorVisible && h.hideKeyboardCalls==1);
+            check("unlock action label " + mode, "Unlock editing".equals(h.lockButton.description));
             check("lock icon " + mode, h.lockButton.icon==2 && h.lockButton.iconColor==h.palette.accent);
             check("lock refresh " + mode, h.sessions==1 && h.formatUpdates==1 && h.responsiveUpdates==1 && h.chromeStyleCalls==15);
             invoke(h, "toggleEditorLock");
             check("unlock state " + mode, !h.editorLocked && !h.tabs.get(0).editorLocked && h.editor.keyListener!=null && h.editor.cursorVisible);
+            check("lock action label " + mode, "Lock editing".equals(h.lockButton.description));
             check("unlock icon " + mode, h.lockButton.icon==3 && h.lockButton.iconColor==h.palette.text);
         }
         System.out.println("PASS " + checks + " host assertions on five AST-extracted MainActivity methods");

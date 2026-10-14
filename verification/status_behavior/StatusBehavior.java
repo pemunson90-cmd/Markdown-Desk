@@ -29,6 +29,7 @@ public final class StatusBehavior {
         StatusHarness h = status("", "0 words · 0 characters · 0 lines · 0 min read · Write",
                 "Note.md", "SAVED", true);
         eq("styled", h.saveButton.background, "clean button style");
+        eq("Document saved", h.saveButton.contentDescription, "clean accessible state");
 
         h = new StatusHarness();
         h.editor = new StatusHarness.Editor("one two\nthree");
@@ -39,6 +40,7 @@ public final class StatusBehavior {
         eq("3 words · 13 characters · 2 lines · 1 min read · 75% of 4 · Read", h.statusView.text, "goal/read");
         eq("Note.md  •", h.titleView.text, "dirty title");
         eq("SAVE", h.saveButton.text, "dirty save");
+        eq("Save document", h.saveButton.contentDescription, "dirty accessible action");
         eq(true, h.saveButton.enabled, "dirty enabled");
         eq(true, h.saveButton.background != null, "dirty button background");
 
@@ -54,6 +56,7 @@ public final class StatusBehavior {
                 h.statusView.text, "Unicode/CRLF/goal cap/split");
         eq("Note.md  ·  Read-only", h.titleView.text, "read-only title");
         eq("•••", h.saveButton.text, "saving priority");
+        eq("Saving document", h.saveButton.contentDescription, "saving accessible priority");
         eq(false, h.saveButton.enabled, "saving disabled");
         eq(unicode, h.editor.text.source, "Unicode intact");
         eq(0, h.editor.selection, "Unicode cursor intact");
@@ -61,6 +64,7 @@ public final class StatusBehavior {
         h.saveInProgress = false;
         h.updateStatus();
         eq("COPY", h.saveButton.text, "read-only save");
+        eq("Save a copy", h.saveButton.contentDescription, "read-only accessible action");
         eq(true, h.saveButton.enabled, "read-only enabled");
 
         h = new StatusHarness();

@@ -364,7 +364,7 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$buildInterface$4(view);
             }
         });
-        this.focusButton.setContentDescription("Focus mode");
+        this.focusButton.setContentDescription("Enter focus mode");
         this.modeBar.addView(this.focusButton, utilityModeParams());
         this.lockButton = createPillButton("", "Lock editing", new View.OnClickListener() {
             @Override // android.view.View.OnClickListener
@@ -1120,12 +1120,14 @@ public class MainActivity extends Activity {
         buttonCreateButton.setTextSize(str.length() > MODE_SPLIT ? 11.0f : 18.0f);
         buttonCreateButton.setTypeface(Typeface.DEFAULT, MODE_PREVIEW);
         buttonCreateButton.setTooltipText(str2);
+        buttonCreateButton.setContentDescription(str2);
         return buttonCreateButton;
     }
 
     private Button createPillButton(String str, String str2, View.OnClickListener onClickListener) {
         Button buttonCreateButton = createButton(str, onClickListener);
         buttonCreateButton.setTooltipText(str2);
+        buttonCreateButton.setContentDescription(str2);
         return buttonCreateButton;
     }
 
@@ -1343,6 +1345,8 @@ public class MainActivity extends Activity {
         styleButton(this.previewModeButton, this.mode == MODE_PREVIEW, false);
         styleButton(this.splitModeButton, this.mode == MODE_SPLIT, false);
         styleButton(this.focusButton, this.focusMode, false);
+        this.focusButton.setContentDescription(this.focusMode ? "Exit focus mode" : "Enter focus mode");
+        this.focusButton.setSelected(this.focusMode);
         setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusButton.getCurrentTextColor());
         if (this.lockButton != null) {
             styleButton(this.lockButton, this.editorLocked, false);
@@ -1759,17 +1763,12 @@ public class MainActivity extends Activity {
             if (i == REQUEST_CREATE) {
                 int iFindTabById = findTabById(this.saveAsTabId);
                 this.saveAsTabId = null;
-                if (iFindTabById >= 0) {
-                    switchToTab(iFindTabById, false);
+                if (iFindTabById < 0 || this.saveInProgress) {
+                    this.pendingAfterSave = null;
+                    return;
                 }
-                this.currentUri = data;
-                DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), data);
-                this.displayName = metadata.displayName;
-                this.readOnly = false;
-                this.baselineHash = null;
-                this.baselineModified = metadata.lastModified;
-                captureActiveTab();
-                saveInternal(true);
+                switchToTab(iFindTabById, false);
+                saveInternal(true, data);
                 return;
             }
             return;
@@ -1944,12 +1943,16 @@ public class MainActivity extends Activity {
     }
 
     private void saveInternal(final boolean z) {
-        if (this.currentUri == null || this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
+        saveInternal(z, this.currentUri);
+    }
+
+    private void saveInternal(final boolean z, final Uri destination) {
+        if (destination == null || this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
             return;
         }
         captureActiveTab();
         final String str = this.tabs.get(this.activeTab).id;
-        final Uri uri = this.currentUri;
+        final Uri uri = destination;
         final String string = this.editor.getText().toString();
         final byte[] bArrEncode = DocumentIO.encode(string, this.utf8Bom);
         final String str2 = this.baselineHash;
@@ -2009,6 +2012,7 @@ public class MainActivity extends Activity {
         this.savingTabId = null;
         this.saveButton.setEnabled(true);
         if (iFindTabById < 0) {
+            this.pendingAfterSave = null;
             updateStatus();
             return;
         }
@@ -2879,6 +2883,13 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    private Button appearanceButton(AppearanceUi ui, String label, String description, View.OnClickListener listener) {
+        Button button = appearanceButton(ui, label, listener);
+        button.setContentDescription(description);
+        button.setTooltipText(description);
+        return button;
+    }
+
     /** Refresh the *existing* window, not just the main activity behind it. */
     private void refreshAppearance(AppearanceUi ui) {
         final UiTheme.Palette colors = this.palette;
@@ -2984,8 +2995,8 @@ public class MainActivity extends Activity {
         linearLayout.addView(sourceLabel, matchWrap());
         LinearLayout sourceRow = new LinearLayout(this);
         sourceRow.setOrientation(MODE_EDIT);
-        sourceRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(-1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
-        sourceRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        sourceRow.addView(appearanceButton(ui, "A−", "Decrease source text size", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(-1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        sourceRow.addView(appearanceButton(ui, "A+", "Increase source text size", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
         linearLayout.addView(sourceRow, matchWrap());
 
         TextView readLabel = new TextView(this);
@@ -2996,8 +3007,8 @@ public class MainActivity extends Activity {
         linearLayout.addView(readLabel, matchWrap());
         LinearLayout readRow = new LinearLayout(this);
         readRow.setOrientation(MODE_EDIT);
-        readRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
-        readRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        readRow.addView(appearanceButton(ui, "A−", "Decrease reading text size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        readRow.addView(appearanceButton(ui, "A+", "Increase reading text size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
         linearLayout.addView(readRow, matchWrap());
         linearLayout.addView(appearanceButton(ui, "Reset text sizes", new View.OnClickListener() { @Override public void onClick(View v) {
             fontSp = 18f; previewFontSp = 18f; editor.setTextSize(fontSp); preview.setTextSp(previewFontSp);
@@ -3969,6 +3980,8 @@ public class MainActivity extends Activity {
             str2 = this.dirty ? "SAVE" : "SAVED";
         }
         button.setText(str2);
+        button.setContentDescription(this.saveInProgress ? "Saving document"
+                : this.readOnly ? "Save a copy" : this.dirty ? "Save document" : "Document saved");
         this.saveButton.setEnabled(!this.saveInProgress);
         if (this.palette != null) {
             if (this.dirty || this.readOnly) {

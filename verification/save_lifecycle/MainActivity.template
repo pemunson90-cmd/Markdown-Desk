@@ -1,0 +1,86 @@
+package com.example.markdowndesk;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/** Model only the Android boundary; app lifecycle method bodies are inserted unchanged. */
+class HostActivity {
+    protected void onActivityResult(int request,int result,MainActivity.Intent intent) {}
+}
+public final class MainActivity extends HostActivity {
+    public static final class Uri {
+        final String value; private Uri(String value){this.value=value;}
+        static Uri parse(String value){return new Uri(value);}
+        @Override public String toString(){return value;}
+    }
+    public static final class Intent {
+        final Uri data; final int flags;
+        Intent(Uri data,int flags){this.data=data;this.flags=flags;}
+        public Uri getData(){return data;} public int getFlags(){return flags;}
+    }
+    static final class Queue {
+        final List<Runnable> tasks=new ArrayList<>();
+        public boolean post(Runnable task){tasks.add(task);return true;}
+        public void execute(Runnable task){tasks.add(task);}
+        void drain(){List<Runnable> copy=new ArrayList<>(tasks);tasks.clear();for(Runnable task:copy)task.run();}
+    }
+    static final class Editor {
+        String text=""; int start,end,scroll;
+        public String getText(){return text;} public int getSelectionStart(){return start;}
+        public int getSelectionEnd(){return end;} public int getScrollY(){return scroll;}
+    }
+    static final class Preview { int scroll; public int getScrollY(){return scroll;} }
+    static final class Button { boolean enabled=true; public void setEnabled(boolean value){enabled=value;} }
+    static final class Status { int value; public void setText(int value){this.value=value;} }
+    static final class R { static final class string { static final int saving=11; } }
+    static final class RecentStore { static void touch(MainActivity a,String uri,String name){a.recents.add(uri);} }
+    static final class Toast {
+        static Toast makeText(MainActivity a,String text,int duration){a.toasts.add(text);return new Toast();} void show(){}
+    }
+    static final class Provider {
+        final Map<String,byte[]> bytes=new HashMap<>();
+        int writes,reads; String fault; final List<String> writeUris=new ArrayList<>();
+        byte[] read(Uri uri)throws IOException{reads++;return bytes.getOrDefault(uri.toString(),new byte[0]).clone();}
+        void write(Uri uri,byte[] data)throws IOException{
+            writes++;writeUris.add(uri.toString());
+            if("write".equals(fault))throw new IOException("modeled provider write failure");
+            bytes.put(uri.toString(),"mismatch".equals(fault)?new byte[]{0x78}:data.clone());
+        }
+    }
+    static final class DocumentIO {
+        static final class Metadata { String displayName; long lastModified; }
+        static final class ReadResult { byte[] sourceBytes; }
+        static Metadata metadata(Provider provider,Uri uri){Metadata m=new Metadata();m.displayName="destination.md";m.lastModified=200L;return m;}
+        static byte[] encode(String text,boolean bom){return (bom?"\uFEFF"+text:text).getBytes(StandardCharsets.UTF_8);}
+        static ReadResult read(Provider provider,Uri uri)throws IOException{ReadResult r=new ReadResult();r.sourceBytes=provider.read(uri);return r;}
+        static void write(Provider provider,Uri uri,byte[] data)throws IOException{provider.write(uri,data);}
+    }
+    final List<DocumentTab> tabs=new ArrayList<>(); int activeTab=-1;
+    Uri currentUri; String displayName,baselineHash; long baselineModified; boolean utf8Bom,readOnly,editorLocked,dirty; int mode;
+    String saveAsTabId,savingTabId; boolean saveInProgress; Runnable pendingAfterSave;
+    final Editor editor=new Editor(); final Preview preview=new Preview(); final Button saveButton=new Button(); final Status statusView=new Status();
+    final Queue io=new Queue(),main=new Queue(); final Provider provider=new Provider();
+    final List<String> errors=new ArrayList<>(),recents=new ArrayList<>(),toasts=new ArrayList<>();
+    int recoveriesScheduled,recoveriesCleared,sessionsScheduled,statusUpdates,tabsUpdates,permissions;
+    Provider getContentResolver(){return provider;}
+    void takePermission(Uri uri,int flags){permissions++;}
+    void importSplashImages(Intent intent){throw new AssertionError("not covered");}
+    void openDocument(Uri uri,int flags,boolean recent){throw new AssertionError("not covered");}
+    void showError(String message){errors.add(message);}
+    String message(Exception error){return error.getMessage();}
+    void scheduleRecovery(){recoveriesScheduled++;} void clearRecoveryAsync(){recoveriesCleared++;}
+    void scheduleSession(){sessionsScheduled++;} void updateStatus(){statusUpdates++;} void updateTabsUi(){tabsUpdates++;}
+    void lambda$saveInternal$32(String id){throw new AssertionError("conflict dialog branch not covered");}
+    void beginSave(boolean saveAs){saveInternal(saveAs);}
+    // UI restoration modeled at the seam; captureActiveTab itself is actual extracted app source.
+    void switchToTab(int index,boolean unused){captureActiveTab();activeTab=index;restoreFixtureTab();}
+    void restoreFixtureTab(){
+        DocumentTab t=tabs.get(activeTab);currentUri=t.uri==null?null:Uri.parse(t.uri);displayName=t.displayName;
+        baselineHash=t.baselineHash;baselineModified=t.baselineModified;utf8Bom=t.utf8Bom;readOnly=t.readOnly;editorLocked=t.editorLocked;dirty=t.dirty;mode=t.mode;
+        editor.text=t.text;editor.start=t.selectionStart;editor.end=t.selectionEnd;editor.scroll=t.editorScrollY;preview.scroll=t.previewScrollY;
+    }
+    void chooseDestination(Uri uri){onActivityResult(REQUEST_CREATE,-1,new Intent(uri,67));}
+    void cancelPicker(){onActivityResult(REQUEST_CREATE,0,null);}
+    /* EXTRACTED_MEMBERS */
+}
