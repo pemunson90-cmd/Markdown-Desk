@@ -138,10 +138,11 @@ public final class ProtectionStore {
                 if(completed&&!sameTransaction(prepared,readTransaction(record.id,true,sources.snapshots)))throw new IOException("Completion mismatch");
                 sources.budget.charge(1024);Transaction transaction=new Transaction(prepared.id,prepared.original,prepared.attempted,prepared.expectedHash,completed);
                 sources.transactions.put(transaction.id,transaction);
-                if(!completed){reserved=Math.addExact(reserved,transactionEnvelope(transaction,COMPLETE).length);slots=Math.addExact(slots,1);}
+                long staged=completionStageBytes(transaction,completed);
+                if(!completed){reserved=Math.addExact(reserved,transactionEnvelope(transaction,COMPLETE).length-Math.max(0,staged));slots=Math.addExact(slots,staged<0?1:0);}
             }catch(HistoryStorage.BudgetExceeded exceeded){diagnostics.add("store: metadata budget");break;}catch(IOException|ArithmeticException failure){diagnostics.add("store: invalid transaction or completion");}
         }
-        for(StoredRecord record:files.records)if("complete".equals(record.kind)&&!sources.transactions.containsKey(record.id))diagnostics.add("store: dangling completion");
+        for(StoredRecord record:files.records)if(("complete".equals(record.kind)||"completion-stage".equals(record.kind))&&!sources.transactions.containsKey(record.id))diagnostics.add("store: dangling completion or stage");
         sources.inventory=new Inventory(files,sources.snapshots,sources.transactions,diagnostics,reserved,slots);
     }
 
@@ -203,6 +204,8 @@ public final class ProtectionStore {
             if (transaction==null) throw new IOException("Missing transaction");
             Transaction stored=readTransaction(transaction.id,false);
             if (!sameTransaction(stored,transaction)) throw new IOException("Transaction provenance mismatch");
+            // Validate every reservation/stage before any completion mutation, including retries.
+            unresolvedReservation();
             File destination=file(transaction.id,".complete");
             if (Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) {
                 readCompletion(stored);
@@ -210,8 +213,11 @@ public final class ProtectionStore {
                 return;
             }
             byte[] envelope=transactionEnvelope(stored,COMPLETE);
-            checkQuota(envelope.length,0,envelope.length);
-            commit(transaction.id+".complete",envelope);
+            long staged=completionStageBytes(stored,false);
+            if(staged>=0&&staged!=envelope.length)throw new IOException("Partial completion stage retained; retry blocked");
+            if(staged<0)checkQuota(envelope.length,0,envelope.length);
+            else checkQuota(0,0,0,0,0);
+            commitCompletion(stored,envelope,staged>=0);
             readCompletion(stored);
         }
     }
@@ -294,44 +300,81 @@ public final class ProtectionStore {
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination))) throw new IOException("Committed envelope validation failed");
     }
 
-    private void checkQuota(long newBytes,long newReservation,long releasedReservation) throws IOException {
-        long total=0;
-        File[] files=entries();
-        for(File f:files) {
-            long size=attributes(f).size();
-            if(size<0 || size>quotaBytes-total) throw new IOException("Protection quota exhausted");
-            total+=size;
+    private void commitCompletion(Transaction transaction,byte[] envelope,boolean staged)throws IOException {
+        entries();
+        File stage=file(transaction.id,".completion-stage"),destination=file(transaction.id,".complete");
+        if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable destination exists");
+        HistoryStorage.changed(root);
+        if(!staged)Files.createFile(stage.toPath());
+        // Append mode opens an exact retained stage without truncating or writing it on retry.
+        try(FileOutputStream stream=new FileOutputStream(stage,staged)) {
+            if(!staged)stream.write(envelope);
+            stream.flush();durability.syncFile(stream.getFD());
         }
-        // A prepared transaction owns a reserved completion slot until it is committed.
-        Reservation reserved=unresolvedReservation();
-        long needed=reserved.bytes-releasedReservation+newBytes+newReservation;
-        if(needed<0 || needed>quotaBytes-total) throw new IOException("Protection quota exhausted");
-        long neededEntries=files.length+reserved.entries+1+(newReservation>0?1:0)-(releasedReservation>0?1:0);
-        if(neededEntries>MAX_ENTRIES) throw new IOException("Protection entry limit exhausted");
+        if(completionStageBytes(transaction,false)!=envelope.length)throw new IOException("Completion stage changed");
+        durability.move(stage,destination);
+        if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic move did not consume completion stage");
+        durability.syncDirectory(root);
+        if(!Arrays.equals(envelope,readEnvelopeBytes(destination)))throw new IOException("Committed completion validation failed");
+    }
+
+    private void checkQuota(long newBytes,long newReservation,long releasedReservation)throws IOException {
+        checkQuota(newBytes,newReservation,releasedReservation,1+(newReservation>0?1:0),releasedReservation>0?1:0);
+    }
+    private void checkQuota(long newBytes,long newReservation,long releasedReservation,long newSlots,long releasedSlots)throws IOException {
+        File[] files=entries();Reservation reserved=unresolvedReservation();
+        try {
+            long total=0;
+            for(File f:files){long size=attributes(f).size();if(size<0)throw new IOException("Invalid protection size");total=Math.addExact(total,size);}
+            if(releasedReservation>reserved.bytes||releasedSlots>reserved.entries)throw new IOException("Unowned completion reservation");
+            long needed=Math.addExact(Math.subtractExact(reserved.bytes,releasedReservation),Math.addExact(newBytes,newReservation));
+            if(Math.addExact(total,needed)>quotaBytes)throw new IOException("Protection quota exhausted");
+            long slots=Math.addExact(Math.subtractExact(reserved.entries,releasedSlots),newSlots);
+            if(Math.addExact(files.length,slots)>MAX_ENTRIES)throw new IOException("Protection entry limit exhausted");
+        }catch(ArithmeticException failure){throw new IOException("Protection accounting overflow",failure);}
     }
 
     private static final class Reservation {long bytes,entries;}
-    private Reservation unresolvedReservation() throws IOException {
-        Reservation reservation=new Reservation();
-        long reserved=0;
-        File[] files=entries();
-        for(File f:files) if(f.getName().endsWith(".transaction")) {
-            Transaction t=readTransaction(idFrom(f,".transaction"),false);
-            boolean done=Files.exists(file(t.id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
-            if(done) readCompletion(t);
-            if(!done) {
-                long size=transactionEnvelope(t,COMPLETE).length;
-                if(size>quotaBytes-reserved) throw new IOException("Protection quota exhausted");
-                reserved+=size;
-                reservation.entries++;
+    private Reservation unresolvedReservation()throws IOException {
+        Reservation reservation=new Reservation();File[] files=entries();
+        try {
+            for(File f:files)if(f.getName().endsWith(".transaction")) {
+                Transaction transaction=readTransaction(idFrom(f,".transaction"),false);
+                boolean done=Files.exists(file(transaction.id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
+                if(done)readCompletion(transaction);
+                long staged=completionStageBytes(transaction,done);
+                if(!done){
+                    reservation.bytes=Math.addExact(reservation.bytes,transactionEnvelope(transaction,COMPLETE).length-Math.max(0,staged));
+                    if(staged<0)reservation.entries=Math.addExact(reservation.entries,1);
+                }
             }
-        }
-        for(File f:files) if(f.getName().endsWith(".complete")) {
-            String id=idFrom(f,".complete");
-            if(!Files.exists(file(id,".transaction").toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Completion without preparation");
-        }
-        reservation.bytes=reserved;
+            for(File f:files) {
+                String extension=f.getName().endsWith(".complete")?".complete":f.getName().endsWith(".completion-stage")?".completion-stage":null;
+                if(extension!=null&&!Files.exists(file(idFrom(f,extension),".transaction").toPath(),LinkOption.NOFOLLOW_LINKS))
+                    throw new IOException("Completion or stage without preparation");
+            }
+        }catch(ArithmeticException failure){throw new IOException("Protection reservation overflow",failure);}
         return reservation;
+    }
+
+    /** -1 means absent. Only an exact prefix can occupy this preparation's reservation. */
+    private long completionStageBytes(Transaction transaction,boolean completed)throws IOException {
+        File stage=file(transaction.id,".completion-stage");
+        if(!Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))return -1;
+        if(completed)throw new IOException("Completion and retained stage both exist");
+        byte[] expected=transactionEnvelope(transaction,COMPLETE);
+        BasicFileAttributes before=attributes(stage);long size=before.size();
+        if(!before.isRegularFile()||size<0||size>expected.length)throw new IOException("Invalid completion stage size");
+        ByteBuffer bytes=ByteBuffer.allocate((int)size);
+        try(SeekableByteChannel channel=Files.newByteChannel(stage.toPath(),StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)) {
+            while(bytes.hasRemaining())if(channel.read(bytes)<0)throw new IOException("Truncated completion stage");
+            if(channel.read(ByteBuffer.allocate(1))!=-1)throw new IOException("Completion stage grew");
+        }
+        BasicFileAttributes after=attributes(stage);
+        if(!after.isRegularFile()||after.size()!=size||!Objects.equals(before.fileKey(),after.fileKey())
+                ||!before.lastModifiedTime().equals(after.lastModifiedTime()))throw new IOException("Completion stage changed");
+        if(!Arrays.equals(bytes.array(),Arrays.copyOf(expected,(int)size)))throw new IOException("Completion stage differs from reservation");
+        return size;
     }
 
     private File[] entries() throws IOException {

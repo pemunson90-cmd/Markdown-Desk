@@ -70,11 +70,11 @@ final class HistoryStorage {
                             int dot=name.lastIndexOf('.');if(dot>0){id=name.substring(0,dot);kind=name.substring(dot+1);try{if(!UUID.fromString(id).toString().equals(id))throw new IOException("Invalid UUID");validName=true;}catch(IOException|IllegalArgumentException invalid){id=null;}}
                             if(!validName||!known(role,kind))view.diagnostics.add(role+": unknown entry");
                             long limit=maxFile;
-                            if("store".equals(role)&&("transaction".equals(kind)||"complete".equals(kind)))limit=Math.min(limit,32768);
+                            if("store".equals(role)&&("transaction".equals(kind)||"complete".equals(kind)||"completion-stage".equals(kind)))limit=Math.min(limit,32768);
                             if(!validName||!known(role,kind))limit=Math.min(limit,16384);
                             if(size<0||size>limit)view.diagnostics.add(role+": oversized entry");
                             else hash=hash(path,attrs);
-                            if("stage".equals(kind))view.diagnostics.add(role+": retained stage");
+                            if("stage".equals(kind)||"completion-stage".equals(kind))view.diagnostics.add(role+": retained stage");
                         }
                     }catch(IOException|ArithmeticException failure){view.diagnostics.add(role+": unreadable entry");view.usageComplete=false;}
                     view.records.add(new ProtectionStore.StoredRecord(role,name,id,kind,size,hash));
@@ -83,7 +83,7 @@ final class HistoryStorage {
         }catch(IOException|DirectoryIteratorException failure){view.diagnostics.add(role+": inventory unavailable");view.usageComplete=false;}
         view.records.sort(Comparator.comparing(record->record.filename));return view;
     }
-    private static boolean known(String role,String kind){return "stage".equals(kind)||("store".equals(role)?Arrays.asList("snapshot","transaction","complete").contains(kind):("catalog".equals(role)?"checkpoint":role).equals(kind));}
+    private static boolean known(String role,String kind){return "stage".equals(kind)||("store".equals(role)?Arrays.asList("snapshot","transaction","complete","completion-stage").contains(kind):("catalog".equals(role)?"checkpoint":role).equals(kind));}
     private static BasicFileAttributes attrs(Path path)throws IOException {return Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);}
     private static String hash(Path path,BasicFileAttributes before)throws IOException {
         MessageDigest digest=digest();ByteBuffer bytes=ByteBuffer.allocate(8192);long read=0;
