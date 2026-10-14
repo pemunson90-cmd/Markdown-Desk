@@ -89,6 +89,7 @@ public final class HistoryGraph {
                 try{
                     if(HistoryStorage.controlled(store.storageRoot())){
                         builder.control=new HistoryControlStore(store.storageRoot().getParentFile()).inspect();
+                        if(HistoryPins.pruneBlocked(store.storageRoot(),builder.control))builder.diagnostics.add("graph: active or unreconciled operation pin");
                         if(view==null)builder.diagnostics.addAll(builder.control.diagnostics);builder.usageComplete&=builder.control.usageComplete;
                         HistoryCapacity capacity=HistoryStorage.capacity(store.storageRoot());
                         builder.effective=capacity==null?null:capacity.graphPolicy(builder.control,store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
