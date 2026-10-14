@@ -60,8 +60,10 @@ central runner registration and the full host/two-unsigned-build gate.
 Observed scoped run: **747 behavioral checks, 22 constrained-heap checks,
 44 crash/OS-limit/corruption fixtures and 88 fresh JVM reopens passed**.
 Dependency pin, capacity, maintenance, pure planner and retention graph runners
-also passed. Exact-source persistence review and parent integration remain the
-next gates; this evidence does not enable a runtime caller.
+also passed. Independent persistence review approved exact source
+`c36b093f2b2368af2a61cbc60bf81f56b0236d8a`, with 25 separate boundary probes passing
+and the bootstrap defect reproduced before and verified after the fix. The
+parent integration gate remains; this evidence does not enable a runtime caller.
 
 Independent review exposed a pre-enrollment alternate bootstrap-hint handle that
 could publish an intent before late rejection. A second targeted RED showed the
