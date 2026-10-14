@@ -57,7 +57,8 @@ installable upgrade; do not distribute it as a shipping build.
 
 `check_clean_rebuild.py` archives **committed HEAD** twice into fresh directories
 (with spaces in their paths), copies only the pre-provisioned host JAR, runs
-host tests and unsigned APK audits, then compares full APK SHA-256s. Commit
+host tests once on the first identical checkout and unsigned APK audits on both,
+then compares full APK SHA-256s. Commit
 changes first. It does not fetch dependencies or reuse build outputs. These
 runs were not performed inside an independently enforced network sandbox.
 

@@ -34,11 +34,15 @@ with tempfile.TemporaryDirectory(prefix='markdown-clean-rebuild-') as tmp:
         dest.parent.mkdir(parents=True)
         shutil.copyfile(dep, dest)
         # These commands use only the installed SDK/JDK and the pinned local JAR.
-        subprocess.run(['bash', 'verification/run_host_checks.sh'], cwd=checkout, env=env, check=True)
+        # Both archives have identical committed source/dependency inputs. Check
+        # behavioral gates once, and independently rebuild/audit both artifacts.
+        if label == 'first checkout':
+            subprocess.run(['bash', 'verification/run_host_checks.sh'], cwd=checkout, env=env, check=True)
         subprocess.run(['python3', 'verification/check_unsigned_build.py'], cwd=checkout, env=env, check=True)
         apk = checkout / 'apps/MarkdownDesk/build/MarkdownDesk-2.2.5-UNSIGNED.apk'
         digests.append(hashlib.sha256(apk.read_bytes()).hexdigest())
 assert digests[0] == digests[1], f'Clean rebuilds differ: {digests}'
 print('PASS two clean committed-source builds: revision', revision)
+print('Required host suite ran once from the first clean checkout; both unsigned artifacts audited.')
 print('Unsigned APK SHA-256:', digests[0])
 print('No dependency downloads performed; existing SDK/JDK and pre-provisioned host JAR only.')

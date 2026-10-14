@@ -30,9 +30,11 @@ As of **2026-10-14**, baseline merged at `d1288a80d4fc174c2b2a62805642218f5fa2d5
 
 See [audit/evidence](M0_1_AUDIT.md) and [reproducible commands](BUILD.md).
 
-## Active campaign — production save protection and M0 integration
+## Active campaign — reviewed protection; statistics and accessibility integration
 
-Branch: `codex/m0-safety-regressions`, draft [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10).
+Protection [PR #10](https://github.com/pemunson90-cmd/Markdown-Desk/pull/10) merged
+at `eea037763259e37537b24f402142e860b095b768`. Active local branch:
+`codex/m0-performance-accessibility`, combining separately reviewed issue #3/#4 work.
 The owner renewed the instruction to finish the entire app continuously; do not
 hand back after a successful task or PR checkpoint. Remote PM changes were
 fast-forwarded through `d8d595a`; the updated AGENTS/CI policy and
@@ -70,8 +72,10 @@ Implemented locally, independently reviewed:
 Current observed host evidence:
 
 - Full host suite PASS.42DocumentIO cases;568session/recovery assertions;
-  467renderer/palette +12list +14,020divider assertions;117mode +43labels;
-  28status;42Split UI +8ratio assertions;10inventory checker tests.
+  467renderer/palette +12list +14,020divider assertions;126mode +43labels
+  +4,963Appearance assertions;57status +93latest-statistics assertions;
+  42Split UI +8ratio assertions;10inventory checker tests. New issue #3/#4
+  scoped suites PASS; combined clean-checkout integration validation pending.
 - Production store19cases/96assertions plus3real OS write-limit assertions;
   Android adapter double27assertions. Coordinator35cases/157assertions.
 - Activity save lifecycle34cases/233assertions including actual strict codec;
@@ -88,26 +92,39 @@ Current observed host evidence:
 - Historical independent CI run38581669811 passed preservation and failed the
   old mixed safety step on those primitive hazards. The PM workflow now runs
   required production host checks only when review-ready; skipped draft jobs
-  are not evidence of a passing hosted check. Updated hosted validation pending.
+  are not evidence of a passing hosted check. Required independent hosted
+  validation **PASS** at `3cc9542`: run38593771364/job115955100750, including
+  the16restart cases. PR #10 merged only after that required check succeeded.
 - Unsigned JDK17/SDK37.0/build-tools36.0.0 build PASS; package2.2.5/code18,
   min26/target35 and25asset bytes preserved. Two fresh committed-source builds at `c326b61` PASS and match SHA-256
   `059587cbf2feb5df1b3a4183a20b7ae5a993aaabbc8d38b56a9d489f06e28b23`. No credentials, replacement key or signed release produced.
 
+New bounded repairs, independently reviewed with no blocking findings:
+
+- Statistics updates no longer copy/scan the full text per keystroke. Immediate
+  characters/title/Save remain current; exact locale/Unicode word and LF line
+  counts run after a250ms debounce on a dedicated bounded worker. Identity,
+  revision, locale and shutdown reject stale results. Pending counts are explicit.
+- Write/Read/Split selection and nine Appearance themes/three boolean options
+  expose selected/checkable/checked state. Refresh retains existing controls;
+  no Save action, preference, layout or protection behavior changed.
+- Matched10k/100k/500k host immediate-status medians changed from
+  5.752/7.893/27.252ms to0.167/0.110/0.092ms; full exact scans remain deferred.
+  These are statistics-path host measurements, not Android typing latency.
+  See [measurement](benchmarks/M0_3_DEBOUNCED_STATISTICS.md).
+
 Next executable work:
 
-1. Restart/adapter/recovery code review is complete with no blocking findings.
-   Integrated required host suite PASS including the16 new restart cases.
-   Update the existing PR and invoke one deliberate review-ready hosted check.
-   Matched host protection timing/space is recorded in
-   [measurement](benchmarks/M0_PROTECTED_SAVE_HOST.md); no device budget claimed.
-2. Parallel local issue #3 statistics performance and issue #4 selected-control
-   accessibility work is active in isolated worktrees based on `d8d595a`.
-   Review bounded changes independently before integrating; save/recovery code
-   remains in the reviewed protection boundary. Continue eligible local work
-   rather than waiting for unrelated physical acceptance.
-3. Prepare the next history/retention/backup slice against the actual protection
-   store. Physical M0/M1 acceptance is still open; no completed milestone or
-   user-facing release is claimed from local host results.
+1. Run required host checks from one clean committed checkout, build/audit two
+   identical unsigned artifacts, then publish the integrated issue #3/#4 review
+   boundary. Avoid repeating the full suite on the unchanged second checkout.
+2. Continue the next independent history catalog/diff/retention backend slices
+   against the verified protection implementation. Optional runtime enablement
+   still needs explicit prerequisite reconciliation; no physical milestone or
+   user-facing release is claimed from host evidence.
+3. Keep actual device/SAF/Fold/IME/TalkBack and signed-upgrade acceptance pending
+   while executing eligible local work. No replacement signing key or credentials
+   in Git/CI.
 
 Owner-reported target: **Samsung Galaxy Z Fold7, Android16, One UI8.0**.
 The owner reported installed app version “2.25”; the exact installed package
