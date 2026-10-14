@@ -47,7 +47,7 @@ final class HistoryMaintenanceExecutor {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
             Retirement retirement=HistoryStorage.retirement(store.storageRoot());
             if(retirement!=null){retirement.requireBundle(roots);return retire(retirement);}
-            HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();
+            HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();requireBootstrap(control);
             if(control.intentStage!=null)throw new IOException("Retained intent stages require separate repair");
             if(control.committedIntent==null){
                 if(HistoryStorage.installedView(store.storageRoot())!=null)throw new IOException("Installed intent evidence disappeared");
@@ -66,13 +66,16 @@ final class HistoryMaintenanceExecutor {
     }
     private static byte[] proof(HistoryPruner.DeletePlan plan)throws IOException {ByteArrayOutputStream bytes=new ByteArrayOutputStream();HistoryPruner.writeCanonicalProof(plan,bytes);return bytes.toByteArray();}
     private HistoryControlStore.Inspection control(HistoryCapacity.EffectivePolicy expected)throws IOException {
-        HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();HistoryPins.requireRetained(store.storageRoot(),control);
+        HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();requireBootstrap(control);HistoryPins.requireRetained(store.storageRoot(),control);
         if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()||!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty()
                 ||control.actualBytes+control.pins.reservedBytes>HistoryControlStore.MAX_BYTES||control.actualEntries+control.pins.reservedEntries>HistoryControlStore.MAX_ENTRIES)throw new IOException("Incomplete executor authority");
         for(String diagnostic:control.diagnostics)if(!diagnostic.equals("control: retained maintenance"))throw new IOException("Conflicting executor control evidence");
         if(!expected.bundleId.equals(control.latest.bundleId.toString())||expected.generation!=control.latest.generation||!expected.controlRecordHash.equals(control.latest.envelopeHash)
                 ||expected.quotaBytes!=control.latest.quotaBytes||expected.automaticCount!=control.latest.automaticCount)throw new IOException("Executor policy changed");
         return control;
+    }
+    private void requireBootstrap(HistoryControlStore.Inspection control)throws IOException {
+        if(control.registration==null||control.registration.bootstrapQuotaBytes!=store.constructorQuotaBytes())throw new IOException("Conflicting executor bootstrap hint");
     }
     private void publish(HistoryCapacity authority,HistoryCapacity.EffectivePolicy policy,HistoryGraph.Graph graph,Stable stable,HistoryPruneIntent intent,byte[] bytes)throws IOException {
         File stage=new File(controlRoot,HistoryPruneIntent.STAGE_NAME),target=new File(controlRoot,HistoryPruneIntent.INTENT_NAME);
@@ -109,7 +112,7 @@ final class HistoryMaintenanceExecutor {
         view.revalidate();stable.nativeIdentities(closure);stable.control(new HistoryControlStore(parent).inspect(),false);
     }
     private HistoryCapacity retire(Retirement retirement)throws IOException {
-        retirement.require(retirement.view);retirement.requireBundle(roots);File intentFile=new File(controlRoot,HistoryPruneIntent.INTENT_NAME);
+        retirement.require(retirement.view);retirement.requireBundle(roots);requireBootstrap(new HistoryControlStore(parent).inspect());File intentFile=new File(controlRoot,HistoryPruneIntent.INTENT_NAME);
         boolean present;try{attrs(intentFile);present=true;}catch(NoSuchFileException absent){present=false;}
         if(present){
             retirement.present();for(File root:roots)durability.syncDirectory(root);

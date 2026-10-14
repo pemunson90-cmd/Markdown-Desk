@@ -34,7 +34,7 @@ native input is legitimately retired.
 
 `ExecutorCheck` covers whole groups, multiple selected names, newest anchors,
 stale proofs, changed selection/profile, superseded authority, policy A→B→A,
-active pins, full shared byte/slot allowance, large intents, unknown records and zero, partial and complete
+active pins, pre-enrollment mismatched bootstrap handles, full shared byte/slot allowance, large intents, unknown records and zero, partial and complete
 retained intent stages, publication faults, actual directory-permission failure,
 shared terminal retries, nested writers, same-byte file/root replacement, and
 last data/control callback mutations. The memory fixture uses near-limit snapshot
@@ -57,8 +57,15 @@ SIGKILL and filesystem evidence do not establish sudden-power-loss, Android
 app-UID, Fold, SAF, upgrade or release acceptance. The parent integration owns
 central runner registration and the full host/two-unsigned-build gate.
 
-Observed scoped run: **738 behavioral checks, 22 constrained-heap checks,
+Observed scoped run: **747 behavioral checks, 22 constrained-heap checks,
 44 crash/OS-limit/corruption fixtures and 88 fresh JVM reopens passed**.
 Dependency pin, capacity, maintenance, pure planner and retention graph runners
 also passed. Exact-source persistence review and parent integration remain the
 next gates; this evidence does not enable a runtime caller.
+
+Independent review exposed a pre-enrollment alternate bootstrap-hint handle that
+could publish an intent before late rejection. A second targeted RED showed the
+same late rejection after intent removal during retirement retry. The executor
+now validates the executing handle against the registered immutable bootstrap
+before publication admission or replay, including retained-capability retries.
+Both fixtures assert that rejection leaves the entire file inventory unchanged.
