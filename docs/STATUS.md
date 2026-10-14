@@ -29,10 +29,14 @@ policy. Controlled startup is read-only until explicit reconciliation.
 Scoped worker evidence: codec14cases/209assertions; policy49, admission61,
 integration42checks;10real SIGKILL boundaries and7additional fresh-process cases,
 each reopened twice. Independent review approved exact source and reproduced
-missing-root, second-handle, wrong-bundle and wrong-role repairs. First combined gate at `34ff18c` stopped in the archive runner: its brace-expanded
-native source list omitted capacity/control dependencies. Compiler sourcepath is
-being repaired; all preceding required paths passed. The complete host/unsigned
-gate remains PENDING, not covered by earlier branch evidence.
+missing-root, second-handle, wrong-bundle and wrong-role repairs. First combined gate at `34ff18c` stopped at the archive runner dependency closure.
+The sourcepath repair passed460+68 scoped archive assertions. Final coherent
+gate **PASS** at `b67995ddad152c27bc4f095aa810c9f04bc3abcb`: required full host
+suite once from clean committed source, two audited unsigned builds matching
+SHA-256 `2a7e843fa00802789874a577083b18b17a336f0c28c9992cecbb2839cf632e69`.
+No downloads, signatures, keys or device claims; package2.2.5/code18/min26/target35
+and all25assets preserved. This evidence supersedes the failed integration
+attempt without relabeling its failure.
 
 Reviewed syntax fix `4c2fda6` preserves equal-priority search/foreign style
 precedence, with baseline full fallback whenever a foreign CharacterStyle exists.
@@ -43,8 +47,8 @@ Reviewed pressure mode `8baa6eb`: existing81+5 and new60+9checks pass; floor/sel
 proof encoding remains compatible. Profile previews grant no execution/admission;
 newest same-history anchors, labels, pins, stages and unresolved data stay protected.
 
-Next: complete one coherent clean host/build gate, publish the reconciled PR #14
-without force-pushing, then required hosted validation. An inert bounded intent
+Next: finish documentation/privacy checks, mark reconciled PR #14 ready once for
+required hosted validation, then merge only its verified exact head. No force-push. An inert bounded intent
 codec is reviewed at `7c422a2`:73 native and103 bounded-heap checks plus planner
 compatibility pass. It performs no filesystem operations and the control parser
 still treats intent files as unknown until separately reviewed integration. No
@@ -333,7 +337,7 @@ Integration evidence and next executable work:
    `f2ba08a92d781f9e6dd8f1aaa1e3efd7f2625910ed64cafdbde6cdbfb311ab1f`.
    Independent integration review approved; deliberate hosted run38610866540 PASS. [PR #12](https://github.com/pemunson90-cmd/Markdown-Desk/pull/12) merged at `3652218c1a764dc8393280e53b1202091224f92d`.
 2. Continue the [history/retention plan](superpowers/plans/2026-10-14-history-retention.md):
-   finish combined source/build and review-ready hosted validation for the reconciled PR14, then implement journaled maintenance before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
+   finish review-ready hosted validation for the locally verified reconciled PR14, then implement journaled maintenance before any destructive executor. Next local branch `codex/shared-history-capacity` is implementing that opt-in backend; partial policy tests are not all-writer acceptance. Inert M2 range-API preparation is separately reviewed on `codex/m2-syntax-range`; it has no runtime caller or physical acceptance. Crash-safe deletion, verified export, strict import and
    history UI remain next tasks. [ADR-002](decisions/ADR-002-retention-journal.md)
    defines the reviewed retention protocol. Its first implementation is deliberately
    narrowed to shared monitoring, validated inventory/read-only graph and bounded
