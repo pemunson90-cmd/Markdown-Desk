@@ -116,6 +116,11 @@ public final class HistoryCatalog {
         }
     }
 
+    /** Fresh complete immutable checkpoint metadata, avoiding a full rescan for each document. */
+    public List<Checkpoint> all() throws IOException {
+        synchronized(lock) {return Collections.unmodifiableList(readAll());}
+    }
+
     /** Never returns a partial set that a later retention planner could mistake for complete pins. */
     public Set<String> pinnedSnapshotIds() throws IOException {
         synchronized(lock) {
