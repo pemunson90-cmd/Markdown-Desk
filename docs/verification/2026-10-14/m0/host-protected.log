@@ -1,0 +1,403 @@
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 2.156s
+
+OK
+PASS baseline inventory: 89 archive files, 85 unchanged imports, 4 documented scaffolding originals preserved
+PASS immutable source baseline d1288a80d4fc174c2b2a62805642218f5fa2d516 and current exact assets; current runtime changes require diff/tests/review
+PASS static layout guards: scrolling Appearance, all nine themes, external Done, existing scrolling gallery, centered utility icons, configuration callbacks, 25 splash assets, release identity
+PASS live Appearance regression guards: all 9 theme/title/control redraw paths, retained scroll, 4.5:1+ text contrast, v2.2.5 identity
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS Java 11 syntax parse: 35 files (not Android type-check or APK compilation)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS actual renderer output: 9 themes x 3 reading sizes; heading ceilings and Markdown samples
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS independent host behavior fixtures: 15 search/replace, statistics/hash and app-private atomic-file checks; NOT SAF/device acceptance
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+defaults
+  pass  25 bundled images ship
+  pass  all enabled on a fresh install
+  pass  every id is unique
+  pass  every bundled source points at the asset folder
+  pass  nothing removed to start
+toggling
+  pass  disabling one drops it from enabled()
+  pass  disabled image alone leaves the rotation
+  pass  disabled state survives a reread
+  pass  all() still lists it
+  pass  re-enabling restores it
+bulk switches
+  pass  all off leaves none enabled
+  pass  all off keeps the gallery intact
+  pass  random() returns nothing when none are on
+  pass  all on restores every image
+removing and restoring bundled images
+  pass  removed image leaves the gallery
+  pass  removedCount tracks it
+  pass  removed image is not in the rotation
+  pass  restore brings it back
+  pass  restored image is enabled
+importing
+  pass  import returns an item
+  pass  import is not bundled
+  pass  import is enabled by default
+  pass  label cleans up the file name
+  pass  bytes land in a private file
+  pass  file keeps the source extension
+  pass  gallery grows by one
+  pass  rotation grows by one
+  pass  import survives a reread
+  pass  two imports coexist
+  pass  imports get distinct ids
+  pass  imports get distinct files
+  pass  imports can be switched off
+  pass  switching off does not delete the file
+deleting an import
+  pass  deleted import leaves the gallery
+  pass  deleted import's file is gone
+  pass  the other import is untouched
+  pass  deleting an import does not touch removedCount
+  pass  restore does not resurrect deleted imports
+rejecting bad input
+  pass  a non-image import throws
+  pass  a rejected import adds nothing
+  pass  a rejected import leaves no file behind
+  pass  an oversized import throws
+  pass  an oversized import leaves no file behind
+random selection
+  pass  never repeats the previous image back to back
+  pass  every enabled image gets chosen
+  pass  spread stays reasonable (min 139, max 180 of ~160)
+  pass  a single enabled image is always chosen
+corrupt preferences
+  pass  bad preferences do not crash all()
+  pass  bad preferences are cleared
+
+49 passed, 0 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS Unicode including supplementary characters
+PASS CRLF leading trailing whitespace and final newline
+PASS mixed CRLF LF and bare CR
+PASS UTF8 BOM fidelity
+PASS empty document
+PASS BOM only document
+PASS embedded BOM remains content
+PASS encode independent UTF8 golden bytes
+PASS strict capture preserves independent UTF8 BOM bytes
+PASS strict capture rejects unmatched high surrogate
+PASS strict capture rejects unmatched low surrogate
+PASS invalid UTF8 fixture 0
+PASS invalid UTF8 fixture 1
+PASS invalid UTF8 fixture 2
+PASS invalid UTF8 fixture 3
+PASS invalid UTF8 fixture 4
+PASS invalid UTF8 fixture 5
+PASS null input rejected
+PASS read provider IOException closes input
+PASS 8 MiB exact boundary read
+PASS 8 MiB plus one rejected unchanged
+PASS BOM counts toward byte boundary
+PASS 8 MiB exact boundary write and reopen
+PASS 8 MiB UTF8 BOM-inclusive write boundary
+PASS fallback edit save reopen with BOM CRLF
+PASS fallback truncates shorter successful save
+PASS unsupported descriptor falls back
+PASS null output rejected
+PASS revoked read rejects and preserves
+PASS revoked write rejects and preserves
+PASS mid-write error propagates closes stream
+PASS flush error propagates closes stream
+PASS close error propagates
+PASS provider corruption visible in reopened bytes
+PASS read-back revoked after successful write rejects
+PASS real host descriptor save truncates syncs reopens
+PASS metadata provider values cursor closed
+PASS metadata absent null columns defaults with denied descriptor
+PASS metadata flags without write bit require descriptor
+PASS metadata query failure denied descriptor read only
+PASS metadata revoked permissions read only
+PASS metadata real rw descriptor nontruncating closed
+DocumentIO host fixtures: 42 passed, 0 failed
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: /workspace/Markdown-Desk/apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS DocumentTab.copy all fields and independent mutations
+PASS EditorTools independent UTF-8 digest and counting vectors
+PASS 12-tab session reopened Context and repeated saves
+PASS Session bounds, malformed fields, empty and malformed state
+PASS v2 recovery CRLF/BOM metadata/Unicode and nulls
+PASS legacy recovery pair byte fidelity and v2 precedence
+PASS Recovery missing, partial and malformed state
+PASS Interrupted stage files preserve previous committed states
+PASS AtomicCommit replace failures preserve destination
+PASS Store stage open/write failures preserve committed checkpoints
+PASS Store replacement failures preserve committed checkpoints
+PASS Store sync failures preserve committed checkpoints
+PASS Clear removes only the respective store-owned filenames
+PASS session/recovery: 13 cases, 568 assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CONTRAST Paper      body/canvas    14.68:1 AA
+CONTRAST Paper      muted/canvas   4.82:1 AA
+CONTRAST Paper      rendered link/canvas 4.50:1 AA
+CONTRAST Midnight   body/canvas    16.49:1 AA
+CONTRAST Midnight   muted/canvas   7.65:1 AA
+CONTRAST Midnight   rendered link/canvas 8.02:1 AA
+CONTRAST Sepia      body/canvas    10.58:1 AA
+CONTRAST Sepia      muted/canvas   4.51:1 AA
+CONTRAST Sepia      rendered link/canvas 4.81:1 AA
+CONTRAST Forest     body/canvas    15.79:1 AA
+CONTRAST Forest     muted/canvas   8.06:1 AA
+CONTRAST Forest     rendered link/canvas 7.85:1 AA
+CONTRAST Bubblegum  body/canvas    13.17:1 AA
+CONTRAST Bubblegum  muted/canvas   4.65:1 AA
+CONTRAST Bubblegum  rendered link/canvas 4.51:1 AA
+CONTRAST Amethyst   body/canvas    16.88:1 AA
+CONTRAST Amethyst   muted/canvas   9.31:1 AA
+CONTRAST Amethyst   rendered link/canvas 6.29:1 AA
+CONTRAST Black Rose body/canvas    16.77:1 AA
+CONTRAST Black Rose muted/canvas   7.82:1 AA
+CONTRAST Black Rose rendered link/canvas 5.56:1 AA
+CONTRAST Ocean      body/canvas    17.08:1 AA
+CONTRAST Ocean      muted/canvas   8.82:1 AA
+CONTRAST Ocean      rendered link/canvas 9.12:1 AA
+CONTRAST Arcade     body/canvas    18.01:1 AA
+CONTRAST Arcade     muted/canvas   8.33:1 AA
+CONTRAST Arcade     rendered link/canvas 13.03:1 AA
+PASS 467 renderer/palette assertions; 9 palettes x 5 reading sizes; contrast observations above
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 12 independent nested-list body/structure assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 14020 table-divider assertions (2k/5k rendered columns, manual grammar, 14k seeded short differential cases)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted five parsed MainActivity methods from apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 43 host assertions on actual label helpers and four AST-extracted Appearance control statements
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 117 host assertions on five AST-extracted MainActivity methods
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 6264 independent contrast/blend assertions across palette pairs and 2048 seeded pairs
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 512 sRGB/linear-light composited splash hint cases including worst-case white; real image/UI paint NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+theme,pair,contrast,required,result
+Paper,Save readable/accent,4.525,4.5,PASS
+Paper,body/canvas,14.681,4.5,PASS
+Paper,muted/raised,5.104,4.5,PASS
+Paper,selected accent/accentSoft,4.525,4.5,PASS
+Paper,link accent/canvas,4.501,4.5,PASS
+Paper,dialog accent/raised,4.512,4.5,PASS
+Midnight,Save readable/accent,4.546,4.5,PASS
+Midnight,body/canvas,16.487,4.5,PASS
+Midnight,muted/raised,6.433,4.5,PASS
+Midnight,selected accent/accentSoft,5.987,4.5,PASS
+Midnight,link accent/canvas,8.022,4.5,PASS
+Midnight,dialog accent/raised,6.749,4.5,PASS
+Sepia,Save readable/accent,5.944,4.5,PASS
+Sepia,body/canvas,10.582,4.5,PASS
+Sepia,muted/raised,5.265,4.5,PASS
+Sepia,selected accent/accentSoft,4.529,4.5,PASS
+Sepia,link accent/canvas,4.810,4.5,PASS
+Sepia,dialog accent/raised,5.620,4.5,PASS
+Forest,Save readable/accent,4.545,4.5,PASS
+Forest,body/canvas,15.792,4.5,PASS
+Forest,muted/raised,6.125,4.5,PASS
+Forest,selected accent/accentSoft,5.056,4.5,PASS
+Forest,link accent/canvas,7.849,4.5,PASS
+Forest,dialog accent/raised,5.965,4.5,PASS
+Bubblegum,Save readable/accent,4.559,4.5,PASS
+Bubblegum,body/canvas,13.173,4.5,PASS
+Bubblegum,muted/raised,4.771,4.5,PASS
+Bubblegum,selected accent/accentSoft,4.521,4.5,PASS
+Bubblegum,link accent/canvas,4.512,4.5,PASS
+Bubblegum,dialog accent/raised,4.514,4.5,PASS
+Amethyst,Save readable/accent,4.548,4.5,PASS
+Amethyst,body/canvas,16.876,4.5,PASS
+Amethyst,muted/raised,7.889,4.5,PASS
+Amethyst,selected accent/accentSoft,4.679,4.5,PASS
+Amethyst,link accent/canvas,6.294,4.5,PASS
+Amethyst,dialog accent/raised,5.333,4.5,PASS
+Black Rose,Save readable/accent,4.521,4.5,PASS
+Black Rose,body/canvas,16.767,4.5,PASS
+Black Rose,muted/raised,6.739,4.5,PASS
+Black Rose,selected accent/accentSoft,4.514,4.5,PASS
+Black Rose,link accent/canvas,5.557,4.5,PASS
+Black Rose,dialog accent/raised,4.789,4.5,PASS
+Ocean,Save readable/accent,4.511,4.5,PASS
+Ocean,body/canvas,17.083,4.5,PASS
+Ocean,muted/raised,6.500,4.5,PASS
+Ocean,selected accent/accentSoft,5.828,4.5,PASS
+Ocean,link accent/canvas,9.117,4.5,PASS
+Ocean,dialog accent/raised,6.718,4.5,PASS
+Arcade,Save readable/accent,4.532,4.5,PASS
+Arcade,body/canvas,18.010,4.5,PASS
+Arcade,muted/raised,6.977,4.5,PASS
+Arcade,selected accent/accentSoft,9.145,4.5,PASS
+Arcade,link accent/canvas,13.028,4.5,PASS
+Arcade,dialog accent/raised,10.917,4.5,PASS
+Observed active contrast failures: 0; Android rendering NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 72 foreground/background assertions on AST-extracted production styleButton; Android paint NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact Activity recovery members via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: /workspace/Markdown-Desk/apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS legacy recovery replacement retries protection after storage repair
+PASS startup protection is immutable and deduplicates across restart
+PASS protection failure blocks legacy replace and clear
+PASS valid session, missing recovery
+PASS valid session, malformed recovery
+PASS both missing
+PASS missing session, valid recovery
+PASS both malformed report both read failures
+PASS malformed session, valid v2 recovery retained with error
+PASS newer matching recovery merges and preserves unrelated tab fields
+PASS older recovery preserves session
+PASS newer unmatched recovery appends without overwriting prior tab
+PASS full 12-tab session retains every tab with unmatched draft
+PASS recovery-loader: 13 cases, 179 assertions, 0 failures
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact Activity recovery members via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS recovery UI actual callback: 7 assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact MainActivity.updateStatus AST source
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 28 status behavior assertions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact picker handler, capture/lookup, save worker/callbacks and constants via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS RESTORE quota failure keeps existing evidence and blocks copy
+PASS RESTORE canceled and busy picker results cannot write
+PASS RESTORE versions list performs I/O asynchronously and launches explicit copy picker
+PASS CONSENT overwrite reuses original captured revision and preserves newer edits
+PASS CONSENT dialog retains captured origin after active tab switch
+PASS CONSENT stale observed hash conflicts again
+PASS CONSENT closed origin cannot retarget
+PASS PROTECTION failed store blocks all provider writes
+PASS PROTECTION failed provider read retains attempted edit
+PASS RESTORE corrupted selected snapshot fails closed
+PASS RESTORE snapshot copy independent of twelve active tabs
+PASS RESTORE original URI cannot be overwritten
+PASS PROTECTION ordinary save retains exact original and captured attempted bytes
+PASS PROTECTION Save As protects nonempty destination first
+PASS PROTECTION generic force cannot bypass changed source
+PASS PROTECTION unknown baseline must conflict
+PASS PROTECTION uncertain outcome does not promise legacy recovery
+PASS invalid Unicode capture stops before queuing save
+PASS normal save commits verified version
+PASS normal Save As success adopts verified destination
+PASS untitled Save As succeeds without current URI
+PASS newer active edits remain dirty and retain recovery
+PASS switched-tab callback updates only saving tab
+PASS Save As newer edits remain dirty
+PASS Save As switched-tab callback preserves active identity
+PASS closed-tab callback does not resurrect original tab
+PASS provider write and readback failures retain dirty content
+PASS cancelled Save As leaves origin unchanged
+PASS save-lifecycle baseline: 28 cases, 186 assertions, 0 failures
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS exact bytes and defensive copies
+PASS orphans and transaction completion survive restart
+PASS transaction rejects incorrect identity role hash and missing committed bytes
+PASS bounded document and metadata inputs
+PASS invalid Unicode metadata rejects instead of replacing silently
+PASS quota accounts for actual staged and unrelated files without deletion
+PASS file sync atomic move directory sync order and failures retain evidence
+PASS root creation requires parent and root sync
+PASS snapshot corruption fails explicitly independently of transactions
+PASS malformed length does not allocate attacker specified payload
+PASS inner hash and declared payload length validated after envelope checksum
+PASS completion quota is reserved before mutation and immutable retry is idempotent
+PASS completion durability failure retains prepared evidence
+PASS revalidation rereads committed preparation and protected bytes
+PASS transaction corruption and missing links explicitly fail
+PASS reject symlink root ancestor and every entry
+PASS entry capacity rejects mutation while reserving completion slots
+PASS snapshot lookup and retained handles revalidate disk bytes
+PASS version one snapshot envelope remains readable
+ProtectionStore: 19 cases / 96 assertions PASS
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+AndroidDurability host boundary double: 27 assertions PASS
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS verified save/restart exact bytes
+PASS provider zero retains both versions
+PASS provider partial retains both versions
+PASS provider flush retains both versions
+PASS provider close retains both versions
+PASS provider mismatch retains both versions
+PASS provider readback retains both versions
+PASS failed source read keeps attempt
+PASS unknown/stale baseline conflict
+PASS unknown/stale baseline conflict
+PASS bound overwrite consent
+PASS stale consent rejected
+PASS source change after preparation
+PASS protection fault 1
+PASS protection fault 2
+PASS protection fault 3
+PASS protection fault 4
+PASS protection fault 5
+PASS protection fault 6
+PASS protection fault 7
+PASS protection fault 8
+PASS protection fault 9
+PASS new destination protects its existing bytes
+PASS completion fault 1
+PASS completion fault 2
+PASS completion fault 3
+PASS invalid/oversized source rejected
+PASS invalid/oversized source rejected
+PASS protection invalidated during source recheck
+PASS invalid/oversized attempt rejected
+PASS invalid/oversized attempt rejected
+PASS bounded UTF8 validation preserves Unicode
+PASS bounded UTF8 validation preserves Unicode
+PASS truncated UTF8 at buffer boundary rejected
+PASS consent replaces only observed hash
+PASS 35 production coordinator cases, 157 assertions; host boundaries, Android NOT RUN
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+save 0 succeeded
+save 1 succeeded
+save 2 succeeded
+transactions=3
+snapshots=6
+headroom=33554432
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+UI assertions: 42, failures: 0
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Split controller: 8 assertions PASS

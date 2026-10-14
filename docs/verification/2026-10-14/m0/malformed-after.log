@@ -1,0 +1,19 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+855f1238fcdac334ebea969bb3ac7376464fd4833679e8e9fd5ec237eb363c59  apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java
+573a3f1c6e5138244ba6ddd3997f7e3cb63bbfddf18086de6c56ec8ade2696a6  apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java
+CASE_RESULT table_2000 exit=0
+CASE table_2000 bytes=16006 sha256=c10ab07c5e9e6b7a21b31adb9ec37eb7a7d18f54614f1c76d71283882e5cb0af
+OK html_chars=42874 wall_ms=213.106
+CASE_RESULT table_5000 exit=0
+CASE table_5000 bytes=40006 sha256=cf722ba689b9f34cd7f0823d773b2e256f7a134313edcd5bc35c71b351ee2734
+OK html_chars=102874 wall_ms=335.999
+CASE_RESULT spaces_dangling_pipe exit=0
+CASE spaces_dangling_pipe bytes=20031 sha256=28fa3635bd98cb5c868945f62be480fba94e913bf248afc2732b3cc4a0a391c2
+OK html_chars=22822 wall_ms=224.307
+CASE_RESULT fragments_1000 exit=0
+CASE fragments_1000 bytes=10001 sha256=8aeaea3542a6a3fb8aabbafc851f6dd96204d5834cd48fcb28ceb0bd8bb646f9
+OK html_chars=22786 wall_ms=551.349
+CASE_RESULT fragments_3000 exit=0
+CASE fragments_3000 bytes=30001 sha256=f5d5e1ff6a0447a9bbf64725d1499c2b31fbd607e5c653ee7bae9d0154b30284
+OK html_chars=62786 wall_ms=830.778
+CASE_SUMMARY failures=0 total=5 logs=/workspace/Markdown-Desk/verification/build/malformed-renderer

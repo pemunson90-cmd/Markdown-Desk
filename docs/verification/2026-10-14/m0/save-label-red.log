@@ -1,0 +1,9 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact MainActivity.updateStatus AST source
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Exception in thread "main" java.lang.AssertionError: clean accessible state: expected Document saved, got null
+	at com.example.markdowndesk.StatusBehavior.eq(StatusBehavior.java:11)
+	at com.example.markdowndesk.StatusBehavior.test(StatusBehavior.java:32)
+	at com.example.markdowndesk.StatusBehavior.main(StatusBehavior.java:125)

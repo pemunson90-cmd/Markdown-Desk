@@ -1,0 +1,60 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+theme,pair,contrast,required,result
+Paper,Save white/accent,4.173,4.5,FAIL
+Paper,body/canvas,14.681,4.5,PASS
+Paper,muted/raised,5.104,4.5,PASS
+Paper,selected accent/accentSoft,3.233,4.5,FAIL
+Paper,link accent/canvas,3.936,4.5,FAIL
+Paper,dialog accent/raised,4.173,4.5,FAIL
+Midnight,Save white/accent,2.353,4.5,FAIL
+Midnight,body/canvas,16.487,4.5,PASS
+Midnight,muted/raised,6.433,4.5,PASS
+Midnight,selected accent/accentSoft,5.987,4.5,PASS
+Midnight,link accent/canvas,8.022,4.5,PASS
+Midnight,dialog accent/raised,6.749,4.5,PASS
+Sepia,Save white/accent,5.944,4.5,PASS
+Sepia,body/canvas,10.582,4.5,PASS
+Sepia,muted/raised,5.265,4.5,PASS
+Sepia,selected accent/accentSoft,4.023,4.5,FAIL
+Sepia,link accent/canvas,4.810,4.5,PASS
+Sepia,dialog accent/raised,5.620,4.5,PASS
+Forest,Save white/accent,2.317,4.5,FAIL
+Forest,body/canvas,15.792,4.5,PASS
+Forest,muted/raised,6.125,4.5,PASS
+Forest,selected accent/accentSoft,5.056,4.5,PASS
+Forest,link accent/canvas,7.849,4.5,PASS
+Forest,dialog accent/raised,5.965,4.5,PASS
+Bubblegum,Save white/accent,3.234,4.5,FAIL
+Bubblegum,body/canvas,13.173,4.5,PASS
+Bubblegum,muted/raised,4.771,4.5,PASS
+Bubblegum,selected accent/accentSoft,2.379,4.5,FAIL
+Bubblegum,link accent/canvas,3.035,4.5,FAIL
+Bubblegum,dialog accent/raised,3.114,4.5,FAIL
+Amethyst,Save white/accent,3.028,4.5,FAIL
+Amethyst,body/canvas,16.876,4.5,PASS
+Amethyst,muted/raised,7.889,4.5,PASS
+Amethyst,selected accent/accentSoft,4.679,4.5,PASS
+Amethyst,link accent/canvas,6.294,4.5,PASS
+Amethyst,dialog accent/raised,5.333,4.5,PASS
+Black Rose,Save white/accent,3.433,4.5,FAIL
+Black Rose,body/canvas,16.767,4.5,PASS
+Black Rose,muted/raised,6.739,4.5,PASS
+Black Rose,selected accent/accentSoft,4.193,4.5,FAIL
+Black Rose,link accent/canvas,5.557,4.5,PASS
+Black Rose,dialog accent/raised,4.789,4.5,PASS
+Ocean,Save white/accent,2.028,4.5,FAIL
+Ocean,body/canvas,17.083,4.5,PASS
+Ocean,muted/raised,6.500,4.5,PASS
+Ocean,selected accent/accentSoft,5.828,4.5,PASS
+Ocean,link accent/canvas,9.117,4.5,PASS
+Ocean,dialog accent/raised,6.718,4.5,PASS
+Arcade,Save white/accent,1.498,4.5,FAIL
+Arcade,body/canvas,18.010,4.5,PASS
+Arcade,muted/raised,6.977,4.5,PASS
+Arcade,selected accent/accentSoft,9.145,4.5,PASS
+Arcade,link accent/canvas,13.028,4.5,PASS
+Arcade,dialog accent/raised,10.917,4.5,PASS
+Observed baseline contrast failures: 16; Android rendering NOT RUN
+Exception in thread "main" java.lang.AssertionError: Existing text contrast pairs below4.5:1: 16
+	at com.example.markdowndesk.PaletteContrastAudit.main(PaletteContrastAudit.java:33)

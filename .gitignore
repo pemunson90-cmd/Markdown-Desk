@@ -29,3 +29,5 @@ local.properties
 
 /verification/classes/
 /verification/rendered/
+
+**/__pycache__/

@@ -1,0 +1,12 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Built UNSIGNED validation artifact (not installable as a release): /workspace/Markdown-Desk/apps/MarkdownDesk/build/MarkdownDesk-2.2.5-UNSIGNED.apk
+package: name='com.example.markdowndesk' versionCode='18' versionName='2.2.5' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+minSdkVersion:'26'
+targetSdkVersion:'35'
+PASS genuinely unsigned APK: no signing credentials, no signatures, aligned, exact identity, all 25 assets byte-identical
+APK SHA-256: 059587cbf2feb5df1b3a4183a20b7ae5a993aaabbc8d38b56a9d489f06e28b23

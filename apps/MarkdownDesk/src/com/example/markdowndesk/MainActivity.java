@@ -49,6 +49,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.io.IOException;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,9 +79,16 @@ public class MainActivity extends Activity {
     private static final String PREF_THEME = "ui_theme";
     private static final String PREF_TYPEWRITER = "typewriter";
     private static final String PREF_SPLIT_RATIO = "split_ratio";
+    private static final int REQUEST_PROTECTED_COPY = 1004;
     private static final int REQUEST_CREATE = 1002;
     private static final int REQUEST_OPEN = 1001;
     private static final int REQUEST_SPLASH_IMPORT = 1003;
+    // Accessed only by the single I/O executor; the trusted Android parent may be an OS alias.
+    private ProtectionStore protectionStore;
+    private long capturedSaveRevision;
+    private String restoreSnapshotId;
+    private volatile boolean legacyRecoveryProtected;
+    private volatile boolean legacyRecoveryProtectionFailed;
     private LinearLayout body;
     private Uri currentUri;
     private boolean dark;
@@ -364,7 +372,7 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$buildInterface$4(view);
             }
         });
-        this.focusButton.setContentDescription("Focus mode");
+        this.focusButton.setContentDescription("Enter focus mode");
         this.modeBar.addView(this.focusButton, utilityModeParams());
         this.lockButton = createPillButton("", "Lock editing", new View.OnClickListener() {
             @Override // android.view.View.OnClickListener
@@ -738,7 +746,7 @@ public class MainActivity extends Activity {
             textView.setTextColor(-1);
             textView.setGravity(17);
             textView.setPadding(dp(16), dp(9), dp(16), dp(9));
-            textView.setBackground(UiTheme.rounded(withAlpha(-16777216, 125), dp(18), withAlpha(-1, 45), MODE_PREVIEW));
+            textView.setBackground(UiTheme.rounded(UiTheme.SPLASH_HINT_BACKGROUND, dp(18), withAlpha(-1, 45), MODE_PREVIEW));
             FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-2, -2, 81);
             layoutParams.setMargins(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(24));
             frameLayout.addView(textView, layoutParams);
@@ -829,7 +837,7 @@ public class MainActivity extends Activity {
             warning.setText("The launch splash is currently switched off under Appearance, so none of "
                     + "these will appear until you switch it back on.");
             warning.setTextSize(13.0f);
-            warning.setTextColor(this.palette.accent);
+            warning.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
             warning.setPadding(dp(2), 0, dp(2), dp(12));
             column.addView(warning, matchWrap());
         }
@@ -865,7 +873,7 @@ public class MainActivity extends Activity {
         sectionLabel.setText("IMAGES");
         sectionLabel.setLetterSpacing(0.14f);
         sectionLabel.setTextSize(11.0f);
-        sectionLabel.setTextColor(this.palette.accent);
+        sectionLabel.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
         sectionLabel.setPadding(dp(4), dp(18), 0, dp(8));
         column.addView(sectionLabel, matchWrap());
 
@@ -958,6 +966,7 @@ public class MainActivity extends Activity {
         remove.setBackground(UiTheme.rounded(0, dp(11), this.palette.border, 1));
         remove.setStateListAnimator(null);
         remove.setTooltipText("Remove " + item.label);
+        remove.setContentDescription("Remove " + item.label);
         remove.setOnClickListener(new View.OnClickListener() {
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
@@ -989,7 +998,7 @@ public class MainActivity extends Activity {
         state.setText(item.enabled
                 ? (item.bundled ? "On · in the rotation" : "On · imported")
                 : (item.bundled ? "Off" : "Off · imported"));
-        state.setTextColor(item.enabled ? this.palette.accent : this.palette.muted);
+        state.setTextColor(item.enabled ? UiTheme.readableForeground(this.palette.accent, this.palette.accentSoft) : this.palette.muted);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -1120,12 +1129,14 @@ public class MainActivity extends Activity {
         buttonCreateButton.setTextSize(str.length() > MODE_SPLIT ? 11.0f : 18.0f);
         buttonCreateButton.setTypeface(Typeface.DEFAULT, MODE_PREVIEW);
         buttonCreateButton.setTooltipText(str2);
+        buttonCreateButton.setContentDescription(str2);
         return buttonCreateButton;
     }
 
     private Button createPillButton(String str, String str2, View.OnClickListener onClickListener) {
         Button buttonCreateButton = createButton(str, onClickListener);
         buttonCreateButton.setTooltipText(str2);
+        buttonCreateButton.setContentDescription(str2);
         return buttonCreateButton;
     }
 
@@ -1213,7 +1224,55 @@ public class MainActivity extends Activity {
                 this.body.addView(this.editor, paneParams(this.splitRatio));
                 final View divider = new View(this);
                 divider.setBackgroundColor(this.palette != null ? this.palette.border : 0xFF444444);
-                divider.setContentDescription("Drag to resize Split panes");
+                divider.setContentDescription("Resize Split panes");
+                divider.setFocusable(true);
+                divider.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+                divider.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+                    @Override public void onInitializeAccessibilityNodeInfo(View host, android.view.accessibility.AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        info.setClassName("android.widget.SeekBar");
+                        info.setRangeInfo(android.view.accessibility.AccessibilityNodeInfo.RangeInfo.obtain(
+                                android.view.accessibility.AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT,
+                                0.28f, 0.72f, splitRatio));
+                        info.addAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                        info.addAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+                        info.addAction(new android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction(
+                                android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, "Center Split panes"));
+                    }
+                    @Override public boolean performAccessibilityAction(View host, int action, android.os.Bundle arguments) {
+                        if (action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) {
+                            adjustSplitRatio(1);
+                            return true;
+                        }
+                        if (action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) {
+                            adjustSplitRatio(-1);
+                            return true;
+                        }
+                        if (action == android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) {
+                            adjustSplitRatio(0);
+                            return true;
+                        }
+                        return super.performAccessibilityAction(host, action, arguments);
+                    }
+                });
+                divider.setOnKeyListener(new View.OnKeyListener() {
+                    @Override public boolean onKey(View host, int keyCode, KeyEvent event) {
+                        if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                            adjustSplitRatio(-1);
+                            return true;
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                            adjustSplitRatio(1);
+                            return true;
+                        }
+                        if (keyCode == KeyEvent.KEYCODE_MOVE_HOME) {
+                            adjustSplitRatio(0);
+                            return true;
+                        }
+                        return false;
+                    }
+                });
                 divider.setOnTouchListener(new View.OnTouchListener() {
                     @Override public boolean onTouch(View v, MotionEvent event) {
                         if (event.getActionMasked() == MotionEvent.ACTION_DOWN || event.getActionMasked() == MotionEvent.ACTION_MOVE) {
@@ -1250,6 +1309,13 @@ public class MainActivity extends Activity {
         updateModeChrome();
     }
 
+    private void adjustSplitRatio(int direction) {
+        this.splitRatio = SplitResizeController.adjust(this.splitRatio, direction);
+        this.editor.setLayoutParams(paneParams(this.splitRatio));
+        this.preview.setLayoutParams(paneParams(1.0f - this.splitRatio));
+        this.preferences.edit().putFloat(PREF_SPLIT_RATIO, this.splitRatio).apply();
+    }
+
     private void setMode(int i, boolean z) {
         this.mode = i;
         if (i == MODE_SPLIT && !this.preferences.getBoolean("split_hint_seen", false)) {
@@ -1283,7 +1349,7 @@ public class MainActivity extends Activity {
         this.statusView.setBackgroundColor(this.palette.surface);
         this.body.setBackgroundColor(this.palette.canvas);
         this.titleView.setTextColor(this.palette.text);
-        this.eyebrowView.setTextColor(this.palette.accent);
+        this.eyebrowView.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.surface));
         this.statusView.setTextColor(this.palette.muted);
         this.editor.setTextColor(this.palette.text);
         this.editor.setHintTextColor(this.palette.muted);
@@ -1302,7 +1368,7 @@ public class MainActivity extends Activity {
                 styleButton(it.next(), false, false);
             }
         }
-        this.saveButton.setTextColor(-1);
+        this.saveButton.setTextColor(UiTheme.readableForeground(-1, this.palette.accent));
         this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
         updateModeChrome();
         updateTabsUi();
@@ -1327,9 +1393,9 @@ public class MainActivity extends Activity {
         UiTheme.Palette palette = this.palette;
         int i3 = z ? palette.accent : palette.border;
         if (z2) {
-            i2 = -1;
+            i2 = UiTheme.readableForeground(-1, this.palette.accent);
         } else {
-            i2 = z ? this.palette.accent : this.palette.text;
+            i2 = z ? UiTheme.readableForeground(this.palette.accent, this.palette.accentSoft) : this.palette.text;
         }
         button.setTextColor(i2);
         button.setBackground(UiTheme.rounded(i, dp(13), i3, !z2 ? 1 : 0));
@@ -1343,13 +1409,15 @@ public class MainActivity extends Activity {
         styleButton(this.previewModeButton, this.mode == MODE_PREVIEW, false);
         styleButton(this.splitModeButton, this.mode == MODE_SPLIT, false);
         styleButton(this.focusButton, this.focusMode, false);
-        setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusMode ? this.palette.accent : this.palette.text);
+        this.focusButton.setContentDescription(this.focusMode ? "Exit focus mode" : "Enter focus mode");
+        this.focusButton.setSelected(this.focusMode);
+        setButtonIcon(this.focusButton, R.drawable.ic_visibility, this.focusButton.getCurrentTextColor());
         if (this.lockButton != null) {
             styleButton(this.lockButton, this.editorLocked, false);
             boolean sourceVisible = this.mode != MODE_PREVIEW;
             this.lockButton.setEnabled(sourceVisible && !this.readOnly);
             this.lockButton.setAlpha((sourceVisible && !this.readOnly) ? 1.0f : 0.45f);
-            int iconColor = this.editorLocked ? this.palette.accent : this.palette.text;
+            int iconColor = this.lockButton.getCurrentTextColor();
             setButtonIcon(this.lockButton, this.editorLocked ? R.drawable.ic_lock : R.drawable.ic_lock_open, iconColor);
         }
     }
@@ -1460,11 +1528,12 @@ public class MainActivity extends Activity {
         for (int tabIndex = MODE_EDIT; tabIndex < this.tabs.size(); tabIndex += MODE_PREVIEW) {
             final int i = tabIndex;
             DocumentTab documentTab = this.tabs.get(i);
-            String str = documentTab.displayName == null ? "Untitled" : documentTab.displayName;
+            String fullName = documentTab.displayName == null ? "Untitled" : documentTab.displayName;
+            String str = fullName;
             if (str.length() > 22) {
                 str = str.substring(0, 10) + "…" + str.substring(str.length() - 9);
             }
-            Button buttonCreatePillButton = createPillButton((documentTab.dirty ? "●  " : "") + str, "Switch to " + str, new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda65
+            Button buttonCreatePillButton = createPillButton((documentTab.dirty ? "●  " : "") + str, "Switch to " + fullName, new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda65
                 @Override // android.view.View.OnClickListener
                 public final void onClick(View view) {
                     MainActivity.this.lambda$updateTabsUi$23(i, view);
@@ -1478,6 +1547,7 @@ public class MainActivity extends Activity {
                 z = false;
             }
             styleButton(buttonCreatePillButton, z, false);
+            buttonCreatePillButton.setSelected(z);
             buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda66
                 @Override // android.view.View.OnLongClickListener
                 public final boolean onLongClick(View view) {
@@ -1746,6 +1816,7 @@ public class MainActivity extends Activity {
             return;
         }
         if (i2 != -1 || intent == null || intent.getData() == null) {
+            if (i == REQUEST_PROTECTED_COPY) this.restoreSnapshotId = null;
             if (i == REQUEST_CREATE) {
                 this.pendingAfterSave = null;
                 this.saveAsTabId = null;
@@ -1755,26 +1826,55 @@ public class MainActivity extends Activity {
         }
         Uri data = intent.getData();
         takePermission(data, intent.getFlags());
+        if (i == REQUEST_PROTECTED_COPY) {
+            String snapshotId = this.restoreSnapshotId;
+            this.restoreSnapshotId = null;
+            if (snapshotId != null && !this.saveInProgress) restoreProtectedCopy(snapshotId, data);
+            return;
+        }
         if (i != REQUEST_OPEN) {
             if (i == REQUEST_CREATE) {
                 int iFindTabById = findTabById(this.saveAsTabId);
                 this.saveAsTabId = null;
-                if (iFindTabById >= 0) {
-                    switchToTab(iFindTabById, false);
+                if (iFindTabById < 0 || this.saveInProgress) {
+                    this.pendingAfterSave = null;
+                    return;
                 }
-                this.currentUri = data;
-                DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), data);
-                this.displayName = metadata.displayName;
-                this.readOnly = false;
-                this.baselineHash = null;
-                this.baselineModified = metadata.lastModified;
-                captureActiveTab();
-                saveInternal(true);
+                switchToTab(iFindTabById, false);
+                saveInternal(true, data);
                 return;
             }
             return;
         }
         openDocument(data, intent.getFlags(), false);
+    }
+
+    private void restoreProtectedCopy(final String snapshotId, final Uri destination) {
+        this.saveInProgress = true;
+        this.savingTabId = null;
+        this.saveButton.setEnabled(false);
+        this.statusView.setText(R.string.saving);
+        this.io.execute(() -> {
+            try {
+                // Revalidate the selected immutable record on disk, never trust dialog-cached bytes.
+                ProtectionStore.Snapshot snapshot = getProtectionStore().snapshot(snapshotId);
+                if (destination.toString().equals(snapshot.uri)) throw new IOException("Choose a new copy; the original document URI cannot be used for restore.");
+                SaveCoordinator.Request request = new SaveCoordinator.Request(snapshot.documentId, destination.toString(), snapshot.title,
+                        snapshot.revision, snapshot.bytes(), null, null, true);
+                new SaveCoordinator(getProtectionStore()).save(request, new SaveCoordinator.Provider() {
+                    @Override public byte[] read() throws IOException { return DocumentIO.read(getContentResolver(), destination).sourceBytes; }
+                    @Override public void write(byte[] bytes) throws IOException { DocumentIO.write(getContentResolver(), destination, bytes); }
+                });
+                this.main.post(() -> {
+                    this.saveInProgress = false;
+                    this.saveButton.setEnabled(true);
+                    updateStatus();
+                    Toast.makeText(this, "Restored to a new copy. Protected versions were kept.", MODE_PREVIEW).show();
+                });
+            } catch (Exception failure) {
+                this.main.post(() -> lambda$saveInternal$34(failure));
+            }
+        });
     }
 
     private void handleIntent(Intent intent) {
@@ -1943,61 +2043,56 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void saveInternal(final boolean z) {
-        if (this.currentUri == null || this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
-            return;
+    private ProtectionStore getProtectionStore() throws IOException {
+        if (this.protectionStore == null) {
+            File trustedParent = getFilesDir().getCanonicalFile();
+            this.protectionStore = new ProtectionStore(new File(trustedParent, "protected_saves"), new AndroidDurability(), 64L * 1024L * 1024L);
         }
-        captureActiveTab();
-        final String str = this.tabs.get(this.activeTab).id;
-        final Uri uri = this.currentUri;
-        final String string = this.editor.getText().toString();
-        final byte[] bArrEncode = DocumentIO.encode(string, this.utf8Bom);
-        final String str2 = this.baselineHash;
-        this.saveInProgress = true;
-        this.savingTabId = str;
-        this.saveButton.setEnabled(false);
-        this.statusView.setText(R.string.saving);
-        this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda70
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$saveInternal$35(z, str2, uri, str, bArrEncode, string);
-            }
-        });
+        return this.protectionStore;
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$saveInternal$35(boolean z, String str, final Uri uri, final String str2, byte[] bArr, final String str3) {
+    private void saveInternal(final boolean z) {
+        // Historical force boolean is never overwrite authorization.
+        saveInternal(false, this.currentUri);
+    }
+
+    private void saveInternal(final boolean newDestination, final Uri destination) {
+        if (destination == null || this.saveInProgress || this.activeTab < 0 || this.activeTab >= this.tabs.size()) return;
+        captureActiveTab();
+        final DocumentTab tab = this.tabs.get(this.activeTab);
+        final String text = tab.text;
         try {
-            if (!z && str != null) {
-                if (!str.equals(EditorTools.sha256(DocumentIO.read(getContentResolver(), uri).sourceBytes))) {
-                    this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda0
-                        @Override // java.lang.Runnable
-                        public final void run() {
-                            MainActivity.this.lambda$saveInternal$32(str2);
-                        }
-                    });
-                    return;
-                }
-            }
-            DocumentIO.write(getContentResolver(), uri, bArr);
-            if (!Arrays.equals(bArr, DocumentIO.read(getContentResolver(), uri).sourceBytes)) {
-                throw new IOException("The provider reported success but the saved bytes did not match. Your recovery draft was retained.");
-            }
+            final SaveCoordinator.Request request = new SaveCoordinator.Request(tab.id, destination.toString(), tab.displayName,
+                    ++this.capturedSaveRevision, DocumentIO.encodeStrict(text, tab.utf8Bom), tab.baselineHash, null,
+                    newDestination && !destination.toString().equals(tab.uri));
+            submitCapturedSave(request, destination, text);
+        } catch (IOException invalidEdit) {
+            this.pendingAfterSave = null;
+            showError("The edited text could not be safely encoded. No document was written.\n\n" + message(invalidEdit));
+        }
+    }
+
+    private void submitCapturedSave(final SaveCoordinator.Request request, final Uri destination, final String text) {
+        if (this.saveInProgress || findTabById(request.documentId) < 0) { this.pendingAfterSave = null; return; }
+        this.saveInProgress = true;
+        this.savingTabId = request.documentId;
+        this.saveButton.setEnabled(false);
+        this.statusView.setText(R.string.saving);
+        this.io.execute(() -> lambda$saveInternal$35(request, destination, text));
+    }
+
+    public void lambda$saveInternal$35(final SaveCoordinator.Request request, final Uri uri, final String capturedText) {
+        try {
+            SaveCoordinator.Result result = new SaveCoordinator(getProtectionStore()).save(request, new SaveCoordinator.Provider() {
+                @Override public byte[] read() throws IOException { return DocumentIO.read(getContentResolver(), uri).sourceBytes; }
+                @Override public void write(byte[] bytes) throws IOException { DocumentIO.write(getContentResolver(), uri, bytes); }
+            });
             final DocumentIO.Metadata metadata = DocumentIO.metadata(getContentResolver(), uri);
-            final String strSha256 = EditorTools.sha256(bArr);
-            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda1
-                @Override // java.lang.Runnable
-                public final void run() {
-                    MainActivity.this.lambda$saveInternal$33(str2, uri, str3, strSha256, metadata);
-                }
-            });
-        } catch (final Exception e) {
-            this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda2
-                @Override // java.lang.Runnable
-                public final void run() {
-                    MainActivity.this.lambda$saveInternal$34(e);
-                }
-            });
+            this.main.post(() -> lambda$saveInternal$33(request.documentId, uri, capturedText, result.hash, metadata));
+        } catch (SaveCoordinator.ConflictException conflict) {
+            this.main.post(() -> lambda$saveInternal$32(request, uri, capturedText, conflict.observedHash));
+        } catch (Exception failure) {
+            this.main.post(() -> lambda$saveInternal$34(failure));
         }
     }
 
@@ -2009,6 +2104,7 @@ public class MainActivity extends Activity {
         this.savingTabId = null;
         this.saveButton.setEnabled(true);
         if (iFindTabById < 0) {
+            this.pendingAfterSave = null;
             updateStatus();
             return;
         }
@@ -2057,46 +2153,36 @@ public class MainActivity extends Activity {
         this.saveButton.setEnabled(true);
         this.pendingAfterSave = null;
         updateStatus();
-        showError("Save failed. Your recovery draft is still available.\n\n" + message(exc));
+        boolean uncertain = exc instanceof SaveCoordinator.SaveFailure && ((SaveCoordinator.SaveFailure) exc).writeMayHaveOccurred;
+        showError((uncertain ? "Save outcome is uncertain. The provider document may be incomplete. Protected versions are available in Workspace → Protected saves."
+                : "Save stopped. Check Workspace → Protected saves for any retained versions; resolve storage or access errors before retrying.") + "\n\n" + message(exc));
     }
 
     /* JADX INFO: Access modifiers changed from: private */
     /* JADX INFO: renamed from: showConflict, reason: merged with bridge method [inline-methods] */
-    public void lambda$saveInternal$32(String str) {
+    public void lambda$saveInternal$32(final SaveCoordinator.Request request, final Uri destination, final String capturedText, final String observedHash) {
+        final String tabId = request.documentId;
         this.saveInProgress = false;
         this.savingTabId = null;
         this.saveButton.setEnabled(true);
-        int iFindTabById = findTabById(str);
-        if (iFindTabById >= 0) {
-            switchToTab(iFindTabById, false);
-        }
         updateStatus();
-        new AlertDialog.Builder(this).setTitle("File changed elsewhere").setMessage("The source file changed after you opened it. Choose how to protect both versions.").setPositiveButton("Overwrite", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda83
-            @Override // android.content.DialogInterface.OnClickListener
-            public final void onClick(DialogInterface dialogInterface, int i) {
-                MainActivity.this.lambda$showConflict$36(dialogInterface, i);
-            }
-        }).setNegativeButton("Save as", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda84
-            @Override // android.content.DialogInterface.OnClickListener
-            public final void onClick(DialogInterface dialogInterface, int i) {
-                MainActivity.this.lambda$showConflict$37(dialogInterface, i);
-            }
-        }).setNeutralButton("Cancel", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda85
-            @Override // android.content.DialogInterface.OnClickListener
-            public final void onClick(DialogInterface dialogInterface, int i) {
-                MainActivity.this.lambda$showConflict$38(dialogInterface, i);
-            }
-        }).show();
+        if (findTabById(tabId) < 0) { this.pendingAfterSave = null; return; }
+        new AlertDialog.Builder(this).setTitle("File changed elsewhere")
+                .setMessage("The source changed or its original version is unknown. Both versions will be protected before an approved overwrite.")
+                .setPositiveButton("Overwrite", (dialog, which) -> resumeConflictSave(request, destination, capturedText, observedHash))
+                .setNegativeButton("Save as", (dialog, which) -> {
+                    int index = findTabById(tabId);
+                    if (index < 0 || this.saveInProgress) { this.pendingAfterSave = null; return; }
+                    switchToTab(index, false);
+                    launchSaveAs();
+                })
+                .setNeutralButton("Cancel", (dialog, which) -> this.pendingAfterSave = null).show();
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$showConflict$36(DialogInterface dialogInterface, int i) {
-        saveInternal(true);
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$showConflict$37(DialogInterface dialogInterface, int i) {
-        launchSaveAs();
+    private void resumeConflictSave(SaveCoordinator.Request request, Uri destination, String capturedText, String observedHash) {
+        if (findTabById(request.documentId) < 0 || this.saveInProgress) { this.pendingAfterSave = null; return; }
+        // Consent authorizes only the originally captured identity, revision and bytes.
+        submitCapturedSave(request.withConsent(observedHash), destination, capturedText);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -2150,30 +2236,30 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$restoreSessionOrRecovery$42(final Intent intent) {
-        RecoveryStore.Draft draft;
-        SessionStore.State state;
+        RecoveryStore.Draft draft = null;
+        SessionStore.State state = null;
         Exception e = null;
+        // A malformed session must not hide an independently recoverable draft.
         try {
             state = SessionStore.read(this);
+        } catch (Exception sessionError) {
+            e = sessionError;
+        }
+        try {
+            draft = RecoveryStore.read(this);
+            protectLegacyRecovery(draft);
+        } catch (Exception recoveryError) {
+            this.legacyRecoveryProtectionFailed = true;
+            if (e == null) e = recoveryError;
+            else e.addSuppressed(recoveryError);
+        }
+        if (state != null && draft != null && draft.timestamp > state.timestamp) {
             try {
-                draft = RecoveryStore.read(this);
-                if (state != null && draft != null) {
-                    try {
-                        if (draft.timestamp > state.timestamp) {
-                            mergeNewerRecovery(state, draft);
-                        }
-                    } catch (Exception e2) {
-                        e = e2;
-                    }
-                }
-            } catch (Exception e3) {
-                draft = null;
-                e = e3;
+                mergeNewerRecovery(state, draft);
+            } catch (Exception mergeError) {
+                if (e == null) e = mergeError;
+                else e.addSuppressed(mergeError);
             }
-        } catch (Exception e4) {
-            draft = null;
-            e = e4;
-            state = null;
         }
         final Exception exc = e;
         final SessionStore.State state2 = state;
@@ -2186,8 +2272,27 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void protectLegacyRecovery(RecoveryStore.Draft draft) throws IOException {
+        if (draft != null) {
+            byte[] bytes = DocumentIO.encodeStrict(draft.text, draft.utf8Bom);
+            String hash = EditorTools.sha256(bytes);
+            long revision = Math.max(0L, draft.timestamp);
+            boolean found = false;
+            for (ProtectionStore.Snapshot snapshot : getProtectionStore().snapshots()) {
+                if ("legacy-recovery".equals(snapshot.documentId) && "attempted".equals(snapshot.role)
+                        && java.util.Objects.equals(draft.uri, snapshot.uri) && java.util.Objects.equals(draft.displayName, snapshot.title)
+                        && snapshot.revision == revision && hash.equals(snapshot.hash)) { found = true; break; }
+            }
+            if (!found) getProtectionStore().putSnapshot("legacy-recovery", draft.uri, draft.displayName, revision, bytes, "attempted");
+        }
+        this.legacyRecoveryProtected = true;
+        this.legacyRecoveryProtectionFailed = false;
+    }
+
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$restoreSessionOrRecovery$41(SessionStore.State state, Intent intent, Exception exc, RecoveryStore.Draft draft) {
+        if (exc != null) showError("Previous editor state or draft protection could not be read: " + message(exc)
+                + "\nKeep the recovery draft. Resolve storage or access errors before retrying; Workspace → Protected saves lists committed versions.");
         if (state != null && !state.tabs.isEmpty()) {
             this.tabs.clear();
             this.tabs.addAll(state.tabs);
@@ -2195,14 +2300,12 @@ public class MainActivity extends Activity {
             pruneRedundantUntitledTabs();
             restoreActiveTab(false);
             scheduleSession();
+            if (draft != null && !recoveryRepresented(state, draft)) showPendingProtectedRecovery(draft);
             if (isExternalIntent(intent)) {
                 handleIntent(intent);
                 return;
             }
             return;
-        }
-        if (exc != null) {
-            showError("Previous editor state could not be read: " + message(exc));
         }
         if (draft == null) {
             if (!isExternalIntent(intent)) {
@@ -2214,6 +2317,22 @@ public class MainActivity extends Activity {
             }
         }
         showRecovery(draft, intent);
+    }
+
+    private static boolean recoveryRepresented(SessionStore.State state, RecoveryStore.Draft draft) {
+        for (DocumentTab tab : state.tabs) {
+            if (java.util.Objects.equals(tab.uri, draft.uri) && java.util.Objects.equals(tab.displayName, draft.displayName)
+                    && java.util.Objects.equals(tab.text, draft.text) && tab.utf8Bom == draft.utf8Bom) return true;
+        }
+        return false;
+    }
+
+    private void showPendingProtectedRecovery(RecoveryStore.Draft draft) {
+        new AlertDialog.Builder(this).setTitle("Recovery version available")
+                .setMessage("Unsaved changes from " + draft.displayName + " are available separately from your open tabs. Use Protected saves to restore to a new copy."
+                        + (this.legacyRecoveryProtectionFailed ? " Draft protection failed; the existing recovery draft will be kept until the storage or access error is resolved." : ""))
+                .setPositiveButton("Protected saves", (dialog, which) -> showProtectedSaves())
+                .setNegativeButton("Keep for later", null).show();
     }
 
     private void pruneRedundantUntitledTabs() {
@@ -2380,12 +2499,13 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$writeRecoveryNow$45() {
-        Toast.makeText(this, "Could not update recovery draft", MODE_PREVIEW).show();
+        showError("Could not update recovery. The previous recovery draft is being kept. Resolve storage or access errors before retrying; see Workspace → Protected saves.");
     }
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$writeRecoveryNow$46(RecoveryStore.Draft draft) {
         try {
+            if (!this.legacyRecoveryProtected) protectLegacyRecovery(RecoveryStore.read(this));
             RecoveryStore.write(this, draft);
         } catch (IOException e) {
             this.main.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda91
@@ -2411,7 +2531,12 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$clearRecoveryAsync$47() {
-        RecoveryStore.clear(this);
+        try {
+            if (!this.legacyRecoveryProtected) protectLegacyRecovery(RecoveryStore.read(this));
+            RecoveryStore.clear(this);
+        } catch (IOException failure) {
+            this.main.post(() -> lambda$writeRecoveryNow$45());
+        }
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -2499,6 +2624,46 @@ public class MainActivity extends Activity {
         openDocument(Uri.parse(((RecentStore.Item) list.get(i)).uri), 3, true);
     }
 
+    private void showProtectedSaves() {
+        this.io.execute(() -> {
+            try {
+                final List<ProtectionStore.Snapshot> versions = getProtectionStore().snapshots();
+                versions.sort((left, right) -> Long.compare(right.timestamp, left.timestamp));
+                final String[] labels = new String[versions.size()];
+                SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                for (int index = 0; index < versions.size(); index++) {
+                    ProtectionStore.Snapshot snapshot = versions.get(index);
+                    labels[index] = (snapshot.title == null ? "Untitled.md" : snapshot.title) + " · "
+                            + ("original".equals(snapshot.role) ? "Original" : "Edited version") + "\n" + dates.format(new Date(snapshot.timestamp));
+                }
+                this.main.post(() -> {
+                    if (isFinishing()) return;
+                    if (versions.isEmpty()) { showError("No protected saves are available yet."); return; }
+                    new AlertDialog.Builder(this).setTitle("Protected saves")
+                            .setItems(labels, (dialog, index) -> {
+                                ProtectionStore.Snapshot snapshot = versions.get(index);
+                                new AlertDialog.Builder(this).setTitle("Restore protected version?")
+                                        .setMessage("Restore " + (snapshot.title == null ? "this version" : snapshot.title) + " to a new copy. The original and protected versions will be kept.")
+                                        .setPositiveButton("Restore to new copy", (confirm, which) -> launchProtectedCopy(snapshot.id, snapshot.title))
+                                        .setNegativeButton("Cancel", null).show();
+                            }).setNegativeButton("Close", null).show();
+                });
+            } catch (Exception failure) {
+                this.main.post(() -> showError("Protected saves could not be read. Keep the existing recovery draft and resolve storage or access errors.\n\n" + message(failure)));
+            }
+        });
+    }
+
+    private void launchProtectedCopy(String snapshotId, String title) {
+        if (this.saveInProgress) { showError("Wait for the current save to finish before restoring a copy."); return; }
+        this.restoreSnapshotId = snapshotId;
+        Intent picker = new Intent("android.intent.action.CREATE_DOCUMENT").addCategory("android.intent.category.OPENABLE").setType("text/markdown");
+        picker.putExtra("android.intent.extra.TITLE", markdownName(title == null ? "Restored.md" : title));
+        picker.addFlags(67);
+        try { startActivityForResult(picker, REQUEST_PROTECTED_COPY); }
+        catch (ActivityNotFoundException failure) { this.restoreSnapshotId = null; showError("No document picker is available on this device."); }
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -2529,13 +2694,17 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$showWorkspace$52(view);
             }
         }), matchWrap());
+        linearLayout.addView(workspaceAction("↶  Protected saves", "Originals and edited versions · restore to a new copy", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            showProtectedSaves();
+        }), matchWrap());
         List<RecentStore.Item> list = RecentStore.read(this);
         if (!list.isEmpty()) {
             TextView textView3 = new TextView(this);
             textView3.setText("RECENT");
             textView3.setLetterSpacing(0.14f);
             textView3.setTextSize(11.0f);
-            textView3.setTextColor(this.palette.accent);
+            textView3.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
             textView3.setPadding(dp(4), dp(22), MODE_EDIT, dp(8));
             linearLayout.addView(textView3, matchWrap());
             for (final RecentStore.Item item : list) {
@@ -2881,6 +3050,13 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    private Button appearanceButton(AppearanceUi ui, String label, String description, View.OnClickListener listener) {
+        Button button = appearanceButton(ui, label, listener);
+        button.setContentDescription(description);
+        button.setTooltipText(description);
+        return button;
+    }
+
     /** Refresh the *existing* window, not just the main activity behind it. */
     private void refreshAppearance(AppearanceUi ui) {
         final UiTheme.Palette colors = this.palette;
@@ -2986,8 +3162,8 @@ public class MainActivity extends Activity {
         linearLayout.addView(sourceLabel, matchWrap());
         LinearLayout sourceRow = new LinearLayout(this);
         sourceRow.setOrientation(MODE_EDIT);
-        sourceRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(-1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
-        sourceRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        sourceRow.addView(appearanceButton(ui, "A−", "Decrease source text size", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(-1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        sourceRow.addView(appearanceButton(ui, "A+", "Increase source text size", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
         linearLayout.addView(sourceRow, matchWrap());
 
         TextView readLabel = new TextView(this);
@@ -2998,8 +3174,8 @@ public class MainActivity extends Activity {
         linearLayout.addView(readLabel, matchWrap());
         LinearLayout readRow = new LinearLayout(this);
         readRow.setOrientation(MODE_EDIT);
-        readRow.addView(appearanceButton(ui, "A−", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
-        readRow.addView(appearanceButton(ui, "A+", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        readRow.addView(appearanceButton(ui, "A−", "Decrease reading text size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
+        readRow.addView(appearanceButton(ui, "A+", "Increase reading text size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); readLabel.setText("Reading text · " + Math.round(previewFontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
         linearLayout.addView(readRow, matchWrap());
         linearLayout.addView(appearanceButton(ui, "Reset text sizes", new View.OnClickListener() { @Override public void onClick(View v) {
             fontSp = 18f; previewFontSp = 18f; editor.setTextSize(fontSp); preview.setTextSp(previewFontSp);
@@ -3174,9 +3350,9 @@ public class MainActivity extends Activity {
         Button positive = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         Button negative = alertDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
         Button neutral = alertDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
-        if (positive != null) positive.setTextColor(this.palette.accent);
-        if (negative != null) negative.setTextColor(this.palette.accent);
-        if (neutral != null) neutral.setTextColor(this.palette.accent);
+        if (positive != null) positive.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
+        if (negative != null) negative.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
+        if (neutral != null) neutral.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.raised));
     }
 
     private void showRecentFailure(final Uri uri, Exception exc) {
@@ -3951,11 +4127,12 @@ public class MainActivity extends Activity {
         } else {
             str = this.mode == MODE_PREVIEW ? "Read" : "Split";
         }
-        int iWordCount = EditorTools.wordCount(this.editor.getText().toString());
+        String statusText = this.editor.getText().toString();
+        int iWordCount = EditorTools.wordCount(statusText);
         int length = this.editor.length();
         String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
         String quantityString2 = getResources().getQuantityString(R.plurals.character_count, length, Integer.valueOf(length));
-        int lineCount = EditorTools.lineCount(this.editor.getText().toString());
+        int lineCount = EditorTools.lineCount(statusText);
         int iMax = iWordCount == 0 ? 0 : Math.max(1, (int) Math.ceil(((double) iWordCount) / 220.0d));
         if (this.wordGoal > 0) {
             str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
@@ -3970,10 +4147,12 @@ public class MainActivity extends Activity {
             str2 = this.dirty ? "SAVE" : "SAVED";
         }
         button.setText(str2);
+        button.setContentDescription(this.saveInProgress ? "Saving document"
+                : this.readOnly ? "Save a copy" : this.dirty ? "Save document" : "Document saved");
         this.saveButton.setEnabled(!this.saveInProgress);
         if (this.palette != null) {
             if (this.dirty || this.readOnly) {
-                this.saveButton.setTextColor(-1);
+                this.saveButton.setTextColor(UiTheme.readableForeground(-1, this.palette.accent));
                 this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
             } else {
                 styleButton(this.saveButton, true, false);

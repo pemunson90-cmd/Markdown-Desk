@@ -1,0 +1,77 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public final class ModeHarness {
+    static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
+    static class View {
+        static final int VISIBLE = 0, GONE = 8;
+        int visibility = VISIBLE, alphaPercent = 100, scrollY = 321;
+        boolean enabled = true, selected;
+        String description;
+        void setVisibility(int value) { visibility = value; }
+        void setEnabled(boolean value) { enabled = value; }
+        void setAlpha(float value) { alphaPercent = Math.round(value * 100); }
+        void setContentDescription(String value) { description = value; }
+        void setSelected(boolean value) { selected = value; }
+    }
+    static final class Button extends View { int icon, iconColor, textColor; boolean styledActive; int getCurrentTextColor(){return textColor;} }
+    static final class Header extends View {
+        int left, top, right, bottom;
+        void setPadding(int l, int t, int r, int b) { left=l; top=t; right=r; bottom=b; }
+    }
+    static final class Editor extends View {
+        Object keyListener = new Object();
+        boolean cursorVisible = true, focused;
+        Object getKeyListener() { return keyListener; }
+        void setKeyListener(Object value) { keyListener = value; }
+        void setCursorVisible(boolean value) { cursorVisible = value; }
+        void requestFocus() { focused = true; }
+    }
+    static final class Tab { int mode; boolean editorLocked; int editorScrollY=88, previewScrollY=99; }
+    static final class Palette { int accent=0x12, text=0x34; }
+    static final class Prefs {
+        boolean splitHintSeen;
+        boolean getBoolean(String key, boolean fallback) { return splitHintSeen; }
+        EditorPrefs edit() { return new EditorPrefs(this); }
+    }
+    static final class EditorPrefs {
+        final Prefs prefs;
+        EditorPrefs(Prefs p) { prefs=p; }
+        EditorPrefs putBoolean(String key, boolean value) { prefs.splitHintSeen=value; return this; }
+        void apply() {}
+    }
+    static final class Toast {
+        static String last;
+        static Toast makeText(Object context, String value, int duration) { last=value; return new Toast(); }
+        void show() {}
+    }
+    static final class R {
+        static final class drawable { static final int ic_visibility=1, ic_lock=2, ic_lock_open=3; }
+    }
+    boolean focusMode, editorLocked, readOnly;
+    int mode=MODE_EDIT, activeTab=0, rebuilds, statuses, sessions, hideKeyboardCalls, showKeyboardCalls;
+    int chromeStyleCalls, formatUpdates, responsiveUpdates, previewScrollY=777;
+    final View tabsScroll=new View(), modeBar=new View(), eyebrowView=new View(), statusView=new View();
+    final View formatScroll=new View(), readToolsScroll=new View();
+    final Header header=new Header();
+    final Editor editor=new Editor();
+    final Button editModeButton=new Button(), previewModeButton=new Button(), splitModeButton=new Button();
+    final Button focusButton=new Button(), lockButton=new Button();
+    final List<Button> modeButtons=new ArrayList<>();
+    final List<Tab> tabs=new ArrayList<>();
+    final Prefs preferences=new Prefs();
+    final Palette palette=new Palette();
+    Object editorKeyListener;
+    ModeHarness() { modeButtons.add(editModeButton); tabs.add(new Tab()); }
+    int dp(int value) { return value * 2; }
+    void rebuildBody() { rebuilds++; }
+    void updateStatus() { statuses++; }
+    void scheduleSession() { sessions++; }
+    void hideKeyboard() { hideKeyboardCalls++; }
+    void showKeyboard(Editor target) { showKeyboardCalls++; }
+    void applyResponsiveChrome() { responsiveUpdates++; }
+    void updateFormatAvailability() { formatUpdates++; }
+    void styleButton(Button button, boolean active, boolean ignored) { button.styledActive=active; button.textColor=active?palette.accent:palette.text; chromeStyleCalls++; }
+    void setButtonIcon(Button button, int icon, int color) { button.icon=icon; button.iconColor=color; }
+    /* EXTRACTED_METHODS */
+}

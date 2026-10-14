@@ -26,6 +26,10 @@ with tempfile.TemporaryDirectory(prefix='markdown-clean-rebuild-') as tmp:
         checkout.mkdir()
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(checkout, filter='data')
+        # Provenance checks need the immutable tag, fetched from local Git only.
+        subprocess.run(['git', 'init', '--quiet', str(checkout)], check=True)
+        subprocess.run(['git', '-C', str(checkout), 'fetch', '--quiet', str(root),
+                        'refs/tags/v2.2.5-baseline:refs/tags/v2.2.5-baseline'], check=True)
         dest = checkout / 'verification/build/deps' / dep.name
         dest.parent.mkdir(parents=True)
         shutil.copyfile(dep, dest)

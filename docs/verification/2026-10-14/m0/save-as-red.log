@@ -1,0 +1,19 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact picker handler, capture/lookup, save worker/callbacks and five constants via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS normal save commits verified version
+PASS normal Save As success adopts verified destination
+PASS newer active edits remain dirty and retain recovery
+PASS switched-tab callback updates only saving tab
+PASS closed-tab callback does not resurrect original tab
+PASS provider write and readback failures retain dirty content
+PASS cancelled Save As leaves origin unchanged
+FAIL SAFETY Save As does not adopt identity before verification: original tab identity until verified: expected=content://fixture/original, actual=content://fixture/save-as
+FAIL SAFETY provider-write-failed Save As retains original identity and baseline: failed Save As retains origin write: expected=content://fixture/original, actual=content://fixture/save-as
+FAIL SAFETY readback-mismatched Save As retains original identity and baseline: failed Save As retains origin mismatch: expected=content://fixture/original, actual=content://fixture/save-as
+FAIL SAFETY removed Save As origin never retargets active tab: removed origin never writes other tab: expected=0, actual=1
+FAIL save-lifecycle safety: 11 cases, 76 assertions, 4 failures
+Exception in thread "main" java.lang.AssertionError: save lifecycle failures: 4
+	at com.example.markdowndesk.SaveLifecycleCheck.main(SaveLifecycleCheck.java:25)

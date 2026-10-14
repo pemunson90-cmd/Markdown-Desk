@@ -1,0 +1,49 @@
+package com.example.markdowndesk;
+
+final class StatusHarness {
+    static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
+    static final class R { static final class plurals { static final int word_count = 1, character_count = 2; } }
+    static final class TextView { String text; void setText(String value) { text = value; } }
+    static final class Button {
+        String text, contentDescription; boolean enabled = true; int textColor; Object background;
+        void setText(String value) { text = value; }
+        void setContentDescription(String value) { contentDescription = value; }
+        void setEnabled(boolean value) { enabled = value; }
+        void setTextColor(int value) { textColor = value; }
+        void setBackground(Object value) { background = value; }
+    }
+    static final class CountedText implements CharSequence {
+        final String source;
+        int copies;
+        CountedText(String source) { this.source = source; }
+        public int length() { return source.length(); }
+        public char charAt(int index) { return source.charAt(index); }
+        public CharSequence subSequence(int start, int end) { return source.subSequence(start, end); }
+        public String toString() { copies++; return new String(source.toCharArray()); }
+    }
+    static final class Editor {
+        final CountedText text;
+        int selection;
+        Editor(String source) { text = new CountedText(source); }
+        CharSequence getText() { return text; }
+        int length() { return text.length(); }
+    }
+    static final class Resources {
+        String getQuantityString(int id, int quantity, Integer formatted) {
+            String noun = id == R.plurals.word_count ? "word" : "character";
+            return formatted + " " + noun + (quantity == 1 ? "" : "s");
+        }
+    }
+    final Resources resources = new Resources();
+    TextView titleView = new TextView(), statusView = new TextView();
+    Button saveButton = new Button();
+    Editor editor;
+    UiTheme.Palette palette = UiTheme.palette(UiTheme.PAPER, false);
+    String displayName = "Note.md";
+    boolean dirty, readOnly, saveInProgress;
+    int mode, wordGoal;
+    Resources getResources() { return resources; }
+    int dp(int value) { return value; }
+    void styleButton(Button button, boolean selected, boolean filled) { button.background = "styled"; }
+    /* EXTRACTED_STATUS */
+}

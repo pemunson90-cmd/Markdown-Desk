@@ -23,6 +23,7 @@ Stop and request input only for a genuine external dependency, a new material pr
 - **GitHub Actions and external tools are exceptions, not the default workbench.** Invoke them when required by branch protections, portability/independent-runner verification, hardware/test infrastructure unavailable locally, or a specific integration/release gate. Do not trigger Actions for every trivial edit, duplicate local tests in CI without value, or use web/API round trips to inspect files already in the checkout.
 - Avoid unnecessary agent calls, repeated broad repository scans, duplicate benchmark runs, verbose logs in context, and needless PR/issue fragmentation. Capture short reproducible commands and evidence once, then reuse it until inputs change.
 - Offline-first builds/tests where practical. Never send signing material or personal content to hosted CI/PRs/issues.
+- **CI and safety classification:** follow [docs/CI_AND_WORKFLOW_POLICY.md](docs/CI_AND_WORKFLOW_POLICY.md). Draft PR work uses local tests; review-ready PRs trigger hosted validation. Keep generic-provider destructive-write probes visibly RED as raw hazard evidence, while actual protected transaction/recovery behavior must pass required production-path tests. Neither test class may silently replace or excuse the other.
 
 ## Continuous implementation loop
 1. Resolve the **current** checked-out branch/PR/issue and current status; consult `docs/STATUS.md` before planning. Inspect modified files, not the full project from scratch every turn.
@@ -54,5 +55,6 @@ A completed import of unchanged source is not a new app release. Host builds are
 - Document all behavior changed/preserved/deferred in code review; do not conflate compile, host, emulator, phone and Fold results. `docs/RELEASE_GATES.md` controls production readiness.
 - Reuse existing non-Gradle `build.sh` (`javac`, `aapt2`, D8, `zipalign`, `apksigner`) unless measured benefits and an approved ADR warrant a migration. The canonical signed path requires four private environment variables named in build scripts; never print their values.
 
-## Current kickoff
-PR #9 is the verified 2.2.5 source-import candidate. The PM has independently verified the archived signed APK and recorded baseline merge clearance on PR #9; physical Fold/SAF/upgrade acceptance remains pending for future releases. Confirm actual PR state, reconcile its live documentation, merge/tag after applicable gates, then **continue issue #2 and the remaining M0–M7 roadmap**. This kickoff paragraph must be updated/removed once the repo state advances; `docs/STATUS.md` is authoritative.
+## Current campaign checkpoint
+
+PR #9 merged the verified source baseline; `v2.2.5-baseline` is a source-only provenance tag, not a new APK release. Issue #1 is complete. Resume active M0 behavioral safety tests and benchmarks from `docs/STATUS.md`, then continue eligible M1–M7 slices. Physical Fold/SAF/upgrade acceptance remains a user-facing release gate, not a reason to halt independent local tests/design work.

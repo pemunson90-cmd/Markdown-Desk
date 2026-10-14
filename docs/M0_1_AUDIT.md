@@ -1,6 +1,6 @@
 # M0.1 baseline import audit — 2026-10-14
 
-Issue [#1](https://github.com/pemunson90-cmd/Markdown-Desk/issues/1), draft
+Completed issue [#1](https://github.com/pemunson90-cmd/Markdown-Desk/issues/1), merged
 [PR #9](https://github.com/pemunson90-cmd/Markdown-Desk/pull/9).
 Base: `60f3acbdfca399e99f5f1754a4d66b3fddd1f4b4`.
 Implementation verified by two clean builds:
@@ -122,3 +122,11 @@ Deferred minor: `check_baseline_inventory.py` checks every listed file's digest
 but does not reject newly added runtime paths. This exact import has none, as
 independently checked. Future runtime additions require source diff review and
 must not rely solely on this inventory checker for baseline parity.
+
+## Source-baseline completion
+
+After PM approval and final documentation reconciliation, PR #9 was merged at
+`d1288a80d4fc174c2b2a62805642218f5fa2d516`, issue #1 closed, and annotated
+`v2.2.5-baseline` pushed. This tag records exact source provenance, not a new
+APK release. The campaign continues through M0 tests/benchmarks and later
+milestones; this historical audit does not replace current `STATUS.md`.

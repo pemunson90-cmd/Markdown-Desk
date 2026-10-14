@@ -1,0 +1,49 @@
+name: Host regression and production recoverability
+on:
+  pull_request:
+    # Draft PRs are active development. Run hosted checks when ready for review;
+    # local Codex tests are used while the branch is in progress.
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - 'apps/MarkdownDesk/src/**'
+      - 'apps/MarkdownDesk/test/**'
+      - 'shared/**'
+      - 'verification/**'
+      - '.github/workflows/host-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host:
+    # Avoid expensive CI reruns for every commit in an explicitly draft PR.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Provision pinned host-only JSON dependency
+        run: bash verification/setup_host_deps.sh
+      - name: Required behavioral and production-recoverability checks
+        run: bash verification/run_host_checks.sh
+      - name: Record diagnostic boundary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Safety-test classification'
+            echo 'The required host suite tests application behavior and production recovery, not generic-provider atomicity.'
+            echo 'Generic SAF providers may truncate a destination on a failed write.'
+            echo 'The low-level destructive-provider tests remain separately runnable and expected to expose that hazard:'
+            echo '`bash verification/document_io/run.sh --safety`'
+            echo 'The legacy aggregate `bash verification/run_safety_gates.sh` remains RED while those primitive assertions fail.'
+            echo 'Neither suite substitutes for actual Android/SAF, Fold, or in-place upgrade acceptance.'
+          } >> "$GITHUB_STEP_SUMMARY"

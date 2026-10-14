@@ -3,7 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$PWD/verification/build/host"
 mkdir -p "$OUT/renderer" "$OUT/splash" "$OUT/tmp"
-python3 verification/check_baseline_inventory.py
+python3 verification/test_baseline_inventory.py
+python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
 python3 verification/check_layout.py
 python3 verification/check_live_appearance.py
 java verification/ParseJava.java apps/MarkdownDesk/src shared apps/MarkdownDesk/test
@@ -18,3 +19,24 @@ mapfile -t STUBS < <(find apps/MarkdownDesk/test/stub -name '*.java' | sort)
 javac --release 11 -cp "$JSON_JAR" -d "$OUT/splash" "${STUBS[@]}" apps/MarkdownDesk/src/com/example/markdowndesk/SplashStore.java apps/MarkdownDesk/test/SplashStoreTest.java
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/splash:$JSON_JAR" SplashStoreTest
 # Optional browser proxy: node verification/reader_layout.cjs (not a host gate).
+
+# Behavioral preservation suite; known safety/spec failures are a separate red gate.
+bash verification/document_io/run.sh
+bash verification/session_recovery/run.sh
+bash verification/renderer_golden/run.sh
+bash verification/mode_behavior/run.sh
+
+bash verification/contrast/run.sh --gate
+
+bash verification/recovery_loader/run.sh
+bash verification/status_behavior/run.sh test
+
+bash verification/save_lifecycle/run.sh
+
+# Actual immutable protection + coordinator fixtures (model/probes stay separate).
+bash verification/protection_store/run.sh
+bash verification/protection_store/run_adapter.sh
+bash verification/save_coordinator/run.sh
+bash verification/save_coordinator/run_memory.sh
+bash verification/protection_restart/run.sh
+bash verification/split_resize/run.sh
