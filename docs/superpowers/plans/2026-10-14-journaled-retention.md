@@ -149,7 +149,7 @@ review remains required.
 
 ## Scoped implementation evidence
 
-`bash verification/history_executor/run.sh`: 738 behavioral checks and22 memory
+`bash verification/history_executor/run.sh`: 747 behavioral checks and22 memory
 checks passed;44 SIGKILL/OS-limit/corruption fixtures passed88 fresh JVM reopens.
 The memory case uses near-limit native pairs with32MiB held live at128MiB heap.
 Publication OS write-size failure and actual intent-unlink permission failure
@@ -163,3 +163,9 @@ admission/42 integration and10 SIGKILL/7 fresh cases; maintenance73/103 codec,
 retention graph94/6. No unchanged broad benchmark or full gate was repeated.
 The parent integrator owns central runner registration and the full host/build
 gate. Independent exact-source review remains pending at this checkpoint.
+
+Independent source review reproduced a pre-enrollment alternate bootstrap-hint
+handle publishing intent before recovery rejected it. A separate targeted RED
+confirmed retirement removed intent before the candidate rejected the hint.
+Early callback-free registration/bootstrap validation now precedes publication
+admission and both replay paths; both fixtures require byte-identical rejection.

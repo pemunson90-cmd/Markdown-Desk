@@ -20,7 +20,8 @@ public final class ExecutorCheck {
         final Path parent;final Disk disk=new Disk();final ProtectionStore store;final HistoryCatalog catalog;final HistoryIdentity identity;final HistoryIndex index;
         HistoryCapacity capacity;ProtectionStore.Transaction old,anchor,pending;HistoryPruner.DeletePlan plan;HistoryPruneIntent intent;Set<String> selection=new TreeSet<>();
         Bundle()throws Exception{this(Files.createTempDirectory("history-executor-"));}
-        Bundle(Path parent)throws Exception{this.parent=parent;Files.createDirectories(parent);store=new ProtectionStore(parent.resolve("store").toFile(),disk,64L*1024*1024);catalog=new HistoryCatalog(parent.resolve("catalog").toFile(),store,disk);identity=new HistoryIdentity(parent.resolve("identity").toFile(),disk);index=new HistoryIndex(store,catalog,identity,parent.resolve("index").toFile(),disk);}
+        Bundle(Path parent)throws Exception{this(parent,64L*1024*1024);}
+        Bundle(Path parent,long hint)throws Exception{this.parent=parent;Files.createDirectories(parent);store=new ProtectionStore(parent.resolve("store").toFile(),disk,hint);catalog=new HistoryCatalog(parent.resolve("catalog").toFile(),store,disk);identity=new HistoryIdentity(parent.resolve("identity").toFile(),disk);index=new HistoryIndex(store,catalog,identity,parent.resolve("index").toFile(),disk);}
         ProtectionStore.Transaction group(int size,boolean verified)throws Exception {
             byte[] original=new byte[size];Arrays.fill(original,(byte)7);byte[] attempted=new byte[size];Arrays.fill(attempted,(byte)9);
             ProtectionStore.Snapshot a=store.putSnapshot("tab","uri","title",1,original,"original"),b=store.putSnapshot("tab","uri","title",1,attempted,"attempted");ProtectionStore.Transaction t=store.prepare(a,b,a.hash);
@@ -173,7 +174,17 @@ public final class ExecutorCheck {
             f.capacity=f.executor().replay();survivors(f,before);
         }
     }
+    static void foreignBootstrap()throws Exception {
+        for(boolean terminal:new boolean[]{false,true}){
+            Bundle valid=new Bundle();Bundle foreign=new Bundle(valid.parent,128L*1024*1024);valid.prepare(3,false);
+            if(terminal){HistoryMaintenanceExecutor interrupted=valid.executor((event,key)->{if(event==HistoryMaintenanceExecutor.Event.BEFORE_INTENT_UNLINK)throw new IOException("retirement boundary");});rejects(()->interrupted.execute(valid.capacity,valid.plan,auth(valid.plan)),"retained retirement");}
+            if(!terminal){foreign.capacity=valid.capacity;foreign.selection.addAll(valid.selection);foreign.preview();}
+            Map<String,String> before=valid.capture();rejects(()->{if(terminal)foreign.executor().replay();else foreign.executor().execute(valid.capacity,foreign.plan,auth(foreign.plan));},"pre-enrollment foreign bootstrap rejected");
+            check(before.equals(valid.capture()),"foreign bootstrap cannot publish or retire intent "+terminal);
+            if(terminal){valid.capacity=valid.executor().replay();check(!valid.capacity.inspect().mutationBlocked,"correct bootstrap retries retained retirement");}
+        }
+    }
     static void largeIntent()throws Exception {Bundle f=new Bundle();f.prepare(3,false);for(int i=0;i<30;i++)f.selection.add(f.catalog.name(f.old.original.id,"selected "+i).id);f.preview();check(f.intent.serializedBytes>16384&&f.intent.serializedBytes<=65536,"executor uses bounded intent allowance above policy cap");Map<String,String> before=f.capture();f.execute();survivors(f,before);}
     static void memory()throws Exception {Bundle f=new Bundle();f.prepare(ProtectionStore.MAX_DOCUMENT_BYTES,true);byte[] pressure=new byte[32*1024*1024];Map<String,String> before=f.capture();f.execute();survivors(f,before);check(pressure[pressure.length-1]==0,"32MiB live pressure survives near-limit pairs");}
-    public static void main(String[] args)throws Exception{if(args.length>0){memory();System.out.println("Journaled executor memory: "+checks+" checks PASS");return;}selected();rejectedAdmission();publicationFaults();retirement();callbacks();retainedStagesAndAudits();byteAllowanceAndSelection();interruptedAccounting();largeIntent();System.out.println("Journaled executor: "+checks+" checks PASS");}
+    public static void main(String[] args)throws Exception{if(args.length>0){memory();System.out.println("Journaled executor memory: "+checks+" checks PASS");return;}foreignBootstrap();selected();rejectedAdmission();publicationFaults();retirement();callbacks();retainedStagesAndAudits();byteAllowanceAndSelection();interruptedAccounting();largeIntent();System.out.println("Journaled executor: "+checks+" checks PASS");}
 }
