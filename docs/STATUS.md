@@ -93,9 +93,13 @@ legacy selector1403 and Evidence53 final checks (39 before repair plus 14).
 Review exposed duplicate owner/stage aliases; reader and writer are corrected,
 and 8 independent budget/control checks passed. Archive462 plus INDEX68 remain
 previous affected proof, not new runs. See the [affected codec notes](../verification/portable_wire_codecs/README.md).
-A2 record codec work is in progress in an isolated branch; runtime backup completion,
-semantic source routing/adoption and coordinated export/import remain OPEN.
-The portable wire runner is now registered once in the required host aggregate;
+A2 record codecs at exact `2736de7c6105532b62672b5b250d6bfa17a6c72d` have independent
+spec/quality APPROVAL and are integrated at `08abce8d`. Worker RecordCheck72 passed
+with Java11 under `-Xmx32m`. Review inspected the actual five-file diff with no blocker
+or further probe warranted; no duplicate run. Root verified exact integrated artifacts
+with `git diff --quiet`. See the [record codec notes](../verification/portable_operation_records/README.md).
+Runtime backup completion, semantic routing/adoption and coordinated export/import remain OPEN.
+The portable wire and operation-record runners are each registered once in the required host aggregate;
 only `bash -n verification/run_host_checks.sh` ran for this registration change.
 No aggregate or codec tests were rerun for this documentation/runner update.
 
@@ -103,8 +107,12 @@ During implementation, run minimum affected tests and essential compile/build ch
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates; mandatory integration/release gates remain required.
 
-Next: continue A2 record codec work, then bounded portable producer/runtime
-integration. Cold completion implementation remains blocked on an authentic persisted
+Next: B0 canonical witness streams are active in isolated `codex/capture-witnesses`
+from `d849f0e`, owning Graph/NativeFingerprint/OperationStore/Plan and a new fixture.
+B0 must preserve canonical hash inputs, including the original nullable profile,
+and the shared budget; witnesses confer no authority. No completed B0 source is claimed.
+Then implement bounded portable Selection/Plan production, authentic routing,
+coordinators and UI. Cold completion implementation remains blocked on an authentic persisted
 original profile. Contract `28147af8`
 (plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
 APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:
