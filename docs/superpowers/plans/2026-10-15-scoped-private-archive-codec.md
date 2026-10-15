@@ -1,6 +1,6 @@
 # Scoped private archive codec — proposed schema and implementation plan
 
-Date: 2026-10-15. **Wire/source unapproved; architecture direction only reviewed.**
+Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. No source/test pass yet.**
 **Goal/architecture:** bounded v2 scope inventory plus unchanged native/private frames;
 v1 remains unchanged. No adoption, ID generation or provider authority.
 **Tech stack:** Java11-compatible production classes, installed JDK17; no dependencies.

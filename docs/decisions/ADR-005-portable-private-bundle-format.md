@@ -1,9 +1,10 @@
 # ADR-005: Portable scoped private bundles and complete backup inventory
 
-Date: 2026-10-15. Status: **architecture direction reviewed; schema/source unapproved**.
+Date: 2026-10-15. Status: **architecture direction and scoped codec schema reviewed; implementation unverified**.
 Independent review of `d839225` supports scoped v2 inventory, additive adoption and
-bounded completeness. It does not approve exact wire schema/goldens, reservation
-protocol, mutation/read factories, implementation or test evidence.
+bounded completeness. Later independent review approved codec schema `c279dfaa`;
+root authorized that pure codec implementation. Reservation protocol, mutation/read
+factories, MDOP bridge, adoption, actual source and test evidence remain separate gates.
 Source examined: `620275b6cc0aae6d139c353d16fd1d3ec26200b9` and design `b2699bb`.
 Scope: the portable format missing from the
 [private backup/adoption design](../superpowers/plans/2026-10-15-private-backup-adoption.md).
