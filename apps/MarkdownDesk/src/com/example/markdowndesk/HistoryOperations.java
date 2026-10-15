@@ -26,7 +26,7 @@ final class HistoryOperations {
     interface WriterFactory {OutputStream open()throws IOException;}
     interface CallbackQueue {void post(Runnable task);}
     private static final class Gate {
-        final HistoryPinRecord begin;PrivateOperationStore.CapturedData capture;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
+        final HistoryPinRecord begin;PrivateOperationStore.CapturedData capture;byte[] captureDescriptor;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
         final Set<CallbackTicket> pending=new HashSet<>();final List<CompletableFuture<Quiescence>> waiters=new ArrayList<>();
         Gate(HistoryPinRecord begin){this.begin=begin;}
     }
@@ -71,7 +71,7 @@ final class HistoryOperations {
             synchronized(gateLock){Gate old=gates.get(captured.operation.toString());if(old!=null)activation(old);}
             PrivateOperationStore.CapturedData data=probe.operationCapturedLocked(captured,budget);
             synchronized(gateLock){Gate gate=bind(data.begin);activation(gate);if(gate.epoch==Long.MAX_VALUE)throw new IOException("Operation epoch exhausted");
-                gate.capture=data;gate.epoch++;gate.phase=Phase.OPEN;return new OperationHandle(this,gate);}
+                gate.capture=data;gate.captureDescriptor=data.descriptor;gate.epoch++;gate.phase=Phase.OPEN;return new OperationHandle(this,gate);}
         }}
     }
     TrackedInput openCapturedSource(OperationHandle operation,UUID item)throws IOException {
@@ -91,9 +91,9 @@ final class HistoryOperations {
     /** In-memory bounded descriptor only, for existing exact-manifest CLOSE after drain. */
     InputStream capturedManifest(Quiescence proof)throws IOException {
         outsideHistory();rejectParticipant();synchronized(gateLock){
-            if(proof==null||proof.owner!=this||proof.epoch!=proof.gate.epoch||proof.gate.capture==null
+            if(proof==null||proof.owner!=this||proof.epoch!=proof.gate.epoch||proof.gate.captureDescriptor==null
                     ||(proof.gate.phase!=Phase.QUIESCENT&&proof.gate.phase!=Phase.TERMINAL_RETRY&&proof.gate.phase!=Phase.TERMINAL)||proof.gate.resources!=0||proof.gate.running!=0||proof.gate.posting!=0||!proof.gate.pending.isEmpty())throw new IOException("Capture manifest requires exact drain proof");
-            return new ByteArrayInputStream(proof.gate.capture.descriptor);
+            return new ByteArrayInputStream(proof.gate.captureDescriptor);
         }
     }
     /** Immutable local source; all skip/transfer routes consume checked reads, reset unsupported. */
@@ -233,7 +233,7 @@ final class HistoryOperations {
         private final HistoryOperations owner;private final Gate gate;private final long epoch;private boolean done;
         private Claim(HistoryOperations owner,Gate gate){this.owner=owner;this.gate=gate;epoch=gate.epoch;}
         void validate()throws IOException {HistoryStorage.requireMutation(owner.root);synchronized(owner.gateLock){if(done||gate.epoch!=epoch||gate.phase!=Phase.TERMINATING||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Terminal claim changed");}}
-        void finish()throws IOException{validate();synchronized(owner.gateLock){gate.phase=Phase.TERMINAL;done=true;}}
+        void finish()throws IOException{validate();synchronized(owner.gateLock){gate.phase=Phase.TERMINAL;gate.capture=null;done=true;}}
         public void close(){synchronized(owner.gateLock){if(!done){gate.phase=Phase.TERMINAL_RETRY;done=true;}}}
     }
     Claim claimLocked(Quiescence proof,HistoryPinRecord begin)throws IOException {

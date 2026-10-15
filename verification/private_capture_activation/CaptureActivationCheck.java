@@ -60,5 +60,20 @@ public final class CaptureActivationCheck {
         HistoryOperations.Quiescence proof=waiting.toCompletableFuture().getNow(null);
         try(InputStream manifest=c.ops.capturedManifest(proof)){c.pins.close(proof,HistoryPinRecord.Outcome.CANCELLED,manifest);}cases++;
     }
-    public static void main(String[] args)throws Exception{normal();mutations();skipAndCloseRetry();System.out.println("Actual same-process capture activation: "+cases+" cases PASS; cold adoption deferred");}
+    static void terminalRetention()throws Exception {
+        Capture c=new Capture();HistoryOperations.OperationHandle h=c.activate();
+        java.lang.reflect.Field handleGate=h.getClass().getDeclaredField("gate");handleGate.setAccessible(true);Object gate=handleGate.get(h);
+        java.lang.reflect.Field capture=gate.getClass().getDeclaredField("capture");capture.setAccessible(true);
+        HistoryOperations.Quiescence proof=c.ops.quiesce(c.ops.freeze(h)).toCompletableFuture().getNow(null);
+        boolean[] fired={false};c.c.f.disk.hook=(event,file)->{if(!fired[0]&&event.equals("file-after")&&Files.exists(c.c.f.parent.resolve("history_control/pin-"+c.binding.operation+".close.stage"))){fired[0]=true;throw new IOException("terminal close sync failure");}};
+        try(InputStream manifest=c.ops.capturedManifest(proof)){reject(()->c.pins.close(proof,HistoryPinRecord.Outcome.CANCELLED,manifest),"terminal publication failure");}
+        yes(fired[0]&&capture.get(gate)!=null,"TERMINAL_RETRY preserves source table and budget");c.c.f.disk.hook=null;
+        try(InputStream manifest=c.ops.capturedManifest(proof)){c.pins.recoverClose(proof,HistoryPins.RecoveryChoice.RECOVER_BOUND,manifest);}
+        yes(capture.get(gate)==null,"successful TERMINAL drops historical source table and budget reference");
+        HistoryArchiveManifest.Entry source=c.c.plan.nativeMap.entries.get(0);Files.delete(c.c.f.parent.resolve(c.c.plan.nativeMap.registeredRoles.get(source.role)).resolve(source.nativeId+"."+source.kind.nativeName));
+        try(InputStream manifest=c.ops.capturedManifest(proof)){yes(Arrays.equals(read(manifest),c.c.plan.descriptor.encoded()),"terminal bounded descriptor survives independently of source files");}
+        try(InputStream manifest=c.ops.capturedManifest(proof)){c.pins.close(proof,HistoryPinRecord.Outcome.CANCELLED,manifest);}
+        reject(()->c.ops.openCapturedSource(h,source.archiveId),"terminal source access remains refused");cases++;
+    }
+    public static void main(String[] args)throws Exception{normal();mutations();skipAndCloseRetry();terminalRetention();System.out.println("Actual same-process capture activation: "+cases+" cases PASS; cold adoption deferred");}
 }

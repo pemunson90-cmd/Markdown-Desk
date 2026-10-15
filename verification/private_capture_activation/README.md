@@ -45,10 +45,14 @@ The existing `freeze → quiesce → Pins.close` path owns terminal authority. A
 drain, `capturedManifest(proof)` supplies a bounded in-memory stream over the already
 validated immutable D bytes for the existing exact manifest comparison; it opens no
 FD and invokes no provider. It also supports exact terminal-retry/committed proofs.
-The capture gate retains declared source metadata and bounded descriptor metadata,
-not source payloads or source factories.
+The capture gate retains declared source metadata while active or in TERMINAL_RETRY.
+Successful terminal Claim.finish clears its CapturedData reference, releasing that
+historical gate's avoidable references to source tables/anchors and the original
+budget. A separate bounded immutable D byte array remains for terminal/idempotent
+manifest checks. No payloads or source factories are retained. This does not revoke
+caller-held wrappers or claim that garbage collection occurred.
 
-Five new functional groups pass: authentic activation/native+private reads after an
+Six focused functional groups pass: authentic activation/native+private reads after an
 ordinary append, same-budget rejection/undeclared factory+item refusal/drain+RELEASED
 CLOSE; missing LINK; changed private envelope before activation; changed bytes with
 restored original mtime rejected by EOF SHA and subsequently closed; hashed skip and
@@ -58,3 +62,10 @@ same real FD, throws, then proves retry executes the same wrapper again. A separ
 unchanged coordinator smoke run passed59 checks. The48-fault/96-reopen matrix,
 producer-wide gate, builds/CI, cold adoption/recovery, provider output and app UI were
 not run or enabled by this checkpoint.
+
+The terminal-retention regression first failed because the historical gate still
+held CapturedData after successful CLOSE recovery. It now proves TERMINAL_RETRY
+retains that data, successful TERMINAL clears it, and descriptor reads/idempotent
+CLOSE work after a named native source disappears. Terminal source admission remains
+refused. Only the focused activation runner was repeated for this narrow repair;
+the unchanged59-check coordinator smoke was not rerun.
