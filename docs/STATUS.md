@@ -118,11 +118,14 @@ failures;8 control cases/27 assertions pass. Bounded implementation is authorize
 and committed at `93a5cc5` in `outline-navigation`; worker32 cases/74 assertions
 and affected fixtures/whole-Java compilation passed. Independent review found no
 blocker on Activity blob13c27c32b0b387e4a45dccf80b5ee06add06f531 with20 probes;
-canonical artifact carry-forward/integration remains pending. Current runner is
-GREEN; frozen baseline15RED stays separate. No Android timing acceptance.
+canonical Activity blob matches the reviewed artifact exactly and source is now
+integrated. The only merge conflict was README evidence; both printing-portability
+and outline notes are retained. Current outline runner is registered GREEN; frozen
+baseline15RED stays separate. Combined clean gate is next; no Android timing acceptance.
 
-Next: complete and independently review operation-data/capture and outline source,
-combine with the reviewed scoped codec and run the clean integration gate; then
+Next: run the committed outline/codec clean integration gate while repairing
+unapproved operation accounting in its separate worktree. Capture stays excluded
+from this candidate until independent safety review clears its source. Then
 continue the separately reviewed portable bridge, verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
 private-frame capture belong to one meaningful change boundary, not separate
