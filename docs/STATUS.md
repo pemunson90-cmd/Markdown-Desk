@@ -49,17 +49,19 @@ Verified current source:
 
 Active integration is `codex/operation-export-integration`,
 [draft PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21).
-Operation candidate `5983413` is integrated locally and under independent source
-review, following approved plan `8fe3874` and ADR-004. It introduces tracked
+Operation source `cf0bf818` is integrated locally after independent approval,
+following approved plan `8fe3874` and ADR-004. It introduces tracked
 consumer ownership, asynchronous freeze/drain capabilities, explicit cold recovery
-and append-only canonical CLOSE repair. Worker evidence: 1,608 prefix, 49
+and append-only canonical CLOSE repair. Worker evidence: 1,658 prefix, 59
 coordinator and five terminal assertions; 48 crash/write-limit/manifest fixtures
 with 96 fresh-JVM reopens. Existing pin and selected-executor suites passed in the
-worker checkout. These results are not independent approval or the combined clean
-gate. Partial BEGIN remains blocked: absence cannot prove never acknowledged.
-Independent review reproduced an inherited `InputStream.transferTo` lifetime escape:
-an output callback could release a pin before the bulk operation returned. The
-source fix and regression are pending; this is blocking source approval.
+worker checkout. Independent review reproduced an inherited `InputStream.transferTo`
+lifetime escape; the fix guards the entire transfer, and callback scheduling stays
+counted until its delegate returns. The final source passed 24 independent backend
+checks. The combined clean gate remains pending. Partial BEGIN remains blocked:
+absence cannot prove never acknowledged. Identity binds canonical role paths and
+bundle/registration/BEGIN/process epoch; fresh terminal-entry inode stability is
+required, without promising cross-discovery inode preservation.
 Committed historical closed audits retain their source-independent semantics.
 Compaction, unlimited cancellation availability and a fresh-process arbitrary-
 evidence-loss anchor are not implemented.
@@ -71,19 +73,21 @@ compilation passed. Current DOM identity owns readiness, scroll and native viewp
 capture. One physical readiness probe spans page generations; a lost callback
 stalls acknowledgment until return or Activity replacement. This does not bound
 all scroll JavaScript. Printing remains unchanged and separately RED (five cases,
-14 assertions/five failures); isolated process-wide print ownership is under design
-review against Android's documented adapter onFinish contract. Host callback/DOM
+14 assertions/five failures); isolated process-wide print ownership is implementing
+after exact plan `1f96dbd` approval, using Android's documented adapter onFinish
+contract. Host callback/DOM
 models do not prove physical Android behavior. Both new default runners are
 registered for the next clean integration gate; that gate has not run yet.
 
-Backup/adoption design `b2699bb` proposes additive read-only restored bundles,
+Backup/adoption design `d839225` proposes additive read-only restored bundles,
 accessible private drafts and shared operation-data admission. It is not approved
-for implementation. Review found that BEGIN must bind the unique full export
-descriptor, rather than a potentially identical native-only manifest. Portable
-multi-bundle roundtrip also needs a reviewed format extension: v1 has no bundle
-discriminator or embedded manifest. No backup/import feature is claimed complete.
+for implementation. It now binds BEGIN to the unique full export descriptor,
+rather than a potentially identical native-only manifest. Its proposed ADR-005
+defines a v2 scoped inventory; v1 has no bundle discriminator or embedded manifest.
+Shared accounting must also reach graph/pruner/retirement proofs. Both the format
+and operation-data admission still need review; no backup/import is complete.
 
-Next: implement and review operation terminal recovery, persisted export capture
+Next: run the clean PR #21 integration gate, then complete persisted export capture
 and verified backup/export; continue strict import/adoption and eligible M0–M7
 work. Integrate preview/printing repairs after their source and behavioral gates.
 Do not stop at a PR or milestone checkpoint; no full M1 completion is claimed.
