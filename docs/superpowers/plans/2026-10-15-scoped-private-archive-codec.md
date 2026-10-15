@@ -1,6 +1,6 @@
 # Scoped private archive codec — proposed schema and implementation plan
 
-Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. No source/test pass yet.**
+Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. Implementation in progress; early focused checkpoint only.**
 **Goal/architecture:** bounded v2 scope inventory plus unchanged native/private frames;
 v1 remains unchanged. No adoption, ID generation or provider authority.
 **Tech stack:** Java11-compatible production classes, installed JDK17; no dependencies.
@@ -246,5 +246,5 @@ reviewed bridge/version must bind its exact identity before output eligibility.
   drafts remain distinct; per-scope duplicates fail. Verify exact aggregate limits,
   multibyte 4096-byte coordinates, literal legacy-recovery and denormalized index links.
 
-Future runner: `verification/scoped_private_archive/run.sh`, then affected existing
-archive/state/manifest runners and independent review. No decoder/device/release pass.
+Checkpoint: focused runner passes 4,622 checks; stream-close rollback behavioral RED→GREEN.
+Provenance/memory, affected v1 suites and independent source review remain pending. No release claim.
