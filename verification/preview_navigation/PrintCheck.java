@@ -62,7 +62,8 @@ public final class PrintCheck {
         });
         run("slow capture uses original absolute timer deadline",()->{
             MainActivity a=activity();DocumentPrint.start(a,()->{SystemClock.now=10_000;return new DocumentPrint.Capture("text","A",a.palette,18,false);},a::showError);
-            ok(delivery.tasks.stream().anyMatch(t->t.at==30_000),"capture does not extend timeout");render();a.destroy();
+            // The real worker can post concurrently; inspect under the stub Handler queue lock.
+            synchronized(delivery){ok(delivery.tasks.stream().anyMatch(t->t.at==30_000),"capture does not extend timeout");}render();a.destroy();
         });
         run("reentrant capture cancellation keeps global reservation",()->{
             MainActivity a=activity(),b=activity();DocumentPrint.start(a,()->{DocumentPrint.cancel(a);b.requestPrint();ok(b.captures==0,"capture cancellation cannot admit another snapshot before returning");return new DocumentPrint.Capture("text","A",a.palette,18,false);},a::showError);
