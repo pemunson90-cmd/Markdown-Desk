@@ -21,6 +21,7 @@ final class PrivateCaptureWriter {
     private final byte[] copyScratch;
     private PrivateSink activeCopy;
     private HistoryPins committingPins;
+    private Fresh activeSnapshot;
 
     private PrivateCaptureWriter(PrivateCapturePlan plan, File root,
             ProtectionStore.Durability durability, HistoryStorage.Budget budget) throws IOException {
@@ -41,17 +42,21 @@ final class PrivateCaptureWriter {
         budget.charge(refreshBytes);
         copyScratch=new byte[65536]; // one retained scratch inside the prepaid refresh workspace
         budget.charge(8192L + 4096L * HistoryControlStore.MAX_ENTRIES);
-        Fresh first = refresh();
-        if (!first.ledger.complete || (first.ledger.pending&&!PrivateOperationStore.historicalCancelledOnly(first.control,first.ledger)) || !first.control.operations.valid
-                || !first.control.operations.ready
-                || first.control.state != HistoryControlStore.State.VALIDATED
-                || first.control.pins.active != null || !first.control.stages.isEmpty()
-                || !PrivateCapturePlan.initialLedgerHash(first.ledger).equals(plan.initialLedgerHash)
-                || !PrivateCapturePlan.initialControlHash(first.control).equals(plan.initialControlHash))
-            throw new IOException("Capture initial ledger no longer matches its preparation");
-        budget.charge(4096L * first.ledger.entries.size() + 2048L * first.ledger.controlIdentities.size());
-        if(first.ledger.pending)PrivateOperationStore.requireHistoricalCaptureOwnerLocked(root,first.control,first.ledger,plan.sourceOwner,plan.prepare.preparation,budget);
-        transition = new Transition(first);
+        final Transition[] initial = new Transition[1];
+        withRefresh(first -> {
+            HistoryControlStore.Inspection control=first.control();PrivateOperationStore.Ledger ledger=first.ledger();
+            if (!ledger.complete || (ledger.pending&&!PrivateOperationStore.historicalCancelledOnly(control,ledger)) || !control.operations.valid
+                    || !control.operations.ready
+                    || control.state != HistoryControlStore.State.VALIDATED
+                    || control.pins.active != null || !control.stages.isEmpty()
+                    || !PrivateCapturePlan.initialLedgerHash(ledger).equals(plan.initialLedgerHash)
+                    || !PrivateCapturePlan.initialControlHash(control).equals(plan.initialControlHash))
+                throw new IOException("Capture initial ledger no longer matches its preparation");
+            budget.charge(4096L * ledger.entries.size() + 2048L * ledger.controlIdentities.size());
+            if(ledger.pending)PrivateOperationStore.requireHistoricalCaptureOwnerLocked(root,control,ledger,plan.sourceOwner,plan.prepare.preparation,budget);
+            initial[0] = new Transition(first);
+        });
+        transition = initial[0];
     }
     /** The complete internal output lifetime stays under this caller's primary lease. */
     static PrivateCaptureWriter prepareLocked(PrivateCapturePlan plan, File root,
@@ -186,8 +191,10 @@ final class PrivateCaptureWriter {
                     claim.validateLocked();verify(source,authority);
                     publishFinalControl(plan.link.name(),plan.link.encoded(),false,claim,source);
                     claim.validateLocked();verify(source,authority);
-                    Fresh complete=checked();source.recheck(complete.control,currentCapturePolicy(authority));
-                    HistoryStorage.rememberOperationEvidence(root,complete.control,complete.ledger);
+                    withChecked(complete -> {
+                        source.recheck(complete.control(),currentCapturePolicy(authority));
+                        HistoryStorage.rememberOperationEvidence(root,complete.control(),complete.ledger());
+                    });
                     CapturedBinding binding=new CapturedBinding(root,plan.prepare,plan.link,claim,budget);
                     claim.handoffLocked(binding);completed=true;return binding;
                 }
@@ -381,10 +388,12 @@ final class PrivateCaptureWriter {
     private static Throwable combine(Throwable first,Throwable next){if(first==null)return next;if(first!=next)first.addSuppressed(next);return first;}
     private static void raise(Throwable problem)throws IOException{if(problem instanceof IOException)throw (IOException)problem;if(problem instanceof RuntimeException)throw (RuntimeException)problem;throw (Error)problem;}
     private NativeCaptureFingerprint.PhysicalProof sourceProof(HistoryCapacity capacity) throws IOException {
-        Fresh fresh = checked(); return plan.nativeSources.prove(fresh.control, currentCapturePolicy(capacity));
+        final NativeCaptureFingerprint.PhysicalProof[] result=new NativeCaptureFingerprint.PhysicalProof[1];
+        withChecked(fresh -> result[0]=plan.nativeSources.prove(fresh.control(),currentCapturePolicy(capacity)));
+        return result[0];
     }
     private void verify(NativeCaptureFingerprint.PhysicalProof source, HistoryCapacity capacity) throws IOException {
-        Fresh fresh = checked(); source.recheck(fresh.control, currentCapturePolicy(capacity));
+        withChecked(fresh -> source.recheck(fresh.control(),currentCapturePolicy(capacity)));
     }
     private HistoryCapacity.EffectivePolicy currentCapturePolicy(HistoryCapacity accepted)throws IOException {
         if(committingPins!=null&&HistoryStorage.pins(root)!=committingPins)throw new IOException("Capture registered Pins was superseded");
@@ -392,24 +401,46 @@ final class PrivateCaptureWriter {
         if(installed!=authority||accepted!=authority)throw new IOException("Capture accepted capacity was superseded");
         return installed.capturePolicyLocked();
     }
-    private Fresh checked() throws IOException {
+    private interface CheckedAction {void run(Fresh fresh)throws IOException;}
+    private void checked()throws IOException {withChecked(fresh -> {});}
+    private void withChecked(CheckedAction action)throws IOException {
         HistoryStorage.requireMutation(root);
-        if (failed) throw new IOException("Capture writer attempt failed");
-        Fresh fresh = refresh(); transition.verify(fresh); return fresh;
+        if(failed)throw new IOException("Capture writer attempt failed");
+        if(action==null)throw new IOException("Missing capture snapshot action");
+        withRefresh(fresh -> {transition.verify(fresh);action.run(fresh);});
     }
-    /** Snapshots remain local to one refresh call chain; no rows escape the writer. */
-    private Fresh refresh() throws IOException {
+    /** One synchronous private action; no provider/durability callback while DTOs live. */
+    private void withRefresh(CheckedAction action)throws IOException {
         HistoryStorage.requireMutation(root);
-        HistoryStorage.Budget prepaid = new HistoryStorage.Budget(refreshBytes);
-        prepaid.charge((4L << 20)+65536); // prepaid control decode/DTO/clone workspace
-        HistoryControlStore.Inspection control = new HistoryControlStore(root.getParentFile()).inspect();
-        PrivateOperationStore.Ledger ledger = PrivateOperationStore.inspect(root, control, prepaid);
-        return new Fresh(control, ledger);
+        if(action==null)throw new IOException("Missing capture snapshot action");
+        if(activeSnapshot!=null)throw new IOException("Capture snapshot scope already active");
+        Fresh fresh=new Fresh(HistoryStorage.mutationIdentityLocked(root));activeSnapshot=fresh;
+        try {
+            HistoryStorage.Budget prepaid=new HistoryStorage.Budget(refreshBytes);
+            prepaid.charge((4L << 20)+65536); // existing prepaid control decode/DTO/clone workspace
+            fresh.control=new HistoryControlStore(root.getParentFile()).inspect();
+            fresh.ledger=PrivateOperationStore.inspect(root,fresh.control(),prepaid);
+            action.run(fresh);
+        }finally {
+            // Nonthrowing cleanup also covers decode/action IOException, RuntimeException and Error.
+            fresh.clear();activeSnapshot=null;
+        }
     }
-    private static final class Fresh {
-        final HistoryControlStore.Inspection control;
-        final PrivateOperationStore.Ledger ledger;
-        Fresh(HistoryControlStore.Inspection control, PrivateOperationStore.Ledger ledger) { this.control=control; this.ledger=ledger; }
+    private final class Fresh {
+        private HistoryControlStore.Inspection control;
+        private PrivateOperationStore.Ledger ledger;
+        private final Thread owner=Thread.currentThread();
+        private final Object lease;
+        private boolean live=true;
+        private Fresh(Object lease){this.lease=lease;}
+        private void requireLive()throws IOException {
+            if(!live||activeSnapshot!=this||Thread.currentThread()!=owner||!Thread.holdsLock(history))
+                throw new IOException("Foreign/expired capture snapshot scope");
+            if(HistoryStorage.mutationIdentityLocked(root)!=lease)throw new IOException("Capture snapshot lease changed");
+        }
+        private HistoryControlStore.Inspection control()throws IOException {requireLive();return control;}
+        private PrivateOperationStore.Ledger ledger()throws IOException {requireLive();return ledger;}
+        private void clear(){live=false;control=null;ledger=null;}
     }
     private static final class Physical {
         final Object key;
@@ -460,7 +491,7 @@ final class PrivateCaptureWriter {
         private Physical preparationIdentity,beginIdentity,linkIdentity;
         private int beginPhase,linkPhase; //0 absent,1 exact complete stage,2 committed
         Transition(Fresh initial) throws IOException {
-            HistoryControlStore.Inspection c=initial.control; PrivateOperationStore.Ledger l=initial.ledger;
+            HistoryControlStore.Inspection c=initial.control(); PrivateOperationStore.Ledger l=initial.ledger();
             if (!l.complete || !c.chainComplete || !c.usageComplete || !c.diagnostics.isEmpty() || c.hasMaintenance())
                 throw new IOException("Incomplete capture baseline");
             controlDirectory=PrivateOperationStore.attributes(controlRoot.toPath());
@@ -551,7 +582,7 @@ final class PrivateCaptureWriter {
         }
         private String finalName(boolean begin){return (begin?plan.prepare.begin.name():plan.link.name())+((begin?beginPhase:linkPhase)==1?".stage":"");}
         void verify(Fresh fresh) throws IOException {
-            HistoryControlStore.Inspection c=fresh.control;PrivateOperationStore.Ledger l=fresh.ledger;
+            HistoryControlStore.Inspection c=fresh.control();PrivateOperationStore.Ledger l=fresh.ledger();
             directory(controlDirectory,PrivateOperationStore.attributes(controlRoot.toPath()));
             directory(parentDirectory,PrivateOperationStore.attributes(root.getParentFile().toPath()));
             boolean exactBeginStage=beginPhase==1&&c.pins.stages.size()==1

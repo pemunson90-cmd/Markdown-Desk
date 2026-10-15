@@ -41,8 +41,14 @@ alone grants no sink, credit, stage or promotion authority.
 
 One refresh workspace is prepaid from the original shared metadata budget. Control
 decode/DTO/clone space is conservatively reserved; each fresh ledger uses only a
-bounded child counter representing that prepaid workspace. Fresh snapshots remain
-internal to the call chain and are discarded before reuse; no borrowed rows escape.
+bounded child counter representing that prepaid workspace. Fresh control/ledger
+snapshots now live only in a private synchronous withRefresh/withChecked action.
+One active wrapper binds the owner thread and exact mutation-scope identity; its
+private accessors reject expired, foreign and stale-lease reads. Finally clears
+both whole DTO references on decode/action success or failure before reuse. No
+provider or durability callback runs while a refresh action is active. Transition
+retains separately admitted physical/maps only; sourceProof returns only the typed
+native physical proof. Refresh allowance and budget charges remain unchanged.
 Compact physical baseline tables receive separate admission. These logical bounds
 are not the pending full simultaneous heap/resource proof for the producer.
 
@@ -168,3 +174,11 @@ replacement, pre-LINK CLOSE, consumed handoff replay against a new owner, and co
 post-success capture disappearance against retained evidence. One child JVM freshly
 reopens durable control+data and verifies the exact LINK and future CLOSE credit;
 this is a durable inspection invariant, not cold recovery or crash-fault acceptance.
+
+The runner also includes WriterSnapshotScopeCheck: reflected test-only access to
+the private action verifies expired C/L rejection and cleared references, thread
+and exact-lease guards, null/nested action rejection preserving the outer scope,
+IOException/RuntimeException/Error cleanup, ordinary retry and no active snapshot
+at actual native metadata durability callbacks. The test introduces no production
+callback or getter. This closes writer lexical lifetime only; whole-path numeric
+funding, portable P/activation, and terminal integration remain unproved/deferred.
