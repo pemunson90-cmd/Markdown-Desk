@@ -143,11 +143,22 @@ Original parent used/remaining bytes: minimum 10,973,585/5,803,631; two 8MiB tab
 This is producer-only evidence: no P/provider/UI/activation and no whole-B2 overlap proof.
 The portable capture-plan runner is registered once; this update ran syntax/diff checks only.
 
-Next: B2/C preimplementation contract audit found fixed Writer~7MiB plus Pins6MiB
-cannot fit the remaining headroom. Resolve conservative, actual-snapshot-sized whole-path
-funding before P, authentic post-P baseline WriterTransition, domain3 dispatch, outer-ID
-routing and actual-close versus verified-success semantics. The cold worker is preparing
-the funding/interface contract; no B2 source is implemented. Before large implementation,
+B2/C preimplementation audit found fixed Writer~7MiB plus Pins6MiB cannot fit
+remaining headroom. Test-only funding estimator `ad9cab4c` has independent APPROVAL;
+four real B1 fixture cases passed with JDK17/Java11 under `-Xmx64m`. Candidate extra
+charges leave 2,836,815 bytes (minimum), 2,484,829 (two 8MiB tabs), and 547,121
+(14 frames). Actual-parent one-byte-under refusal leaves its failed debit unchanged
+and creates no P/artifacts. This is an estimator, not production funding or heap proof;
+see [its limits and results](../verification/portable_funding/report.md). The current-native
+cursor bound, snapshot non-escape, representation caps and prepaid consumption replacing
+later direct debits remain unproved. This diagnostic is not a required production gate;
+no aggregate run, APK or hosted check ran.
+Next: implement and independently review bounded internal v2/domain3 dispatch and
+owner association, including older portable controls retained by a second capture.
+Generic public decoders/factories must remain strict. This parser leaf is in progress;
+portable publication/activation is not implemented. Then finish conservative whole-path
+funding before P, authentic post-P baseline WriterTransition, outer-ID routing and
+actual-close versus verified-success semantics. Before large implementation,
 check producer/consumer contracts briefly and run minimum affected tests. The retained-receipt
 root is not implemented: verify shared canonical namespace ABSENCE first and fail closed
 if present/unclassified. Actual adoption/route4 and repeated restore→export remain
