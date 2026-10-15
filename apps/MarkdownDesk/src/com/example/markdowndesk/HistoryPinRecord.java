@@ -11,12 +11,13 @@ final class HistoryPinRecord {
     private static final int MAGIC=0x4d44504e,HEADER=13,CHECKSUM=32;
     enum Purpose {EXPORT(1),RESTORE(2);final int wire;Purpose(int wire){this.wire=wire;}}
     enum Scope {EXACT_SUBSET(1),ALL_BUNDLE(2);final int wire;Scope(int wire){this.wire=wire;}}
-    enum Domain {NATIVE_HISTORY_V1(1),LOCAL_CAPTURE_V1(2);final int wire;Domain(int wire){this.wire=wire;}}
+    enum Domain {NATIVE_HISTORY_V1(1),LOCAL_CAPTURE_V1(2),PORTABLE_CAPTURE_V1(3);final int wire;Domain(int wire){this.wire=wire;}}
     enum Outcome {RELEASED(1),CANCELLED(2);final int wire;Outcome(int wire){this.wire=wire;}}
     static final class Manifest {
         final Domain domain;final long count,length;final String hash;
         Manifest(Domain domain,long count,long length,String hash)throws IOException {
             if(domain==null||count<0||count>MAX_MANIFEST_COUNT||length<0||length>MAX_MANIFEST_BYTES)throw invalid("Manifest bounds");
+            if(domain==Domain.PORTABLE_CAPTURE_V1&&(count<1||count>16380||length<1||length>16384))throw invalid("Portable manifest bounds");
             this.domain=domain;this.count=count;this.length=length;this.hash=hash(hash);
         }
     }
@@ -34,6 +35,8 @@ final class HistoryPinRecord {
     private HistoryPinRecord(UUID operation,UUID bundle,String registration,long generation,String policy,Purpose purpose,Scope scope,Manifest manifest,List<Source> sources,String envelopeHash)throws IOException {
         if(operation==null||bundle==null||generation<0||purpose==null||scope==null||manifest==null||sources==null||sources.size()>MAX_SOURCES)throw invalid("BEGIN fields");
         if((scope==Scope.EXACT_SUBSET&&sources.isEmpty())||(scope==Scope.ALL_BUNDLE&&!sources.isEmpty()))throw invalid("Scope/source mismatch");
+        if(manifest.domain==Domain.PORTABLE_CAPTURE_V1&&(purpose!=Purpose.EXPORT||scope!=Scope.ALL_BUNDLE||!sources.isEmpty()
+                ||operation.version()!=4||operation.variant()!=2))throw invalid("Portable BEGIN shape");
         String previous=null;for(Source source:sources){if(source==null||(previous!=null&&previous.compareTo(source.id)>=0))throw invalid("Noncanonical source order");previous=source.id;}
         begin=true;this.operation=operation;this.bundle=bundle;registrationHash=hash(registration);this.generation=generation;policyHash=hash(policy);this.purpose=purpose;this.scope=scope;this.manifest=manifest;
         this.sources=Collections.unmodifiableList(new ArrayList<>(sources));this.envelopeHash=envelopeHash;manifestHash=manifest.hash;beginHash=null;outcome=null;
@@ -44,6 +47,12 @@ final class HistoryPinRecord {
     }
     static HistoryPinRecord begin(UUID operation,HistoryControlStore.Registration registration,HistoryControlStore.Record policy,Purpose purpose,Scope scope,Manifest manifest,List<Source> sources)throws IOException {
         return decode(encode(new HistoryPinRecord(operation,registration.bundleId,registration.envelopeHash,policy.generation,policy.envelopeHash,purpose,scope,manifest,sources,null)));
+    }
+    /** Explicit framing factory only; no publication/activation capability is created. */
+    static HistoryPinRecord beginPortable(UUID operation,HistoryControlStore.Registration registration,HistoryControlStore.Record policy,Manifest manifest)throws IOException {
+        if(manifest==null||manifest.domain!=Domain.PORTABLE_CAPTURE_V1)throw invalid("Portable manifest required");
+        return decodePortable(encode(new HistoryPinRecord(operation,registration.bundleId,registration.envelopeHash,policy.generation,policy.envelopeHash,
+                Purpose.EXPORT,Scope.ALL_BUNDLE,manifest,Collections.emptyList(),null)));
     }
     static byte[] close(HistoryPinRecord begin,Outcome outcome)throws IOException {
         if(begin==null||!begin.begin||begin.envelopeHash==null)throw invalid("Missing BEGIN");
@@ -65,7 +74,10 @@ final class HistoryPinRecord {
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();out=new DataOutputStream(bytes);out.writeInt(MAGIC);out.writeInt(1);out.writeByte(record.begin?1:2);out.writeInt(body.size());body.writeTo(out);out.write(HistoryStorage.digest().digest(bytes.toByteArray()));
         if(!record.begin&&bytes.size()!=CLOSE_BYTES)throw invalid("CLOSE size invariant");return bytes.toByteArray();
     }
-    static HistoryPinRecord decode(byte[] bytes)throws IOException {
+    static HistoryPinRecord decode(byte[] bytes)throws IOException {return decodeVersion(bytes,false);}
+    /** Deliberate portable dispatch; generic control readers remain unable to activate domain3. */
+    static HistoryPinRecord decodePortable(byte[] bytes)throws IOException {return decodeVersion(bytes,true);}
+    private static HistoryPinRecord decodeVersion(byte[] bytes,boolean portable)throws IOException {
         if(bytes==null||bytes.length<HEADER+CHECKSUM||bytes.length>MAX_BYTES)throw invalid("Pin envelope bounds");
         if(!MessageDigest.isEqual(Arrays.copyOfRange(bytes,bytes.length-CHECKSUM,bytes.length),HistoryStorage.digest().digest(Arrays.copyOf(bytes,bytes.length-CHECKSUM))))throw invalid("Pin checksum");
         DataInputStream in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-CHECKSUM));
@@ -79,6 +91,7 @@ final class HistoryPinRecord {
             record=new HistoryPinRecord(operation,bundle,registration,generation,policy,purpose,scope,manifest,sources,envelope);
         }else if(type==2){if(bytes.length!=CLOSE_BYTES)throw invalid("Noncanonical CLOSE length");record=new HistoryPinRecord(operation,hash(in),hash(in),outcome(in.readUnsignedByte()),envelope);}
         else throw invalid("Unknown pin type");
+        if(record.begin&&(record.manifest.domain==Domain.PORTABLE_CAPTURE_V1)!=portable)throw invalid("Explicit pin domain dispatch required");
         if(in.available()!=0)throw invalid("Trailing pin bytes");return record;
     }
     static final class Inventory {
