@@ -48,20 +48,36 @@ Verified current source:
   typed import/adoption, automatic retention or the complete M1 workflow.
 
 Active integration is `codex/operation-export-integration`; no new PR yet.
-`codex/operation-terminal-recovery` is implementing the independently approved
-plan `8fe3874` (recorded at `75d2763`) for enforced consumer quiescence and
-append-only canonical CLOSE recovery. ADR-004 records the design; no implementation
-or test pass is claimed yet. Partial
-BEGIN quarantine remains blocked: absence cannot prove never acknowledged.
+Operation candidate `5983413` is integrated locally and under independent source
+review, following approved plan `8fe3874` and ADR-004. It introduces tracked
+consumer ownership, asynchronous freeze/drain capabilities, explicit cold recovery
+and append-only canonical CLOSE repair. Worker evidence: 1,608 prefix, 49
+coordinator and five terminal assertions; 48 crash/write-limit/manifest fixtures
+with 96 fresh-JVM reopens. Existing pin and selected-executor suites passed in the
+worker checkout. These results are not independent approval or the combined clean
+gate. Partial BEGIN remains blocked: absence cannot prove never acknowledged.
 Committed historical closed audits retain their source-independent semantics.
 Compaction, unlimited cancellation availability and a fresh-process arbitrary-
 evidence-loss anchor are not implemented.
 
-In parallel, `codex/preview-navigation` has actual-source host reproductions for
-navigation/scroll readiness and fixed-delay printing. Task 1 DOM identity/readiness
-is implementing after technical review; isolated print ownership is under design
-review against Android's documented adapter onFinish contract. Production changes
-are not integrated or verified yet; host callback/DOM models are not device proof.
+Preview Task 1 `6ebe563` is integrated locally after independent actual-source
+approval (20 checks). Navigation 18 cases/66 assertions, existing preview 438,
+save lifecycle 40 cases/323 assertions, history actions 84 and SDK37 whole-Java
+compilation passed. Current DOM identity owns readiness, scroll and native viewport
+capture. One physical readiness probe spans page generations; a lost callback
+stalls acknowledgment until return or Activity replacement. This does not bound
+all scroll JavaScript. Printing remains unchanged and separately RED (five cases,
+14 assertions/five failures); isolated process-wide print ownership is under design
+review against Android's documented adapter onFinish contract. Host callback/DOM
+models do not prove physical Android behavior. Both new default runners are
+registered for the next clean integration gate; that gate has not run yet.
+
+Backup/adoption design `b2699bb` proposes additive read-only restored bundles,
+accessible private drafts and shared operation-data admission. It is not approved
+for implementation. Review found that BEGIN must bind the unique full export
+descriptor, rather than a potentially identical native-only manifest. Portable
+multi-bundle roundtrip also needs a reviewed format extension: v1 has no bundle
+discriminator or embedded manifest. No backup/import feature is claimed complete.
 
 Next: implement and review operation terminal recovery, persisted export capture
 and verified backup/export; continue strict import/adoption and eligible M0–M7
