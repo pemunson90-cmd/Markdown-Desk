@@ -1,6 +1,6 @@
 # Scoped private archive codec — proposed schema and implementation plan
 
-Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. No source/test pass yet.**
+Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. Implementation/checks complete; independent pure-codec source review approved f357fe1.**
 **Goal/architecture:** bounded v2 scope inventory plus unchanged native/private frames;
 v1 remains unchanged. No adoption, ID generation or provider authority.
 **Tech stack:** Java11-compatible production classes, installed JDK17; no dependencies.
@@ -171,8 +171,8 @@ native-key bookkeeping; do not also create an uncharged legacy HashSet/index.
 Inventory is streamed, not first copied into a 16 MiB byte array. One 64 KiB transfer
 buffer and bounded scalar/hash scratch are separate fixed streaming overhead;
 charge additional decoding/raw-string buffers to the metadata budget while live.
-No payload arrays. Process scopes sequentially/release temporary maps. Budget
-shortfall rejects the whole archive/capture; never silently drop members/provenance.
+No payload arrays. Shortfall rejects all members. Accounting is logical, not GC: escaped rows stay readable after close.
+Keep owners open through borrowed consumers/quiescence; reserve copies separately; audit coordinator lifetimes before integration.
 
 Native root caps and document 8 MiB limits still apply. Inventory<=16 MiB and the
 persisted combined pin descriptor<=16 MiB are independent serialized bounds; neither
@@ -224,27 +224,27 @@ OutputStream, MetadataBudget)` returns ArchiveSummary. Parse/hash the exact pers
 inventory and recheck its bytes on write; stream ordinary repeatable sources in order.
 Proposed `readPortable(InputStream, ScopedSink, LegacySpool, MetadataBudget)` returns
 v1(source summary, provisional spool) or v2 inventory retained under budget until closed.
-ScopedSink receives v2 entries only. Every nonnull begin has exactly one finish, even
-on copy/hash failure; primary failure wins with finish failure suppressed. Caller
-owns outer streams, codec owns source streams; no receipt/outer flush/close/pin release.
+ScopedSink gets v2 borrowed rows before any result: callbacks/borrowed work must return quiescent; failure closes owner.
+No row outlives read completion/failure without successful open result; async/retained copies need separate pre-reservation/cleanup.
+Nonnull begin gets one finish; primary failure suppresses finish failure. Caller owns outer streams; codec owns sources; no receipt.
 The local MDOP v1 descriptor cannot silently receive this inventory: a separately
 reviewed bridge/version must bind its exact identity before output eligibility.
 
-- [ ] Task1: independently encode fixtures above and positive scope/policy/lineage
+- [x] Task1: independently encode fixtures above and positive scope/policy/lineage
   fixtures; assert every field/offset/hash and negative exact-bound/overflow failures.
-- [ ] Task2: implement pure inventory codec and shared budget only after approval;
+- [x] Task2: implement pure inventory codec and shared budget only after approval;
   reject duplicate/missing refs, cycles, wrong optional markers and every truncation.
-- [ ] Task3: implement explicit v2 framing/dispatch; verify inventory membership and
+- [x] Task3: implement explicit v2 framing/dispatch; verify inventory membership and
   terminal/EOF, changed second-pass sources, source/sink closure failures and zero
   ordinary callbacks for invalid inventory. Assert outer-close count 0 on v1/v2 success,
   failure and truncated dispatch; legacy full-budget reservation excludes other users.
-- [ ] Task4: unchanged actual v1 archive/state/manifest fixtures must pass; additionally
+- [x] Task4: unchanged actual v1 archive/state/manifest fixtures must pass; additionally
   v1 rejects version 2/type 10, v2 rejects misplaced 10, and native arbitrary UUID/string
   identity domains remain intact. No v1 golden pass is claimed by this document.
-- [ ] Task5: bounded-heap adversarial tests charge simultaneous graphs/strings/edges;
+- [x] Task5: bounded-heap adversarial tests charge simultaneous graphs/strings/edges;
   repeated scopes with same native IDs/URIs/sequences/sourceTabIds and >12 retained
   drafts remain distinct; per-scope duplicates fail. Verify exact aggregate limits,
-  multibyte 4096-byte coordinates, literal legacy-recovery and denormalized index links.
+  multibyte 4096-byte coordinates, legacy-recovery and opaque index coordinates; typed links stay separate.
 
-Future runner: `verification/scoped_private_archive/run.sh`, then affected existing
-archive/state/manifest runners and independent review. No decoder/device/release pass.
+Checkpoint: 4,732 functional +7 held-heap checks pass; close/ref-accounting RED→GREEN.
+Existing archive/state/manifest pass unchanged; reviewer approved f357fe1 with 16 independent probes. No release claim.
