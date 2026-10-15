@@ -1,5 +1,11 @@
 # Preview DOM identity and scroll ownership
 
+The print launcher enumerates its Android boundary stubs with core `find` and
+fails immediately if none are present. It requires no `rg`; all21 stub sources
+must be compiled. Hosted run38663648484 exposed the former launcher dependency.
+Its correction passed126 actual-helper and18 controlled-renderer checks in an
+environment without `rg`; production code and behavioral assertions are unchanged.
+
 Run with JDK17 on PATH:
 
 ```sh
