@@ -107,12 +107,24 @@ During implementation, run minimum affected tests and essential compile/build ch
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates; mandatory integration/release gates remain required.
 
-Next: B0 canonical witness streams are active in isolated `codex/capture-witnesses`
-from `d849f0e`, owning Graph/NativeFingerprint/OperationStore/Plan and a new fixture.
-B0 must preserve canonical hash inputs, including the original nullable profile,
-and the shared budget; witnesses confer no authority. No completed B0 source is claimed.
-Then implement bounded portable Selection/Plan production, authentic routing,
-coordinators and UI. Cold completion implementation remains blocked on an authentic persisted
+B0 canonical witness streams at exact `afc57ec95d0f971325c29b2e9cbfc1ab9233e1f5`
+have independent spec/quality APPROVAL and are integrated at `d1303eba1cbae823749761493d945292bf4ab4b9`.
+Root verified the four source files and fixture match exactly. Worker evidence: five
+new witness groups PASS; existing plan29 ran once for shared canonical serializer
+compatibility. Partial-prefix seal and foreign-Budget defects were caught and fixed
+RED→GREEN; review required no extra tests. Conservative B0 workspace bounds do not
+prove the whole coordinator fits16MiB. Canonical inputs preserve the original nullable
+profile and shared budget; witnesses confer no authority. The witness runner is
+registered once; this update ran shell syntax/diff checks only.
+
+Next: the C-owned original-baseline raw inventory/source seam is required before full
+B1 Selection/Plan assembly. Existing ledger DTOs lack real controls and old failed-stage
+bytes; never fabricate them. The portable worker is preparing the source brief; no C
+source implementation is claimed. For the unimplemented retained-receipt root, first
+verify ABSENCE in the shared canonical namespace; fail closed if present or unclassified.
+Actual adoption/route4 and repeated restore→export remain required before feature
+completion. Sequence: C raw sources → B1 producer → publication/authentic routing →
+coordinators/UI. Cold completion implementation remains blocked on an authentic persisted
 original profile. Contract `28147af8`
 (plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
 APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:
