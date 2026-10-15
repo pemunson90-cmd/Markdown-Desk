@@ -52,7 +52,7 @@ historical evidence, not current gate state.
 Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
 preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` retain
 scoped approvals for those exact artifacts. Writer `92e41bb5827cf7d1d553bbe720744f20f239538e`
-is independently approved; its targeted 87 and independent 4 scenarios pass. Review
+is independently approved; its targeted 87 assertions and independent 4 scenarios pass. Review
 fixed cached installed-capacity/readiness using a narrow provenance getter and fresh
 identity/readiness after every callback. This approval excludes production sink,
 BEGIN/LINK, handoff, recovery and heap proof.

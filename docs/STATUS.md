@@ -30,7 +30,7 @@ CLOSED can change C0/fullGraph while leaving L0 unchanged; this counterprobe
 reproduced and requires a guard. Plan authority alone does not authorize P.
 
 PrivateCaptureWriter exact commit `92e41bb5827cf7d1d553bbe720744f20f239538e` is
-independently APPROVED. Its targeted runner passed 87 cases; independent review
+independently APPROVED. Its targeted runner passed 87 assertions; independent review
 passed 4 scenarios. Review found and fixed a cached installed-capacity/readiness bug
 with a narrow provenance getter and fresh identity/readiness checks after each
 callback. Approval remains scoped to this exact writer; the production sink,
@@ -89,7 +89,7 @@ Scoped worker evidence: codec14cases/209assertions; policy49, admission61,
 integration42checks;10real SIGKILL boundaries and7additional fresh-process cases,
 each reopened twice. Independent review approved exact source and reproduced
 missing-root, second-handle, wrong-bundle and wrong-role repairs. First combined gate at `34ff18c` stopped at the archive runner dependency closure.
-The sourcepath repair passed 460+68 scoped archive assertions. Final coherent
+The sourcepath repair passed460+68 scoped archive assertions. Final coherent
 gate **PASS** at `b67995ddad152c27bc4f095aa810c9f04bc3abcb`: required full host
 suite once from clean committed source, two audited unsigned builds matching
 SHA-256 `2a7e843fa00802789874a577083b18b17a336f0c28c9992cecbb2839cf632e69`.
