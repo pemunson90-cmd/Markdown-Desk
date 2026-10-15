@@ -35,7 +35,7 @@ Verified current source:
   history errors preserve actual verified provider success and newer dirty edits.
 - Controller 123 functional checks, six fresh-JVM assertions and capture-race
   regression; action 84 checks plus three source-sensitivity probes; save lifecycle
-  39 cases/320 assertions; recovery 15 cases/223 assertions plus seven UI callbacks
+  40 cases/323 assertions; recovery 15 cases/223 assertions plus seven UI callbacks
   passed. Independent controller 30 raced captures/23 backend checks and final
   32 Activity/native-backend checks passed. Host models do not prove Android UI.
 - SELECTED-only retention has exact acknowledged authority, durable intent,
