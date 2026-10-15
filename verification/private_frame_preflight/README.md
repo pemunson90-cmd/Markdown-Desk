@@ -77,3 +77,56 @@ source with bounded delegate reads. Initial tests failed for the missing helper;
 owner-identity checks failed before the added binding. No full host gate, APK build,
 CI, device checks, PREPARE, second-pass copy hash match, BEGIN/LINK, handoff or root
 producer/table implementation is claimed.
+
+## Exact second-pass copy
+
+`Workspace.copyAttempt(expectedClosedFrame, factory, provisionalSink)` shares the
+same validation/ordered-close core with preflight. A separate copy workspace uses
+`create` and the SAME owner/budget, reserving 512 KiB once; each copy attempt reserves
+2,048 bytes extra before allocation (**4,096 total per copy attempt**) for its wrapper,
+observed scalars, identity-bound result and cleanup state. One active /14 lifetime
+attempts applies per workspace, including mixed preflight/copy attempts. Preflight
+and copy remain limited by the owner's existing64 source admissions. Sink objects,
+private writer tokens/FDs/transition buffers and original captures are separately
+admitted by their owner; no independent metadata allowance is introduced.
+
+`ProvisionalSink` exposes only bounded `write(byte[],offset,length)` and actual
+`close`, with no raw delegate or stream convenience methods. Its trusted writer
+constructs it without IO and acquires/retains any physical FD lazily in its first
+write, including failed-open uncertainty. The helper stores the sink before any
+callbacks and checks that the original ClosedFrame belongs to the same source owner.
+Raw frame bytes (header, metadata, payload AND checksum) are forwarded through
+counted `owner.consumerCallback`; the real codec validates them into an internal
+payload-discard sink. Writes/reads remain <=65,536 bytes. An overlength byte is
+rejected **before** forwarding it to the sink. True EOF and exact original kind,
+length, whole-frame SHA-256, source-tab hash, payload/UTF-16 counts and frozen request
+metadata must agree. Root's original frame identity binds ordinal/item/artifact IDs.
+
+The single cleanup core closes the actual sink FIRST. Only successful physical
+sink closure permits Reader.close. Any sink-close failure retains the same sink
+and the same still-live Reader in the active attempt, blocking source quiescence;
+`retryClose` retries that sink and then that Reader. If only Reader.close failed,
+later cleanup never recloses the already closed sink. Failed validation/read/write/
+close makes the workspace terminal; cleanup success never returns a CopiedFrame or
+revives the copy. When the source factory fails, no sink write/FD acquisition took
+place and its zero-IO sink is untouched; existing permanent owner uncertainty remains.
+
+A private-constructor `CopiedFrame` exposes only package-private
+`validate(owner, originalClosedFrame, originalSink)` and requires exact object
+identity for all three. It retains no payload, factory or codec Record. It proves
+validated observed bytes and successful actual closes, not destination readback,
+physical identity stability after source-close callbacks, promotion, durability,
+final quiescence, BEGIN or capture completion. The writer must independently bind
+its exact sink/token, revalidate the final stage bytes/identity and all full native/
+control/operation transitions, then promote. Nested token-authorized writer mutation
+and guarded durability may run inside consumer callbacks; general public authority
+or terminal routes remain rejected. The helper grants no such writer token.
+
+The focused runner now also runs **16 copy cases**: all three real kinds and exact
+owner/frame/sink proof binding, changed valid bytes, trailing/truncated input,
+provisional write failure, repeated sink-close IO/Error with retained Reader,
+source-close-only retries, combined validation/close failure, callback/reentry/thread
+and extra-budget guards, source factory uncertainty and an 8 MiB exact raw copy.
+The original30 preflight scenarios still run. Tests first failed for the missing
+copy API. No production sink/live-prefix transition, promotion, publication or
+whole simultaneous heap claim is added by this helper packet.

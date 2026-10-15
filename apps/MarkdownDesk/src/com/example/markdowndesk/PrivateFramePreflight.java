@@ -4,17 +4,27 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.UUID;
+import java.util.Objects;
 
 /**
- * Validates one root-producer-owned immutable raw private-state frame before PREPARE.
- * No persistence, source regeneration, table selection, BEGIN or consumer authority.
+ * Validates immutable raw private-state frames in preflight and exact second-pass copy.
+ * Copies only to a trusted writer-owned provisional sink, without promotion,
+ * source regeneration, table selection, BEGIN or captured-consumer authority.
  * Factory/capture immutability and its retained memory are the producer's contract;
  * this helper validates the actual bytes, not a factory's name or claimed length.
  */
 final class PrivateFramePreflight {
-    static final long WORKSPACE_BYTES=512L<<10, ATTEMPT_BYTES=2048;
+    static final long WORKSPACE_BYTES=512L<<10, ATTEMPT_BYTES=2048, COPY_EXTRA_BYTES=2048;
     private static final int MAX_ATTEMPTS=14, BULK_BYTES=65536;
     private PrivateFramePreflight(){}
+    /** Trusted internal token-backed sink: construction is IO-free; first write opens lazily.
+     * close proves actual physical closure only, never promotion or capture authority.
+     * The writer separately charges/owns sink state, its FD and any failed-open uncertainty.
+     */
+    interface ProvisionalSink {
+        void write(byte[] bytes,int offset,int length)throws IOException;
+        void close()throws IOException;
+    }
 
     /**
      * Same-original-budget admission happens before workspace allocation/callbacks.
@@ -51,14 +61,23 @@ final class PrivateFramePreflight {
          */
         Attempt attempt(PrivateStateCodec.Kind kind,int ordinal,UUID generatedItemId,UUID generatedArtifactId,
                 PreparationSources.Factory immutableFrameFactory)throws IOException {
+            return admit(kind,ordinal,generatedItemId,generatedArtifactId,immutableFrameFactory,null,null);
+        }
+        CopyAttempt copyAttempt(ClosedFrame expected,PreparationSources.Factory immutableFrameFactory,ProvisionalSink sink)throws IOException {
+            check();if(expected==null||!expected.belongsTo(owner)||sink==null)throw invalid("Foreign expected frame or missing internal sink");
+            Attempt core=admit(expected.kind,expected.ordinal,expected.itemId,expected.artifactId,immutableFrameFactory,expected,sink);
+            return new CopyAttempt(core);
+        }
+        private Attempt admit(PrivateStateCodec.Kind kind,int ordinal,UUID generatedItemId,UUID generatedArtifactId,
+                PreparationSources.Factory immutableFrameFactory,ClosedFrame expected,ProvisionalSink sink)throws IOException {
             check();
             if(failed||active!=null||admissions==MAX_ATTEMPTS)throw invalid("Workspace failed, active or exhausted");
             if(kind==null||immutableFrameFactory==null||ordinal<0
                     ||ordinal>(kind==PrivateStateCodec.Kind.SESSION_TAB?11:0)
                     ||!generated(generatedItemId)||!generated(generatedArtifactId)||generatedItemId.equals(generatedArtifactId))
                 throw invalid("Invalid frozen frame request");
-            owner.reserveMetadata(budget,ATTEMPT_BYTES);
-            admissions++;active=new Attempt(this,kind,ordinal,generatedItemId,generatedArtifactId,immutableFrameFactory);
+            owner.reserveMetadata(budget,ATTEMPT_BYTES+(expected==null?0:COPY_EXTRA_BYTES));
+            admissions++;active=new Attempt(this,kind,ordinal,generatedItemId,generatedArtifactId,immutableFrameFactory,expected,sink);
             return active;
         }
     }
@@ -80,71 +99,106 @@ final class PrivateFramePreflight {
         }
         boolean belongsTo(PreparationSources expectedOwner){return owner==expectedOwner;}
     }
-    /**
-     * Retain this handle after failure. An actual close failure keeps the original
-     * owned Reader here and in the workspace, so retryClose can retry that close.
-     * No successful result after any run failure, even after later close success.
+    /** Byte/actual-close evidence for exactly one expected frame and internal sink token.
+     * No stage promotion, durable acknowledgement or captured-bundle authority.
      */
+    static final class CopiedFrame {
+        private final PreparationSources owner;
+        private final ClosedFrame expected;
+        private final ProvisionalSink sink;
+        private CopiedFrame(PreparationSources owner,ClosedFrame expected,ProvisionalSink sink){this.owner=owner;this.expected=expected;this.sink=sink;}
+        void validate(PreparationSources originalOwner,ClosedFrame originalFrame,ProvisionalSink originalSink)throws IOException {
+            if(owner!=originalOwner||expected!=originalFrame||sink!=originalSink)throw invalid("Foreign copied-frame owner/frame/sink identity");
+        }
+    }
+    static final class CopyAttempt {
+        private final Attempt core;
+        private CopyAttempt(Attempt core){this.core=core;}
+        CopiedFrame run()throws IOException{return (CopiedFrame)core.runCore();}
+        void retryClose()throws IOException{core.retryClose();}
+    }
+    /** Both passes share this one validation/ordered-close core. Keep the handle on failure. */
     static final class Attempt {
         private static final int NEW=0,RUNNING=1,SUCCEEDED=2,FAILED=3;
         private final Workspace workspace;
         private final PrivateStateCodec.Kind kind;
         private final int ordinal;
         private final UUID itemId,artifactId;
+        private final ClosedFrame expected;
+        private final ProvisionalSink sinkIdentity;
+        private ProvisionalSink sink;
         private PreparationSources.Factory factory;
         private PreparationSources.Reader reader;
         private int state=NEW;
         private boolean uncertainOpen;
-        private Attempt(Workspace w,PrivateStateCodec.Kind kind,int ordinal,UUID item,UUID artifact,PreparationSources.Factory factory){
-            workspace=w;this.kind=kind;this.ordinal=ordinal;itemId=item;artifactId=artifact;this.factory=factory;
+        private Attempt(Workspace w,PrivateStateCodec.Kind kind,int ordinal,UUID item,UUID artifact,PreparationSources.Factory factory,
+                ClosedFrame expected,ProvisionalSink sink){
+            workspace=w;this.kind=kind;this.ordinal=ordinal;itemId=item;artifactId=artifact;this.factory=factory;this.expected=expected;this.sink=sink;sinkIdentity=sink;
         }
         ClosedFrame run()throws IOException {
+            if(expected!=null)throw invalid("Copy attempt requires its bound copy result");return (ClosedFrame)runCore();
+        }
+        private Object runCore()throws IOException {
             workspace.check();
             if(state!=NEW||workspace.active!=this||workspace.failed)throw invalid("Attempt is not runnable");
-            state=RUNNING;Throwable failure=null;ClosedFrame result=null;
+            state=RUNNING;Throwable failure=null;Object result=null;
             try {
-                // Store the owned Reader before any read/codec callback. Never use
-                // try-with-resources, which would lose the only retry-close handle.
                 PreparationSources.Factory opening=factory;factory=null;
                 uncertainOpen=true;reader=workspace.owner.open(opening);uncertainOpen=false;
-                RawInput input=new RawInput(reader,kind);
+                RawInput input=new RawInput(this);
                 PrivateStateCodec.Record decoded=PrivateStateCodec.read(input,new OutputStream(){
                     public void write(int b){}public void write(byte[] b,int o,int n){}
                 });
                 if(decoded.kind!=kind)throw invalid("Raw frame kind differs from frozen request");
-                // Codec.read requires checksum, strict UTF8/metadata and true EOF;
-                // the outer digest also includes the raw checksum bytes themselves.
-                result=new ClosedFrame(this,decoded,input.count,HistoryStorage.hex(input.digest.digest()));
-            }catch(IOException|RuntimeException|Error problem){failure=problem;}
-            finally {
-                factory=null;
-                if(reader!=null){
-                    try{reader.close();reader=null;}
-                    catch(IOException|RuntimeException|Error closing){
-                        if(failure==null)failure=closing;else if(failure!=closing)failure.addSuppressed(closing);
-                    }
+                ClosedFrame observed=new ClosedFrame(this,decoded,input.count,HistoryStorage.hex(input.digest.digest()));
+                if(expected==null)result=observed;
+                else {
+                    if(observed.kind!=expected.kind||observed.ordinal!=expected.ordinal||!observed.itemId.equals(expected.itemId)
+                            ||!observed.artifactId.equals(expected.artifactId)||observed.envelopeBytes!=expected.envelopeBytes
+                            ||!observed.envelopeHash.equals(expected.envelopeHash)||observed.payloadBytes!=expected.payloadBytes
+                            ||observed.utf16Units!=expected.utf16Units||!Objects.equals(observed.sourceTabIdHash,expected.sourceTabIdHash))
+                        throw invalid("Copied raw frame differs from original preflight");
+                    result=new CopiedFrame(workspace.owner,expected,sinkIdentity);
                 }
-            }
+            }catch(IOException|RuntimeException|Error problem){failure=problem;}
+            finally {factory=null;failure=closeOwned(failure);}
             if(failure!=null){state=FAILED;workspace.failed=true;if(reader==null&&!uncertainOpen)workspace.active=null;raise(failure);}
             state=SUCCEEDED;workspace.active=null;return result;
         }
-        /** Cleanup only. Successful close never revives failed validation/preflight. */
+        private Throwable closeOwned(Throwable failure) {
+            // Reader admission precedes all sink IO. A failed source factory has no
+            // known Reader and the lazy sink has not been touched; retain uncertainty.
+            if(reader!=null&&sink!=null){
+                try{ProvisionalSink closing=sink;workspace.owner.consumerCallback(closing::close);sink=null;}
+                catch(IOException|RuntimeException|Error closing){failure=combine(failure,closing);}
+            }
+            // Never release the Reader while physical sink closure is unresolved.
+            if(reader!=null&&sink==null){
+                try{reader.close();reader=null;}
+                catch(IOException|RuntimeException|Error closing){failure=combine(failure,closing);}
+            }
+            return failure;
+        }
+        /** Cleanup only: retry the same sink first, then the same Reader; no result revival. */
         void retryClose()throws IOException {
             workspace.check();
             if(state!=FAILED)throw invalid("No failed attempt close to retry");
             if(reader==null){if(uncertainOpen)throw invalid("Factory ownership is uncertain; no known reader");return;}
-            reader.close();reader=null;if(workspace.active==this)workspace.active=null;
+            Throwable failure=closeOwned(null);if(failure!=null)raise(failure);
+            if(workspace.active==this)workspace.active=null;
         }
     }
     /** Private adapter: only the owner's bounded read/close methods are available. */
     private static final class RawInput extends InputStream {
+        private final Attempt attempt;
         private final PreparationSources.Reader reader;
         private final byte[] one=new byte[1];
         private final long maximum;
         private final MessageDigest digest;
         private long count;
-        RawInput(PreparationSources.Reader reader,PrivateStateCodec.Kind kind)throws IOException {
-            this.reader=reader;maximum=kind==PrivateStateCodec.Kind.PREFERENCES?PrivateStateCodec.MAX_PREFERENCES_BYTES:
+        RawInput(Attempt attempt)throws IOException {
+            this.attempt=attempt;reader=attempt.reader;
+            maximum=attempt.expected!=null?attempt.expected.envelopeBytes:attempt.kind==PrivateStateCodec.Kind.PREFERENCES?PrivateStateCodec.MAX_PREFERENCES_BYTES:
                 (long)PrivateStateCodec.MAX_PAYLOAD_BYTES+PrivateStateCodec.MAX_OVERHEAD_BYTES;
             digest=HistoryStorage.digest();
         }
@@ -160,9 +214,12 @@ final class PrivateFramePreflight {
             if(n==0)throw invalid("Raw source read stalled");
             if(n<0)return -1;
             count+=n;if(count>maximum)throw invalid("Raw frame exceeds kind bound");
-            digest.update(bytes,offset,n);return n;
+            digest.update(bytes,offset,n);
+            if(attempt.sink!=null)attempt.workspace.owner.consumerCallback(()->attempt.sink.write(bytes,offset,n));
+            return n;
         }
     }
+    private static Throwable combine(Throwable failure,Throwable closing){if(failure==null)return closing;if(failure!=closing)failure.addSuppressed(closing);return failure;}
     private static boolean generated(UUID id){return id!=null&&id.version()==4&&id.variant()==2;}
     private static void participant()throws IOException {PreparationSources.rejectParticipant();HistoryOperations.rejectParticipant();}
     private static void raise(Throwable problem)throws IOException {
