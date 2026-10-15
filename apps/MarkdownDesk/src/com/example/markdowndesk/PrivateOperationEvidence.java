@@ -143,12 +143,14 @@ public final class PrivateOperationEvidence {
         HistoryControlStore.Registration enrollment,registration;
         final TreeMap<Long,HistoryControlStore.Record> policies=new TreeMap<>();
         final Map<UUID,HistoryPinRecord> begins=new HashMap<>(),closes=new HashMap<>();
-        final List<HistoryPinRecord> ownedPins=new ArrayList<>();
+        // Retained from the existing per-control reserveCapture debit (namespace <=256).
+        final List<OwnedPin> ownedPins=new ArrayList<>();
         final Set<UUID> ownedPinNodes=new HashSet<>();
         // One physical control namespace, independent of the row's preparation annotation.
         // Lazy allocation follows a debit to the same retained owner, never a second allowance.
         Set<String> controlSlots;
         final List<PrivateOperationRecord> preparations=new ArrayList<>();
+        final List<PrivateOperationRecord> links=new ArrayList<>();
         final PrivateBundleInventory.Reservation reservation;
         Validation(PrivateBundleInventory.Reservation reservation){this.reservation=reservation;}
         void before(Row row)throws IOException {
@@ -201,16 +203,16 @@ public final class PrivateOperationEvidence {
                 }
             } else if(row.role==1&&row.state==2) {
                 if(row.kind<=2) {
-                    PrivateOperationRecord record=PrivateOperationRecord.decode(raw);
+                    PrivateOperationRecord record=HistoryControlStore.decodeOperationControl(raw);
                     require(record.type==row.kind&&record.preparation.equals(row.ownerPreparation)&&record.name().equals(row.name),"Operation control binding");
-                    if(row.kind==1)preparations.add(record);
+                    if(row.kind==1)preparations.add(record);else links.add(record);
                 } else {
-                    HistoryPinRecord pin=HistoryPinRecord.decode(raw);
+                    HistoryPinRecord pin=HistoryControlStore.decodePinControl(raw);
                     require(pin.begin==(row.kind==3)&&pin.operation.equals(row.nodeId)&&pin.name().equals(row.name),"Pin name/identity");
                     if(ZERO.equals(row.ownerPreparation)) {
                         require(!pin.begin||pin.manifest.domain==HistoryPinRecord.Domain.NATIVE_HISTORY_V1,"Unowned nonlegacy pin");
                         require((pin.begin?begins:closes).put(pin.operation,pin)==null,"Duplicate legacy pin");
-                    } else ownedPins.add(pin);
+                    } else ownedPins.add(new OwnedPin(row.ownerPreparation,pin));
                 }
             }
         }
@@ -231,8 +233,33 @@ public final class PrivateOperationEvidence {
                 require(!ownedPinNodes.contains(begin.operation),"Conflicting owned/staged legacy control");
                 for(PrivateOperationRecord prepare:preparations)require(!prepare.operation.equals(begin.operation),"Legacy pin has preparation association");
             }
-            for(HistoryPinRecord pin:ownedPins)if(pin.begin)bound(pin);
+            // Only committed controls are decoded. Unknown staged/absent bytes remain
+            // inert physical evidence; their annotations never supply a missing P.
+            for(OwnedPin owned:ownedPins) {
+                HistoryPinRecord pin=owned.pin;PrivateOperationRecord p=preparation(owned.owner);
+                require(p!=null&&p.operation.equals(pin.operation),"Owned pin preparation association");
+                if(pin.begin){bound(pin);require(p.beginHash.equals(pin.envelopeHash)
+                    &&p.begin.manifest.domain==pin.manifest.domain,"Owned BEGIN version/domain binding");}
+                else {
+                    HistoryPinRecord begin=null;
+                    for(OwnedPin candidate:ownedPins)if(candidate.pin.begin&&candidate.owner.equals(owned.owner)
+                            &&candidate.pin.operation.equals(pin.operation))begin=candidate.pin;
+                    require(begin!=null&&HistoryPinRecord.matches(begin,pin)&&p.beginHash.equals(begin.envelopeHash),"Owned CLOSE binding");
+                }
+            }
+            for(PrivateOperationRecord link:links) {
+                PrivateOperationRecord p=preparation(link.preparation);
+                require(p!=null&&p.version==link.version&&p.operation.equals(link.operation)
+                    &&p.envelopeHash.equals(link.preparationHash)&&p.beginHash.equals(link.beginHash)
+                    &&p.descriptorHash.equals(link.descriptorHash),"Owned LINK version/preparation binding");
+                boolean hasBegin=false;
+                for(OwnedPin pin:ownedPins)if(pin.owner.equals(p.preparation)&&pin.pin.begin
+                        &&p.beginHash.equals(pin.pin.envelopeHash))hasBegin=true;
+                require(hasBegin,"Committed LINK missing owned BEGIN");
+            }
             for(PrivateOperationRecord prepare:preparations) {
+                for(PrivateOperationRecord other:preparations)if(other!=prepare)
+                    require(!other.operation.equals(prepare.operation),"Conflicting preparation operation owner");
                 PrivateOperationRecord.Binding binding=prepare.binding;HistoryControlStore.Record policy=policies.get(binding.generation);
                 require(policy!=null&&binding.bundle.equals(registration.bundleId)&&binding.registrationHash.equals(registration.envelopeHash)
                     &&binding.policyHash.equals(policy.envelopeHash)&&binding.bootstrapQuota==registration.bootstrapQuotaBytes
@@ -240,11 +267,20 @@ public final class PrivateOperationEvidence {
                 for(int i=0;i<4;i++)require(binding.roles.get(i).basename.equals(registration.roles.get(i).basename),"Historical preparation role binding");
             }
         }
+        private PrivateOperationRecord preparation(UUID id)throws IOException {
+            PrivateOperationRecord found=null;
+            for(PrivateOperationRecord p:preparations)if(p.preparation.equals(id)){require(found==null,"Duplicate owned preparation");found=p;}
+            return found;
+        }
         void bound(HistoryPinRecord begin)throws IOException {
             HistoryControlStore.Record policy=policies.get(begin.generation);
             require(policy!=null&&begin.bundle.equals(registration.bundleId)&&begin.registrationHash.equals(registration.envelopeHash)
                 &&begin.policyHash.equals(policy.envelopeHash),"Historical pin policy binding");
         }
+    }
+    private static final class OwnedPin {
+        final UUID owner;final HistoryPinRecord pin;
+        OwnedPin(UUID owner,HistoryPinRecord pin){this.owner=owner;this.pin=pin;}
     }
     private static byte[] capture(Row row,long raw)throws IOException {
         if(row.role==4&&row.kind<=3||row.role==1&&row.state==2) {

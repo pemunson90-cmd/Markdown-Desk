@@ -80,8 +80,27 @@ final class HistoryControlStore {
         }
         private Entry(String filename,long length,String hash,Record record,boolean stage,HistoryPruneIntent intent,HistoryPinRecord pin,byte[] pinBytes){
             this.filename=filename;this.length=length;envelopeHash=hash;this.record=record;this.stage=stage;this.intent=intent;this.pin=pin;this.pinBytes=pinBytes;
-            PrivateOperationRecord op=null;if(pinBytes!=null&&filename!=null&&PrivateOperationRecord.knownName(stage?filename.substring(0,filename.length()-6):filename)){try{op=PrivateOperationRecord.decode(pinBytes);}catch(IOException invalid){/* exact optional LINK prefix is classified against its commitment */}}operation=op;
+            PrivateOperationRecord op=null;if(pinBytes!=null&&filename!=null&&PrivateOperationRecord.knownName(stage?filename.substring(0,filename.length()-6):filename)){try{op=decodeOperationControl(pinBytes);}catch(IOException invalid){/* exact optional LINK prefix is classified against its commitment */}}operation=op;
         }
+    }
+    /** Internal structural dispatch only. Inventory must still join the exact owning P;
+     * generic record decoders/factories and activation authority remain unchanged. */
+    static PrivateOperationRecord decodeOperationControl(byte[] bytes)throws IOException {
+        if(bytes==null||bytes.length<45||bytes.length>PrivateOperationRecord.MAX_CONTROL)throw new IOException("Operation control bounds");
+        ByteBuffer header=ByteBuffer.wrap(bytes);
+        if(header.getInt()!=0x4d444f50)throw new IOException("Operation control magic");
+        int version=header.getInt();
+        if(version==1)return PrivateOperationRecord.decode(bytes);
+        if(version==2)return PrivateOperationRecord.decodePortable(bytes);
+        throw new IOException("Unknown operation control version");
+    }
+    static HistoryPinRecord decodePinControl(byte[] bytes)throws IOException {
+        // BEGIN's fixed domain field selects a strict codec; neither checksum nor body
+        // validation is bypassed. CLOSE has no domain and is joined to its exact BEGIN.
+        final int domainOffset=13+16+16+32+8+32+2;
+        boolean portable=bytes!=null&&bytes.length>domainOffset&&bytes[8]==1
+                &&(bytes[domainOffset]&255)==HistoryPinRecord.Domain.PORTABLE_CAPTURE_V1.wire;
+        return portable?HistoryPinRecord.decodePortable(bytes):HistoryPinRecord.decode(bytes);
     }
     static final class StageDescriptor {
         final String filename;
@@ -258,7 +277,7 @@ final class HistoryControlStore {
                     else {
                         byte[] envelope=read(path,before,limit);hash=hex(sha(envelope));
                         if(operationName){pinBytes=envelope;}
-                        else if(pinName){pinBytes=envelope;try{pin=HistoryPinRecord.decode(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
+                        else if(pinName){pinBytes=envelope;try{pin=decodePinControl(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
                         else if(maintenance){try{intent=HistoryPruneIntent.decode(envelope);}catch(IOException invalid){diagnostics.add("control: invalid intent");inventoryValid=false;}}
                         else if(known) {
                             try {
