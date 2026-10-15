@@ -42,8 +42,9 @@ Worker execution stopped at an account usage limit during initial reconciliation
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
 
 Current checkpoint: main/origin main remains `fdb7bd6` (PR23 merged). Active
-`codex/operation-data-capture` has draft PR24; last pushed `2b78efd`, local HEAD
-`16280fc` includes normally merged, reviewed preflight and record assembly. The
+`codex/operation-data-capture` has draft PR24; last pushed `2b78efd`. Root active
+HEAD `1ee52fd164b08150e28cbf21cd9fe50603eca72d` includes normally merged,
+reviewed preflight and record assembly. The
 full clean gate at `8dcbea5` passed before subsequent C2 source additions; no newer
 full suite/build/hosted run is claimed. STATUS records exact gate evidence and
 hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 remain
@@ -57,8 +58,9 @@ campaign. The writer is committed at root active branch `1ee52fd164b08150e28cbf2
 independent writer review remains pending. Its 81 focused assertions pass and cover
 P/funded directories/native map/D only. PreparationSources has 181 focused assertions
 passing. Private payload copy, final BEGIN/LINK,
-source handoff, cold recovery and whole-heap proof remain open. The current worker
-owns dirty Writer/Sources/tests and two runner lines; root owns orchestration and
+source handoff, cold recovery and whole-heap proof remain open. The source worker
+owns committed Writer/Sources/tests and two runner lines; root owns orchestration
+and
 integration; `accounting_repair_review` owns independent review. Do not duplicate
 full gates or split helper PRs. Independent whole-campaign plan review remains NOT
 RUN. M1 is not complete; physical/device/signing/upgrade gates remain NOT RUN.

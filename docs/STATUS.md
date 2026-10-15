@@ -35,9 +35,8 @@ directories/native map/D,
 including callbacks, target failpoints, same-bytes replacements, foreign operation
 data, legacy private-file metadata, stale-plan legacy PIN, and a callback claim
 while an FD is open. It does not yet copy private payloads, complete final BEGIN/LINK,
-hand off sources, cold-recover, or prove the whole heap. The 81 focused assertions pass, but the writer guard source has not received
-independent review. PreparationSources has 181 focused assertions passing. The
-source worker owns Writer/Sources/tests and two runner lines; root owns
+hand off sources, cold-recover, or prove the whole heap. PreparationSources has
+181 focused assertions passing. The source worker owns Writer/Sources/tests and two runner lines; root owns
 orchestration/integration. `accounting_repair_review` is the independent reviewer.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
