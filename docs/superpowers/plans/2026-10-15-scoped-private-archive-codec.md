@@ -1,9 +1,8 @@
 # Scoped private archive codec — proposed schema and implementation plan
 
 Date: 2026-10-15. **Wire/source unapproved; architecture direction only reviewed.**
-**Goal:** define bounded portable scope inventory without changing v1 or native bytes.
-**Architecture:** explicit v2 framing plus one canonical typed inventory, then unchanged
-native/private-state frames. No filesystem adoption, ID generation or provider authority.
+**Goal/architecture:** bounded v2 scope inventory plus unchanged native/private frames;
+v1 remains unchanged. No adoption, ID generation or provider authority.
 **Tech stack:** Java11-compatible production classes, installed JDK17; no dependencies.
 **Spec:** [ADR-005](../../decisions/ADR-005-portable-private-bundle-format.md), source
 `620275b6cc0aae6d139c353d16fd1d3ec26200b9`; the companion operation-data-capture plan
@@ -23,9 +22,19 @@ UUID ordering compares all 16 bytes unsigned lexicographically, never UUID.compa
 Existing `PrivateArchive.write/read` remain v1-only, accepting exactly types 1..9.
 A proposed `readPortable` examines the 19-byte header with bounded prefix replay:
 version 1 delegates to unchanged v1 framing, version 2 selects the scoped parser;
-other versions fail. Prefix replay never closes caller input. V1 results have no
-invented scope/policy; the future importer persists its synthetic v1 scope separately.
-A new explicit `writeV2` alone emits version 2. Do not add10 to the v1 Type decoder.
+other versions fail. Use a non-owning custom prefix stream, never SequenceInputStream
+(which closes exhausted components). No dispatch path closes caller input.
+V1 reserves the entire 16 MiB shared metadata budget before unchanged delegation;
+reservation fails unless that budget is idle. Its private Index stays fully charged.
+Trusted preadmitted LegacySpool callbacks stream descriptors/payloads to staging;
+retain no Entry/index/metadata or invoke ordinary callbacks. Only bounded fixed
+streaming scratch is allowed. Settle every nonnull begin once; release credit finally.
+Success returns original source ArchiveSummary plus PROVISIONAL spool handle;
+no staged-byte/durability claim. After return, same-budget replay verifies descriptor
+order/type/ID/length/hash and payloads against source summary before typed validation.
+Failure leaves provisional staging, no result. No synthetic scope/policy.
+Caller owns spool format/admission/closure/durability; this codec defines no adoption.
+A new explicit `writeV2` alone emits version 2. Do not add 10 to the v1 Type decoder.
 
 V2 retains magic `4d4445534b4241434b55500d0a1a0a` + U(2), length 19.
 Entry = B(1), B(type), V(entryId), Q(payloadLength), H(payload), payload:58+length.
@@ -89,9 +98,13 @@ type 5 tag 4=TAB alias iff its preserved namespace is TAB, else none; type 6 tag
 sourceTabId; types 7/8 none. For type 5, inventory parsing permits zero/one tag 4;
 the later native-payload gate enforces the TAB-namespace condition. Strings retain
 exact source values including literal `legacy-recovery`; they are not UUIDs. This makes remapped textual coordinates
-portable as well as native UUIDs. Every lineage row is referenced exactly once by
-its current directory entry; no duplicate coordinate tuple `(entry,origin,type,
-sourceIdentity,textCoordinates)`. Multiple distinct historical origins remain valid.
+portable as well as native UUIDs. Every edge belongs to exactly one directory entry;
+there is at most one edge per (entry,origin). For each (currentScope,origin,mappingDomain),
+currentIdentity→sourceIdentity is functional and injective. Domain is shared for 2/3
+and for 6..8; other native types have separate domains. Thus the two transaction frames
+must agree on current/source transaction IDs, and private items cannot alias by type.
+The typed gate also validates source-kind/reference/text consistency. Ancestor claims
+remain inert; they alone never prove lossless projection or permit staging omission.
 
 Lengths: let Rb/Rt/Re/Rp count scope-origin/tab/entry-lineage/origin-parent references,
 C active scopes, K known policies, T sum(5+UTF8length) across lineage text fields.
@@ -101,8 +114,9 @@ only; declarations must equal measured consumption. No self-hash or circular tot
 
 ## Membership, scope and source-coordinate rules
 
-Inventory payload length must equal its outer frame length, and its checksum must
-verify before any ordinary sink callback. Ordinary wire frames follow directory
+Before ordinary callbacks validate inventory length, internal checksum AND outer
+payload SHA, all crossrefs/counts and computed total declarations. Inventory/results
+remain provisional through terminal+EOF. Ordinary wire frames follow directory
 entryId order exactly. Compare all UUID/type/length/hash fields to the next row;
 reject missing/extra/reordered frames, another type 10, premature terminal or trailing
 bytes. Counts/totals include all scopes; ordinary entry counts per scope must agree.
@@ -202,19 +216,19 @@ This orphan attempted snapshot is legitimate; the format must not invent complet
 
 ## Proposed code ownership, interfaces and verification gates
 
-After schema review only, use writing-plans/executing-plans or delegated execution.
 Create `PrivateBundleInventory.java`: pure canonical inventory read/write, immutable
 rows and shared `MetadataBudget`; no files/ID generation. Extend `PrivateArchive`
 with explicit v2 routines and `readPortable`, keeping v1 interfaces and enum intact.
 Proposed `writeV2(UUID inventoryId, StreamOpener frozenInventory, ArchiveSource,
 OutputStream, MetadataBudget)` returns ArchiveSummary. Parse/hash the exact persisted
 inventory and recheck its bytes on write; stream ordinary repeatable sources in order.
-Proposed `readPortable(InputStream, PortableSink, MetadataBudget)` returns a tagged
-v1/v2 result; v2 retains the immutable inventory under the same budget until closed.
-PortableSink receives legacy Entry or a scoped entry descriptor; all callbacks remain
-provisional. Typed native graph decoders/adoption are separate work, not hidden here.
-Caller owns outer streams; codec owns per-entry source streams; failures preserve
-primary exceptions and settle every begun sink. No receipt, flush/close or pin release.
+Proposed `readPortable(InputStream, ScopedSink, LegacySpool, MetadataBudget)` returns
+v1(source summary, provisional spool) or v2 inventory retained under budget until closed.
+ScopedSink receives v2 entries only. Every nonnull begin has exactly one finish, even
+on copy/hash failure; primary failure wins with finish failure suppressed. Caller
+owns outer streams, codec owns source streams; no receipt/outer flush/close/pin release.
+The local MDOP v1 descriptor cannot silently receive this inventory: a separately
+reviewed bridge/version must bind its exact identity before output eligibility.
 
 - [ ] Task1: independently encode fixtures above and positive scope/policy/lineage
   fixtures; assert every field/offset/hash and negative exact-bound/overflow failures.
@@ -222,7 +236,8 @@ primary exceptions and settle every begun sink. No receipt, flush/close or pin r
   reject duplicate/missing refs, cycles, wrong optional markers and every truncation.
 - [ ] Task3: implement explicit v2 framing/dispatch; verify inventory membership and
   terminal/EOF, changed second-pass sources, source/sink closure failures and zero
-  ordinary callbacks for invalid inventory. Compare fixture bytes, not just round trips.
+  ordinary callbacks for invalid inventory. Assert outer-close count 0 on v1/v2 success,
+  failure and truncated dispatch; legacy full-budget reservation excludes other users.
 - [ ] Task4: unchanged actual v1 archive/state/manifest fixtures must pass; additionally
   v1 rejects version 2/type 10, v2 rejects misplaced 10, and native arbitrary UUID/string
   identity domains remain intact. No v1 golden pass is claimed by this document.
@@ -231,6 +246,5 @@ primary exceptions and settle every begun sink. No receipt, flush/close or pin r
   drafts remain distinct; per-scope duplicates fail. Verify exact aggregate limits,
   multibyte 4096-byte coordinates, literal legacy-recovery and denormalized index links.
 
-Future tests: `verification/scoped_private_archive/run.sh`, then affected existing
-private_archive/private_state/history_archive_manifest runners; one independent
-schema/source review before integration. No tests, build, device or release pass here.
+Future runner: `verification/scoped_private_archive/run.sh`, then affected existing
+archive/state/manifest runners and independent review. No decoder/device/release pass.
