@@ -3,35 +3,28 @@
 > **For agentic workers:** Use superpowers:executing-plans after independent
 > architecture approval and source authorization. This is a proposed plan only.
 
-**Goal:** Charge durable preparations to the primary authority and bind exact
-persisted captures to pins without a source-validation/publication gap.
-**Architecture:** One operation ledger joins native accounting; immutable PREPARE
-funds artifacts/terminal records, with separately proved native-source identity and
-exact allowed preparation transitions. No fifth role, quota or generic bypass.
+**Goal:** Charge preparations to primary authority; atomically bind persisted captures to pins.
+**Architecture:** One ledger, immutable PREPARE funding, separate native-source proof
+and exact own transitions. No fifth role, quota or generic bypass.
 **Tech Stack:** Existing Java, JDK17/SDK37 offline, Android min26; no new dependency.
 **Spec:** Source `ea289cb`; proposed backup/ADR-005 `d839225`/`be6d444` on
 `codex/backup-adoption-design`. These are review inputs, not implemented formats.
-Root requires ONE meaningful backup/capture integration, not helper-sized PR/gates.
 
 ## Scope and immutable meanings
 
 - Phase A is internal `PRIMARY_NATIVE_ONLY`: prove admission, persisted native map,
   local descriptor and atomic BEGIN. It is provisional, never complete backup or
-  eligible output. Phase B adds caller-provided immutable private captures through
-  existing `PrivateStateCodec`: up to 12 tabs, independent recovery, eight allowed
-  preferences. No Activity capture adapter, provider/export/import consumer yet.
-- Both phases create local CaptureDescriptor (schema below), not portable inventory.
-  Absent recovery differs from failed/unreadable required recovery.
+  eligible output. Phase B uses immutable captures/PrivateStateCodec (bounds below).
+  No Activity capture adapter, provider/export/import consumer yet.
+- CaptureDescriptor is local, not portable inventory; absent recovery differs from failure.
 - `HistoryArchiveManifest` remains the native ID→outer-ID map. Keep its v1 bytes and
-  original `graphHash` as historical capture evidence; do not relabel that field.
-  Descriptor source hash separately supports final source validation after own writes.
+  historical `graphHash`; descriptor source hash validates sources after own writes.
   Descriptor bytes, NOT map bytes, are the original pin manifest. Preparation UUID
   makes zero-native captures unique; identical retries reuse every persisted ID.
 - Propose additive pin domain `LOCAL_CAPTURE_V1(2)`; existing domain1/pin bytes stay
   unchanged. Descriptor count is validated native-map count plus private-frame count;
   hash/length cover exact descriptor bytes. Neither domain grants output success.
-  Descriptor+referenced map metadata together <=16 MiB; native entries <=16,380.
-  A future portable inventory must fit the same combined budget, not another one.
+  Future portable inventory must fit the same combined metadata budget, not a new one.
 - RELEASED/new retained-stage recovery still needs the exact persisted descriptor
   and quiescence. Historical committed CLOSED audits never dereference retired
   inputs/manifest. Capture/link receipts confer neither consumer admission nor export.
@@ -87,7 +80,7 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   each `00000000-0000-4000-8000-00000000000n`; phase1, generation0, both quotas67108864,
   automaticCount10, roles store/catalog/identity/index; source/ledger/registration/
   policy/map SHA fields repeat bytes11/22/33/44/55(hex), flags0, map length212,
-  privateCount0, directoryMask3, artifactCount2. Descriptor row derives from D;
+  native-map/BEGIN count0, privateCount0, directoryMask3, artifactCount2; D gives its row.
   BEGIN derives from D and operation5; P uses that BEGIN, LINK derives from P/B/D.
   Complete length/SHA256 (codec vectors, not a semantically validated native map):
   D361 `990d77ac4677f257c9bc2e746e739232d5802b3f02c248c24210d55c45bd9b41`;
@@ -112,7 +105,8 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   Retain PREPARE/LINK/closed audits: finite journal eventually exhausts.
 - `HistoryPins.prepareBeginLocked(manifest)` internally allocates immutable template;
   `publishPreparedBeginLocked(preparationCapability, template)` consumes that exact
-  durable credit. Existing begin behavior stays; no caller-guessed/reconstructed ID.
+  durable credit. Ordinary begin rejects domain2 without that prepared capability;
+  domain1 behavior stays. No caller-guessed/reconstructed ID or unbound activation.
 
 ## Capture, callbacks and exact own transitions
 
@@ -136,8 +130,8 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
    no caller-supplied stream/factory/close code runs inside the monitor/lease.
    `admitPreparedArtifactLocked` accepts only its exact live preparation capability
    and funded conversion, never a general bypass of blocked ordinary admission.
-   Until LINK acknowledgement, unfinished preparation blocks ordinary mutations;
-   afterward quota-admitted appends/policy changes retain existing ALL_BUNDLE semantics.
+   Current complete aggregate accounting permits ordinary native appends/policy changes;
+   it never requires the old capture predicate. Such changes invalidate capture only.
    No writable delegate escapes; no waits/join. Registration covers opening, live
    source and owned close, NOT just callbacks. Failed close retains resource+count
    and blocks commit across handles; only retry of actual owned close can release it,
@@ -154,7 +148,10 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
    acknowledgement. BEGIN without LINK already protects native pruning, but cannot
    activate a local-capture consumer. Cold discovery uniquely matches committed
    PREPARE+descriptor to BEGIN domain/hash/count/length/authority, including empty
-   native map; it finishes that exact link, never guesses or generates another ID.
+   native map; absent terminal evidence, finish only that link, never generate IDs.
+   Quiesced cancellation before LINK remains allowed. Pre-LINK CLOSE evidence abandons
+   capture/activation permanently; retain data and unused LINK credit, block pruning/
+   new captures, but not ordinary writes solely for known funded abandoned evidence.
 
 - `NativeCaptureFingerprint` binds exact native envelopes/edges/identity/reservations,
   canonical roles/bootstrap, registration and exact acknowledged policy. It excludes
@@ -164,7 +161,8 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   Graph proofs always bind this complete ledger; source hash cannot replace them.
 - A `PreparationTransition` binds initial ledger and exact allowed next changes:
   PREPARE publication; named directories; each declared artifact absent→stage→final;
-  BEGIN creation/promotion; LINK creation/promotion; associated credit transfers.
+  BEGIN/LINK publication and credits; quiescence-authorized canonical CLOSE before
+  LINK abandons capture, never completes it or authorizes a fabricated LINK.
   Permit only expected per-write stage growth for the in-process owned copy token.
   Reconstruct the initial ledger by reversing ONLY these exact declared transitions.
   Advance expected ledger/generation after each own action; every OTHER entry and
@@ -177,19 +175,21 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
 
 ## Cold recovery and mandatory proof integration
 
-- Partial PREPARE, partial artifact, partial LINK, noncanonical/conflicting/unknown
-  stages remain preserved and blocked; no rewrite/truncate/new IDs or generic prefix
-  repair. Only complete exact stages may explicitly sync/revalidate/promote. A live
-  initial copy may grow its owned stage; failure/closure/death ends that token.
+- Partial PREPARE/BEGIN and unknown/nonprefix/unbound control stages block authority.
+  Exact LINK prefix at its expected path, bound to committed PREPARE+BEGIN/173B credit,
+  is fully accounted optional receipt evidence: ordinary writers may proceed; no LINK
+  ack, activation or partial repair. No generic ignore-stages rule. Partial artifacts
+  also block capture/repair, not complete accounting. Preserve all bytes; no rewrite/
+  truncate/new IDs. Complete exact stages alone may sync/revalidate/promote; an initial
+  live copy can grow its stage only until its token ends on failure/closure/death.
 - Complete PREPARE.stage promotion rechecks authority/source/allowance before data
   creation. Recognized committed preparation keeps all credits after crash, even
-  before directories, BEGIN or LINK. Missing known committed evidence cannot be
-  erased by reopen; use retained name/hash baseline as pins do. No fresh-process
-  arbitrary-tail-loss detection promise. No source callbacks reconstructed on reopen.
+  before directories/BEGIN/LINK. Retain known name/hash evidence across handles; no
+  fresh-process arbitrary-tail-loss claim or reconstructed source callbacks.
 - New graph fields distinguish native actual/reserved and operation actual/future;
-  totals charge both. All planner modes protect operation bytes/slots; operation
-  files never become native records or deletion members. Pending incomplete capture
-  blocks pruning. Completed closed captures remain charged, protected ledger entries.
+  totals charge both; operation files are protected, never native deletion members.
+  All planner modes bind this ledger. Pending incomplete/abandoned capture
+  blocks pruning/new captures. Closed capture ledger never dereferences retired natives.
 - `HistoryGraph`, pressure/floor/selected planning, executor execute/replay, tombstone
   revalidation, survivor fingerprint and shared retirement all require exact current
   operation ledger. Extend stable survivor proof with a distinct operation-ledger
@@ -210,6 +210,8 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   exact control/quota limits across all writers, cold complete BEGIN.stage CLOSE
   deduplication, partial/conflicting stages, integer overflow, empty-directory floods,
   depth/links/unknowns; native recovery reads survive uncertain operation inventory.
+  Stale PREPARE, exact LINK prefixes and abandoned cancellation permit funded native
+  appends/policy while rejecting capture/pruning; ordinary begin cannot bypass domain2.
 - [ ] 2. Implement `PrivateOperationStore`, local commitment/descriptor codec and
   ledger; narrow HistoryControlStore/HistoryCapacity/HistoryStorage admission hooks.
   HistoryPinRecord owns additive domain2 and centralized credit decoding. Existing
@@ -224,8 +226,7 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   dirty/BOM/CRLF tabs, independently present/absent recovery and exact preferences.
   Changed streams, throwing open/read/close, idle-live source and second-handle reopen
   cannot bypass ownership counts; retry close/hostile callbacks never mint false proof.
-  Races/budget failure produce no BEGIN/consumer success. Private payloads
-  stream with <=65,536-byte buffers; no document/frame arrays or multiple full maps.
+  Races/budget failure give no BEGIN/success. Buffers <=65,536 bytes; no payload arrays.
 - [ ] 5. Update Graph/Pruner/MaintenanceRecovery/Executor and terminal capacity paths.
   Test all planner modes, projected partial/all-absent closure, second-handle retirement,
   closed audits+intent, ledger mutation at last callback; assert exact survivor bytes,
@@ -238,13 +239,12 @@ Root requires ONE meaningful backup/capture integration, not helper-sized PR/gat
   budget (not each); measure peak allocation and reject before oversized allocation.
 - [ ] 7. Independent exact-source persistence/concurrency review, scoped existing
   capacity/pin/operations/manifest/planner/executor/controller regressions as affected;
-  root owns one coherent clean-host/two-unsigned gate, central runners and status.
+  root owns ONE coherent feature PR/clean-host/two-unsigned gate, runners and status.
 
 ## Review focus / exclusions
 
 Review domain2/schema/goldens, exact staged-BEGIN credit owner, resource-close proof,
 reversible own transitions and all terminal ledger paths before source authorization.
-Portable v2 inventory, retained-import/remap/receipt protocols, UI capture, output
-verification/adoption and compaction remain separate reviewed work. Failed/retained
-staging cannot silently disappear from whole backup: a future bounded lossless
-projection proof is required; this slice claims neither that proof nor full backup.
+Portable v2, retained-import/remap/receipts, UI, output/adoption and compaction are
+separate work. Failed/retained staging needs a future bounded lossless-projection
+proof before omission from backup; no such proof or complete-backup claim here.
