@@ -1,6 +1,7 @@
 package com.example.markdowndesk;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.UUID;
 
@@ -68,10 +69,14 @@ final class PrivateFramePreflight {
         final int ordinal,payloadBytes,utf16Units;
         final UUID itemId,artifactId;
         final long envelopeBytes;
-        final String envelopeHash;
-        private ClosedFrame(Attempt a,PrivateStateCodec.Record decoded,long length,String hash){
+        final String envelopeHash,sourceTabIdHash;
+        private ClosedFrame(Attempt a,PrivateStateCodec.Record decoded,long length,String hash)throws IOException {
             owner=a.workspace.owner;kind=a.kind;ordinal=a.ordinal;itemId=a.itemId;artifactId=a.artifactId;
             envelopeBytes=length;envelopeHash=hash;payloadBytes=decoded.payloadBytes;utf16Units=decoded.utf16Units;
+            // readString already proved strict UTF8; retain only a bounded identity
+            // key so assembly can reject duplicate historical tab IDs before PREPARE.
+            sourceTabIdHash=decoded.kind==PrivateStateCodec.Kind.SESSION_TAB?
+                HistoryStorage.hex(HistoryStorage.digest().digest(decoded.tab.sourceTabId.getBytes(StandardCharsets.UTF_8))):null;
         }
         boolean belongsTo(PreparationSources expectedOwner){return owner==expectedOwner;}
     }

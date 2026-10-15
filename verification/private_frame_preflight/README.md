@@ -31,7 +31,12 @@ No payload array, caller sink, raw delegate or writable resource escapes.
 
 A `ClosedFrame` returns only after actual Reader.close succeeds. Its constructor
 is private; its final fields contain kind/ordinal/IDs, exact whole-frame byte length/
-SHA-256 and codec payload-byte/UTF-16-unit counts. A private retained source-owner
+SHA-256 and codec payload-byte/UTF-16-unit counts. For tabs, `sourceTabIdHash` is SHA-256 of the strict decoded sourceTabId's UTF-8
+bytes; it is null for recovery/preferences. This adds at most 4,096 bytes of temporary
+hash input and a 64-hex scalar within existing reservations, while retaining no source
+ID string or decoded Tab. Equal IDs necessarily share the key; a hash collision
+conservatively rejects an optional table. Root must reject duplicate tab keys before
+PREPARE. A private retained source-owner
 reference supports `belongsTo(owner)` by identity; no codec Record, factory or
 payload is retained in the result. Root must reject results from another owner
 before combining them with its final Sources.Proof. A ClosedFrame grants no
@@ -62,8 +67,8 @@ proof. Root must charge simultaneous native maps, graph/control snapshots,
 immutable captures, rows/copies and future codec buffers to the same budget.
 Trusted source adapters must not retain supplied buffers or spawn untracked work.
 
-Focused evidence: 29 scenarios using real dirty BOM/CRLF/Unicode tab, recovery and
-preferences frames; exact IDs/hash/length/owner identity; malformed metadata/UTF-8/
+Focused evidence: 30 scenarios using real dirty BOM/CRLF/Unicode tab, recovery and
+preferences frames; exact IDs/hash/length/owner identity and equal/distinct sourceTabId keys; malformed metadata/UTF-8/
 checksum, truncation/trailing/wrong kind; IO/Error open/read/close failures; null
 factories; bad/stalled read counts; retained repeated close retries; budget rejection
 before callbacks, foreign budgets and lifetime limits; reentrant/foreign-thread/
