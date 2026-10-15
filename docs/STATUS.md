@@ -58,9 +58,10 @@ candidate. Avoid duplicating full gates.
 Next: implement and affected-test same-process captured activation plus tracked
 declared-source read/drain/CLOSE in the Ops/narrowPins/Store and
 Writer.Budget.identity scope. Then implement and affected-test cold recovery, runtime
-integration and lifecycle/error closure before downstream features. Whole-heap and
-performance acceptance plus broad regression, migration and device batteries remain
-for the feature-complete candidate. Continue M0–M7 directly; M1 is not
+integration and lifecycle/error closure before downstream features. Prove the minimum
+affected memory bounds before downstream storage consumers. Broad whole-heap and
+performance acceptance, regression, migration and device batteries remain for the
+feature-complete candidate. Continue M0–M7 directly; M1 is not
 complete. Source approvals remain limited to their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
