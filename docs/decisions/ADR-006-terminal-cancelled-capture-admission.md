@@ -1,6 +1,9 @@
 # ADR-006: New capture admission after terminal cancellation
 
-Status: **PROPOSED — pending independent critical review; no source authorization from this ADR.**
+Status: **ACCEPTED engineering direction** — independently reviewed exact commit
+`e8cb1532d514e1d2e0c46d93c8d5f20e52c44820`, ADR blob
+`b54b1629f72f213fb9bf735a6c3a76266ca70cdb`; accepted by root. The first
+source slice is authorized for implementation, not implemented or source-approved.
 
 Date: 2026-10-15
 
