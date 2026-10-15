@@ -17,4 +17,3 @@ public class WebView {
   public void onWrite(PageRange[] pages,ParcelFileDescriptor fd,CancellationSignal signal,WriteResultCallback cb){writes++;writeArgs=new Object[]{pages,fd,signal,cb};if(failWrite)throw new IllegalStateException("write");}
  }
 }
-

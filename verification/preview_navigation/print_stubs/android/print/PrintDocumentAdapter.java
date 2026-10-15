@@ -8,4 +8,3 @@ public abstract class PrintDocumentAdapter {
  public static class LayoutResultCallback {public int cancellations;public boolean fail;LayoutResultCallback(){}public void onLayoutCancelled(){cancellations++;if(fail)throw new IllegalStateException("callback");}}
  public static class WriteResultCallback {public int cancellations;public boolean fail;WriteResultCallback(){}public void onWriteCancelled(){cancellations++;if(fail)throw new IllegalStateException("callback");}}
 }
-

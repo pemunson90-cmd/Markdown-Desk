@@ -171,3 +171,9 @@ The navigation fixture executes the actual full predicate; these adapters do not
 claim browser acknowledgment coverage. No remote artifacts, uploads, full suite
 or broad benchmark repeat were used.
 Generated classes stay under ignored `verification/build/preview-navigation*`.
+
+Independent source review of `157b70e` passed18 additional lifecycle checks against
+exact `DocumentPrint` blob `dd4014b112c2d8bd272d906137e6433a9c059afe`, including
+normal finish versus explicit cancellation before the returned job arrives and
+new-owner isolation. No remaining source blocker was reported. Subsequent fixture
+EOF whitespace cleanup changes neither reviewed source nor test behavior.
