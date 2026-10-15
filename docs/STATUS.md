@@ -17,7 +17,12 @@ No downloads/signing credentials; package 2.2.5/code18/min26/target35 and all25
 owner-approved assets preserved. Scoped457 tracked-file credential-pattern scan:
 zero matches/signing-container paths; not an exhaustive history scan. This gate
 includes the reviewed printing changes below. Required hosted validation for
-PR #22 is pending; no signed release is claimed.
+PR #22 is pending; no signed release is claimed. Hosted run38663648484 failed
+because the print launcher required unavailable `rg`. The launcher now uses core
+`find` and rejects a missing stub set; all21 stub inputs are unchanged. A no-rg
+environment passed the actual126 printing and18 controlled-renderer checks.
+Production and behavioral fixture sources remain identical to clean gate05e74ca;
+the required hosted full suite must pass on the corrected launcher before merge.
 
 Verified merged behavior:
 
