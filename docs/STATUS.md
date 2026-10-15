@@ -54,7 +54,7 @@ Verified merged behavior:
   codecs/manifests remain foundations, not complete backup/import features.
 
 Active integration: `codex/private-backup-integration`, based on review-ready
-[PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) head `44ee018` while
+[PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) head `7a13ac5` while
 its required hosted check runs. Verified main is merged normally. Printing
 `8739354` is integrated after independent exact
 source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
