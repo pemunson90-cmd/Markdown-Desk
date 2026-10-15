@@ -1,6 +1,35 @@
 # Current project status
 
-## Current checkpoint — protected capture and scoped private backup, 2026-10-15
+## Current owner checkpoint — local safety and current-phone features, 2026-10-15
+
+[Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
+controls: portable private-state export/import is deferred, not a current-phone
+release blocker. Stop extending portable funding/capture/adoption solely for that
+future enhancement. Existing implemented work and all private/untracked files stay
+preserved; PR #24 stays draft. Local safe save, revision history, restore-to-new-copy,
+draft/session recovery, M2–M7 and all final signing/Fold gates remain required.
+
+Current source is based on pushed `4f80b49`, including independently approved writer
+snapshot closure `9c2353c` (87 publication assertions,7 copy cases,11 completion
+cases,52 scope checks PASS). No newer full suite/APK/hosted/device gate is claimed.
+The existing Activity already wires protected saves, document history, comparison,
+named revisions and restore-to-new-copy. Fresh focused host checks PASS: history UI
+integration84 assertions, save lifecycle40 cases/323 assertions, and session/recovery
+13 cases/568 assertions. These use production logic with modeled Android boundaries;
+they do not establish device/provider/process-death acceptance.
+No new local data-loss defect is established by this scope change.
+
+Next current-phone work: make local-history storage limits visible; add explicit native editor
+Undo/Redo, then proceed with dependency-ready workspace/reader/performance work.
+Use focused existing production-path tests, not another portable accounting proof.
+Physical process death/provider/Fold7/in-place signed-upgrade acceptance remains
+NOT RUN and is batched for the coherent candidate.
+
+## Retained portable implementation evidence — paused by owner decision
+
+Portable next-step statements in this retained section describe deferred work only.
+They do not gate ordinary local editing/history or M2–M7. Preserve their safety
+contracts if optional Export App Data / Import App Data is resumed later.
 
 The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
 maps retained M0–M7 obligations and dependencies. Independent substantive campaign

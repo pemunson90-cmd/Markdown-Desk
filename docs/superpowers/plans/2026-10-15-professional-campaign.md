@@ -10,6 +10,22 @@
 
 **Spec:** [ROADMAP](../../ROADMAP.md), [AGENTS](../../../AGENTS.md), [release gates](../../RELEASE_GATES.md), [CI policy](../../CI_AND_WORKFLOW_POLICY.md), ADR-001 through ADR-005 and the owner's attached whole-roadmap orchestration instructions received2026-10-15. This plan organizes existing scope; it does not replace those authorities.
 
+## Controlling owner scope update — 2026-10-15
+
+[Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
+supersedes portable-first sequencing below. Current-phone local document safety,
+revision history, draft/session recovery and dependency-ready M2–M7 are the active
+campaign. Cross-installation private-state export/import is deferred as optional
+Export App Data / Import App Data. Preserve all existing transport code/contracts;
+stop expanding its funding/provenance machinery solely for that future feature.
+ADR-005 applies in full when transport resumes, not as a gate for ordinary editing.
+All unrelated feature, local migration, signing and final Fold acceptance gates stay.
+
+Immediate execution: verify the real local save/history/new-copy recovery journey,
+show the private-history storage limitation, then add explicit native Undo/Redo and
+continue ready workspace/reader/performance lanes with exclusive file ownership.
+Existing portable packets/checkpoints below are retained evidence, not current work.
+
 ## Global constraints
 
 - Protected baseline: 2.2.5/versionCode18, com.example.markdowndesk, minSdk26/targetSdk35. SDK37 compilation does not change API policy.
@@ -19,7 +35,7 @@
 - Required application recoverability must pass; raw-provider truncation probes stay separately runnable and genuinely RED. Outline production regressions must become GREEN.
 - One primary shared quota and one1MiB/256-entry control allowance. No deletion, imported authority or successful-backup claim from framing alone.
 - MainActivity, sensitive store authority, shared bridge/build contracts, aggregate runners and STATUS each have one explicit writer at a time.
-- Every later persisted workspace/reader/editor feature must update compatible backup/import/migration coverage before enablement; the current legacy allowlist is not permission to omit new private state.
+- Every persisted workspace/reader/editor feature needs backward-compatible local storage/upgrade coverage before enablement. Future optional private-state export/import must include those features before that export capability is enabled; it does not block current-phone feature work.
 - Build.sh deletes its checkout's build directory. Never run concurrent builds in one checkout, even with different output names.
 
 ## Initial reconciliation checkpoint — historical
@@ -176,10 +192,10 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Same-process activation/tracked source read/drain/CLOSE at exact 4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped independent APPROVAL; 6 focused groups PASS after retention repair. Earlier activation coordinator59 evidence remains historical; later cold-path results are scoped separately. ADR006 engineering direction is accepted; first typed historical-cancellation admission slice is implemented at af9eebf97174e02c4ab64794a3e80e606179f443, with scoped independent APPROVAL after 4 actual probe groups. Worker evidence: 12 focused groups and 871 HistoryManifestCheck checks PASS. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
-| M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
-| M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
-| M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
+| Deferred private-state capture | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Same-process activation/tracked source read/drain/CLOSE at exact 4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped independent APPROVAL; 6 focused groups PASS after retention repair. Earlier activation coordinator59 evidence remains historical; later cold-path results are scoped separately. ADR006 engineering direction is accepted; first typed historical-cancellation admission slice is implemented at af9eebf97174e02c4ab64794a3e80e606179f443, with scoped independent APPROVAL after 4 actual probe groups. Worker evidence: 12 focused groups and 871 HistoryManifestCheck checks PASS. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
+| Deferred optional app-data export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
+| Deferred optional app-data import | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
+| M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; local upgrade, failure/retry and reopening fixtures remain required. Cross-installation private-state adoption fixtures are deferred with optional import. No destructive migration/default cleanup. | Before enabling changed local storage/UI |
 | M2/#3 editor work/statistics | LogicalLineIndex,KineticEditText,LatestStatistics | Implemented/wired+host line/statistics scheduling. Remaining allocation/input/IME/paste/undo interactions and measured device regressions. | G0/G1 below |
 | M2/#3 syntax/preview | MarkdownSyntaxHighlighter,LatestPreview; Activity scheduler/DOM identity | Affected-range processing and bounded render/delivery host-tested; preserve foreign/search spans and legitimate deferred actions. Finish outline repair; profile renderer/layout/queue costs rather than invent an incremental parser. | N1; matched fixtures |
 | M2 size policy/memory budgets | DocumentIO.MAX_DOCUMENT_BYTES=8388608 and error messages | Existing8MiB guards; printing strict guard and metadata budgets are not device budgets. Make supported policy discoverable in normal UI/docs; measure peak allocation/RSS and establish observed regression thresholds. | Measured baseline |
@@ -207,9 +223,14 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 
 **G1 performance prerequisite:** matched fixture host results and bounded-work/memory evidence for the changed path. During implementation, run the minimum affected tests and essential compile/build checks. At a feature-complete candidate, run broad regression, performance and migration coverage; batch device acceptance then. Do not invent device thresholds or treat host timing as physical evidence.
 
-**G2 next workspace/reader implementation:** accepted M1 storage/capture/adoption interfaces and a successful host lost-work/restore safety journey. Apply G0/G1 checks to each lane. Do not start multiple consumers against an unfinished authority. Once these safety conditions are met, M3 tree enumeration and M4 typography/anchor work can proceed independently; unfinished configurable-retention UI details do not block them. Activity integration stays serial. Device exit gates remain open until actual tests.
+**G2 next workspace/reader implementation:** accepted local storage/recovery interfaces and a successful host local lost-work/restore-to-new-copy journey. Portable capture/funding/adoption is deferred and is not a dependency. Apply G0/G1 checks to each lane. Do not start multiple consumers against an unfinished authority. Once these safety conditions are met, M3 tree enumeration and M4 typography/anchor work can proceed independently; unfinished configurable-retention UI details do not block them. Activity integration stays serial. Device exit gates remain open until actual tests.
 
-Schedule: C1 accounting repair → C2 native/private capture → portable binding/semantic validation → verified export/import/adoption journey → configurable retention/runtime recovery → G2 → workspace/reader → editor/interoperability → complete M7 acceptance. This ordering is a campaign schedule, not a dependency from retention UI details to G2; G2 depends on accepted M1 storage/adoption and host lost-work/restore safety. N1 outline repair is independently ready and joins the next source integration. Existing print capture is reused, not rebuilt.
+Schedule under the owner decision: local safe-save/history/recovery runtime closure
+and focused lost-work/new-copy tests → dependency-ready M2 performance, M3 workspace
+and M4 reader work → M5 editor/M6 interoperability → complete M7 acceptance. Local
+retention controls/recovery continue alongside independent lanes; portable app-data
+capture/funding/export/import/adoption stays deferred. Activity integration remains
+serial. Existing print capture and local history are reused, not rebuilt.
 
 Team policy: root owns orchestration, integration and critical review. Use cheaper demonstrably capable agents for bounded implementation, tests and documentation. Sensitive persistence review must remain independent and capable. Keep ownership disjoint and avoid duplicated gates.
 
@@ -264,7 +285,7 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 - [x] Run `bash verification/history_operation_data/run.sh`, then affected capacity/pins/operations/maintenance/executor scopes according to actual edits. Record genuine failures, tests and fresh-process results; do not treat old3349 pass count as proof against new probes.
 - [x] Commit a coherent repair; independent critical review must clear exact source before integration. If review capacity remains unavailable, retain tested source/precise next steps without promoting it or repeatedly retrying workers.
 
-## Next packet preparation, not speculative implementation
+## Deferred portable packet preparation — retained, not current work
 
 **C2 capture producer:** Completion/handoff commit
 `1fe3c464e3e3f7ceb48dcceba34989dc9b0dc695` is independently approved after 4 groups.

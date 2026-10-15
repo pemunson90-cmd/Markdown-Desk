@@ -6,6 +6,16 @@ A **local-first, fast, accessible Markdown reading, writing, research and revisi
 ## Existing capabilities — preserve, not rebuild
 Native editing; Markdown rendered Reading mode; Write/Read/Split layouts; **existing Focus/View mode hides most UI**; draggable wide Split divider; tabbed documents; outline and command palette; in-file find/replace including regex; reading/source font sizes; statistics and typewriter mode; Android SAF open/save, external-change detection and read-back verification; session/recovery; HTML/share/PDF print; nine color themes; 25 launch splash assets; landscape/Fold handling and centered eye/lock controls. Confirm details from imported source and phone before changing each feature.
 
+## Current owner scope — 2026-10-15
+
+[PR #24 owner decision](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
+defers cross-installation private app-state export/import from the current-phone
+release. Preserve its implemented foundations for a later optional Export App Data /
+Import App Data enhancement. It does not block local history or dependency-ready
+M2–M7 work. Local document safety, recovery, all other features and final release
+gates remain required. A copied Markdown file contains current text, not private
+version history; clearing/uninstalling app storage can lose that history.
+
 ## Scope and milestones (order matters)
 ### M0 — Reproducible foundation and audit (no feature promises)
 - Import exact 2.2.5 source into Git with public/privacy audit; pin tooling, bootstrap clean unsigned build, host CI, independent test fixtures, baseline package/certificate proof.
@@ -17,7 +27,7 @@ Native editing; Markdown rendered Reading mode; Write/Read/Split layouts; **exis
 ### M1 — Data safety and real history
 - Immutable document snapshots independent of crash-recovery drafts. Automatic policy (configurable), named checkpoints, per-document history list, diff preview, explicit restore-to-new-copy before replace.
 - Quota/retention with safe pruning; conflict recovery and simulated failed, interrupted, and external-provider writes.
-- Backup/export and restore of app-private session/preferences/history separately from user-owned documents; migration tests.
+- Preserve app-private session/preferences/history and test non-destructive local upgrade/reopening. Cross-installation private-state export/import is a deferred optional enhancement under the owner decision above; its existing code is preserved.
 - Exit: injection tests prove durable byte-exact recoverability of the observed original and submitted edit before destructive provider writes, fail-closed protection, and explicit restore to a new copy (ADR-001). Generic providers may truncate the source URI on failure; universal atomic URI preservation is not promised. Lost-work rehearsal and successful restore across process death remain required.
 
 ### M2 — Performance and architecture
@@ -51,7 +61,7 @@ Native editing; Markdown rendered Reading mode; Write/Read/Split layouts; **exis
 - Exit: full release checklist and actual foldable owner acceptance.
 
 ## Sequencing/ship policy
-M0 must precede parallel M1/M2 work. After data safety and benchmarks pass, M3 and M4 may proceed on nonoverlapping file ownership; M5/M6 only after foundations. Do not release milestone placeholders as finished products. Retain 2.2.5 as an installable fallback; avoid destructive downgrade paths.
+M0 must precede parallel M1/M2 work. After local data safety and affected benchmarks pass, M3 and M4 may proceed on nonoverlapping file ownership; M5/M6 only after their local foundations. Portable private-state capture/funding/import/adoption is not a prerequisite for these current-phone features. Do not release milestone placeholders as finished products. Retain 2.2.5 as an installable fallback; avoid destructive downgrade paths.
 
 ## Explicitly deferred
 Mandatory accounts, realtime collaboration, cloud sync, embedded assistant, full Word-layout clone, automatic file moves, broad storage access, and plugin platform. Revisit only if a specific workflow justifies them.
