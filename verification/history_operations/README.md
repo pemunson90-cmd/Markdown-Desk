@@ -4,7 +4,9 @@ Run `bash verification/history_operations/run.sh` with JDK17. Optional selectors
 `coordinator`, `terminal`, `prefix`, `restart`. The runner compiles production Java
 with `--release 11`; Android minSdk26 compatibility also needs the integration APK
 gate. New production calls use API26-or-earlier Java APIs; no Java9 convenience
-factory, InputStream.transferTo, runtime provider or new dependency is introduced.
+factory, platform InputStream.transferTo invocation, runtime provider or new
+dependency is introduced. TrackedInput supplies its own bounded transferTo loop,
+keeping delegate reads and external output callbacks inside the whole-work guard.
 
 The initial production RED showed capability-free `HistoryPins.close` releasing a
 pin. A later mixed-journal RED showed active-BEGIN reconciliation bypassing an

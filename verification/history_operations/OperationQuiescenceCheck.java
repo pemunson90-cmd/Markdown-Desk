@@ -95,7 +95,23 @@ public final class OperationQuiescenceCheck {
         java.nio.file.Files.delete(audit.f.parent.resolve("store/"+audit.f.original.id+".snapshot"));audit.pins.reconcile();check(!HistoryPins.pruneBlocked(audit.f.store.storageRoot(),inspect(audit.f)),"committed audit never rereads retired source");
         synchronized(HistoryStorage.monitorFor(audit.f.store.storageRoot())){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(audit.f.store.storageRoot())){check(audit.ops.tryClosedAuditsNowLocked()!=null,"closed-only fast path under caller lease has no future signaling");}}
     }
+    static void wholeTransfer()throws Exception {
+        Setup s=new Setup();HistoryOperations.OperationHandle h=s.activate();HistoryOperations.TrackedInput in=s.ops.openReader(h,()->input());AtomicInteger copied=new AtomicInteger();
+        long length=in.transferTo(new OutputStream(){public void write(int value)throws IOException{
+            try{rejects(in::close,"transfer output callback cannot close its live source");}catch(IOException expected){throw expected;}catch(Exception failure){throw new IOException(failure);}
+            HistoryOperations.DrainRequest drain=s.ops.freeze(h);check(!s.ops.quiesce(drain).toCompletableFuture().isDone(),"whole transfer/source ownership prevents terminal proof");copied.incrementAndGet();
+        }});
+        check(length==MANIFEST.length&&copied.get()==MANIFEST.length,"bounded transfer completes already admitted work");
+        CompletableFuture<HistoryOperations.Quiescence> q=s.ops.quiesce(s.ops.freeze(h)).toCompletableFuture();in.close();s.pins.close(q.get(),HistoryPinRecord.Outcome.CANCELLED,null);
+    }
+    static void schedulerCallDrains()throws Exception {
+        Setup s=new Setup();HistoryOperations.OperationHandle h=s.activate();CountDownLatch posting=new CountDownLatch(1),finish=new CountDownLatch(1);List<Runnable> queued=Collections.synchronizedList(new ArrayList<>());ExecutorService worker=Executors.newSingleThreadExecutor(task->{Thread thread=new Thread(task);thread.setDaemon(true);return thread;});
+        Future<?> task=worker.submit(()->{try{s.ops.post(h,runnable->{queued.add(runnable);posting.countDown();await(finish);},()->{});}catch(IOException failure){throw new UncheckedIOException(failure);}});
+        check(posting.await(5,TimeUnit.SECONDS),"scheduler delegate entered");CompletableFuture<HistoryOperations.Quiescence> q=s.ops.quiesce(s.ops.freeze(h)).toCompletableFuture();
+        try{check(!q.isDone(),"in-flight scheduler call remains work after queued delivery revoked");}finally{finish.countDown();}
+        task.get(5,TimeUnit.SECONDS);check(q.get(5,TimeUnit.SECONDS)!=null,"scheduler return finalizes work before proof");queued.get(0).run();worker.shutdown();
+    }
     static Object gateLock(HistoryOperations operations){try{java.lang.reflect.Field lock=HistoryOperations.class.getDeclaredField("gateLock");lock.setAccessible(true);return lock.get(operations);}catch(ReflectiveOperationException failure){throw new AssertionError(failure);}}
     static void await(CountDownLatch latch){try{if(!latch.await(5,TimeUnit.SECONDS))throw new AssertionError("latch timeout");}catch(InterruptedException failure){throw new AssertionError(failure);}}
-    public static void main(String[] args)throws Exception{readersAndCallbacks();countedOpeningAndWrite();callbackAndOuterLock();epochs();inFlightAndCloseFailures();metadataEpilogueAndAuditDrain();System.out.println("Operation quiescence: "+checks+" checks PASS");}
+    public static void main(String[] args)throws Exception{readersAndCallbacks();countedOpeningAndWrite();callbackAndOuterLock();epochs();inFlightAndCloseFailures();metadataEpilogueAndAuditDrain();wholeTransfer();schedulerCallDrains();System.out.println("Operation quiescence: "+checks+" checks PASS");}
 }

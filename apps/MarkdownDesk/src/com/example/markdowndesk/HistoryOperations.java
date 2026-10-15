@@ -24,7 +24,7 @@ final class HistoryOperations {
     interface WriterFactory {OutputStream open()throws IOException;}
     interface CallbackQueue {void post(Runnable task);}
     private static final class Gate {
-        final HistoryPinRecord begin;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running;
+        final HistoryPinRecord begin;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
         final Set<CallbackTicket> pending=new HashSet<>();final List<CompletableFuture<Quiescence>> waiters=new ArrayList<>();
         Gate(HistoryPinRecord begin){this.begin=begin;}
     }
@@ -87,7 +87,7 @@ final class HistoryOperations {
         signal(signals);return future.thenApply(value->value);
     }
     private void collect(Gate gate,List<Runnable> signals){
-        if(gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())return;
+        if(gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())return;
         if(gate.phase!=Phase.FREEZING&&gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.TERMINAL)return;
         if(gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.TERMINAL)gate.phase=Phase.QUIESCENT;
         Quiescence proof=new Quiescence(this,gate);for(CompletableFuture<Quiescence> future:gate.waiters)signals.add(()->future.complete(proof));gate.waiters.clear();
@@ -132,6 +132,13 @@ final class HistoryOperations {
         public int read()throws IOException{resource.start(false);try{return delegate.read();}finally{resource.finish(false);}}
         public int read(byte[] b)throws IOException{return read(b,0,b.length);}
         public int read(byte[] b,int off,int len)throws IOException{resource.start(false);try{return delegate.read(b,off,len);}finally{resource.finish(false);}}
+        /** Local implementation: never invoke InputStream.transferTo (absent on Android API26). */
+        public long transferTo(OutputStream output)throws IOException {
+            Objects.requireNonNull(output);resource.start(false);
+            try{byte[] buffer=new byte[8192];long total=0;int count;
+                while((count=delegate.read(buffer))!=-1){if(count==0)throw new IOException("Transfer made no progress");output.write(buffer,0,count);total=Math.addExact(total,count);}return total;
+            }catch(ArithmeticException overflow){throw new IOException("Transfer length overflow",overflow);}finally{resource.finish(false);}
+        }
         public long skip(long n)throws IOException{resource.start(false);try{return delegate.skip(n);}finally{resource.finish(false);}}
         public int available()throws IOException{resource.start(false);try{return delegate.available();}finally{resource.finish(false);}}
         public void mark(int limit){try{resource.start(false);}catch(IOException failure){throw new IllegalStateException(failure);}try{delegate.mark(limit);}finally{resource.finish(false);}}
@@ -150,8 +157,9 @@ final class HistoryOperations {
     }
     CallbackTicket post(OperationHandle operation,CallbackQueue queue,Runnable callback)throws IOException {
         outsideHistory();if(queue==null||callback==null)throw new IOException("Missing callback delivery");CallbackTicket ticket;
-        synchronized(gateLock){Gate gate=handle(operation,true);ticket=new CallbackTicket(this,gate,callback);gate.pending.add(ticket);}
-        enter();try{queue.post(()->deliver(ticket));return ticket;}catch(RuntimeException|Error failure){cancelPending(ticket);throw failure;}finally{leave();}
+        synchronized(gateLock){Gate gate=handle(operation,true);ticket=new CallbackTicket(this,gate,callback);gate.pending.add(ticket);gate.posting++;}
+        enter();try{queue.post(()->deliver(ticket));return ticket;}catch(RuntimeException|Error failure){cancelPending(ticket);throw failure;}
+        finally{List<Runnable> signals=new ArrayList<>();try{synchronized(gateLock){ticket.gate.posting--;collect(ticket.gate,signals);}signal(signals);}finally{leave();}}
     }
     boolean cancelPending(CallbackTicket ticket)throws IOException {
         outsideHistory();List<Runnable> signals=new ArrayList<>();boolean removed;
@@ -168,14 +176,14 @@ final class HistoryOperations {
     static final class Claim implements AutoCloseable {
         private final HistoryOperations owner;private final Gate gate;private final long epoch;private boolean done;
         private Claim(HistoryOperations owner,Gate gate){this.owner=owner;this.gate=gate;epoch=gate.epoch;}
-        void validate()throws IOException {HistoryStorage.requireMutation(owner.root);synchronized(owner.gateLock){if(done||gate.epoch!=epoch||gate.phase!=Phase.TERMINATING||gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())throw new IOException("Terminal claim changed");}}
+        void validate()throws IOException {HistoryStorage.requireMutation(owner.root);synchronized(owner.gateLock){if(done||gate.epoch!=epoch||gate.phase!=Phase.TERMINATING||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Terminal claim changed");}}
         void finish()throws IOException{validate();synchronized(owner.gateLock){gate.phase=Phase.TERMINAL;done=true;}}
         public void close(){synchronized(owner.gateLock){if(!done){gate.phase=Phase.TERMINAL_RETRY;done=true;}}}
     }
     Claim claimLocked(Quiescence proof,HistoryPinRecord begin)throws IOException {
         rejectParticipant();HistoryStorage.requireMutation(root);synchronized(gateLock){
             if(proof==null||proof.owner!=this||proof.gate!=bind(begin)||proof.epoch!=proof.gate.epoch)throw new IOException("Foreign terminal capability");Gate gate=proof.gate;
-            if((gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY)||gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())throw new IOException("Operation is not quiescent");
+            if((gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY)||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Operation is not quiescent");
             gate.phase=Phase.TERMINATING;return new Claim(this,gate);
         }
     }
@@ -184,14 +192,14 @@ final class HistoryOperations {
         for(HistoryPinRecord closed:control.pins.closes)if(HistoryPinRecord.matches(begin,closed))found=true;
         if(!found)throw new IOException("Exact committed CLOSED audit required");
         synchronized(gateLock){if(proof==null||proof.owner!=this||proof.gate!=bind(begin)||proof.epoch!=proof.gate.epoch)throw new IOException("Foreign audit proof");Gate gate=proof.gate;
-            if((gate.phase!=Phase.TERMINAL&&gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.QUIESCENT)||gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())throw new IOException("Committed audit is not quiescent");
+            if((gate.phase!=Phase.TERMINAL&&gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.QUIESCENT)||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Committed audit is not quiescent");
         }
     }
     /** Last callback-free guard shared by every pin acknowledgement, including mixed journals. */
     void requireAcknowledgementLocked(HistoryControlStore.Inspection control)throws IOException {
         rejectParticipant();HistoryStorage.requireMutation(root);synchronized(gateLock){
             for(HistoryPinRecord closed:control.pins.closes){Gate gate=gates.get(closed.operation.toString());
-                if(gate==null||!HistoryPinRecord.matches(gate.begin,closed)||(gate.phase!=Phase.TERMINATING&&gate.phase!=Phase.TERMINAL)||gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())throw new IOException("Closed audit lacks terminal lifetime authority");
+                if(gate==null||!HistoryPinRecord.matches(gate.begin,closed)||(gate.phase!=Phase.TERMINATING&&gate.phase!=Phase.TERMINAL)||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Closed audit lacks terminal lifetime authority");
             }
         }
     }
@@ -204,7 +212,7 @@ final class HistoryOperations {
         rejectParticipant();HistoryStorage.requireMutation(root);HistoryControlStore.Inspection control=probe.operationControlLocked();List<Quiescence> proofs=new ArrayList<>();
         Set<UUID> closed=new HashSet<>();for(HistoryPinRecord receipt:control.pins.closes)closed.add(receipt.operation);
         synchronized(gateLock){for(HistoryPinRecord begin:control.pins.begins){if(!closed.contains(begin.operation))continue;Gate gate=bind(begin);
-            if(gate.phase==Phase.OPEN||gate.phase==Phase.TERMINATING||gate.resources!=0||gate.running!=0||!gate.pending.isEmpty())throw new IOException("QUIESCENCE_PENDING");
+            if(gate.phase==Phase.OPEN||gate.phase==Phase.TERMINATING||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("QUIESCENCE_PENDING");
             // Durable closed evidence permanently forbids activation, even before sync acknowledgement.
             if(gate.phase!=Phase.TERMINAL)gate.phase=Phase.TERMINAL_RETRY;proofs.add(new Quiescence(this,gate));}}
         return new AuditQuiescence(this,proofs);

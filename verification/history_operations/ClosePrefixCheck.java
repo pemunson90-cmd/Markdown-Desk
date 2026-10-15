@@ -44,5 +44,40 @@ public final class ClosePrefixCheck {
             rejects(()->ops(f).freezeForTerminal(b.operation.toString()),"partial BEGIN no invented provenance");check(Arrays.equals(prefix,Files.readAllBytes(stage)),"partial BEGIN retained");
         }
     }
-    public static void main(String[] args)throws Exception{prefixes();failures();System.out.println("Close prefix: "+checks+" checks PASS");}
+    static void finalBoundaries()throws Exception {
+        for(HistoryPinTerminalRecovery.Event event:HistoryPinTerminalRecovery.Event.values())for(boolean replaceStage:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=pins(f);String id=begin(f,pins);Path stage=f.parent.resolve("history_control/pin-"+id+".close.stage");byte[] expected=HistoryPinRecord.close(inspect(f).pins.active,Outcome.CANCELLED);Files.write(stage,Arrays.copyOf(expected,60));HistoryOperations.Quiescence q=quiescence(f,id);
+            rejects(()->pins.recoverClose(q,HistoryPins.RecoveryChoice.CANCEL_UNBOUND,null,at->{if(at!=event)return;Path target=replaceStage?stage:f.parent.resolve("store/"+f.original.id+".snapshot");byte[] bytes=Files.readAllBytes(target);Path replacement=target.resolveSibling("replacement");Files.write(replacement,bytes);Files.move(replacement,target,StandardCopyOption.REPLACE_EXISTING);}),"final append/force identity barrier "+event);
+            check(!Files.exists(stage.resolveSibling("pin-"+id+".close")),"replacement never promoted");
+            check(Files.size(stage)==(event==HistoryPinTerminalRecovery.Event.BEFORE_APPEND?60:126),"only authorized suffix may have reached stage");check(HistoryPins.pruneBlocked(f.store.storageRoot(),inspect(f)),"failed final boundary never acknowledged");
+        }
+        Fixture finalSync=new Fixture();HistoryPins pins=pins(finalSync);String id=begin(finalSync,pins);Path stage=finalSync.parent.resolve("history_control/pin-"+id+".close.stage");Files.write(stage,Arrays.copyOf(HistoryPinRecord.close(inspect(finalSync).pins.active,Outcome.CANCELLED),125));HistoryOperations.Quiescence q=quiescence(finalSync,id);
+        finalSync.disk.hook=(event,file)->{if(event.equals("dir-after")&&!Files.exists(stage)){Path source=finalSync.parent.resolve("store/"+finalSync.original.id+".snapshot");byte[] bytes=Files.readAllBytes(source);bytes[bytes.length-1]^=1;Files.write(source,bytes);}};
+        rejects(()->pins.recoverClose(q,HistoryPins.RecoveryChoice.RECOVER_BOUND,null),"source corruption after final directory sync");finalSync.disk.hook=null;check(HistoryPins.pruneBlocked(finalSync.store.storageRoot(),inspect(finalSync)),"post-rename failure retains protection");
+        // Once committed, historical audit reconciliation does not claim source integrity.
+        pins.reconcile();check(!HistoryPins.pruneBlocked(finalSync.store.storageRoot(),inspect(finalSync)),"committed historical receipt reconciliation is distinct from new closure");
+    }
+    static void invalidAndCredit()throws Exception {
+        for(String kind:Arrays.asList("oversized","nonprefix","nonregular","conflict","wrong-choice")){
+            Fixture f=new Fixture();HistoryPins pins=pins(f);String id=begin(f,pins);Path stage=f.parent.resolve("history_control/pin-"+id+".close.stage");byte[] full=HistoryPinRecord.close(inspect(f).pins.active,Outcome.RELEASED),bytes=Arrays.copyOf(full,kind.equals("oversized")?127:94);
+            if(kind.equals("nonprefix"))bytes[0]^=1;if(kind.equals("nonregular"))Files.createDirectory(stage);else Files.write(stage,bytes);
+            if(kind.equals("conflict"))Files.write(f.parent.resolve("history_control/pin-"+id+".close"),full);
+            Object inode=Files.readAttributes(stage,BasicFileAttributes.class).fileKey();
+            rejects(()->pins.recoverClose(quiescence(f,id),HistoryPins.RecoveryChoice.CANCEL_UNBOUND,input()),"invalid retained evidence "+kind);
+            check(Objects.equals(inode,Files.readAttributes(stage,BasicFileAttributes.class).fileKey()),"invalid inode retained");if(!kind.equals("nonregular"))check(Arrays.equals(bytes,Files.readAllBytes(stage)),"invalid bytes retained");
+        }
+        for(boolean byteBound:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=pins(f);String id=begin(f,pins);HistoryControlStore.Inspection initial=inspect(f);
+            if(byteBound){int pairs=70,total=(int)((HistoryControlStore.MAX_BYTES-initial.actualBytes-126-pairs*330L)/58);HistoryPinRecord sample=initial.pins.active;
+                for(int i=0;i<pairs;i++){int count=Math.min(256,total-(pairs-i-1));total-=count;List<Source> sources=new ArrayList<>();for(int j=0;j<count;j++)sources.add(new Source(new UUID(0,j).toString(),45,sample.sources.get(0).hash));
+                    HistoryPinRecord audit=HistoryPinRecord.begin(UUID.randomUUID(),initial.registration,initial.latest,Purpose.EXPORT,Scope.EXACT_SUBSET,sample.manifest,sources);Files.write(f.parent.resolve("history_control/"+audit.name()),HistoryPinRecord.encode(audit));Files.write(f.parent.resolve("history_control/pin-"+audit.operation+".close"),HistoryPinRecord.close(audit,Outcome.RELEASED));}
+                HistoryControlStore.Inspection full=inspect(f);byte[] policy=HistoryControlStore.encodePolicy(full.registration.bundleId,full.latest.generation+1,full.latest.envelopeHash,128L*1024*1024,5);check(full.actualBytes+policy.length<=HistoryControlStore.MAX_BYTES&&full.actualBytes+126+policy.length>HistoryControlStore.MAX_BYTES,"policy would steal exact terminal byte credit");
+            }else while(inspect(f).actualEntries<255){HistoryControlStore.Inspection c=inspect(f);Files.write(f.parent.resolve("history_control/"+HistoryControlStore.policyFilename(c.latest.generation+1)),HistoryControlStore.encodePolicy(c.registration.bundleId,c.latest.generation+1,c.latest.envelopeHash,64L*1024*1024,20));}
+            rejects(()->f.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,5)),"control writer cannot spend terminal credit");HistoryPinRecord active=inspect(f).pins.active;Path stage=f.parent.resolve("history_control/pin-"+id+".close.stage");Files.write(stage,Arrays.copyOf(HistoryPinRecord.close(active,Outcome.CANCELLED),80));HistoryControlStore.Inspection before=inspect(f);
+            pins.recoverClose(quiescence(f,id),HistoryPins.RecoveryChoice.CANCEL_UNBOUND,null);HistoryControlStore.Inspection after=inspect(f);
+            check(after.actualBytes==before.actualBytes+46&&after.actualEntries==before.actualEntries,"full allowance conversion creates no entry or extra bytes");check(after.actualBytes<=HistoryControlStore.MAX_BYTES&&after.actualEntries<=256,"same shared allowance retained");
+            check(!HistoryPins.pruneBlocked(f.store.storageRoot(),after),"historical closed sources need no dereference during recovery");
+        }
+    }
+    public static void main(String[] args)throws Exception{prefixes();failures();finalBoundaries();invalidAndCredit();System.out.println("Close prefix: "+checks+" checks PASS");}
 }
