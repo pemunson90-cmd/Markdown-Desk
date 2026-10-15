@@ -310,7 +310,9 @@ public final class PrivateBundleInventory implements AutoCloseable {
     private static void putRefs(DataOutputStream out,List<UUID> ids)throws IOException {out.writeInt(ids.size());for(UUID id:ids)put(out,id);}
     static void putHash(DataOutputStream out,String hash)throws IOException {for(int i=0;i<64;i+=2)out.writeByte(Integer.parseInt(hash.substring(i,i+2),16));}
     private static UUID[] refs(DataInputStream in,int cap,Account a,boolean sorted)throws IOException {
-        int n=count(in,cap); a.add(32L*n+32); UUID[] ids=new UUID[n];
+        int n=count(in,cap);
+        // UUID object + array reference (including uncompressed references), plus array/list wrappers.
+        a.add(48L*n+96); UUID[] ids=new UUID[n];
         for(int i=0;i<n;i++){ids[i]=generated(in);if(sorted&&i>0)ordered(ids[i-1],ids[i]);}return ids;
     }
     private static String text(DataInputStream in,Account a)throws IOException {

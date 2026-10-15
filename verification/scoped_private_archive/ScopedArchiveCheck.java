@@ -57,6 +57,7 @@ public final class ScopedArchiveCheck {
   try(PrivateBundleInventory.Reservation held=budget.reserve(16L<<20)) {fails(()->PrivateBundleInventory.read(new ByteArrayInputStream(empty),budget),"held shared budget");}
   ok(budget.usedBytes()==0,"budget final");
   FramingCheck.run();
+  InventoryCheck.run();
   System.out.println("PASS scoped checks="+checks);
  }
 }

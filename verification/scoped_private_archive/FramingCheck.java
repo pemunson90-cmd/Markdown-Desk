@@ -8,7 +8,7 @@ final class FramingCheck {
   Input(byte[] b){super(b);} public void close(){closes++;}
   public synchronized int read(byte[] b,int off,int len){return zero&&len>0?0:super.read(b,off,len);}
  }
- static final class Output extends ByteArrayOutputStream {int closes,flushes;public void close(){closes++;}public void flush(){flushes++;}}
+ static class Output extends ByteArrayOutputStream {int closes,flushes;public void close(){closes++;}public void flush(){flushes++;}}
  static class Sink implements PrivateArchive.ScopedSink {
   int begins,finishes,verified; boolean writeFail,finishFail,beginFail,nullOutput;
   public OutputStream begin(PrivateBundleInventory.DirectoryEntry e)throws IOException {
@@ -82,6 +82,14 @@ final class FramingCheck {
   ok(closes[0]==2&&incomplete.closes==0&&budget.usedBytes()==0,"changed source resources");
   int[] calls={0};fails(()->PrivateArchive.writeV2(q(3),()->{byte[] x=inv.clone();if(calls[0]++>0)x[0]^=1;return new ByteArrayInputStream(x);},source(true,false,new int[1]),new Output(),budget),"changed frozen inventory");
   fails(()->PrivateArchive.writeV2(q(4),()->new ByteArrayInputStream(inv),source(true,false,new int[1]),new Output(),budget),"inventory ID collision");
+  Output failedOutput=new Output(){public synchronized void write(byte[] b,int off,int n){throw new IllegalStateException("destination");}};
+  try{PrivateArchive.writeV2(q(3),()->new ByteArrayInputStream(inv),source(true,false,new int[1]),failedOutput,budget);throw new AssertionError("output must fail");}
+  catch(IllegalStateException expected){ok(budget.usedBytes()==0&&failedOutput.closes==0,"destination runtime failure rollback/ownership");}
+  fails(()->PrivateArchive.writeV2(q(3),()->new ByteArrayInputStream(inv),source(true,false,new int[1]),new OutputStream(){public void write(int b)throws IOException{throw new IOException("destination write");}},budget),"destination write IOException");
+  ok(budget.usedBytes()==0,"destination IO rollback");
+  byte[] terminalBad=wire.clone();terminalBad[802]^=1;Sink terminalSink=new Sink();
+  fails(()->PrivateArchive.readPortable(new Input(terminalBad),terminalSink,null,budget),"terminal count mismatch");
+  ok(terminalSink.verified==2&&budget.usedBytes()==0,"terminal failure keeps callbacks provisional");
   // Existing v1 remains the actual compatibility oracle; portable path delegates unchanged.
   Output v1=new Output();PrivateArchive.ArchiveSummary original=PrivateArchive.write(source(true,false,new int[1]),v1);
   Spool spool=new Spool(budget);Sink ordinary=new Sink();Input legacy=new Input(v1.toByteArray());legacy.zero=true;

@@ -1,6 +1,6 @@
 # Scoped private archive codec — proposed schema and implementation plan
 
-Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. Implementation in progress; early focused checkpoint only.**
+Date: 2026-10-15. **Schema c279dfaa approved; pure codec implementation authorized. Implementation and focused checks complete; exact source review pending.**
 **Goal/architecture:** bounded v2 scope inventory plus unchanged native/private frames;
 v1 remains unchanged. No adoption, ID generation or provider authority.
 **Tech stack:** Java11-compatible production classes, installed JDK17; no dependencies.
@@ -230,21 +230,21 @@ owns outer streams, codec owns source streams; no receipt/outer flush/close/pin 
 The local MDOP v1 descriptor cannot silently receive this inventory: a separately
 reviewed bridge/version must bind its exact identity before output eligibility.
 
-- [ ] Task1: independently encode fixtures above and positive scope/policy/lineage
+- [x] Task1: independently encode fixtures above and positive scope/policy/lineage
   fixtures; assert every field/offset/hash and negative exact-bound/overflow failures.
-- [ ] Task2: implement pure inventory codec and shared budget only after approval;
+- [x] Task2: implement pure inventory codec and shared budget only after approval;
   reject duplicate/missing refs, cycles, wrong optional markers and every truncation.
-- [ ] Task3: implement explicit v2 framing/dispatch; verify inventory membership and
+- [x] Task3: implement explicit v2 framing/dispatch; verify inventory membership and
   terminal/EOF, changed second-pass sources, source/sink closure failures and zero
   ordinary callbacks for invalid inventory. Assert outer-close count 0 on v1/v2 success,
   failure and truncated dispatch; legacy full-budget reservation excludes other users.
-- [ ] Task4: unchanged actual v1 archive/state/manifest fixtures must pass; additionally
+- [x] Task4: unchanged actual v1 archive/state/manifest fixtures must pass; additionally
   v1 rejects version 2/type 10, v2 rejects misplaced 10, and native arbitrary UUID/string
   identity domains remain intact. No v1 golden pass is claimed by this document.
-- [ ] Task5: bounded-heap adversarial tests charge simultaneous graphs/strings/edges;
+- [x] Task5: bounded-heap adversarial tests charge simultaneous graphs/strings/edges;
   repeated scopes with same native IDs/URIs/sequences/sourceTabIds and >12 retained
   drafts remain distinct; per-scope duplicates fail. Verify exact aggregate limits,
-  multibyte 4096-byte coordinates, literal legacy-recovery and denormalized index links.
+  multibyte 4096-byte coordinates, legacy-recovery and opaque index coordinates; typed links stay separate.
 
-Checkpoint: focused runner passes 4,622 checks; stream-close rollback behavioral RED→GREEN.
-Provenance/memory, affected v1 suites and independent source review remain pending. No release claim.
+Checkpoint: 4,730 functional +7 held-heap checks pass; close/ref-accounting RED→GREEN.
+Existing archive/state/manifest suites pass unchanged; exact source review pending. No release claim.
