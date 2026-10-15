@@ -103,6 +103,12 @@ private constructors produce these package-private types:
   when all opening/open/in-flight/closing I/O and pending/running callbacks are zero.
 - `AuditQuiescence`: a bounded batch of exact committed closed keys, each sealed
   against admission, for existing multi-pair audit/maintenance reconciliation.
+- `ParticipantContext`: private maintained thread-local nesting depth for the
+  complete registered factory/I/O/close/callback wrapper stack. It is not a caller
+  boolean and cannot be cleared by a consumer. Keep it active through proof/future
+  signaling and every synchronous dependent continuation, even after resource/work
+  counts reach zero. Every terminal entry rejects this context before touching
+  control state; exact capabilities cannot override the rejection.
 
 Proposed interfaces (synchronous validation may throw IOException; completion
 stages report subsequent failures without blocking their caller):
@@ -118,6 +124,8 @@ DrainRequest freeze(OperationHandle operation)
 DrainRequest freezeForTerminal(String operationId)
 CompletionStage<Quiescence> quiesce(DrainRequest request)
 CompletionStage<AuditQuiescence> prepareClosedAudits()
+// Internal synchronous fast path; requires history monitor and mutation lease:
+AuditQuiescence tryClosedAuditsNowLocked()
 ```
 
 `ReaderFactory.open()` returns InputStream; `WriterFactory.open()` returns
@@ -160,6 +168,11 @@ still blocks consumer reactivation in this slice; explicit terminal retry remain
 available. Reopening such an attempted operation would need a separately specified
 safe abandonment/new-epoch protocol, not an absence check. Fresh-process discovery
 still starts frozen and revalidates durable evidence independently.
+Before acquiring that monitor, terminal entry rejects ParticipantContext. The
+guard remains active through the signaling epilogue of a last close/callback;
+an inline thenApply cannot release a pin by observing that counts are now zero.
+Nested wrappers preserve outer depth on every exception/rejection path, and the
+outermost finally clears context only after all its signaling has finished.
 
 Cold terminal recovery does not require an active consumer handle.
 `freezeForTerminal(operationId)` rejects nested mutation-lease entry, briefly owns
@@ -216,8 +229,33 @@ history-lease contract and never run under the coordinator lock.
 `quiesce` and `prepareClosedAudits` expose nonblocking completion only. There is no
 production blocking await API. Count/state transitions mint proof only at actual
 zero work and arrange completion after releasing both locks; no user continuation
-runs under a lock. Participants may request freeze and return to complete/close
-work. Completion does not itself release protection or reopen admission.
+runs under a lock as a result of coordinator-owned signaling. Completing a future
+may run arbitrary synchronous continuations: retain ParticipantContext until
+complete() and its inline continuations return. Participants may request freeze
+and return to complete/close work. Completion does not itself release protection
+or reopen admission.
+
+Before minting proof, all registered operation-consumer/delegate work and owned
+resource closure must have finished and counts/proof must be finalized. No such
+source work, callback or delegate cleanup may remain in a later finally block.
+Only coordinator metadata cleanup and proof/future signaling may remain. Signaling
+can invoke arbitrary proof/terminal listeners; it is not a claim that complete()
+runs no user code. Inline listeners retain ParticipantContext and cannot enter a
+terminal path or resume old consumer admission. An independent asynchronous
+terminal continuation may safely overlap this metadata-only signaling epilogue;
+ThreadLocal does not order other threads or require literal Java wrapper return.
+No shared signaling-frame count or additional pending-proof protocol is needed.
+
+The outside-both-locks rule applies to every signal-producing entry, including
+freeze, cancelPending, final participant decrement, close and callback completion.
+Public participant/delegate entry and externally signal-producing entry reject
+a caller already holding the history monitor or mutation lease before changing
+counts or invoking a delegate. Thus last-close/cancellation cannot trigger a
+registered future under a caller-owned outer synchronized block. Internal frozen
+discovery may collect notices under its own coordination, but dispatches them only
+after its entire lease and monitor scope has exited; it never assumes that leaving
+an inner synchronized block releases an outer one. The no-signaling audit fast
+path below is the explicit exception, not a general bypass.
 
 Future owners must chain terminal work asynchronously on an independent terminal
 executor, never block an operation/callback executor or wait while holding history
@@ -229,6 +267,13 @@ by registered work violates the required lifecycle. Timeout, observer cancellati
 or interruption leaves the gate frozen, changes no participant count and grants no
 capability; quiescence may be requested again explicitly. Stuck work may prevent
 progress indefinitely.
+The runtime owner must use asynchronous terminal continuation; terminal context
+validation enforces rejection of inline participant completion. No compulsory
+service-owned terminal thread is added. Synchronous already-quiescent zero-work
+entry remains allowed from an independent context, preserving existing host APIs.
+The coordinator cannot prevent an arbitrary caller from attaching a continuation
+to an already completed CompletionStage while holding its own lock; terminal entry
+must still reject nested lease/participant context, and adapters may not do this.
 
 Lock order: never acquire history while holding the coordinator lock. Brief
 history->coordinator validation and atomic activation/terminal claims are allowed,
@@ -257,6 +302,29 @@ coordination. Synchronous legacy entry points may consume an already-completed
 zero-work proof or return QUIESCENCE_PENDING; they never block waiting for it. An
 explicit asynchronous owner obtains proof before calling capability-taking methods.
 Locked helpers accept explicit capabilities and never initiate or wait for drain.
+
+Caller-owned monitor compatibility is explicit. The reviewed HistoryController.open
+at integration source `3bc070a2` holds the parent synchronized block around
+HistoryCapacity.open/register. Those existing native/capacity-only paths do not
+acknowledge operation closure and retain their current behavior; do not insert an
+operation drain or future completion into them. Releasing an inner synchronized
+scope cannot release this caller-owned outer monitor.
+
+Asynchronous preflight rejects entry while the caller already holds the history
+monitor or a mutation lease. `tryClosedAuditsNowLocked` is the sole synchronous
+audit-proof fast path for an already coordinated caller: exact committed closed
+keys, zero opening/open/in-flight/closing I/O and pending/running operation-consumer
+callbacks, no later consumer/delegate work, caller outside ParticipantContext, and
+sealed or safely cold-frozen gates only. Another thread's metadata-only signaling
+epilogue may overlap this claim. It creates no future, invokes no listener,
+waits for nothing and accepts no active or staged operation. Otherwise it returns
+QUIESCENCE_PENDING without initiating drain. Any caller factory that needs nonzero
+operation recovery must move asynchronous preflight before its outer synchronized
+region, then reacquire and freshly validate before publishing its result. Root
+owns that factory restructuring if needed; no Activity/runtime adapter is added.
+Zero-work discovered inside an existing lease must use this no-signaling fast path
+or defer the entire preflight to its external owner, never signal a future while
+pretending that only the inner monitor was held.
 
 Committed-audit reconciliation uses `AuditQuiescence`, never a blanket boolean.
 `prepareClosedAudits()` rejects nested mutation-lease entry, briefly acquires its
@@ -355,6 +423,21 @@ narrow `HistoryStorage.java` shared state; create
 - [ ] Exercise every delegate-touching wrapper method and owner-close after freeze;
       no count drops merely because admission closed. Test callbacks spawned by
       delegated close and queue-post failures through the documented trusted adapters.
+- [ ] Register hostile nonasync thenApply listeners before final proof signaling:
+      terminal entry must reject without changing evidence while ParticipantContext
+      remains active. Cover factory, I/O, close, callback, exception and scheduler
+      rejection paths; nested wrappers preserve depth and finally clears it only
+      after signaling, with no context leak. Every coordinator-triggered completion
+      listener must observe Thread.holdsLock false for both locks.
+- [ ] Prove no registered consumer/delegate/source cleanup occurs after proof mint.
+      Test same-queue async continuation after wrapper return as one schedule, and
+      independent async terminal work overlapping only metadata signaling as another;
+      neither may start before actual work and owned closure finish. Async dispatch
+      rejection leaves the operation frozen and produces no terminal receipt.
+- [ ] With a future already registered, attempt final close, cancelPending and
+      freeze from a caller-owned history monitor/lease: reject before delegate/count
+      change and never invoke listeners under the outer lock. Exercise internal
+      frozen-discovery notice dispatch only after its entire coordination exits.
 - [ ] Implement the exact interfaces/lifecycle above with private tracked resources.
       Use deterministic barriers, never sleeping tests or a caller-supplied zero count.
 - [ ] Run `bash verification/history_operation_recovery/run.sh coordinator`; require
@@ -391,6 +474,12 @@ Preserve HistoryPinRecord encoding and existing control allowance semantics.
       exact audit bytes. Repeat during same-process Retirement after intent removal;
       audit preflight must use the exact retirement path without ordinary readiness.
       Attempted operation/read/callback resume must always reject.
+- [ ] Exercise the caller-owned monitor shape of HistoryController.open: unchanged
+      native/capacity paths require no drain; exact closed-only zero-work audit uses
+      tryClosedAuditsNowLocked without future/listener creation. Nonzero recovery
+      returns QUIESCENCE_PENDING and requires external preflight before reentry.
+      Check lock order and fresh validation after reacquisition; a zero-work result
+      found inside a lease must never inline-complete a future there.
 - [ ] Run `bash verification/history_operation_recovery/run.sh terminal` and affected
       pin/executor runners; require all PASS before critical helper review/commit.
 
@@ -449,4 +538,10 @@ activation/terminal race before stage publication. This revision adds frozen
 mandatory nonblocking quiescence/audit completion. It also makes delegated method
 coverage, owner-close, trusted adapter limits and Retirement-aware audit discovery
 explicit. These are design corrections only; no implementation or behavioral test
-result is claimed. Final technical plan approval is pending the revised commit.
+result is claimed. Review of `82f42ba` additionally requires maintained participant
+context through future signaling, all-entry enforcement of completion outside both
+locks, and the caller-owned monitor/no-signaling audit split. The clarified root
+ruling permits independent terminal work during metadata-only signaling after all
+operation-consumer work and owned closure finish; it does not require wrapper return
+or a shared frame counter. Inline proof listeners remain guarded even though they
+can run arbitrary code. Final technical plan approval is pending the revised commit.
