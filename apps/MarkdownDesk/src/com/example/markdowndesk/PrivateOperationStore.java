@@ -47,7 +47,7 @@ final class PrivateOperationStore {
             }else{result.reservedBytes=add(result.reservedBytes,expectedBegin.length);result.reservedEntries++;}
             // A complete BEGIN.stage already participates in the native pin inventory's CLOSE credit.
             if(!fullBegin){result.reservedBytes=add(result.reservedBytes,HistoryPinRecord.CLOSE_BYTES);result.reservedEntries++;}
-            PrivateOperationRecord expectedLink=PrivateOperationRecord.link(p);HistoryControlStore.Entry link=byName.get(expectedLink.name()),stage=byName.get(expectedLink.name()+".stage");
+            PrivateOperationRecord expectedLink=expectedLink(p);HistoryControlStore.Entry link=byName.get(expectedLink.name()),stage=byName.get(expectedLink.name()+".stage");
             if(link!=null&&stage!=null){result.valid=false;continue;}
             if(link!=null||stage!=null){
                 HistoryControlStore.Entry entry=link!=null?link:stage;
@@ -59,6 +59,10 @@ final class PrivateOperationStore {
                     &&link==null&&stage==null&&close.pin!=null&&close.pin.outcome==HistoryPinRecord.Outcome.CANCELLED
                     &&HistoryPinRecord.matches(p.begin,close.pin);
             if(cancelled)result.terminalCancelled.add(p.preparation);
+            // Parser/accounting acceptance is not a portable coordinator. Ordinary Pins
+            // open/resume/reconcile all require ready; no portable active/staged prefix
+            // may acquire that authority through this internal version dispatch.
+            if(p.version==2&&(reserve==null||begin==null||close==null||reserveStage!=null||beginStage!=null||stage!=null||closeStage!=null))result.ready=false;
             if(link==null||close==null){pending++;if(!cancelled)result.unfinished++;}
         }
         for(HistoryControlStore.Entry e:entries){
@@ -66,12 +70,16 @@ final class PrivateOperationStore {
                 boolean found=false;for(PrivateOperationRecord p:result.preparations)if(committed(e).equals("prep-"+p.preparation+".link"))found=true;
                 if(!found)result.valid=false;
             }
-            if(e.pin!=null&&e.pin.begin&&e.pin.manifest.domain==HistoryPinRecord.Domain.LOCAL_CAPTURE_V1&&!operations.contains(e.pin.operation))result.valid=false;
+            if(e.pin!=null&&e.pin.begin&&e.pin.manifest.domain!=HistoryPinRecord.Domain.NATIVE_HISTORY_V1&&!operations.contains(e.pin.operation))result.valid=false;
         }
         if(result.unfinished>1)result.valid=false;result.pending=pending!=0;result.ready&=result.valid;
         result.preparations.sort(Comparator.comparing(p->p.preparation.toString()));return result;
     }
     static boolean operationEntry(HistoryControlStore.Entry e){return e.filename!=null&&PrivateOperationRecord.knownName(committed(e));}
+    /** Framing commitment only, selected by the decoded owning P, never activation. */
+    static PrivateOperationRecord expectedLink(PrivateOperationRecord preparation)throws IOException {
+        return preparation!=null&&preparation.version==2?PrivateOperationRecord.linkPortable(preparation):PrivateOperationRecord.link(preparation);
+    }
     private static String committed(HistoryControlStore.Entry e){return e.stage?e.filename.substring(0,e.filename.length()-6):e.filename;}
 
     static final class Ledger {
@@ -240,6 +248,7 @@ final class PrivateOperationStore {
             PrivateOperationRecord selected=null;
             for(PrivateOperationRecord p:c.operations.preparations)if(p.preparation.equals(id))selected=p;
             if(selected==null)throw new IOException("Missing exact typed PREPARE; partial evidence retained");
+            if(selected.version!=1)throw new IOException("Portable cancellation requires its dedicated coordinator");
             preparation=selected;begin=HistoryPinRecord.encode(selected.begin);close=HistoryPinRecord.close(selected.begin,HistoryPinRecord.Outcome.CANCELLED);
             if(begin.length!=204||close.length!=126)throw new IOException("Noncanonical cancellation template");
             HistoryOperations.requireColdCancellationLocked(root,selected.begin,null);
@@ -563,7 +572,7 @@ final class PrivateOperationStore {
             for(PrivateOperationRecord p:prepares){
                 HistoryPinRecord begin=begins.get(p.operation),close=closes.get(p.operation);
                 if(begin==null||close==null||!p.beginHash.equals(begin.envelopeHash))throw new IOException("Original preparation pin mismatch");
-                PrivateOperationRecord link=PrivateOperationRecord.link(p);BaselineNode presentLink=controls.get(link.name());
+                PrivateOperationRecord link=expectedLink(p);BaselineNode presentLink=controls.get(link.name());
                 boolean cancelled=presentLink==null&&close.outcome==HistoryPinRecord.Outcome.CANCELLED;
                 rootFunded|=(p.directoryMask&1)!=0;
                 if(sourceOnlyRootAbsence&&!cancelled)throw new IOException("Absent funded root requires every original preparation cancelled");

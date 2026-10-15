@@ -153,10 +153,17 @@ see [its limits and results](../verification/portable_funding/report.md). The cu
 cursor bound, snapshot non-escape, representation caps and prepaid consumption replacing
 later direct debits remain unproved. This diagnostic is not a required production gate;
 no aggregate run, APK or hosted check ran.
-Next: implement and independently review bounded internal v2/domain3 dispatch and
-owner association, including older portable controls retained by a second capture.
-Generic public decoders/factories must remain strict. This parser leaf is in progress;
-portable publication/activation is not implemented. Then finish conservative whole-path
+Internal dispatch parser leaf `9f58c949` has scoped independent **APPROVAL** and
+is integrated on the active branch. Changed production files are HistoryControlStore,
+HistoryPinRecord, PrivateOperationEvidence and PrivateOperationStore. Worker73 and
+affected Record72/Evidence53/baseline59+large1 PASS. Partial P remains inert; readiness
+is closed-only, with generic/cold refusal preserved. This proves structural retention
+and owner joins, not an actual Writer first/second backup lifecycle, production funding
+or activation. The required aggregate registers `portable_internal_dispatch/run.sh`
+once; the diagnostic funding estimator remains unregistered. This docs/runner update
+ran shell syntax and diff checks only; no tests were repeated.
+Independent review found no blocker and duplicated no tests; root verified exact
+integrated source/fixture matches. Next: finish conservative whole-path
 funding before P, authentic post-P baseline WriterTransition, outer-ID routing and
 actual-close versus verified-success semantics. Before large implementation,
 check producer/consumer contracts briefly and run minimum affected tests. The retained-receipt

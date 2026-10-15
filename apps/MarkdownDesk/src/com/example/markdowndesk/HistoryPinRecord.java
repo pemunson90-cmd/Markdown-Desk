@@ -109,7 +109,7 @@ final class HistoryPinRecord {
         }
         List<HistoryPinRecord> active=new ArrayList<>();
         for(HistoryPinRecord begin:begins.values()){
-            if(!bound(begin,registration,policies))result.valid=false;
+            if(!bound(begin,registration,policies)||!associated(begin,entries))result.valid=false;
             HistoryPinRecord close=closes.get(begin.operation);
             if(close==null)active.add(begin);else if(!matches(begin,close))result.valid=false;
         }
@@ -117,7 +117,7 @@ final class HistoryPinRecord {
         for(HistoryControlStore.Entry stage:result.stages){
             if(stage.filename.endsWith(".begin.stage")){
                 HistoryPinRecord begin=stage.pin;
-                if(begin==null||!begin.begin||!stage.filename.equals(begin.name()+".stage")||begins.containsKey(begin.operation)||closes.containsKey(begin.operation)||!bound(begin,registration,policies))result.valid=false;
+                if(begin==null||!begin.begin||!stage.filename.equals(begin.name()+".stage")||begins.containsKey(begin.operation)||closes.containsKey(begin.operation)||!bound(begin,registration,policies)||!associated(begin,entries))result.valid=false;
                 else active.add(begin);
             }
         }
@@ -136,6 +136,16 @@ final class HistoryPinRecord {
     }
     private static boolean bound(HistoryPinRecord begin,HistoryControlStore.Registration registration,Map<Long,HistoryControlStore.Record> policies){
         HistoryControlStore.Record policy=policies.get(begin.generation);return registration!=null&&begin.bundle.equals(registration.bundleId)&&begin.registrationHash.equals(registration.envelopeHash)&&policy!=null&&begin.policyHash.equals(policy.envelopeHash)&&begin.bundle.equals(policy.bundleId);
+    }
+    private static boolean associated(HistoryPinRecord begin,List<HistoryControlStore.Entry> entries){
+        PrivateOperationRecord owner=null;
+        // The physical namespace is bounded to256 entries. No second owner/index budget.
+        for(HistoryControlStore.Entry entry:entries)if(entry.operation!=null&&entry.operation.type==PrivateOperationRecord.PREPARE
+                &&entry.operation.operation.equals(begin.operation)){
+            if(owner!=null)return false;owner=entry.operation;
+        }
+        return owner==null?begin.manifest.domain==Domain.NATIVE_HISTORY_V1:
+                owner.beginHash.equals(begin.envelopeHash)&&owner.begin.manifest.domain==begin.manifest.domain;
     }
     static boolean matches(HistoryPinRecord begin,HistoryPinRecord close){return !close.begin&&begin.operation.equals(close.operation)&&begin.envelopeHash.equals(close.beginHash)&&begin.manifestHash.equals(close.manifestHash);}
     private static Purpose purpose(int id)throws IOException {for(Purpose value:Purpose.values())if(value.wire==id)return value;throw invalid("Unknown purpose");}

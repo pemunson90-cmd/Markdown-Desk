@@ -136,8 +136,13 @@ actual-close versus verified-success semantics. Test-only estimator `ad9cab4c` i
 independently approved: four real B1 cases PASS; tightest candidate residual547,121.
 This is not production allocation/heap proof. Current-native cursor bounds, snapshot
 non-escape, representation caps and prepaid consumption remain unresolved. Next bounded
-leaf is internal v2/domain3 parsing/owner association, including second-capture evidence;
-generic public decoders stay strict. No portable publication/activation is implemented.
+leaf `9f58c949` now implements internal v2/domain3 parsing/owner association and is
+independently APPROVED and integrated. Worker73 plus affected Record72/Evidence53/baseline59+large1
+passed. Partial P is inert; readiness is closed-only and generic/cold refusal remains.
+Actual Writer first/second lifecycle, production funding and activation are unproved.
+The dispatch runner is registered once; the funding estimator remains diagnostic only.
+This update ran syntax/diff checks without repeating tests. Complete independent review,
+then prove conservative whole-path funding before P and the remaining authentic joins.
 Check producer/consumer contracts before large implementation; run minimum affected tests. Retained-root
 absence only remains; adoption/route4/repeated restore→export are still required.
 
@@ -216,7 +221,7 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 | B0 canonical witness streams | Exact afc57ec9 independently spec/quality APPROVED; integrated d1303eb | Canonical inputs retain original nullable profile/shared budget; no authority. Witness5 PASS and plan29 once; workspace bounds are not whole-coordinator heap proof. |
 | C original-baseline raw inventory/sources | Exact cce8a6ee independently spec/quality APPROVED; integrated fb22bff4 | Owned original source seam, read-only missing-root inventory only; no generic admission/write authority. Focused59 plus large1 PASS. |
 | B1 producer | Exact ec06a26e independently APPROVED; integrated f0c6a847 | Final221 plus existing PrivateState848 functional once PASS; original two review probes repaired/PASS. Producer only, no P/provider/UI/activation; whole-B2 overlap unproven. |
-| B2/C funding/interface contract; cold worker | Test-only estimator ad9cab4c independently approved; four focused cases PASS; internal dispatch leaf in progress | Fixed Writer~7MiB+Pins6MiB exceeds B1 headroom. Resolve actual-snapshot-sized conservative whole-path funding before P, authentic post-P transition/domain3/outer-ID routing and close/success contract. Then publication/routing → runtime activation → coordinators/UI; all retained feature/release gates remain. |
+| B2/C funding/interface contract; cold worker | Test-only estimator ad9cab4c independently approved; four focused cases PASS; dispatch9f58c949 independently APPROVED and integrated | Fixed Writer~7MiB+Pins6MiB exceeds B1 headroom. Resolve actual-snapshot-sized conservative whole-path funding before P, authentic post-P transition/domain3/outer-ID routing and close/success contract. Then publication/routing → runtime activation → coordinators/UI; all retained feature/release gates remain. |
 | Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Activation/source read/drain/CLOSE exact4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped APPROVAL, including identity/budget/hashed-skip/resource closure and terminal retention/release checks. This does not approve cold source or runtime integration. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
