@@ -22,9 +22,9 @@
 - Every later persisted workspace/reader/editor feature must update compatible backup/import/migration coverage before enablement; the current legacy allowlist is not permission to omit new private state.
 - Build.sh deletes its checkout's build directory. Never run concurrent builds in one checkout, even with different output names.
 
-## Resolved checkpoint and evidence limits
+## Initial reconciliation checkpoint — historical
 
-Planning began at main/origin main `b5796ba9061c365538d3192acdea8f69bb204029` (merged PR22).
+This section records the initial reconciliation snapshot; later current-state updates below and in STATUS supersede it. Planning began at main/origin main `b5796ba9061c365538d3192acdea8f69bb204029` (merged PR22).
 Required hosted run38664300293/job116192539275 passed on exact head7a13ac5.
 Local committed clean gate05e74ca ran host checks once and two unsigned builds,
 both SHA256 `7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
@@ -41,15 +41,25 @@ Worker execution stopped at an account usage limit during initial reconciliation
 
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
 
-Subsequent checkpoint: PR23 merged atfdb7bd6 after clean gateed4cba7 and required
-hosted38759593422 passed. Current accounting continuation46d8bd8 is independently
-approved for C1 only (39 scenarios); its initial clean run failed a printing-fixture
-queue race, corrected fixture-only at4321957. Final clean8dcbea5 passed required host and both unsigned builds
-(SHA256eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8).
-C2 producer remains pending; native predicate a4cb514 has independent12-scenario
-approval and is integrated, while source-owner20c36e9 plus shared-budget fix e331477 has independent11-group
-approval. Portable direction a4b9d36 is independently reviewed, with no new
-schema/source authority. STATUS is authoritative for current heads/evidence.
+Current checkpoint: main/origin main remains `fdb7bd6` (PR23 merged). Active
+`codex/operation-data-capture` has draft PR24; last pushed `2b78efd`, local HEAD
+`16280fc` includes normally merged, reviewed preflight and record assembly. The
+full clean gate at `8dcbea5` passed before subsequent C2 source additions; no newer
+full suite/build/hosted run is claimed. STATUS records exact gate evidence and
+hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 remain
+historical evidence, not current gate state.
+
+Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
+preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` each
+have scoped approvals only. Their worker evidence and boundaries are point-in-time;
+these approvals do not cover current root-dirty writer/source guards or the whole
+campaign. Current writer remains uncommitted/unreviewed. Its 81 focused assertions
+cover P/funded directories/native map/D only. Private payload copy, final BEGIN/LINK,
+source handoff, cold recovery and whole-heap proof remain open. The current worker
+owns dirty Writer/Sources/tests and two runner lines; root owns orchestration and
+integration; `accounting_repair_review` owns independent review. Do not duplicate
+full gates or split helper PRs. Independent whole-campaign plan review remains NOT
+RUN. M1 is not complete; physical/device/signing/upgrade gates remain NOT RUN.
 
 ## Whole-roadmap coverage and dependency map
 
@@ -65,7 +75,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins exist; local operation accounting under repair; producer/activation absent. Finish native+private capture with resource lifetime and fault/reopen evidence. | Packet C1/C2 |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete and current writer guards await review. Finish private-copy closure, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -104,12 +114,11 @@ Normal supported team: lead/integrator + two independent implementers + shared c
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; private-backup-integration |2bdf43f before this plan| Own STATUS/aggregate runner/ADRs/build/bridge contracts and final merges. Codec integrated; no new PR/check running. |
-| Outline worker; outline-navigation |93a5cc5 clean| Source work complete; previous independent source review retained. Lead verifies canonical artifact and integrates N1; temporary Activity writer transfers to lead. |
-| Storage worker; operation-data-capture |a92a999 + four tracked dirty repairs| Unapproved, preserve verbatim; lead takes C1 inline. No new storage consumer/Activity writer until producer accepted. |
-| Codec worker; scoped-private-archive |4ed9fbb clean| Completed/integrated. No further writer needed; runtime backup/import will consume explicit APIs. |
-| Design worker; portable-export-binding |2bdf43f, no saved plan| Interrupted design only. Resume after C1/C2 questions resolve; no production authorization inferred. |
-| Independent reviewers| Prior exact-source evidence above; accounting AdmissionProbe retained| New review unavailable. Retain defect evidence; never silently convert unreviewed accounting to approved. |
+| Lead; orchestration/integration | local HEAD16280fc; draft PR24 | Own integration/accounting, STATUS and coherent boundary. Root-dirty writer guards await review; no new full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Root-dirty Writer/Sources/tests + two runner lines | Own existing source/tests through coherent producer; 81 focused assertions cover P/funded directories/native map/D only. Continue payload copy, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
+| Independent reviewer; accounting_repair_review | Current writer/source diff pending | Review exact current guards and closure; prior helper/plan approvals do not carry forward. |
+| Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
+| Whole-campaign plan reviewer | Not run | Independent campaign review remains outstanding; do not treat source approvals as satisfying it. |
 
 Old worktrees/branches/untracked historical notes remain untouched. No push--all, force-push, broad cleanup or deletion. Shared SDK/JDK/JSON dependency remain read-only inputs; each writer owns its checkout outputs and test temporary roots. One heavy build/gate at a time until resource evidence justifies more.
 
@@ -151,9 +160,16 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 
 ## Next packet preparation, not speculative implementation
 
-**C2 capture producer:** C1 is verified at8dcbea5. Native predicate a4cb514 is
-integrated and independently approved; PreparationSources20c36e9 plus e331477 has scoped11-group approval.
-The accepted private-frame preflight API is being implemented independently. Finish both approved native and private phases as one feature boundary after C1. Use exact persisted PREPARE/descriptor/BEGIN/LINK IDs; all prefix/credit conversions and producer source ownership must pass fault/reopen/memory tests. Failed close/factory uncertainty persists across handles; final proof→BEGIN is one lease. Publish immutable production contracts and entry-source ownership before downstream code. Selected active-tab identity is not in existing local v1 capture; do not invent it from later live state or retrofit new bytes silently.
+**C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
+preflight, and pure capture plan are integrated with scoped exact-artifact approvals.
+The current writer is uncommitted/unreviewed and still incomplete; see STATUS for
+current ownership and precise remaining closure. Require both original C0 control
+and L0 ledger hashes freshly matched before P, including the reproduced legacy PIN
+BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while L0 stays unchanged.
+Plan authority alone cannot publish P. Continue through private-copy closure, exact
+typed transitions, final BEGIN/LINK and handoff, cold recovery, and crash/ENOSPC/reopen/
+heap evidence, then review the coherent source boundary. No latest guard is yet
+reviewed/passing. Do not promote helper approvals into whole-campaign review.
 
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
