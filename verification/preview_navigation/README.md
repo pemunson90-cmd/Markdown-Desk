@@ -4,6 +4,7 @@ Run with JDK17 on PATH:
 
 ```sh
 bash verification/preview_navigation/run.sh
+bash verification/preview_navigation/run_print.sh
 bash verification/preview_navigation/run.sh --baseline
 bash verification/preview_navigation/run.sh --print-hazards
 ```
@@ -15,18 +16,20 @@ includes duplicate completion resetting user scroll, same-page scroll reset and
 the last deferred editor-scroll hop. Original investigation output10/27/11 is
 also retained as historical evidence, before splitting navigation from printing.
 
-`--print-hazards` deliberately runs a separate RED diagnostic: **5 cases /
-14 assertions / 5 failures**. Fixed350ms printing still can create an adapter
+`--print-hazards` reads committed pre-fix Task1 source `6ebe563` and deliberately
+runs a separate historical RED diagnostic: **5 cases /
+14 assertions / 5 failures**. That baseline fixed350ms printing can create an adapter
 before rendering/DOM readiness, use a later tab's title/content, or leave Write
-mode changed when PrintManager is missing. Printing production code is unchanged;
-this diagnostic must not be registered as a required passing navigation gate.
+mode changed when PrintManager is missing. Current printing is tested separately
+by `run_print.sh`; this baseline diagnostic must not be registered as a required passing navigation gate.
 
-The javac AST extractor copies35 exact production members (including the nested
+The javac AST extractor copies33 exact production members (including the nested
 WebViewClient), the actual render/accept/invalidate/stop methods, navigation
 state/acknowledgment, both scroll directions and the final editor-scroll method.
 It compiles actual LatestPreview, MarkdownRenderer and UiTheme. Android classes
 are local boundaries; only synthetic source strings are used. Current-page/full
-renderer and ready-print controls remain in place. The existing preview suite
+renderer controls remain in place; historical ready-print control stays in the
+baseline selector. The existing preview suite
 also passed438 checks with only the root navigation attribute removed for full
 HTML comparison across9themes ×3font sizes.
 
@@ -86,19 +89,78 @@ ratio. Inputs/outputs remain checked byte-equivalent apart from the trusted mark
 physical latency threshold, benchmark acceptance budget or renderer improvement
 is claimed. Production tokens normally have fewer digits than the measured19.
 
+## Captured printing and framework ownership
+
+`run_print.sh` is the separate passing print gate: **19 cases / 126 checks** with
+real `DocumentPrint`, `MarkdownRenderer` and `UiTheme`, plus **18 checks** in a
+separate JVM using the exact helper with an explicitly latched/failing renderer.
+`ExtractPrint` copies actual Activity `printDocument` and `onDestroy` without body
+substitutions, and copies the actual `DocumentIO.MAX_DOCUMENT_BYTES` expression.
+Android/WebView/PrintManager are controlled boundaries. Framework result callback
+constructors remain package-private in the stubs; only a factory inside the modeled
+framework package constructs them. App code forwards the original callback,
+CancellationSignal, attributes, Bundle, PageRange array and FD without wrappers,
+listener replacement or closing the FD. Whole-app SDK37 compilation also checks
+the actual Android API shape.
+
+`DocumentPrint` owns one process-wide operation, serial executor and main Handler.
+Admission precedes copying the editor. Capture preserves source/title/palette/font/
+BOM policy at action time, with a new strict 8 MiB UTF-8 limit including BOM bytes.
+A scalar scan validates Unicode off main without a full encoded array. A separate
+isolated WebView receives unchanged renderer HTML plus trusted root identity; its
+base/security settings match interactive preview. All print-view navigation is
+consumed. The Activity's mode and interactive DOM are untouched.
+
+One absolute 30-second deadline covers capture/render/load before exposure;
+worker entry, completion and DOM/submit paths check the clock independently of
+Handler timer order. Logical timeout/destroy cannot release capturing, queued,
+running or completion-pending physical work. Only its surviving process-main
+handoff retires that reservation. A second Activity cannot queue a snapshot.
+Readiness permits one physical probe plus a coalesced trigger; probe sequence
+rejects duplicated stale callbacks. The deadline handles a missing pre-submit
+response. These are new printing guards, not measured latency budgets.
+
+Once PrintManager receives the adapter, cancellation/destroy/null return/throw
+cannot prove disposal safe. The wrapper forwards start/finish at most once and
+sets flags before calling external code. Successful delegate `onFinish` followed
+by successful WebView destruction releases only that owner. Missing/throwing finish
+or throwing disposal retains the bounded global slot, potentially until process
+exit. Late retired layout/write uses the original cancellation callback once;
+a thrown delegate/callback does not fabricate another completion. Reentrant finish,
+late returned jobs, callback failures, recursive lifecycle, two Activities,
+queued/running cancellation, stale delivery and process-handler survival are tested.
+Tests explicitly reset deliberately fail-closed ownership between fault cases;
+production has no such reset.
+
+The real-source baseline failed five assertions before the fix. Additional new
+protocol fixtures first failed for duplicate probe release, capture extending the
+timer and cancellation during capture, then passed after correction. Independent
+review reproduced normal synchronous finish canceling the late successful job;
+a separate cancellation-intent flag now passes that regression while preserving
+late-job cancellation after Activity destruction. The latched
+renderer is an admitted platform/work seam, not evidence of Android callback timing
+or rendering speed. Original real-renderer output is compared after removing only
+the trusted attribute. A print operation may run concurrently with the independently
+bounded interactive renderer: one extra source, renderer output, full HTML wrapper
+copy and WebView are real transient memory/CPU costs. The UUID print marker adds55
+characters; prior preview wrapping measurements concern 19-digit preview markers,
+not this print path. No new benchmark, HTML expansion/DOM memory bound or Android
+peak-memory promise is made.
+
 ## Limits
 
 The host separates load submission from DOM commit and deliberately delivers
 callbacks/results in selected orders. It models DOM-probe return values and
 records generated sync JavaScript; it does not execute a browser JavaScript
-engine. The print adapter records host DOM at creation; Android may lay it out
-later. No Android callback URL/order or real spooler snapshot guarantee is inferred.
+engine. The historical print adapter records host DOM at creation; the current print
+harness records isolated loaded HTML and models readiness/lifecycle callbacks.
+Android may lay out later. No Android callback URL/order or real spooler snapshot guarantee is inferred.
 `rebuildBody` preserves only its source-observed render/invalidate order, and link
 handling is a boundary here; full layout/link/security/device acceptance is not
 claimed. Production settings and handler are reviewed unchanged.
 
 [Plan](../../docs/superpowers/plans/2026-10-15-preview-navigation.md) records the
-reviewed Task1 scope and separately reviewed Task2 proposal. Whole production Java compilation passed against installed Android SDK37 with
+reviewed Task1 scope and separately reviewed Task2 implementation design. Whole production Java compilation passed against installed Android SDK37 with
 JDK17 `--release 11` after normal merge of main d0b02d7 (history UI); existing
 generated R.java was reused because resources are unchanged. Compilation was repeated after the final ownership corrections. This is compile evidence, not an
 APK or Android runtime test. Physical Android

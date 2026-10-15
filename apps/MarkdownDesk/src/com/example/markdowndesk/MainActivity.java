@@ -17,7 +17,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.print.PrintManager;
 import android.text.Editable;
 import android.text.Layout;
 import android.text.TextUtils;
@@ -248,6 +247,7 @@ public class MainActivity extends Activity {
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        DocumentPrint.cancel(this);
         stopStatistics();
         stopPreview();
         this.main.removeCallbacksAndMessages(null);
@@ -3571,37 +3571,8 @@ public class MainActivity extends Activity {
     }
 
     private void printDocument() {
-        final int i = this.mode;
-        if (this.mode == 0) {
-            this.mode = MODE_PREVIEW;
-            rebuildBody();
-        }
-        renderPreview();
-        this.preview.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda6
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$printDocument$67(i);
-            }
-        }, 350L);
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$printDocument$67(int i) {
-        PrintManager printManager = (PrintManager) getSystemService("print");
-        if (printManager == null) {
-            showError("Printing is not available on this device.");
-            return;
-        }
-        printManager.print("Markdown Desk · " + this.displayName, this.preview.createPrintDocumentAdapter(this.displayName), null);
-        if (i == 0) {
-            this.mode = i;
-            this.preview.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda71
-                @Override // java.lang.Runnable
-                public final void run() {
-                    MainActivity.this.rebuildBody();
-                }
-            }, 300L);
-        }
+        DocumentPrint.start(this, () -> new DocumentPrint.Capture(this.editor.getText(), this.displayName,
+                this.palette, this.previewFontSp, this.utf8Bom), this::showError);
     }
 
     private void styleDialog(AlertDialog alertDialog) {
