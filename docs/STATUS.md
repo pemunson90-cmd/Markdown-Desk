@@ -1,19 +1,21 @@
 # Current project status
 
-## Current checkpoint — selected retention and history workflow, 2026-10-14
+## Current checkpoint — guarded document history, 2026-10-15
 
-Main is `31d4309cfd8798e1a388c9ccc5b26a7597189efd`: [PR #18](https://github.com/pemunson90-cmd/Markdown-Desk/pull/18)
-merged at reviewed head `e589563` after required hosted run38651804113 passed.
-Draft run38651784968 was skipped, not passing evidence. PR #17 bounded preview/
-statistics and PR #16 read-only maintenance recovery are also merged; exact
-baseline import PR #9 and protected-save foundations remain preserved.
+Main is `116b180c80d7395a7c23297979f0cdc90ae9c7e2`: [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
+merged at reviewed head `bd1d3e4` after required hosted run38656747429 passed.
+Draft run38656737069 was skipped, not passing evidence. PR #18 operation
+foundations, PR #17 bounded workers and earlier exact-source/protected-save
+changes remain merged. No installable release is claimed.
 
-Latest clean gate at `6bba85431e0cc2c340cd945551fb5c4d96ebda38` passed the required
-host suite once and two audited unsigned builds matching SHA-256
-`c646e0757b027d5de003ba904d9787e5daa8d092bd326f7155044386736b4d5e`.
+Latest clean backend gate at `715cdab92808f278b933ab160fe5579c0aae5304` completed
+all required host checks across an unchanged-source interrupted session, then two
+audited unsigned builds matching SHA-256
+`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
+Every archived source file was verified before resuming only unfinished checks.
 No downloads/signing inputs; package 2.2.5/code 18/min 26/target 35 and all 25
-approved assets preserved. Scoped credential-pattern scan: 367 tracked files,
-zero matches; not a whole-history proof.
+approved assets preserved. Scoped credential-pattern scan: 381 tracked files,
+zero matches; not a whole-history proof. This is not the combined UI gate.
 
 Verified backend additions:
 
@@ -31,7 +33,8 @@ Verified backend additions:
   promise, runtime consumer, operation quiescence, terminal repair, compaction
   or fresh-process arbitrary-evidence-loss anchor is implemented.
 
-Active integration: `codex/history-execution-export`, [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19).
+Active integration: `codex/history-ui-integration`, [PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20),
+with verified main merged normally.
 
 - Frozen native archive manifest `73655d5` is integrated byte-identically through
   `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
@@ -47,31 +50,45 @@ Active integration: `codex/history-execution-export`, [PR #19](https://github.co
   requires exact acknowledged capacity, durable intent, per-victim fresh proofs
   and shared terminal retirement; no runtime caller or automatic execution.
   Retained intent stages remain blocked. Its default runner is now required.
-- Independently approved controller `43f7094` is on separate
-  `codex/history-ui-integration`; guarded Activity integration is in progress: list, captured named
-  revisions, bounded locked diff, startup authority and verified-save indexing.
-  No new history UI is integrated or verified yet. Optional metadata must not negate successful saves;
-  legacy recovery remains separately presented.
+- Independently approved controller `43f7094` is integrated unchanged as `ce59d69`.
+  Worker 123 functional checks, six fresh-JVM assertions and a capture-race
+  regression passed; reviewer 30 raced captures and 23 native-backend checks passed.
+  Owned-copy validation fixes the reproduced validate-before-clone race.
+- Activity startup/save-route hooks and guarded history actions have passed scoped
+  fixtures and source review. Worker save lifecycle: 39 cases/320 assertions;
+  recovery loader: 15 cases/223 assertions plus seven actual UI callbacks. New
+  history actions: 84 assertions, including a spaced checkout path; three copied-
+  source guard/color/status sensitivity probes failed as expected. These are new
+  API sensitivity checks, not regressions against a preceding production UI.
+  Exact Activity blob `73be90c5076916c8221b29ab7bcdae0d36ef7d15` also passed
+  whole-app JDK17/SDK37 Java compilation. The new required runners still await
+  the coherent clean host/build gate and final whole-branch review.
+- Mandatory writes require acknowledged shared startup. Save As origin/revision
+  survives conflict consent; optional indexing failure preserves actual provider
+  success, dirty edits and recovery. Global Protected saves remains independently
+  readable. History offers 100-row pages, captured named revisions, bounded exact
+  comparison and the existing restore-to-new-copy picker, with tab/URI/request/
+  Activity guards and palette-colored dialogs. No automatic deletion or export/
+  import runtime caller is enabled. Android rendering/provider/device gates remain
+  NOT RUN.
 
-Local integration gate at `715cdab92808f278b933ab160fe5579c0aae5304` passed all
-required host checks and two audited unsigned builds matching SHA-256
-`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
-The original aggregate session was interrupted during pin restart checking;
-no failing production assertion was reported. Every archived source file was
-verified unchanged before completing the remaining pin/maintenance/executor
-checks in that same clean checkout. Completed host checks were not broadly
-repeated. Both fresh unsigned artifacts preserve package 2.2.5/code 18/min 26/
-target 35 and all 25 assets; no signing inputs or downloads. Scoped tracked-file
-credential-pattern scan: 381 files, zero matches; not a whole-history proof.
-Hosted validation remains pending and draft/skipped jobs are not passing evidence.
+Combined gate **PASS** at `f6ea92192f41039d0fe082f200ed477c871c42d9`:
+`python3 verification/check_clean_rebuild.py` completed normally, running the
+required host suite once in a clean checkout, including the new controller and
+actual history-action runners. Two fresh audited unsigned builds match SHA-256
+`934f816160a6e55fa5937fccfaa5acb39d4a4718c9703209337cc8d6254ea56f`.
+No downloads or signing inputs; exact package/version and all 25 assets preserved.
+Scoped credential-pattern scan: 401 tracked files, zero matches; not a whole-
+history proof. Final reviewed Activity blob remains unchanged.
 
-Next: required hosted validation, then integrate the independently reviewed
-controller and guarded history actions at their own clean gate. Continue runtime
-quiescence/terminal repair, persisted export capture, strict import/adoption and
-the remaining M0–M7 campaign. No full M1 or release completion is claimed.
+Next: required hosted validation for PR #20, merge only after success, then
+continue reviewed operation quiescence/terminal repair, persisted export capture,
+strict import/adoption and the remaining M0–M7 campaign. A separate existing-
+preview/printing audit is reproducing callback/ready-state failures locally;
+no production fix is implemented or claimed. No full M1 or release completion.
 
 Required local production recoverability is GREEN; independent hosted validation
-remains pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
+for PR #20 remains pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
 TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
 Existing same-URL WebView completion/scroll ordering and fixed-delay printing
 remain separate Android gaps. Host queue observations are not typing latency,

@@ -8,6 +8,11 @@ public final class SaveLifecycleCheck {
     static final String ORIGINAL="content://fixture/original",DESTINATION="content://fixture/save-as",OTHER="content://fixture/other";
     public static void main(String[] args)throws Exception{
         boolean safety=Arrays.asList(args).contains("--safety");
+        run("HISTORY changed active Save As invalidates old dialog",()->historySaveAsInvalidation());
+        run("HISTORY startup remains on I/O queue and blocked control retains evidence",()->historyStartup());
+        run("HISTORY verified same-URI and Save As routes retain exact identity",()->historyRoutes());
+        run("HISTORY optional metadata errors preserve verified success and newer edits",()->optionalHistory());
+        run("HISTORY optional warning follows originating tab/destination after continuation",()->historyWarningScope());
         run("RESTORE quota failure keeps existing evidence and blocks copy",()->restoreQuota());
         run("RESTORE canceled and busy picker results cannot write",()->restoreCanceledBusy());
         run("RESTORE versions list performs I/O asynchronously and launches explicit copy picker",()->versionsPicker());
@@ -57,10 +62,81 @@ public final class SaveLifecycleCheck {
         t.baselineModified=100L;t.readOnly=false;return t;
     }
     static void complete(MainActivity a){eq(1,a.io.tasks.size(),"one pending worker");a.io.drain();eq(1,a.main.tasks.size(),"one completion posted");a.main.drain();}
+    static HistoryIdentity identities(MainActivity a)throws java.io.IOException{return new HistoryIdentity(a.filesDir.toPath().resolve("history_identity").toFile(),new MainActivity.AndroidDurability());}
+    static HistoryIdentity.Descriptor uriHistory(MainActivity a,String uri)throws java.io.IOException {
+        for(HistoryIdentity.Descriptor d:identities(a).descriptors())if(uri.equals(d.exactUri))return d;
+        throw new AssertionError("No actual URI history: "+uri);
+    }
+    static void historySaveAsInvalidation(){for(String route:new String[]{"same-uri","active-save-as","inactive-save-as"}){
+        MainActivity a=fixture();a.historyRequest=17;MainActivity.AlertDialog old=new MainActivity.AlertDialog();a.historyDialog=old;
+        if(route.equals("same-uri"))a.beginSave(false);
+        else {a.saveAsTabId="origin";a.chooseDestination(MainActivity.Uri.parse(DESTINATION));}
+        a.io.drain();
+        if(route.equals("inactive-save-as")){a.tabs.add(tab("other",OTHER,"other text"));a.switchToTab(1,false);}
+        a.main.drain();boolean changedActive=route.equals("active-save-as");
+        eq(changedActive,old.dismissed,"only changed active save dismisses history "+route);
+        eq(changedActive?18L:17L,a.historyRequest,"only changed active save advances history generation "+route);
+        eq(changedActive?null:old,a.historyDialog,"history handle lifetime follows active URI adoption "+route);
+    }}
+    static void historyStartup(){MainActivity a=fixture();try{
+        a.beginSave(false);eq(null,a.historyController,"controller not initialized on main capture");eq(false,java.nio.file.Files.exists(a.filesDir.toPath().resolve("history_control")),"no control fsync/publication before worker");
+        complete(a);eq(true,a.historyController!=null,"worker initialized real controller");
+        ProtectionStore.Snapshot retained=a.store().snapshots().get(0);byte[] envelope=java.nio.file.Files.readAllBytes(a.filesDir.toPath().resolve("protected_saves").resolve(retained.id+".snapshot"));
+        java.nio.file.Path enrollment=a.filesDir.toPath().resolve("history_enrollment.control");byte[] originalEnrollment=java.nio.file.Files.readAllBytes(enrollment),bad=originalEnrollment.clone();bad[bad.length-1]^=1;java.nio.file.Files.write(enrollment,bad);
+        a.historyController=null;a.editor.text="newer unsaved text";a.dirty=true;int writes=a.provider.writes,clears=a.recoveriesCleared;
+        a.beginSave(false);complete(a);eq(writes,a.provider.writes,"failed shared startup opens no provider writer");eq(null,a.historyController,"failed controller not published");
+        eq(true,a.dirty,"failed startup retains dirty editor");eq("newer unsaved text",a.tabs.get(0).text,"failed startup retains captured edit");eq(clears,a.recoveriesCleared,"failed startup does not clear recovery");
+        eq(true,Arrays.equals(envelope,java.nio.file.Files.readAllBytes(a.filesDir.toPath().resolve("protected_saves").resolve(retained.id+".snapshot"))),"failed startup keeps exact protection envelope");
+        eq(true,a.store().snapshot(retained.id).byteCount>0,"raw protected inspection remains readable with bad enrollment");
+        java.nio.file.Files.write(enrollment,originalEnrollment);a.beginSave(false);complete(a);eq(writes+1,a.provider.writes,"explicit save retry after control repair reopens real authority");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void historyRoutes(){try{
+        MainActivity same=fixture();same.beginSave(false);complete(same);HistoryIdentity.Descriptor original=uriHistory(same,ORIGINAL);
+        eq(0,original.origins.size(),"same URI has no invented origin");eq(2,same.controller().list(original.id).size(),"same URI completed pair visible");
+        eq(true,same.controller().list(original.id).stream().allMatch(v->v.status==HistoryIndex.Status.INDEXED_VERIFIED),"same URI actually indexed");
+        MainActivity copy=fixture();String destinationId=copy.controller().resolveDocument(DESTINATION,"destination-tab");copy.saveAsTabId="origin";copy.chooseDestination(MainActivity.Uri.parse(DESTINATION));complete(copy);
+        HistoryIdentity.Descriptor destination=uriHistory(copy,DESTINATION),source=uriHistory(copy,ORIGINAL);
+        eq(destinationId,destination.id,"existing destination identity preserved");eq(Collections.singletonList(source.id),destination.origins,"Save As uses captured old URI before adoption");
+        eq(DESTINATION,copy.currentUri.toString(),"Save As adopts verified destination");eq(2,copy.controller().list(destination.id).size(),"destination pair indexed");
+        MainActivity unsaved=fixture();unsaved.currentUri=null;unsaved.tabs.get(0).uri=null;unsaved.saveAsTabId="origin";unsaved.chooseDestination(MainActivity.Uri.parse(DESTINATION));complete(unsaved);
+        HistoryIdentity.Descriptor dest=uriHistory(unsaved,DESTINATION);HistoryIdentity.Descriptor origin=identities(unsaved).lookup(dest.origins.get(0));
+        eq("origin",origin.tabId,"unsaved Save As uses captured TAB origin");eq(null,origin.exactUri,"unsaved provenance never guesses old URI");
+        for(String fault:new String[]{"write","mismatch"}){MainActivity failed=fixture();failed.provider.fault=fault;failed.saveAsTabId="origin";failed.chooseDestination(MainActivity.Uri.parse(DESTINATION));complete(failed);eq(0,identities(failed).descriptors().size(),"failed Save As creates no identity/fork "+fault);}
+        MainActivity canceled=fixture();canceled.controller();canceled.saveAsTabId="origin";canceled.cancelPicker();eq(0,identities(canceled).descriptors().size(),"picker cancellation creates no identity/fork");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void corruptOptional(MainActivity a,String role)throws java.io.IOException {
+        a.controller();String extension=role.equals("history_identity")?"identity":"index";
+        java.nio.file.Files.write(a.filesDir.toPath().resolve(role).resolve(UUID.randomUUID()+"."+extension),new byte[]{1});
+    }
+    static long historyWarnings(MainActivity a){return a.toasts.stream().filter(t->t.contains("history metadata could not be confirmed")).count();}
+    static void optionalHistory(){for(String role:new String[]{"history_identity","history_index"})try{
+        MainActivity a=fixture();corruptOptional(a,role);a.saveAsTabId="origin";a.chooseDestination(MainActivity.Uri.parse(DESTINATION));a.io.drain();
+        a.editor.text="newer edit after verified write";a.dirty=true;a.main.drain();
+        eq(1,a.provider.writes,"optional error does not undo provider success "+role);eq(0,a.errors.size(),"optional error never reaches failure callback "+role);
+        eq(true,a.store().transactions().get(0).verified,"actual native completion retained "+role);eq(DESTINATION,a.currentUri.toString(),"verified destination adopted despite optional error "+role);
+        eq("newer edit after verified write",a.tabs.get(0).text,"newer edits retained despite optional error "+role);eq(true,a.dirty,"newer edits remain dirty "+role);eq(0,a.recoveriesCleared,"newer recovery not cleared "+role);
+        eq(1,a.recoveriesScheduled,"newer recovery scheduled "+role);eq(1L,historyWarnings(a),"origin-bound optional warning visible "+role);
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
+    static void historyWarningScope(){for(String transition:new String[]{"continuation-switch","continuation-uri","finishing","closed"})try{
+        MainActivity a=fixture();corruptOptional(a,"history_index");a.tabs.add(tab("other",OTHER,"other text"));final int[] continued={0};
+        a.pendingAfterSave=()->{continued[0]++;if(transition.equals("continuation-switch"))a.switchToTab(1,false);if(transition.equals("continuation-uri")){a.tabs.get(0).uri=OTHER;a.currentUri=MainActivity.Uri.parse(OTHER);}};
+        a.beginSave(false);a.io.drain();
+        if(transition.equals("finishing"))a.finishing=true;
+        if(transition.equals("closed")){a.tabs.remove(0);a.activeTab=0;a.restoreFixtureTab();}
+        a.main.drain();eq(0L,historyWarnings(a),"optional warning suppressed after "+transition);eq(0,a.errors.size(),"optional error does not become save failure after "+transition);
+        eq(true,a.store().transactions().get(0).verified,"completion retained after "+transition);
+        if(!transition.equals("closed"))eq(1,continued[0],"successful continuation still runs "+transition);
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
     static void restoreQuota(){MainActivity a=fixture();try{
         ProtectionStore.Snapshot s=a.store().putSnapshot("orphan",ORIGINAL,"orphan.md",1,"retained evidence".getBytes(StandardCharsets.UTF_8),"attempted");
-        java.nio.file.Path store=a.filesDir.toPath().resolve("protected_saves");long quota=java.nio.file.Files.size(store.resolve(s.id+".snapshot"))+8;
-        a.protectionStore=new ProtectionStore(store.toFile(),new MainActivity.AndroidDurability(),quota);
+        java.nio.file.Path store=a.filesDir.toPath().resolve("protected_saves");
+        a.controller();HistoryCapacity capacity=HistoryStorage.capacity(store.toFile());
+        long remaining=capacity.policy().quotaBytes-capacity.inspect().dataChargedBytes;
+        while(remaining>0){long size=Math.min(remaining,ProtectionStore.MAX_DOCUMENT_BYTES);
+            try(java.io.RandomAccessFile stage=new java.io.RandomAccessFile(store.resolve(UUID.randomUUID()+".stage").toFile(),"rw")){stage.setLength(size);}remaining-=size;}
+        HistoryCapacity.Usage usage=capacity.inspect();
+        eq(true,usage.usageComplete,"quota proof has complete physical accounting");eq(false,usage.mutationBlocked,"quota proof has acknowledged writable authority");
+        eq(capacity.policy().quotaBytes,usage.dataChargedBytes,"shared data quota exactly occupied before restore");
         a.restoreSnapshotId=s.id;a.chooseProtectedDestination(MainActivity.Uri.parse(DESTINATION));a.io.drain();a.main.drain();
         eq(0,a.provider.writes,"quota never permits unprotected copy");eq(1,a.errors.size(),"quota protection failure surfaced");eq(1,a.store().snapshots().size(),"selected evidence retained");eq(true,a.dirty,"unsaved current editor retained");
     }catch(java.io.IOException e){throw new AssertionError(e);}}
@@ -80,7 +156,11 @@ public final class SaveLifecycleCheck {
         eq("newer text while conflict dialog is open",a.tabs.get(0).text,"newer B retained");eq(true,a.dirty,"newer B remains unsaved");
         eq(revision,a.store().transactions().get(0).attempted.revision,"consent retains request revision");
     }catch(java.io.IOException e){throw new AssertionError(e);}}
-    static void consentOrigin(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.tabs.add(tab("other",OTHER,"other text"));a.switchToTab(1,false);dialog.positive.onClick(null,0);complete(a);eq(ORIGINAL,a.provider.writeUris.get(0),"captured origin destination");eq("other text",a.tabs.get(1).text,"other tab unchanged");}
+    static void consentOrigin(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;long revision=a.capturedSaveRevision;a.tabs.add(tab("other",OTHER,"other text"));a.switchToTab(1,false);dialog.positive.onClick(null,0);complete(a);eq(ORIGINAL,a.provider.writeUris.get(0),"captured origin destination");eq("other text",a.tabs.get(1).text,"other tab unchanged");try{
+        HistoryIdentity.Descriptor origin=uriHistory(a,ORIGINAL);eq(0,origin.origins.size(),"consent retains original source URI instead of active other URI");
+        eq(true,a.controller().list(origin.id).stream().filter(v->v.groupId!=null).allMatch(v->v.status==HistoryIndex.Status.INDEXED_VERIFIED&&v.revision==revision&&v.documentId.equals("origin")),"consent indexing retains captured tab and revision");
+        eq(false,identities(a).descriptors().stream().anyMatch(d->OTHER.equals(d.exactUri)),"consent never creates active-other provenance");
+    }catch(java.io.IOException e){throw new AssertionError(e);}}
     static void staleConsent(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.provider.bytes.put(ORIGINAL,"new external version".getBytes(StandardCharsets.UTF_8));dialog.positive.onClick(null,0);complete(a);eq(0,a.provider.writes,"stale consent never writes");eq(true,a.dialog!=dialog,"new conflict decision required");}
     static void closedConsent(){MainActivity a=conflicting();MainActivity.AlertDialog.Builder dialog=a.dialog;a.tabs.clear();a.tabs.add(tab("other",OTHER,"other text"));a.activeTab=0;a.restoreFixtureTab();dialog.positive.onClick(null,0);eq(0,a.io.tasks.size(),"no worker for removed origin");eq(0,a.provider.writes,"no retargeted overwrite");}
     static void failedProtection(){MainActivity a=fixture();try{java.nio.file.Files.writeString(a.filesDir.toPath().resolve("protected_saves"),"blocking file");}catch(java.io.IOException e){throw new AssertionError(e);}a.beginSave(false);complete(a);eq(0,a.provider.writes,"protection failure blocks mutation");eq(0,a.provider.reads,"protection failure blocks provider read as well");eq(1,a.errors.size(),"protection error surfaced");}
