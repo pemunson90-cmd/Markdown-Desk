@@ -38,7 +38,23 @@ public final class HistoryGraph {
         public final HistoryCapacity.EffectivePolicy effectivePolicy;
         public final long controlActualBytes;
         public final int controlActualEntries;
-        private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
+        private final HistoryStorage.Budget originalCaptureBudget;
+        private final PrivateCapturePlan.HashInput originalCaptureInput;
+        private final HistoryControlStore.Inspection originalCaptureControl;
+        private final PrivateOperationStore.Ledger originalCaptureLedger;
+        HistoryControlStore.Inspection originalControl(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            requireOriginalCapture(budget,input);return originalCaptureControl;
+        }
+        PrivateOperationStore.Ledger originalLedger(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            requireOriginalCapture(budget,input);return originalCaptureLedger;
+        }
+        void requireOriginalCapture(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            if(input==null||originalCaptureBudget!=budget||originalCaptureInput!=input||!fingerprint.equals(input.hash()))
+                throw new IOException("Graph requires its original funded scan witness");
+        }
+        private Graph(Builder builder,String fingerprint,HistoryPolicy policy,HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input){
+            originalCaptureBudget=input==null?null:budget;originalCaptureInput=input;
+            originalCaptureControl=input==null?null:builder.control;originalCaptureLedger=input==null?null:builder.operations;
             registeredRoleNames=freeze(builder.roleNames);occupiedEntries=builder.occupied;
             PrivateOperationStore.Ledger op=builder.operations;operationFingerprint=op==null?"":op.fingerprint;operationActualBytes=op==null?0:op.actualBytes;operationReservedBytes=op==null?0:op.reservedBytes;operationOccupiedEntries=op==null?0:op.occupiedEntries;operationReservedEntries=op==null?0:op.reservedEntries;
             records=freeze(builder.records);snapshots=freeze(builder.snapshots);transactions=freeze(builder.transactions);
@@ -160,7 +176,7 @@ public final class HistoryGraph {
                 try{builder.charged=Math.addExact(Math.addExact(builder.actual,builder.reserved),builder.operations==null?0:builder.operations.reservedBytes);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
                 builder.records.sort(Comparator.comparing((ProtectionStore.StoredRecord record)->record.rootRole).thenComparing(record->record.filename));
                 Collections.sort(builder.diagnostics);
-                return new Graph(builder,fingerprint(builder,budget,input),policy);
+                return new Graph(builder,fingerprint(builder,budget,input),policy,budget,input);
             });
         }
     }
