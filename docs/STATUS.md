@@ -48,8 +48,10 @@ Verified current source:
   typed import/adoption, automatic retention or the complete M1 workflow.
 
 Active integration is `codex/operation-export-integration`; no new PR yet.
-`codex/operation-terminal-recovery` is finalizing independent review of enforced
-consumer quiescence and append-only canonical CLOSE recovery before code. Partial
+`codex/operation-terminal-recovery` is implementing the independently approved
+plan `8fe3874` (recorded at `75d2763`) for enforced consumer quiescence and
+append-only canonical CLOSE recovery. ADR-004 records the design; no implementation
+or test pass is claimed yet. Partial
 BEGIN quarantine remains blocked: absence cannot prove never acknowledged.
 Committed historical closed audits retain their source-independent semantics.
 Compaction, unlimited cancellation availability and a fresh-process arbitrary-
