@@ -266,7 +266,7 @@ public final class HistoryPruner {
     private static Result unavailable(BlockedReason reason,long bytes,long entries){return new Result(null,reason,bytes,entries,new Capacity(),0,0);}
     private static Result result(DeletePlan plan,BlockedReason reason,long bytes,long entries,Capacity eligible,HistoryGraph.Graph graph){
         long protectedBytes=Math.subtractExact(graph.chargedBytes,eligible.bytes);
-        long protectedEntries=Math.subtractExact(Math.addExact(graph.records.size(),graph.reservedCompletionSlots),eligible.entries);
+        long protectedEntries=Math.subtractExact(Math.addExact(Math.addExact(graph.records.size(),graph.reservedCompletionSlots),Math.addExact(graph.operationOccupiedEntries,graph.operationReservedEntries)),eligible.entries);
         if(protectedBytes<0||protectedEntries<0)throw new ArithmeticException("Invalid capacity closure");
         return new Result(plan,reason,bytes,entries,eligible,protectedBytes,protectedEntries);
     }

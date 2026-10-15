@@ -11,7 +11,7 @@ final class HistoryPinRecord {
     private static final int MAGIC=0x4d44504e,HEADER=13,CHECKSUM=32;
     enum Purpose {EXPORT(1),RESTORE(2);final int wire;Purpose(int wire){this.wire=wire;}}
     enum Scope {EXACT_SUBSET(1),ALL_BUNDLE(2);final int wire;Scope(int wire){this.wire=wire;}}
-    enum Domain {NATIVE_HISTORY_V1(1);final int wire;Domain(int wire){this.wire=wire;}}
+    enum Domain {NATIVE_HISTORY_V1(1),LOCAL_CAPTURE_V1(2);final int wire;Domain(int wire){this.wire=wire;}}
     enum Outcome {RELEASED(1),CANCELLED(2);final int wire;Outcome(int wire){this.wire=wire;}}
     static final class Manifest {
         final Domain domain;final long count,length;final String hash;

@@ -29,6 +29,8 @@ public final class HistoryGraph {
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots, chargedBytes;
         public final boolean complete, pruneBlocked, usageComplete;
         public final String fingerprint;
+        public final String operationFingerprint;
+        public final long operationActualBytes,operationReservedBytes,operationOccupiedEntries,operationReservedEntries;
         /** Compatibility profile only; it grants no registered mutation authority. */
         public final HistoryPolicy policy,desiredProfile;
         public final HistoryCapacity.EffectivePolicy effectivePolicy;
@@ -36,6 +38,7 @@ public final class HistoryGraph {
         public final int controlActualEntries;
         private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
             registeredRoleNames=freeze(builder.roleNames);occupiedEntries=builder.occupied;
+            PrivateOperationStore.Ledger op=builder.operations;operationFingerprint=op==null?"":op.fingerprint;operationActualBytes=op==null?0:op.actualBytes;operationReservedBytes=op==null?0:op.reservedBytes;operationOccupiedEntries=op==null?0:op.occupiedEntries;operationReservedEntries=op==null?0:op.reservedEntries;
             records=freeze(builder.records);snapshots=freeze(builder.snapshots);transactions=freeze(builder.transactions);
             checkpoints=freeze(builder.checkpoints);identities=freeze(builder.identities);ownerships=freeze(builder.ownerships);
             pinnedSnapshotIds=freezeSet(builder.pins);orphanSnapshotIds=freezeSet(builder.orphans);unresolvedTransactionIds=freezeSet(builder.unresolved);
@@ -57,7 +60,7 @@ public final class HistoryGraph {
         final Set<String> pins=new TreeSet<>(),orphans=new TreeSet<>(),unresolved=new TreeSet<>(),unindexed=new TreeSet<>(),protectedSources=new TreeSet<>();
         final List<String> roleNames=new ArrayList<>();int occupied;
         long actual,reserved,slots,charged;boolean usageComplete=true;
-        HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;
+        HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;PrivateOperationStore.Ledger operations;
     }
     private final ProtectionStore store;
     private final HistoryCatalog catalog;
@@ -128,7 +131,12 @@ public final class HistoryGraph {
                 }
                 for(ProtectionStore.Snapshot snapshot:builder.snapshots){builder.protectedSources.add(snapshot.id);if(!grouped.contains(snapshot.id))builder.orphans.add(snapshot.id);}
                 for(HistoryCatalog.Checkpoint checkpoint:builder.checkpoints)builder.pins.add(checkpoint.snapshotId);
-                try{builder.charged=Math.addExact(builder.actual,builder.reserved);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
+                try{HistoryControlStore.Inspection control=builder.control==null?new HistoryControlStore(store.storageRoot().getParentFile()).inspect():builder.control;
+                    builder.operations=PrivateOperationStore.inspect(store.storageRoot(),control,budget);builder.actual=Math.addExact(builder.actual,builder.operations.actualBytes);
+                    builder.usageComplete&=builder.operations.complete;builder.diagnostics.addAll(builder.operations.diagnostics);
+                    if(builder.operations.pending)builder.diagnostics.add("graph: incomplete operation preparation");
+                }catch(IOException|ArithmeticException invalid){builder.usageComplete=false;builder.diagnostics.add("graph: operation accounting unavailable");}
+                try{builder.charged=Math.addExact(Math.addExact(builder.actual,builder.reserved),builder.operations==null?0:builder.operations.reservedBytes);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
                 builder.records.sort(Comparator.comparing((ProtectionStore.StoredRecord record)->record.rootRole).thenComparing(record->record.filename));
                 Collections.sort(builder.diagnostics);
                 return new Graph(builder,fingerprint(builder),policy);
@@ -155,6 +163,7 @@ public final class HistoryGraph {
             // The exact envelope hashes bind all source fields, checkpoint labels, FORK edges and persisted ownership sequences.
             for(ProtectionStore.Transaction transaction:builder.transactions){text(out,transaction.id);text(out,transaction.original.id);text(out,transaction.attempted.id);out.writeBoolean(transaction.verified);}
             for(String diagnostic:builder.diagnostics)text(out,diagnostic);
+            if(builder.operations!=null&&builder.operations.present){text(out,"operation-ledger-binding-v1");text(out,builder.operations.fingerprint);}
         }
         return HistoryStorage.hex(digest.digest());
     }

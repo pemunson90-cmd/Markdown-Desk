@@ -68,6 +68,8 @@ final class HistoryControlStore {
         final Record record;
         final HistoryPruneIntent intent;
         final HistoryPinRecord pin;private final byte[] pinBytes;
+        final PrivateOperationRecord operation;
+        boolean operationPrefix(byte[] expected){return pinPrefix(expected);}
         boolean pinPrefix(byte[] expected){if(pinBytes==null||pinBytes.length>expected.length)return false;for(int i=0;i<pinBytes.length;i++)if(pinBytes[i]!=expected[i])return false;return true;}
         final boolean stage;
         private Entry(String filename,long length,String hash,Record record,boolean stage) {
@@ -78,6 +80,7 @@ final class HistoryControlStore {
         }
         private Entry(String filename,long length,String hash,Record record,boolean stage,HistoryPruneIntent intent,HistoryPinRecord pin,byte[] pinBytes){
             this.filename=filename;this.length=length;envelopeHash=hash;this.record=record;this.stage=stage;this.intent=intent;this.pin=pin;this.pinBytes=pinBytes;
+            PrivateOperationRecord op=null;if(pinBytes!=null&&filename!=null&&PrivateOperationRecord.knownName(stage?filename.substring(0,filename.length()-6):filename)){try{op=PrivateOperationRecord.decode(pinBytes);}catch(IOException invalid){/* exact optional LINK prefix is classified against its commitment */}}operation=op;
         }
     }
     static final class StageDescriptor {
@@ -99,6 +102,8 @@ final class HistoryControlStore {
         final List<StageDescriptor> stages;
         final Entry committedIntent, intentStage;
         final HistoryPinRecord.Inventory pins;
+        final PrivateOperationStore.Control operations;
+        final long controlReservedBytes;final int controlReservedEntries;
         boolean hasMaintenance(){return committedIntent!=null||intentStage!=null;}
         final long actualBytes;
         final int actualEntries;
@@ -106,13 +111,16 @@ final class HistoryControlStore {
         final List<String> diagnostics;
         private Inspection(State state,Registration registration,Record latest,List<Entry> entries,List<StageDescriptor> stages,
                 long bytes,int count,boolean usageComplete,boolean chainComplete,List<String> diagnostics)throws IOException {
-            this.state=state;this.registration=registration;this.latest=latest;
+            this.registration=registration;this.latest=latest;
             this.entries=Collections.unmodifiableList(new ArrayList<>(entries));
             this.stages=Collections.unmodifiableList(new ArrayList<>(stages));
             Entry committed=null,pending=null;
             for(Entry entry:entries){if(HistoryPruneIntent.INTENT_NAME.equals(entry.filename))committed=entry;
                 if(HistoryPruneIntent.STAGE_NAME.equals(entry.filename))pending=entry;}
             committedIntent=committed;intentStage=pending;pins=HistoryPinRecord.inspect(entries,registration);
+            operations=PrivateOperationStore.control(entries,registration,pins);controlReservedBytes=PrivateOperationStore.add(pins.reservedBytes,operations.reservedBytes);
+            controlReservedEntries=Math.addExact(pins.reservedEntries,operations.reservedEntries);
+            this.state=state==State.VALIDATED&&(!operations.ready||bytes>MAX_BYTES-controlReservedBytes||count>MAX_ENTRIES-controlReservedEntries)?State.BLOCKED:state;
             actualBytes=bytes;actualEntries=count;this.usageComplete=usageComplete;this.chainComplete=chainComplete;
             this.diagnostics=Collections.unmodifiableList(new ArrayList<>(diagnostics));
         }
@@ -235,7 +243,8 @@ final class HistoryControlStore {
                 String committed=stage?name.substring(0,name.length()-6):name;
                 boolean maintenance=HistoryPruneIntent.INTENT_NAME.equals(committed);
                 boolean pinName=HistoryPinRecord.knownName(committed);
-                boolean known=maintenance||pinName||knownCommittedName(committed);
+                boolean operationName=PrivateOperationRecord.knownName(committed);
+                boolean known=maintenance||pinName||operationName||knownCommittedName(committed);
                 HistoryPinRecord pin=null;byte[] pinBytes=null;
                 HistoryPruneIntent intent=null;
                 long size=0;String hash=null;Record record=null;
@@ -248,7 +257,8 @@ final class HistoryControlStore {
                     if(size>limit){same(before,attributes(path));diagnostics.add("control: oversized entry");inventoryValid=false;}
                     else {
                         byte[] envelope=read(path,before,limit);hash=hex(sha(envelope));
-                        if(pinName){pinBytes=envelope;try{pin=HistoryPinRecord.decode(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
+                        if(operationName){pinBytes=envelope;}
+                        else if(pinName){pinBytes=envelope;try{pin=HistoryPinRecord.decode(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
                         else if(maintenance){try{intent=HistoryPruneIntent.decode(envelope);}catch(IOException invalid){diagnostics.add("control: invalid intent");inventoryValid=false;}}
                         else if(known) {
                             try {
@@ -298,7 +308,7 @@ final class HistoryControlStore {
             diagnostics.add("control: root changed");usageComplete=false;chainComplete=false;inventoryValid=false;
             registration=null;latest=null;
         }
-        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage&&!HistoryPruneIntent.STAGE_NAME.equals(entry.filename)&&!(entry.filename!=null&&HistoryPinRecord.knownName(entry.filename.substring(0,entry.filename.length()-6))))pending.add(entry);
+        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage&&!PrivateOperationStore.operationEntry(entry)&&!HistoryPruneIntent.STAGE_NAME.equals(entry.filename)&&!(entry.filename!=null&&HistoryPinRecord.knownName(entry.filename.substring(0,entry.filename.length()-6))))pending.add(entry);
         for(Entry entry:pending) {
             boolean provisional=false;
             if(pending.size()==1&&inventoryValid&&usageComplete&&entry.record!=null) {

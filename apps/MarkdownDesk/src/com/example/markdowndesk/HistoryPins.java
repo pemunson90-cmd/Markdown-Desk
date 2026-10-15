@@ -52,6 +52,7 @@ final class HistoryPins {
     HistoryPinRecord operationResumeLocked(String operation,InputStream originalManifest)throws IOException {
         HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
         HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operation);requireAcknowledged(before);
+        if(active.manifest.domain==Domain.LOCAL_CAPTURE_V1)throw new IOException("Local capture requires durable capture activation");
         Map<File,BasicFileAttributes> stable=capture(before),directories=captureDirectories(),protectedFiles=captureSources(active);
         manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);return active;
     }
@@ -85,6 +86,7 @@ final class HistoryPins {
         if(!before.pins.stages.isEmpty()){
             if(before.pins.stages.size()!=1)throw new IOException("Conflicting pin stages");HistoryControlStore.Entry stage=before.pins.stages.get(0);
             if(stage.pin==null)throw new IOException("Partial pin stage retained; terminal repair required");
+            if(stage.pin.begin&&stage.pin.manifest.domain==Domain.LOCAL_CAPTURE_V1)throw new IOException("Prepared BEGIN requires exact capture publication");
             HistoryPinRecord source=stage.pin.begin?stage.pin:find(before.pins.begins,stage.pin.operation);
             if(source==null)throw new IOException("Missing staged pin BEGIN");validateSources(source);
             publish(before,stage.pin.name(),HistoryPinRecord.encode(stage.pin),true,source);if(!stage.pin.begin)newlyClosed=source;before=control();
@@ -102,13 +104,14 @@ final class HistoryPins {
     String begin(Purpose purpose,Scope scope,Collection<String> snapshotIds,ManifestIdentity manifest)throws IOException {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
             requireReady();HistoryControlStore.Inspection before=control();
-            if(before.pins.active!=null||!before.pins.stages.isEmpty()||pruneBlocked(store.storageRoot(),before))throw new IOException("Existing pin requires closure/reconciliation");
+            if(before.operations.pending||before.pins.active!=null||!before.pins.stages.isEmpty()||pruneBlocked(store.storageRoot(),before))throw new IOException("Existing pin requires closure/reconciliation");
             if(purpose==null||scope==null||snapshotIds==null||manifest==null||snapshotIds.size()>MAX_SOURCES)throw new IOException("Invalid pin request");
+            if(manifest.value.domain==Domain.LOCAL_CAPTURE_V1)throw new IOException("Prepared capture capability required");
             List<Source> sources=new ArrayList<>();Set<String> seen=new TreeSet<>();for(String id:snapshotIds){HistoryMetadataIO.id(id);if(!seen.add(id))throw new IOException("Duplicate pinned snapshot");}
             if(scope==Scope.ALL_BUNDLE&&!seen.isEmpty())throw new IOException("ALL_BUNDLE has no subset descriptors");
             for(String id:seen){ProtectionStore.StoredRecord record=store.pinSource(id);sources.add(new Source(id,record.serializedBytes,record.envelopeHash));}
             HistoryPinRecord begin=HistoryPinRecord.begin(UUID.randomUUID(),before.registration,before.latest,purpose,scope,manifest.value,sources);byte[] bytes=HistoryPinRecord.encode(begin);
-            if(before.actualBytes>HistoryControlStore.MAX_BYTES-bytes.length-CLOSE_BYTES||before.actualEntries>HistoryControlStore.MAX_ENTRIES-2)throw new IOException("Pin plus terminal reservation exhausts control allowance");
+            if(before.actualBytes+before.controlReservedBytes>HistoryControlStore.MAX_BYTES-bytes.length-CLOSE_BYTES||before.actualEntries+before.controlReservedEntries>HistoryControlStore.MAX_ENTRIES-2)throw new IOException("Pin plus terminal reservation exhausts control allowance");
             publish(before,begin.name(),bytes,false,begin);acknowledge(control());return begin.operation.toString();
         }}
     }
@@ -195,9 +198,9 @@ final class HistoryPins {
      * This never promotes intent evidence or grants a pin mutation/read projection. */
     private HistoryControlStore.Inspection control(boolean auditOnly)throws IOException {
         HistoryStorage.siblings(roots.toArray(new File[0]));HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();
-        requireRetained(store.storageRoot(),control);
-        if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()||!control.pins.valid
-                ||control.actualBytes>HistoryControlStore.MAX_BYTES-control.pins.reservedBytes||control.actualEntries>HistoryControlStore.MAX_ENTRIES-control.pins.reservedEntries)throw new IOException("Incomplete pin control authority");
+        requireRetained(store.storageRoot(),control);HistoryStorage.requireOperationControl(store.storageRoot(),control);
+        if(!control.chainComplete||!control.usageComplete||!control.operations.ready||control.registration==null||control.latest==null||!control.stages.isEmpty()||!control.pins.valid
+                ||control.actualBytes>HistoryControlStore.MAX_BYTES-control.controlReservedBytes||control.actualEntries>HistoryControlStore.MAX_ENTRIES-control.controlReservedEntries)throw new IOException("Incomplete pin control authority");
         if(control.hasMaintenance()&&!(auditOnly&&control.committedIntent!=null&&control.committedIntent.intent!=null&&control.intentStage==null
                 &&control.pins.active==null&&control.pins.stages.isEmpty()))throw new IOException("Maintenance incompatible with pin operation");
         boolean marker=false;for(HistoryControlStore.Entry entry:control.entries)if(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)&&control.registration.envelopeHash.equals(entry.envelopeHash))marker=true;

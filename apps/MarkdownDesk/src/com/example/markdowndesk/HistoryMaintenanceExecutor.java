@@ -36,7 +36,7 @@ final class HistoryMaintenanceExecutor {
             selected(fresh,authorization);stable.full(graph);stable.control(control(policy),false);
             HistoryPruneIntent intent=HistoryPruneIntent.create(fresh,graph,new HistoryPruneIntent.PolicyBinding(policy.bundleId,policy.generation,policy.controlRecordHash,policy.quotaBytes,policy.automaticCount),authorization,HistoryMaintenanceRecovery.unaffectedFingerprint(graph,fresh.members));
             byte[] encoded=HistoryPruneIntent.encode(intent);
-            if(control.actualBytes+control.pins.reservedBytes>HistoryControlStore.MAX_BYTES-encoded.length||control.actualEntries+control.pins.reservedEntries>=HistoryControlStore.MAX_ENTRIES)throw new IOException("Intent exhausts shared control allowance");
+            if(control.actualBytes+control.controlReservedBytes>HistoryControlStore.MAX_BYTES-encoded.length||control.actualEntries+control.controlReservedEntries>=HistoryControlStore.MAX_ENTRIES)throw new IOException("Intent exhausts shared control allowance");
             publish(authority,policy,graph,stable,intent,encoded);
             stable.bindIntent(new HistoryControlStore(parent).inspect());
             HistoryMaintenanceRecovery.openLocked(store,catalog,identity,index,durability);
@@ -68,7 +68,7 @@ final class HistoryMaintenanceExecutor {
     private HistoryControlStore.Inspection control(HistoryCapacity.EffectivePolicy expected)throws IOException {
         HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();requireBootstrap(control);HistoryPins.requireRetained(store.storageRoot(),control);
         if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()||!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty()
-                ||control.actualBytes+control.pins.reservedBytes>HistoryControlStore.MAX_BYTES||control.actualEntries+control.pins.reservedEntries>HistoryControlStore.MAX_ENTRIES)throw new IOException("Incomplete executor authority");
+                ||control.actualBytes+control.controlReservedBytes>HistoryControlStore.MAX_BYTES||control.actualEntries+control.controlReservedEntries>HistoryControlStore.MAX_ENTRIES)throw new IOException("Incomplete executor authority");
         for(String diagnostic:control.diagnostics)if(!diagnostic.equals("control: retained maintenance"))throw new IOException("Conflicting executor control evidence");
         if(!expected.bundleId.equals(control.latest.bundleId.toString())||expected.generation!=control.latest.generation||!expected.controlRecordHash.equals(control.latest.envelopeHash)
                 ||expected.quotaBytes!=control.latest.quotaBytes||expected.automaticCount!=control.latest.automaticCount)throw new IOException("Executor policy changed");
@@ -145,7 +145,10 @@ final class HistoryMaintenanceExecutor {
     private final class Stable {
         private final Map<File,BasicFileAttributes> nativeFiles=new LinkedHashMap<>(),controlFiles=new LinkedHashMap<>(),directories=new LinkedHashMap<>();
         private final Map<String,String> nativeRecords,controlRecords=new TreeMap<>();
+        private final String operationFingerprint;
         Stable(HistoryControlStore.Inspection control)throws IOException {
+            PrivateOperationStore.Ledger operations=PrivateOperationStore.inspect(store.storageRoot(),control,new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
+            if(!operations.complete||operations.pending)throw new IOException("Incomplete operation ledger");operationFingerprint=operations.fingerprint;
             List<ProtectionStore.StoredRecord> records=raw();nativeRecords=recordMap(records);
             for(ProtectionStore.StoredRecord record:records){File file=logicalFile(record.rootRole,record.filename);nativeFiles.put(file,attrs(file));}
             for(HistoryControlStore.Entry entry:control.entries){if(entry.filename==null)throw new IOException("Unknown control entry");File file=controlFile(entry.filename);controlFiles.put(file,attrs(file));controlRecords.put(entry.filename,entry.length+":"+entry.envelopeHash);}
@@ -166,7 +169,9 @@ final class HistoryMaintenanceExecutor {
             }
         }
         void control(HistoryControlStore.Inspection current,boolean changingIntent)throws IOException {
-            directories();Map<String,String> records=new TreeMap<>();for(HistoryControlStore.Entry entry:current.entries){
+            directories();PrivateOperationStore.Ledger operations=PrivateOperationStore.inspect(store.storageRoot(),current,new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
+            if(!operations.complete||operations.pending||!operationFingerprint.equals(operations.fingerprint))throw new IOException("Changed operation ledger");
+            Map<String,String> records=new TreeMap<>();for(HistoryControlStore.Entry entry:current.entries){
                 if(changingIntent&&(HistoryPruneIntent.INTENT_NAME.equals(entry.filename)||HistoryPruneIntent.STAGE_NAME.equals(entry.filename)))continue;
                 records.put(entry.filename,entry.length+":"+entry.envelopeHash);
             }

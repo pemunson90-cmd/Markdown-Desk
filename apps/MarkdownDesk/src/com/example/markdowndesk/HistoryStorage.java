@@ -12,9 +12,28 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;HistoryMaintenanceExecutor.Retirement retirement;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
+    static void requireOperationControl(File root,HistoryControlStore.Inspection control)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
+        for(Map.Entry<String,String> retained:state.operationControl.entrySet()){
+            boolean found=false;for(HistoryControlStore.Entry e:control.entries)if(retained.getKey().equals(e.filename)&&retained.getValue().equals(e.envelopeHash)&&!e.stage)found=true;
+            if(!found)throw new IOException("Retained operation control disappeared/changed");
+        }
+    }
+    static long operationEvidenceBytes(File root)throws IOException{return ((State)monitorFor(root)).operationEvidenceBytes;}
+    static void requireOperationEvidence(File root,HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger)throws IOException {
+        requireOperationControl(root,control);State state=(State)monitorFor(root);
+        for(Map.Entry<String,String> e:state.operationData.entrySet())if(!Objects.equals(e.getValue(),ledger.entries.get(e.getKey())))throw new IOException("Retained operation data disappeared/changed");
+    }
+    static void rememberOperationEvidence(File root,HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger)throws IOException {
+        requireMutation(root);requireOperationEvidence(root,control,ledger);if(!ledger.complete||!control.operations.valid)throw new IOException("Incomplete operation evidence");
+        Map<String,String> records=new TreeMap<>(),files=new TreeMap<>();long bytes=0;
+        for(HistoryControlStore.Entry e:control.entries)if(!e.stage&&PrivateOperationStore.operationEntry(e)){records.put(e.filename,e.envelopeHash);bytes=PrivateOperationStore.add(bytes,1024L+e.filename.length()*2L);}
+        for(Map.Entry<String,String> e:ledger.entries.entrySet())if(!e.getKey().endsWith(".stage")){files.put(e.getKey(),e.getValue());bytes=PrivateOperationStore.add(bytes,1024L+e.getKey().length()*2L);}
+        State state=(State)monitorFor(root);state.operationControl=Collections.unmodifiableMap(records);state.operationData=Collections.unmodifiableMap(files);state.operationEvidenceBytes=bytes;
+    }
     static File canonicalRoot(File root)throws IOException {
         if(root==null)throw new IOException("Missing history root");
         File absolute=root.getAbsoluteFile();Path path=absolute.toPath();
