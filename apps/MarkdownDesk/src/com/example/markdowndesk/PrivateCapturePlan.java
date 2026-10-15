@@ -17,7 +17,7 @@ final class PrivateCapturePlan {
     final List<PrivateFramePreflight.ClosedFrame> privateFrames;
     final PrivateOperationRecord prepare,descriptor,link;
     final String initialLedgerHash,initialControlHash;
-    final long artifactBytes;
+    final long artifactBytes;final PortableInputs portableInputs;
     private static final long FIXED_METADATA_BYTES=256L<<10,FRAME_METADATA_BYTES=4096;
 
     /**
@@ -94,12 +94,254 @@ final class PrivateCapturePlan {
         PrivateOperationRecord link=PrivateOperationRecord.link(prepare);
         admit(graph.chargedBytes,bytes,frozen.quotaBytes,control.actualBytes,control.controlReservedBytes,prepare.encoded().length,
             add(control.actualEntries,control.controlReservedEntries),baseLedger.occupiedEntries,baseLedger.reservedEntries,namespacePresent?1:2,all.size());
-        return new PrivateCapturePlan(frozen,nativeProof,owner,retained,prepare,descriptor,link,ledgerHash,controlHash,bytes);
+        return new PrivateCapturePlan(frozen,nativeProof,owner,retained,prepare,descriptor,link,ledgerHash,controlHash,bytes,null);
     }
     private PrivateCapturePlan(HistoryArchiveManifest map,NativeCaptureFingerprint proof,PreparationSources owner,List<PrivateFramePreflight.ClosedFrame> frames,
-            PrivateOperationRecord prepare,PrivateOperationRecord descriptor,PrivateOperationRecord link,String ledger,String control,long bytes){
-        nativeMap=map;nativeSources=proof;sourceOwner=owner;privateFrames=frames;this.prepare=prepare;this.descriptor=descriptor;this.link=link;initialLedgerHash=ledger;initialControlHash=control;artifactBytes=bytes;
+            PrivateOperationRecord prepare,PrivateOperationRecord descriptor,PrivateOperationRecord link,String ledger,String control,long bytes,PortableInputs portableInputs){
+        nativeMap=map;nativeSources=proof;sourceOwner=owner;privateFrames=frames;this.prepare=prepare;this.descriptor=descriptor;this.link=link;initialLedgerHash=ledger;initialControlHash=control;artifactBytes=bytes;this.portableInputs=portableInputs;
     }
+    /** Real portable record assembly. Inputs were measured outside this monitor and own no P. */
+    static PrivateCapturePlan createPortable(File store,File catalog,File identity,File index,
+            HistoryArchiveManifest frozen,HistoryGraph.Graph graph,HistoryControlStore.Inspection control,
+            PrivateOperationStore.Ledger ledger,PreparationSources owner,UUID preparation,UUID operation,
+            UUID mapId,UUID descriptorId,List<PrivateFramePreflight.ClosedFrame> frames,long bootstrap,
+            PortableSelection selection,PortableInputs inputs,HistoryStorage.Budget budget)throws IOException {
+        HistoryStorage.requireMutation(store);PreparationSources.rejectParticipant();HistoryOperations.rejectParticipant();
+        if(inputs==null)throw invalid("Missing actual portable inputs");
+        inputs.require(store,catalog,identity,index,frozen,graph,control,ledger,owner,preparation,operation,mapId,descriptorId,frames,bootstrap,selection,budget);
+        budget.charge(FIXED_METADATA_BYTES+FRAME_METADATA_BYTES*frames.size());
+        inputs.baseline.requireOriginalLocked(control,ledger,owner,budget);
+        try(NativeCaptureFingerprint.PhysicalProof proof=inputs.nativeProof.prove(control,graph.effectivePolicy)) {
+            inputs.validateJoins();
+            PrivateOperationRecord.Binding binding=PrivateOperationRecord.Binding.portable(preparation,frozen.bundleId,
+                    HistoryStorage.hex(frozen.registrationHashBytes()),frozen.policyGeneration,HistoryStorage.hex(frozen.policyHashBytes()),
+                    bootstrap,frozen.quotaBytes,frozen.automaticCount,control.registration.roles,inputs.nativeProof.fingerprint,initialLedgerHash(ledger),2+(selection.recovery==null?0:1));
+            List<PrivateOperationRecord.Artifact> tail=new ArrayList<>();
+            tail.add(PrivateOperationRecord.Artifact.portable(3,inputs.inventoryId,PrivateOperationRecord.ZERO,0,inputs.inventoryBytes.length(),inputs.inventoryBytes.hash()));
+            tail.add(PrivateOperationRecord.Artifact.portable(4,inputs.evidenceId,PrivateOperationRecord.ZERO,0,inputs.capsuleLength,inputs.capsuleHash));
+            tail.add(PrivateOperationRecord.Artifact.portable(5,inputs.catalogId,PrivateOperationRecord.ZERO,0,inputs.catalogBytes.length(),inputs.catalogBytes.hash()));
+            for(PrivateFramePreflight.ClosedFrame f:frames)tail.add(PrivateOperationRecord.Artifact.portable(f.kind.wireId,f.artifactId,f.itemId,f.ordinal,f.envelopeBytes,f.envelopeHash));
+            PrivateOperationRecord.Artifact map=PrivateOperationRecord.Artifact.portable(1,mapId,PrivateOperationRecord.ZERO,0,inputs.mapLength,inputs.mapHash);
+            PrivateOperationRecord descriptor=PrivateOperationRecord.descriptorPortable(binding,inputs.inventoryOuterId,map,tail);
+            PrivateOperationRecord.Artifact descriptorRow=PrivateOperationRecord.Artifact.portable(2,descriptorId,PrivateOperationRecord.ZERO,0,descriptor.encoded().length,descriptor.envelopeHash);
+            List<PrivateOperationRecord.Artifact> all=new ArrayList<>();all.add(map);all.add(descriptorRow);all.addAll(tail);
+            HistoryPinRecord begin=HistoryPinRecord.beginPortable(operation,control.registration,control.latest,
+                    new HistoryPinRecord.Manifest(HistoryPinRecord.Domain.PORTABLE_CAPTURE_V1,inputs.items.size(),descriptorRow.length,descriptorRow.hash));
+            boolean present=ledger.entries.containsKey(PrivateOperationStore.ROOT);
+            PrivateOperationRecord prepare=PrivateOperationRecord.preparePortable(binding,present?2:3,all,begin),link=PrivateOperationRecord.linkPortable(prepare);
+            long bytes=0;for(PrivateOperationRecord.Artifact a:all)bytes=add(bytes,a.length);
+            admitPortable(graph.chargedBytes,bytes,frozen.quotaBytes,control,prepare,ledger,present?1:2,all.size());
+            proof.recheck(control,graph.effectivePolicy);
+            return new PrivateCapturePlan(frozen,inputs.nativeProof,owner,inputs.frames,prepare,descriptor,link,initialLedgerHash(ledger),initialControlHash(control),bytes,inputs);
+        }
+    }
+    private static void admitPortable(long data,long artifacts,long quota,HistoryControlStore.Inspection control,
+            PrivateOperationRecord p,PrivateOperationStore.Ledger ledger,int directories,int slots)throws IOException {
+        if(slots<6||slots>19||add(data,artifacts)>quota
+                ||add(add(control.actualBytes,control.controlReservedBytes),add(p.encoded().length,204+173+126))>HistoryControlStore.MAX_BYTES
+                ||add(add(control.actualEntries,control.controlReservedEntries),4)>HistoryControlStore.MAX_ENTRIES
+                ||add(add(ledger.occupiedEntries,ledger.reservedEntries),directories+slots)>PrivateOperationStore.MAX_ENTRIES)
+            throw invalid("Insufficient portable capture funding");
+    }
+
+    /** Concrete frozen producer inputs; no public DTO/source-path constructor or authority. */
+    static final class PortableInputs implements AutoCloseable {
+        final HistoryArchiveManifest nativeMap;final PrivateOperationStore.PortableBaseline baseline;
+        final UUID inventoryId,inventoryOuterId,evidenceId,catalogId,scopeId,evidenceOuterId,evidenceItemId;
+        final List<PrivateFramePreflight.ClosedFrame> frames;
+        final PrivateBundleInventory.MetadataBudget metadata;
+        final NativeCaptureFingerprint nativeProof;
+        private final File store,catalog,identity,index;private final HistoryGraph.Graph graph;
+        private final HistoryControlStore.Inspection control;private final PrivateOperationStore.Ledger ledger;
+        private final PreparationSources owner;private final UUID preparation,operation,mapId,descriptorId;
+        private final PortableSelection selection;private final HistoryStorage.Budget budget;private final long bootstrap;
+        private final HashInput graphInput,c0Input,ledgerInput,nativeInput;
+        private final List<UUID> privateOuters=new ArrayList<>();
+        private final List<Item> items=new ArrayList<>();private final List<EvidenceSlot> evidence=new ArrayList<>();
+        private HashInput inventoryBytes,catalogBytes;private PrivateBundleInventory inventory;
+        private long capsuleLength,capsuleMetadata,mapLength;private String capsuleHash,mapHash;
+        private boolean measured,measuring,failed,closed;private EvidenceCursor pending;
+        private PortableInputs(File store,File catalog,File identity,File index,HistoryArchiveManifest map,HistoryGraph.Graph graph,
+                HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger,PreparationSources owner,
+                UUID preparation,UUID operation,UUID mapId,UUID descriptorId,List<PrivateFramePreflight.ClosedFrame> frames,
+                PortableSelection selection,long bootstrap,HistoryStorage.Budget budget,HashInput graphInput,
+                PrivateOperationStore.PortableBaseline baseline,NativeCaptureFingerprint proof,Set<UUID> ids)throws IOException {
+            this.store=store;this.catalog=catalog;this.identity=identity;this.index=index;nativeMap=map;this.graph=graph;this.control=control;this.ledger=ledger;
+            this.owner=owner;this.preparation=preparation;this.operation=operation;this.mapId=mapId;this.descriptorId=descriptorId;
+            this.frames=Collections.unmodifiableList(new ArrayList<>(frames));this.selection=selection;this.bootstrap=bootstrap;this.budget=budget;
+            this.graphInput=graphInput;this.baseline=baseline;nativeProof=proof;
+            metadata=new PrivateBundleInventory.MetadataBudget(HistoryStorage.METADATA_BUDGET,budget::charge);
+            inventoryId=newId(ids);inventoryOuterId=newId(ids);evidenceId=newId(ids);catalogId=newId(ids);scopeId=newId(ids);evidenceOuterId=newId(ids);evidenceItemId=newId(ids);
+            for(PrivateFramePreflight.ClosedFrame f:frames)privateOuters.add(newId(ids));
+            int c0Bound="MDOP-initial-control-v1\n".length()+4;for(HistoryControlStore.Entry e:control.entries)c0Bound+=45+e.filename.getBytes(StandardCharsets.UTF_8).length;
+            c0Input=HashInput.create(budget,c0Bound);writeInitialControlInput(control,budget,c0Input);
+            HashSink ledgerSize=new HashSink();if(ledger.present)PrivateOperationStore.writeFingerprintInput(ledger,control,new DataOutputStream(ledgerSize));
+            ledgerInput=HashInput.create(budget,metadataLength(ledgerSize.length));PrivateOperationStore.writeOriginalInput(ledger,control,budget,ledgerInput);
+            long bound=4096+512L*map.entries.size();for(File root:Arrays.asList(store,catalog,identity,index))bound=add(bound,4L*root.getPath().length());
+            nativeInput=HashInput.create(budget,metadataLength(bound));proof.writeOriginalInput(budget,nativeInput);
+            HashSink mapSink=new HashSink();map.write(mapSink);mapLength=mapSink.length;mapHash=mapSink.hash();
+            for(PrivateOperationEvidence.Row row:baseline.rows())evidence.add(new EvidenceSlot(row,null));
+            addWitness(4,"baseline-c0",c0Input);addWitness(5,"baseline-ledger",ledgerInput);addWitness(6,"baseline-graph",graphInput);addWitness(7,"baseline-native",nativeInput);
+            evidence.sort((a,b)->{int c=Integer.compare(a.row.role,b.row.role);if(c==0)c=PrivateBundleInventory.compare(a.row.ownerPreparation,b.row.ownerPreparation);return c!=0?c:a.row.name.compareTo(b.row.name);});
+            capsuleLength=56;capsuleMetadata=56;
+            for(EvidenceSlot slot:evidence){long row=138+slot.row.name.getBytes(StandardCharsets.UTF_8).length;capsuleLength=add(capsuleLength,add(row,slot.row.actualLength));
+                capsuleMetadata=add(capsuleMetadata,add(row,slot.row.role==1||slot.row.role==4?slot.row.actualLength:0));}
+            int count=map.entries.size()+frames.size()+1;if(count>16380)throw invalid("Portable ordinary entry limit");
+            long payload=add(add(map.nativeEnvelopeBytes,capsuleLength),privateLength(frames));
+            if(add(add(122+inventoryLength(count),58L*count),payload)>PrivateArchive.MAX_ARCHIVE_BYTES)throw invalid("Complete portable archive exceeds1GiB");
+        }
+        /** Original scan alone supplies funded Graph/control/ledger; map allocation is prepaid here. */
+        static PortableInputs captureLocked(File store,File catalog,File identity,File index,HistoryGraph.Graph graph,
+                HashInput graphInput,PreparationSources owner,UUID preparation,UUID operation,UUID mapId,UUID descriptorId,
+                List<PrivateFramePreflight.ClosedFrame> frames,long bootstrap,PortableSelection selection,HistoryStorage.Budget budget)throws IOException {
+            HistoryStorage.requireMutation(store);PreparationSources.rejectParticipant();HistoryOperations.rejectParticipant();
+            if(graph==null||graphInput==null||owner==null||budget==null||selection==null||frames==null||frames.size()>14)throw invalid("Missing portable original inputs");
+            graph.requireOriginalCapture(budget,graphInput);
+            HistoryControlStore.Inspection control=graph.originalControl(budget,graphInput);PrivateOperationStore.Ledger ledger=graph.originalLedger(budget,graphInput);
+            owner.requireIdleBindingLocked(store,preparation,budget);selection.require(owner,budget,frames);
+            PrivateOperationStore.PortableBaseline baseline=PrivateOperationStore.capturePortableBaselineLocked(store,control,ledger,owner,preparation,budget);
+            if(baseline.sourceOnlyMissingRoot())throw invalid("Missing funded root remains source-only; admission is not implemented");
+            if(!graph.complete||!graph.usageComplete||(graph.pruneBlocked&&!graph.historicalCancelledOnly)||!graph.diagnostics.isEmpty()||graph.effectivePolicy==null)throw invalid("Incomplete portable original graph");
+            validateLedger(ledger,graph,control);
+            budget.charge(FIXED_METADATA_BYTES+FRAME_METADATA_BYTES*frames.size()+2048L*(graph.records.size()+1));
+            Set<UUID> ids=new HashSet<>();ids.add(control.registration.bundleId);unique(ids,preparation);unique(ids,operation);unique(ids,mapId);unique(ids,descriptorId);
+            for(PrivateFramePreflight.ClosedFrame f:frames){unique(ids,f.itemId);unique(ids,f.artifactId);}
+            for(HistoryPinRecord p:control.pins.begins)if(ids.contains(p.operation))throw invalid("Existing operation ID collision");
+            for(PrivateOperationRecord p:control.operations.preparations)if(ids.contains(p.preparation))throw invalid("Existing preparation ID collision");
+            long mapBound=add(128L<<10,HistoryArchiveManifest.INDEX_BASE_BYTES+HistoryArchiveManifest.INDEX_BYTES_PER_ENTRY*(long)graph.records.size());
+            for(HistoryControlStore.Role role:control.registration.roles)mapBound=add(mapBound,4L*role.basename.length());
+            budget.charge(mapBound);
+            HistoryArchiveManifest map=HistoryArchiveManifest.freeze(graph,control,()->newId(ids));
+            NativeCaptureFingerprint proof=NativeCaptureFingerprint.capture(map,graph,control,store,catalog,identity,index,bootstrap,budget,owner,preparation);
+            return new PortableInputs(store,catalog,identity,index,map,graph,control,ledger,owner,preparation,operation,mapId,descriptorId,frames,selection,bootstrap,budget,graphInput,baseline,proof,ids);
+        }
+        private void addWitness(int kind,String name,HashInput input)throws IOException {
+            if(input.budget!=budget)throw invalid("Foreign original witness budget");
+            evidence.add(new EvidenceSlot(new PrivateOperationEvidence.Row(4,PrivateOperationRecord.ZERO,PrivateOperationRecord.ZERO,kind,2,name,input.length(),input.hash(),input.length(),input.hash(),0,0,0),input));
+        }
+        /** Pushes the actual raw sources only outside history. No provider or pre-P spool. */
+        void measure()throws IOException {
+            if(Thread.holdsLock(HistoryStorage.monitorFor(store))||closed||failed||measured||measuring)throw invalid("Portable measurement requires fresh outside-monitor inputs");
+            measuring=true;
+            try {
+                HashSink capsule=new HashSink();
+                try(PrivateOperationEvidence.Summary summary=PrivateOperationEvidence.write(capsuleSource(),capsule,metadata)){
+                    capsuleHash=capsule.hash();if(summary.length!=capsuleLength||capsule.length!=capsuleLength||!capsuleHash.equals(summary.hash))throw invalid("Capsule measurement mismatch");}
+                buildItems();
+                int length=inventoryLength(items.size());inventoryBytes=freezeMetadata(budget,length,this::writeInventory);
+                try(InputStream in=inventoryBytes.open()){inventory=PrivateBundleInventory.readSchema2(in,metadata);}
+                List<PrivateSourceCatalog.Row> rows=new ArrayList<>(items.size());for(Item item:items)rows.add(item.source);
+                try(PrivateSourceCatalog catalog=PrivateSourceCatalog.create(rows,metadata)) {
+                    catalogBytes=freezeMetadata(budget,metadataLength(catalog.length),catalog::write);
+                }
+                if(add(add(add(mapLength,inventoryBytes.length()),catalogBytes.length()),add(capsuleMetadata,descriptorLength()))>HistoryStorage.METADATA_BUDGET)
+                    throw invalid("Combined serialized portable metadata limit");
+                measured=true;validateJoins();
+            }catch(IOException|RuntimeException|Error failure){failed=true;throw failure;}finally{measuring=false;}
+        }
+        PrivateOperationEvidence.Source capsuleSource(){return new PrivateOperationEvidence.Source(){
+            public long length(){return capsuleLength;}public int rowCount(){return evidence.size();}
+            public PrivateOperationEvidence.Cursor open()throws IOException {
+                if(closed||failed||pending!=null||Thread.holdsLock(HistoryStorage.monitorFor(store)))throw invalid("Portable evidence source unavailable");
+                budget.charge(4096);EvidenceCursor cursor=new EvidenceCursor();pending=cursor;cursor.physical=baseline.open();return cursor;
+            }
+        };}
+        /** Retry only the actual retained cursor; never clear uncertain Source ownership. */
+        void retrySourceClose()throws IOException {if(pending!=null)pending.close();}
+        private final class EvidenceCursor implements PrivateOperationEvidence.Cursor {
+            private PrivateOperationStore.PortableBaseline.BaselineCursor physical;private int at=-1;private EvidenceSlot current;private InputStream raw;private boolean ended,rowOpened,rowDone;
+            public PrivateOperationEvidence.Row next()throws IOException {
+                if(ended||raw!=null||current!=null&&!rowDone)throw invalid("Evidence row must reach EOF and close before advance");at++;rowOpened=false;rowDone=false;
+                if(at>=evidence.size()){current=null;if(physical.next()!=null)throw invalid("Extra original evidence row");return null;}
+                current=evidence.get(at);if(current.witness==null&&physical.next()!=current.row)throw invalid("Original evidence identity/order changed");return current.row;
+            }
+            public InputStream openRaw()throws IOException {
+                if(ended||current==null||raw!=null||rowOpened)throw invalid("No unopened evidence row");budget.charge(512);
+                InputStream input=current.witness==null?physical.openRaw(current.row):current.witness.open();
+                rowOpened=true;
+                raw=new FilterInputStream(input){private boolean done;private long left=current.row.actualLength;
+                    public int read()throws IOException {int n=super.read();if(n>=0)left--;return n;}
+                    public int read(byte[] b,int off,int len)throws IOException {int n=in.read(b,off,len);if(n>0)left-=n;return n;}
+                    public void close()throws IOException {if(!done){if(left!=0||in.read()!=-1)throw invalid("Evidence row not completely consumed");super.close();done=true;rowDone=true;raw=null;}}
+                };return raw;
+            }
+            public void close()throws IOException {
+                if(ended)return;if(raw!=null&&current.witness!=null)raw.close();
+                if(physical!=null)physical.close();ended=true;pending=null;raw=null;
+            }
+        }
+        private void buildItems()throws IOException {
+            for(HistoryArchiveManifest.Entry e:nativeMap.entries){int type=e.kind==HistoryArchiveManifest.Kind.INDEX?9:e.kind.wireId;
+                items.add(new Item(e.archiveId,type,e.nativeId,e.envelopeBytes,e.envelopeHash(),new PrivateSourceCatalog.Row(e.archiveId,1,nativeMap.bundleId,e.nativeId,0,e.envelopeBytes,e.envelopeHash())));}
+            for(int i=0;i<frames.size();i++){PrivateFramePreflight.ClosedFrame f=frames.get(i);UUID outer=privateOuters.get(i);
+                items.add(new Item(outer,f.kind.wireId,f.itemId,f.envelopeBytes,f.envelopeHash,new PrivateSourceCatalog.Row(outer,2,preparation,f.artifactId,0,f.envelopeBytes,f.envelopeHash)));}
+            items.add(new Item(evidenceOuterId,11,evidenceItemId,capsuleLength,capsuleHash,new PrivateSourceCatalog.Row(evidenceOuterId,3,preparation,evidenceId,0,capsuleLength,capsuleHash)));
+            items.sort((a,b)->PrivateBundleInventory.compare(a.outer,b.outer));
+        }
+        private int inventoryLength(int count)throws IOException {
+            return metadataLength(144L+93L*count+16L*selection.tabs.size()+(selection.tabs.isEmpty()?0:16)+68);
+        }
+        private long descriptorLength(){return 65L+210+control.registration.roles.stream().mapToInt(r->r.basename.getBytes(StandardCharsets.UTF_8).length).sum()+77L*(4+frames.size());}
+        private void writeInventory(OutputStream output)throws IOException {
+            MessageDigest hash=HistoryStorage.digest();DataOutputStream out=new DataOutputStream(new DigestOutputStream(output,hash));
+            int length=inventoryLength(items.size());long payload=0;for(Item item:items)payload=add(payload,item.length);
+            out.write("MDBUNDL\n".getBytes(StandardCharsets.US_ASCII));out.writeInt(2);out.writeInt(length);putUuid(out,preparation);putUuid(out,scopeId);
+            out.writeInt(1);out.writeInt(items.size());out.writeInt(0);out.writeInt(0);out.writeLong(payload);out.writeLong(122L+length+58L*items.size()+payload);
+            putUuid(out,scopeId);out.writeByte(1);out.writeByte(3);out.writeInt(0);out.writeInt(items.size());
+            int active=selection.activeOrdinal();out.writeByte(active<0?0:1);if(active>=0)putUuid(out,privateOuters.get(active));
+            out.writeInt(selection.tabs.size());for(int i=0;i<selection.tabs.size();i++)putUuid(out,privateOuters.get(i));
+            out.writeByte(1);putUuid(out,nativeMap.bundleId);out.writeLong(nativeMap.policyGeneration);out.writeLong(nativeMap.quotaBytes);out.writeInt(nativeMap.automaticCount);PrivateBundleInventory.putHash(out,HistoryStorage.hex(nativeMap.policyHashBytes()));
+            for(Item item:items){putUuid(out,item.outer);putUuid(out,scopeId);out.writeByte(item.type);out.writeLong(item.length);PrivateBundleInventory.putHash(out,item.hash);putUuid(out,item.identity);out.writeInt(0);}
+            output.write(hash.digest());
+        }
+        private void require(File store,File catalog,File identity,File index,HistoryArchiveManifest map,HistoryGraph.Graph graph,
+                HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger,PreparationSources owner,UUID prep,UUID op,UUID mapId,UUID descriptorId,
+                List<PrivateFramePreflight.ClosedFrame> frames,long bootstrap,PortableSelection selection,HistoryStorage.Budget budget)throws IOException {
+            if(closed||failed||!measured||measuring||pending!=null||!this.store.equals(store)||!this.catalog.equals(catalog)||!this.identity.equals(identity)||!this.index.equals(index)
+                    ||nativeMap!=map||this.graph!=graph||this.control!=control||this.ledger!=ledger||this.owner!=owner||this.selection!=selection||this.budget!=budget
+                    ||!preparation.equals(prep)||!operation.equals(op)||!this.mapId.equals(mapId)||!this.descriptorId.equals(descriptorId)||this.bootstrap!=bootstrap||frames==null||frames.size()!=this.frames.size())throw invalid("Foreign/unmeasured original portable inputs");
+            for(int i=0;i<frames.size();i++)if(this.frames.get(i)!=frames.get(i))throw invalid("Replaced portable preflight result");
+            graph.requireOriginalCapture(budget,graphInput);selection.require(owner,budget,frames);owner.requireIdleBindingLocked(store,prep,budget);
+        }
+        void validateJoins()throws IOException {
+            if(inventory==null||inventory.entries().size()!=items.size()||inventory.schema!=2||!inventory.preparationId.equals(preparation)||!inventory.rootScopeId.equals(scopeId))throw invalid("Portable inventory binding");
+            for(int i=0;i<items.size();i++){Item a=items.get(i);PrivateBundleInventory.DirectoryEntry b=inventory.entries().get(i);
+                if(!a.outer.equals(b.id)||a.type!=b.type||!a.identity.equals(b.identity)||a.length!=b.length||!a.hash.equals(b.sha256)||!scopeId.equals(b.scopeId))throw invalid("Portable inventory membership");}
+            PrivateBundleInventory.Scope scope=inventory.scopes().get(0);int active=selection.activeOrdinal();
+            if(!Objects.equals(scope.activeEntryId,active<0?null:privateOuters.get(active))||scope.tabs.size()!=selection.tabs.size())throw invalid("Portable active/tab binding");
+            try(InputStream in=catalogBytes.open();PrivateSourceCatalog parsed=PrivateSourceCatalog.read(in,metadata)){
+                if(parsed.rows.size()!=items.size())throw invalid("Catalog ordinary count");
+                for(int i=0;i<items.size();i++){PrivateSourceCatalog.Row a=items.get(i).source,b=parsed.rows.get(i);
+                    if(!a.outer.equals(b.outer)||a.route!=b.route||!a.owner.equals(b.owner)||!a.member.equals(b.member)||a.offset!=b.offset||a.length!=b.length||!a.hash.equals(b.hash))throw invalid("Catalog source join");}
+            }
+        }
+        InputStream openInventory()throws IOException {if(!measured||closed||failed)throw invalid("Portable inventory unavailable");return inventoryBytes.open();}
+        InputStream openCatalog()throws IOException {if(!measured||closed||failed)throw invalid("Portable catalog unavailable");return catalogBytes.open();}
+        PrivateBundleInventory inventory(){return inventory;}
+        public void close()throws IOException {
+            if(pending!=null||measuring)throw invalid("Actual portable source cursor remains owned");if(closed)return;
+            if(inventory!=null)inventory.close();if(inventoryBytes!=null)inventoryBytes.close();if(catalogBytes!=null)catalogBytes.close();
+            c0Input.close();ledgerInput.close();nativeInput.close();closed=true;
+        }
+    }
+    private static final class EvidenceSlot {
+        final PrivateOperationEvidence.Row row;final HashInput witness;EvidenceSlot(PrivateOperationEvidence.Row row,HashInput witness){this.row=row;this.witness=witness;}
+    }
+    private static final class Item {
+        final UUID outer,identity;final int type;final long length;final String hash;final PrivateSourceCatalog.Row source;
+        Item(UUID outer,int type,UUID identity,long length,String hash,PrivateSourceCatalog.Row source){this.outer=outer;this.type=type;this.identity=identity;this.length=length;this.hash=hash;this.source=source;}
+    }
+    private interface MetadataWriter {void write(OutputStream output)throws IOException;}
+    private static HashInput freezeMetadata(HistoryStorage.Budget budget,int length,MetadataWriter writer)throws IOException {
+        HashSink expected=new HashSink();writer.write(expected);if(expected.length!=length)throw invalid("Measured portable metadata length");
+        HashInput result=HashInput.create(budget,length);
+        try{writer.write(result.writer(budget));result.seal(expected.hash());return result;}catch(IOException|RuntimeException|Error failure){result.invalidate();throw failure;}
+    }
+    private static UUID newId(Set<UUID> ids)throws IOException {UUID id=UUID.randomUUID();unique(ids,id);return id;}
+    private static int metadataLength(long length)throws IOException {if(length<0||length>HistoryStorage.METADATA_BUDGET)throw invalid("Portable metadata bound");return (int)length;}
+    private static long privateLength(List<PrivateFramePreflight.ClosedFrame> frames)throws IOException {long n=0;for(PrivateFramePreflight.ClosedFrame f:frames)n=add(n,f.envelopeBytes);return n;}
+    private static void putUuid(DataOutputStream out,UUID id)throws IOException {out.writeLong(id.getMostSignificantBits());out.writeLong(id.getLeastSignificantBits());}
+
     private static void validateLedger(PrivateOperationStore.Ledger ledger,HistoryGraph.Graph graph,HistoryControlStore.Inspection control)throws IOException {
         if(!ledger.complete||(ledger.pending&&!PrivateOperationStore.historicalCancelledOnly(control,ledger))||!ledger.diagnostics.isEmpty()||ledger.actualBytes<0||ledger.reservedBytes<0||ledger.occupiedEntries<0||ledger.reservedEntries<0
                 ||ledger.occupiedEntries!=ledger.entries.size()||add(ledger.occupiedEntries,ledger.reservedEntries)>PrivateOperationStore.MAX_ENTRIES
