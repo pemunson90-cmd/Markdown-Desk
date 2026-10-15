@@ -63,5 +63,7 @@ bash verification/history_capacity/run.sh all
 bash verification/history_pins/run.sh
 bash verification/history_operations/run.sh
 bash verification/history_operation_data/run.sh
+bash verification/capture_native_sources/run.sh
+bash verification/capture_source_ownership/run.sh
 bash verification/history_maintenance/run.sh
 bash verification/history_executor/run.sh

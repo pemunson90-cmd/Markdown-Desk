@@ -132,12 +132,17 @@ the producer must separately prove the full ledger/exact own transition, fresh
 control/installed policy after each callback, and final proof-to-BEGIN in one lease.
 No producer or entire simultaneous metadata budget approval is implied.
 
-PreparationSources20c36e9 implements a process-shared pre-BEGIN source owner,
-not publication/handoff. Focused45 assertions and existing operation coordinator59/
+PreparationSources20c36e9 with fix e331477 implements a process-shared pre-BEGIN source owner,
+not publication/handoff. Focused166 assertions and existing operation coordinator59/
 terminal5 pass. Factory uncertainty cannot be cleared by a new handle, UUID,
 producer or budget; live readers remain counted until actual successful close,
 with retry after throwing close. Blocked delegate and actual cross-protocol callback
-checks pass. Independent exact-source review is in progress. There is no generic
+checks pass. Independent exact-source review approved e331477 with11 scenario
+groups. Review found an actual concurrent shared-budget race: the new regression
+accepted8459 one-byte charges from an8192-byte budget before the fix. Synchronized
+Budget.charge now conserves exactly8192 in each of12 eight-thread rounds; independent
+mixed-owner checks pass four rounds. Workspace admission also enforces the original
+budget identity. There is no generic
 reset or handoff route; the actual durable producer must supply it later. These
 helpers are not wired to app behavior or enabled for consumer activation.
 
@@ -165,8 +170,11 @@ baseline15RED stays separate. Combined clean gate passed above; no Android timin
 
 Next: complete the already approved native/private capture producer and its
 resource/fault/metadata-budget proofs, consuming the reviewed native predicate and
-source ownership only after its exact-source review. Root retains all existing
-shared source ownership; a worker prepares the bounded private-frame preflight API.
+source ownership. Root retains all existing shared source ownership; a worker
+implements the accepted bounded private-frame preflight API in an isolated worktree.
+Both reviewed helper runners are registered in the required host suite. No new full
+suite or hosted run is claimed after their registration; integration gating will
+cover the coherent producer rather than repeat broad tests after each helper.
 Then
 continue the source-ready portable bridge, verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
