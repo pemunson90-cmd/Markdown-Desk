@@ -1,0 +1,76 @@
+# Preview navigation and print readiness implementation plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. This is an investigation and proposed implementation boundary; production changes require the orchestrator's technical review first.
+
+**Goal:** Acknowledge only the currently requested preview DOM, and print the document captured by the print action after its own DOM is ready.
+
+**Architecture:** Keep the bounded LatestPreview renderer, original MarkdownRenderer output API and interactive WebView security configuration. Associate each submitted DOM with a generated identity and validate that identity plus document readiness before acknowledging navigation or applying deferred scroll work. Prefer one separately owned print WebView containing one immutable action capture, so interactive navigation and mode changes cannot replace the document being printed.
+
+**Tech stack:** Existing Java 11-compatible app source, Android minSdk 26 WebView/PrintManager, existing JDK17 host extraction and SDK37 compile tools; no new dependencies.
+
+**Spec:** Existing M0 rendering audit and M2 preview work in `docs/ROADMAP.md`, invariants in `AGENTS.md`, rendering/device gates in `docs/RELEASE_GATES.md`, and the bounded investigation assignment. This plan supplements `verification/preview_behavior/PLAN.md`; it does not reopen queue or renderer implementation.
+
+## Global constraints
+
+- Preserve package `com.example.markdowndesk`, version 2.2.5/code 18, minSdk26/targetSdk35; no signed release or version change.
+- Preserve Write/Read/Split, Focus/View, tab identity, scroll synchronization, nine themes and font options; do not mutate editor content or saved bytes.
+- Keep `https://markdown.local/` base URL, `mdsrc:`/external-link policy, JavaScript enabled for existing generated sync functions, DOM storage/content/file access disabled, network loads blocked and automatic images disabled. No JavaScript bridge, remote content, uploads or relaxed WebView settings.
+- Keep the interactive 180 ms debounce and one active render/delivery plus one latest pending snapshot. No additional snapshot per keystroke.
+- Physical M0/Fold/SAF/IME/WebView/printing acceptance remains NOT RUN and an unreleased-candidate gate. Host delivery simulation establishes neither Android callback guarantees nor print-spooler completion.
+
+## Source findings and observed baseline
+
+Baseline: `116b180c80d7395a7c23297979f0cdc90ae9c7e2` (PR19 main). Production unchanged in this audit branch.
+
+- `MainActivity.acceptPreview` (3446) checks document/revision/palette/font/mode/finishing/shutdown before submitting HTML. `LatestPreview` bounds worker/main delivery. Neither identifies the DOM after `loadDataWithBaseURL`.
+- `AnonymousClass2.onPageFinished` (648) ignores its URL, marks ready unconditionally, scrolls current `previewRestoreY`, posts an unscoped 160 ms flag reset and schedules Split synchronization. All loads have the same base URL; assigning a different history URL alone cannot establish a callback-to-DOM identity contract.
+- `renderPreview` (3436) clears readiness before starting work. `invalidatePreview` (3424) advances logical revision, but navigation callbacks do not inspect it. `restoreActiveTab` (1738) separately clears readiness and sets restoration position before rebuilding.
+- `printDocument` (3352) temporarily switches Write to Read, requests rendering and schedules adapter creation at 350 ms. `lambda$printDocument$67` (3368) reads the live display name/WebView, not the print action capture. Missing PrintManager returns before mode restoration. Readiness and render/DOM completion do not gate this callback.
+- Existing scroll JS result callbacks and 120 ms resets carry no epoch. The outline helper (3694) also retries every180ms without request identity. These are adjacent source risks, not separately reproduced defects in this audit; any expansion must add focused RED cases first.
+
+`verification/preview_navigation/run.sh` extracts15 exact Activity members, including the entire actual WebViewClient, render acceptance/scheduling and print methods. It links actual LatestPreview, MarkdownRenderer and UiTheme. Synthetic source strings only; no file or network input. The host models WebView DOM commit independently of load submission and records the DOM at adapter creation. Android may perform adapter layout later; no claim is made that an Android adapter snapshots bytes at creation.
+
+Observed command: `PATH=/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH bash verification/preview_navigation/run.sh`.
+The checked-in baseline log is the evidence, with an intentional nonzero exit. Safe current-load/full-renderer and ready-print controls pass. Failed safety assertions cover old completion readiness/scroll, same-URL pending DOM, overlapping reset, late callback after stop, printing before rendering or DOM readiness, printing a later tab's title/content, and missing-service mode cleanup. Prior-navigation and shutdown callback delivery are explicitly adversarial host simulations; device reachability/order is NOT established. Slow worker/DOM cases hold queues rather than claiming measured350ms production latency.
+
+## Review focus
+
+1. A JavaScript response may arrive after another navigation, edit, tab/theme/font/mode change or shutdown. Validate both the returned DOM identity and the current Java-side epoch again at delivery.
+2. An old finish callback may trigger a probe of the genuinely current DOM. Accept that DOM only if its embedded identity and `readyState` match; never infer which navigation generated the callback from its URL or callback order.
+3. A timer from an earlier accepted page must not clear newer scroll suppression. Scope flag resets, viewport results and deferred work to their owning page/operation.
+4. Printing while the render worker is busy, during tab changes, or with a missing/failing service must not print another document or change editing mode. One immutable print capture and explicit cleanup are required.
+5. The print framework may use the WebView adapter after `PrintManager.print` returns. Keep the dedicated WebView alive until adapter `onFinish` or Activity teardown; do not destroy it immediately after submitting a job.
+
+## Task 1: Interactive DOM acknowledgment (proposed; not implemented)
+
+**Files:** `MainActivity.java` preview/WebView/scroll lifecycle methods only; optionally a narrowly scoped pure identity helper if review finds it reduces state risk; `verification/preview_navigation/**`.
+
+**Interfaces:** Preserve `MarkdownRenderer.render(String, UiTheme.Palette, float)` and LatestPreview.Request/Result. Introduce a main-owned immutable navigation identity binding the accepted request revision/document/options and a never-reused per-Activity sequence. Proposed methods: `acknowledgePreviewPage(WebView view)` and `isCurrentPreviewPage(PreviewPage page)`; the page object contains no live Editable or preference handle.
+
+- [x] Extract original code and record actual baseline RED behavior before source changes.
+- [ ] Merge then-current main normally before implementing; review Activity changes from the history UI integration and keep its ownership separate.
+- [ ] Add a trusted nonvisual root HTML data attribute carrying the generated identity at the Activity load boundary. Leave renderer implementation/goldens and base URL unchanged. Require the expected renderer root framing rather than arbitrary replacement of user content. Attribute value contains only locally generated safe numeric/ASCII identity, never Markdown text.
+- [ ] In page-finish handling, coalesce a readiness probe using `evaluateJavascript`: return the embedded identity only when `document.readyState === 'complete'`. Validate the response, current epoch, current document/options/mode, view identity and shutdown state before setting ready, restoring scroll or scheduling sync. Handle null/malformed/missing responses without acknowledging. DOM identity is correctness bookkeeping, not a security boundary against hostile script.
+- [ ] Invalidate readiness/identity at existing logical invalidation and teardown hooks. Scope accepted-page160ms/120ms resets and asynchronous viewport responses to the accepted page. For DOM-side scroll effects, include an identity check inside the JavaScript operation too; Java-side checking alone cannot protect a newly navigated DOM between submission and execution.
+- [ ] Extend tests with nonce/readyState permutations, delayed response after invalidation, A→B→A, all option transitions, current-identity probe triggered by an old callback, overlapping timers and shutdown. Any outline retry changes require their own source-extracted RED test first; otherwise keep that adjacent concern explicit.
+- [ ] Run this focused fixture and affected existing preview/scroll fixtures once after changes, renderer parity/goldens if load wrapping affects them, and SDK compile at integration. Test actual methods; do not replace acceptance with a made-up helper model. Independently review identity and callback ownership before commit.
+
+## Task 2: One captured, readiness-gated print operation (proposed choice)
+
+**Files:** `MainActivity.java` print action/lifecycle methods and narrow print boundary; `verification/preview_navigation/**`. No renderer, save/history, storage or global UI-layout redesign.
+
+**Interfaces:** Replace fixed350ms action with one main-owned `PrintOperation`: captured source/title/palette/font, request identity and lifecycle state. Proposed entry/cleanup: existing `printDocument()` and `finishPrint(PrintOperation operation, String error)`; cleanup is idempotent and only affects the owning operation. Use the same DOM acknowledgment contract as Task1 on an isolated WebView.
+
+**Alternatives assessed:** Gating the interactive WebView can stop premature printing, but its content may change both before and after adapter creation, including later asynchronous framework layout. Locking that view through printing disrupts navigation/editing and still needs lifecycle ownership. A dedicated one-request WebView avoids temporary Write→Read mutation and preserves Focus/modes. It costs one extra captured source, one render/DOM and a print adapter while a print is active; it is bounded, not free and not an Android peak-memory budget. Do not maintain a queue of print documents.
+
+- [ ] Keep the current action-capture semantics: capture source/title/theme/font once on main at the print action, render off main on the existing serial renderer executor with at most one outstanding print task. Use a dedicated bounded callback/operation identity; interactive LatestPreview remains independently bounded. A second print action while active is rejected with a concise status, never enqueued.
+- [ ] Create one print WebView on main with the identical existing security settings and original base URL. Load only the captured renderer output plus nonvisual DOM identity. No editor mode/rebuild mutation and no remote resources. Need real Android validation that the offscreen print WebView lays out correctly.
+- [ ] Submit an adapter only after current print DOM readiness acknowledgment, only once and only while Activity/operation remains live. Capture title at action time. Wrap the real PrintDocumentAdapter by forwarding lifecycle/layout/write callbacks; `onFinish` releases operation resources. Source/API review must verify forwarding and cancellation semantics before implementing this wrapper.
+- [ ] Cleanup on missing service, render RuntimeException/rejected execution, main-frame load failure, print submission exception, explicit cancellation or Activity destroy. Invalidate outstanding callbacks; dispose WebView on main and release source/HTML references as soon as ownership permits. Do not retain or print interactive HTML as fallback. Do not treat a thrown RuntimeException as fatal-Error recovery.
+- [ ] Use one finite pre-submission deadline so failed render/load acknowledgment cannot hold an operation forever. Proposed30seconds is an operational failure deadline, not a performance budget; technical review should settle it before code. Cancel it after print submission; never destroy an active framework adapter because a load timer expires. If reusing LatestPreview would hide render errors, choose explicit print completion/error reporting or rely on the approved deadline; do not silently change shared interactive helper semantics.
+- [ ] Add tests for frozen source/title despite edits/tab changes; delayed render/DOM; malformed readiness; second request; render/load/submission failure; null service; destroy in each state; one cleanup and no adapter after cancellation; adapter stays alive through asynchronous layout/write until `onFinish`. Preserve all modes and Focus without temporarily changing them.
+- [ ] Verify focused host fixture + SDK APIs and independently review resource/lifecycle ownership. Physical Android PDF output, external print service cancellation, large documents, Fold/modes and destruction remain candidate acceptance, not waived by host success.
+
+## Handoff
+
+Only audit fixtures and this plan are owned in this branch. No central runner registration while assertions intentionally remain RED, no production repair, full suite, benchmark repeat, signed build or release. Root technical review chooses the final navigation/print lifecycle before implementation; the user has standing authorization for routine engineering and need not approve an assignment.

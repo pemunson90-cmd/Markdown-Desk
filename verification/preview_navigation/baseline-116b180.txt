@@ -1,0 +1,29 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 15 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE current load and real renderer control
+CASE old finish while latest render waits
+FAIL old completion cannot mark pending B ready expected=false actual=true
+FAIL old completion cannot apply B restore position expected=1 actual=2
+CASE same URL callbacks have no accepted-load identity
+FAIL old same-URL completion cannot certify uncommitted revision expected=false actual=true
+CASE old reset cannot end newer scroll suppression
+FAIL prior 160ms reset cannot clear newer navigation suppression expected=true actual=false
+CASE late finish after shutdown cannot revive readiness
+FAIL closed worker cannot become ready through old finish expected=false actual=true
+FAIL closed preview cannot be scrolled by late finish expected=1 actual=2
+CASE print waits for current render
+FAIL no print adapter before captured render completes expected=0 actual=1
+CASE print waits for DOM commit after render delivery
+FAIL render delivery alone cannot authorize printing old DOM expected=0 actual=1
+CASE print cannot retarget to later active tab
+FAIL print title remains captured originating document expected=A.md actual=B.md
+FAIL print content remains captured originating document expected=<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale… (2835 chars) actual=<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale… (2834 chars)
+CASE successful ready print control
+CASE unavailable print service restores temporary mode
+FAIL missing service restores original Write mode expected=0 actual=1
+RED preview-navigation: 10 cases, 27 assertions, 11 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 11
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:70)
