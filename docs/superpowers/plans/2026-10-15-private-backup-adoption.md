@@ -1,6 +1,6 @@
 # Private backup and non-destructive adoption — technical design
 
-Source: `620275b6cc0aae6d139c353d16fd1d3ec26200b9`; design only, not implementation approval.
+Source: `620275b6cc0aae6d139c353d16fd1d3ec26200b9`; direction reviewed, source not approved.
 Goal: verified backups; import preserves current drafts/history and never writes user documents.
 Java/JDK17, existing non-Gradle build, min26/target35; retain 2.2.5/code18.
 [ADR-001](../../decisions/ADR-001-safe-save-boundary.md),
@@ -34,8 +34,7 @@ Safe append needs durable visibility filtering in every reader, predetermined
 writers, sequence allocation and URI collision rules. Native `HistoryIdentity`
 rejects TAB origins and requires FORK targets to be URI identities; converting
 imported lineage to live TAB aliases loses meaning or changes native semantics.
-An atomic active-bundle pointer additionally requires rerouting every writer and
-merging current drafts/history. Neither alternative is the minimum safe slice.
+An active-bundle pointer also needs writer rerouting/current-data merge; defer it.
 
 Add one app-private `private_operations` data namespace, generated UUID names only;
 no archive name, URI, title or imported root basename determines a local path.
@@ -46,18 +45,18 @@ shared mutation lease. Existing role checks and native root caps remain intact.
 Unknown/unreadable entries block new operation writes; current recovery reads stay
 independent. No importer opens an independently funded writable history bundle.
 
-One active backup/import preparation initially; at most 65,536 regular operation
-data files globally, including stages, with checked arithmetic and explicit
-per-operation expected lengths/slots. Native restored roots retain store 65,536
+One active preparation; <=65,536 total namespace entries, counting directories,
+files/stages, links and unknown entries before descent. Schema-fixed shape/depth
+(no arbitrary recursion), nofollow inspection and exact per-operation byte/slot bounds. Native restored roots retain store 65,536
 slots and each metadata root 4,096 entries/8 MiB. Every read/build also respects
 those bounds. Retained operations consume capacity; exhaustion is an explicit
 blocked result, never automatic eviction. Cleanup is a later reviewed operation.
 Administrative receipts are <=16 KiB; BEGIN/receipt stages and reservations share
 the existing **1 MiB/256-entry control allowance**, including pins. No payload or large mapping
 uses it. Add recognized bounded receipt framing to `HistoryControlStore`; do not
-put unrecognized files there. Reserve receipt space/slots before starting work.
-Manifest/remap stage+final occupancy is quota-charged; logical reservation never
-substitutes for actual write, file sync or directory sync.
+put unrecognized files there. A durable typed preparation commitment must precede
+operation writes; the separate admission plan defines byte/slot conversion and
+receipt+BEGIN+CLOSE peak/crash recovery. Reservations never replace physical sync.
 Native mappings cap at **16,380 entries**; serialized manifest and mapping indexes
 cap at **16 MiB** each. `PrivateArchive` caps are **1 GiB**, 65,536 entries and a
 16 MiB framing index. For this initial single-bundle scope, allow at most 12 SESSION_TAB,
@@ -84,8 +83,9 @@ whole capture; never truncate, silently omit native records or reconstruct them.
 4. Still excluding native mutations, revalidate graph/policy/roots and every source
    envelope against the native manifest, then publish acknowledged EXPORT /
    ALL_BUNDLE BEGIN binding the descriptor via `HistoryPins`. The adapter
-   needs one internal capture-and-BEGIN boundary; sequential unlocked calls are unsafe.
-   Callbacks remain under existing reentrancy checks; revalidate after durability hooks.
+   needs atomic capture→BEGIN. Keep native/source identity separate from ledger identity;
+   bind exact allowed own preparation transitions, charge every file, reject unrelated
+   changes; no blanket self-exclusion. Revalidate after reentrancy-checked hooks.
    BEGIN chooses its UUID: persist its link to the unique descriptor hash. After death
    between BEGIN and link, match exactly that persisted descriptor, even for empty
    native history. Ambiguous/missing matches block; never guess or regenerate IDs.
@@ -184,7 +184,7 @@ images and private Library content are excluded. Preferences are exactly
    Already-open mapped IDs are not reopened over newer edits. Keep the imported
    original accessible after session persistence fails or the app dies.
 8. Imported native history is addressed by `(restoredBundleId, mappedHistoryId)`
-   through a read-only facade, never active `resolveDocument` or save routing.
+   through strict no-mutation readers, never ordinary native constructors or save routing.
    Historical URI aliases remain inert inside that facade; do not infer a new live
    tab history ID by content equality. Existing `launchProtectedCopy(snapshotId,...)`
    resolves the primary store: imported IDs cannot be passed directly. The trusted
@@ -218,10 +218,10 @@ Create `PrivateImportCoordinator.java` for typed graph/remap/commit and a read-o
 `RestoredItems.java` facade. `MainActivity.java` captures state and shows/open items;
 `SessionStore`/`RecoveryStore` keep their current independent persistence contracts.
 
-Next slice: **operation-data admission and persisted capture→BEGIN**, after ADR-004
-review, without provider UI/importer activation. Prove total-ledger propagation and
-crash-safe fixed IDs; then review export receipts, strict import and accessible
-adoption separately. This document approves no source changes.
+Next slice: **operation-data admission and persisted capture→BEGIN**, after ADR-004.
+The separate `2026-10-15-operation-data-capture.md` plan owns exact commitments,
+namespace shape, own-ledger transitions and crash boundaries. Direction review of
+`d839225` approves no schema, reservation protocol or source changes.
 
 ## Required verification and remaining risks
 

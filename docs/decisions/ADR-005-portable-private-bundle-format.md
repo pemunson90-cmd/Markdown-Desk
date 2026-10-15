@@ -1,6 +1,9 @@
 # ADR-005: Portable scoped private bundles and complete backup inventory
 
-Date: 2026-10-15. Status: **proposed for technical review**, not approved or implemented.
+Date: 2026-10-15. Status: **architecture direction reviewed; schema/source unapproved**.
+Independent review of `d839225` supports scoped v2 inventory, additive adoption and
+bounded completeness. It does not approve exact wire schema/goldens, reservation
+protocol, mutation/read factories, implementation or test evidence.
 Source examined: `620275b6cc0aae6d139c353d16fd1d3ec26200b9` and design `b2699bb`.
 Scope: the portable format missing from the
 [private backup/adoption design](../superpowers/plans/2026-10-15-private-backup-adoption.md).
@@ -36,7 +39,7 @@ retained workspaces. Nested import provenance must survive repeated restoration.
 
 | Approach | Source impact and consequence |
 | --- | --- |
-| **V2 explicit inventory frame, same ordinary entry headers** | Recommended. New version dispatch and one typed manifest frame; types1–9 retain payload/framing. Manifest assigns each entry exactly one scope before payload callbacks. Single global terminal and one global budget. |
+| **V2 explicit inventory frame, same ordinary entry headers** | Recommended. New version dispatch and one typed manifest frame; types 1–9 retain payload/framing. Manifest assigns each entry exactly one scope before payload callbacks. Single global terminal and one global budget. |
 | Outer directory plus length-delimited embedded v1 archives | Reuses v1 readers for each bundle, but needs a new container, child archive IDs/digests, global limits and provenance schema anyway. Nested read/write summaries and repeated hashing complicate tracked closure and global budgeting. Raw child archives duplicate staging and invite recursive expansion. Not selected. |
 | Infer bundles from native UUIDs/URIs or hide metadata in INDEX/PREFERENCES | Invalid: collisions are legitimate across bundles, v1 typed validators reject invented payloads, and equal content cannot establish identity. |
 
@@ -50,7 +53,7 @@ do not weaken `Type.decode`, `validate` or EntrySink's provisional contract glob
 ## Wire structure and inventory
 
 Use the same 15-byte magic, big-endian version field and terminal envelope.
-V2's first frame must be the sole type10 inventory; it uses the same 58-byte
+V2's first frame must be the sole type 10 inventory; it uses the same 58-byte
 header and a new inventory-specific payload cap of 16 MiB. Other metadata types
 retain 65,536-byte framing caps; document entries retain 8,388,608+32,768.
 The inventory is checked before ordinary entry callbacks, but remains provisional
@@ -60,8 +63,8 @@ compression, filesystem paths, optional unknown frames or extension skips.
 Proposed inventory payload magic is eight ASCII bytes `MDBUNDL\n`, then uint32
 schema=1 and uint32 serialized length. Section counts/string lengths use uint32;
 byte totals/quota/generation use uint64; kinds/optional-value markers use uint8
-with exact enumerations (optional0 absent,1 present). Hashes use32 raw bytes, UUIDs
-use128 bits and strings strict UTF-8 <=4,096 bytes. Enforce signed-Java representable
+with exact enumerations (optional 0 absent, 1 present). Hashes use 32 raw bytes, UUIDs
+use 128 bits and strings strict UTF-8 <=4,096 bytes. Enforce signed-Java representable
 ranges and the tighter bounds before allocation. Append SHA-256 of all preceding
 inventory bytes. The codec plan must freeze field order and independent golden
 bytes before implementation; no JSON parser or unbounded map allocation.
@@ -81,7 +84,7 @@ Sections, in canonical UUID order unless otherwise specified:
    using current legal ranges. Imported v1 policy is UNKNOWN, never defaulted.
    These fields are observations only; no enrollment, root names or raw controls.
 4. **Ordinary-entry directory:** globally unique outer entry UUID, scope UUID,
-   type1–9, payload length/hash, and typed embedded native UUID for types1–5/9.
+   type1–9, payload length/hash, and typed embedded native UUID for types 1–5/9.
    Private-state entries instead carry a stable item UUID for lineage and tab order.
    Native key is `(scope, role, kind, embedded UUID)`, not the outer UUID alone.
    Each entry also names bounded lineage-edge references; empty means no known origin.
@@ -92,7 +95,7 @@ itself. Wire ordinary frames follow directory order by outer entry UUID. Compare
 frame UUID/type/length/hash against the next descriptor, then validate typed payload
 and embedded native identity. Reject missing/extra/reordered frames, wrong scope,
 duplicate typed native keys and any unreferenced directory entry. The terminal
-counts type10 plus all ordinary entries. Empty backup still has type10 and terminal.
+counts type 10 plus all ordinary entries. Empty backup still has type 10 and terminal.
 The inventory frame's own outer ID is unique and absent from its directory.
 The enclosing payload/terminal hashes bind inventory bytes without a hash cycle.
 
@@ -183,8 +186,8 @@ bytes are required for resume/RELEASED; missing/ambiguous evidence blocks.
 | Resource | Proposed hard bound, shared across the archive |
 | --- | --- |
 | Complete stream | 1 GiB including inventory, all headers and terminal; no compression |
-| Ordinary entries | <=16,380 total; type10 adds one, still within framing ceiling65,536 |
-| Native mappings | <=16,380 aggregate, never16,380 per scope |
+| Ordinary entries | <=16,380 total; type 10 adds one, still within framing ceiling 65,536 |
+| Native mappings | <=16,380 aggregate, never 16,380 per scope |
 | Scopes / origin nodes / lineage edges | <=64 / <=256 / <=65,536 |
 | Serialized inventory / persisted combined descriptor | Each <=16 MiB; inner/native maps count toward combined descriptor when embedded |
 | Retained metadata charge | <=16 MiB for framing IDs, scope/entry/native/remap/lineage indexes and retained strings together |
@@ -202,9 +205,9 @@ Effective count limits may bind below the advertised entry maxima. Reject the wh
 capture before output if its source cannot fit; never truncate inventory/provenance.
 
 Native restored-store caps (65,536 store slots; 4,096 entries/8 MiB per metadata
-root), private document8 MiB and codec string/cursor limits also apply. Disk staging,
+root), private document 8 MiB and codec string/cursor limits also apply. Disk staging,
 remap, all retained bundles and commitments remain charged to primary shared quota
-under the proposed operation-data extension. One existing1 MiB/256-entry control
+under the proposed operation-data extension. One existing 1 MiB/256-entry control
 allowance includes all pins/receipts/reservations; this format adds no allowance.
 The operation-data ledger must bind every admission, graph/pressure projection,
 maintenance replay and retirement proof, including `HistoryCapacity.prepareTerminalLocked`
@@ -213,17 +216,47 @@ charges/fingerprint into graph/pruner/executor proofs without making operation
 files deletion candidates. All control preflights must count receipt reservations
 alongside pin credit; extending `HistoryCapacity.ledger` alone is insufficient.
 
+Persisting a descriptor/native map itself changes the operation ledger. The exact
+admission plan must bind native/source capture identity separately from the full
+charged ledger before/after each enumerated preparation transition. Prove all
+unrelated entries unchanged; charge every own stage/final/reserved byte and slot.
+Neither freezing the old full graph fingerprint forever nor blanket exclusion of
+the operation's directory is valid. Full graph/replay/retirement proofs still bind
+the current complete ledger. Reentrant or unrelated changes invalidate the proof.
+
+Before any operation write, the separate proposed companion plan
+`docs/superpowers/plans/2026-10-15-operation-data-capture.md` must define a durable
+typed preparation commitment, its states, physical/future byte+slot conversion,
+and receipt+BEGIN+CLOSE peak reservation in existing shared allowances. It must
+cover crashes before BEGIN, after BEGIN/before the link and at every conversion;
+"reserve space" alone is insufficient. This ADR does not duplicate that protocol.
+
+The namespace must have a fixed schema, not recursive arbitrary-directory discovery:
+the initial capture plan uses preparation-UUID directories containing typed generated
+artifact files (depth two). Future retained-bundle shapes require separate typed
+review, maximum depth five below `private_operations`; the companion plan owns the
+exact layout. The aggregate 65,536-entry bound includes every directory, regular
+file/stage, link and unknown node,
+counted before descent with bounded enumeration; no unbounded `listFiles()` array.
+Inspect without following links; unknown shape/depth/nonregular entries block writes
+without recursion or deletion. Directory slots cannot evade admission by having no
+payload bytes. Failure fixtures include empty-directory floods and nested/link trees.
+
 A proposed `PrivateBundleInventory` codec owns canonical scoped framing/bounds;
 `PrivateArchive` gets explicit v1/v2 dispatch and a separate v2 typed source/sink
 adapter, preserving v1 behavior. Backup/import coordinators own closure, lossless
 projection proofs and per-scope native validation/remapping. Native store codecs
 remain v1. Receipt/repository code owns trusted local scope routing; MainActivity
-only exposes adopted items. These are proposed responsibilities, not existing APIs.
+only exposes adopted items. Restored access must use extracted strict no-mutation
+readers/factory: ordinary unenrolled native constructors can create/sync directories.
+Do not instantiate them against imports, fund another capacity registration or use
+a throwing-durability adapter to pretend a writable constructor is read-only.
+These are proposed responsibilities, not existing APIs.
 
 ## Validation, compatibility and gates
 
-Import v1 with the existing strict importer as one synthesized source scope and
-UNKNOWN policy; persist that synthetic scope/item map once. Its resulting receipts
+The planned typed importer uses the existing strict framing reader for v1 and
+persists one synthetic source scope/item map with UNKNOWN policy. Its resulting receipts
 must satisfy this ADR's projection proof before later whole-private-backup output.
 A v1 reader rejects v2 immediately. No downgrade translation silently drops scopes.
 A v2 import remains additive: live restored drafts have remapped IDs/null URI/unknown
@@ -247,7 +280,7 @@ receipts, repeated fresh-process reopen and zero premature visibility/success.
 Provider fresh-readback/owned closure/quiescence remains required after format checks.
 No implementation, host test, Android/provider/Fold, signing or release pass is claimed.
 
-Next review decision: accept/revise the scoped v2 inventory and completeness boundary,
-then freeze schema/golden fixture bytes in a bounded codec plan before any source work.
+Next review decision: freeze exact schema/golden fixtures and the separate admission
+protocol after direction review; no source work is authorized by this ADR.
 The already eligible operation-data admission/persisted capture slice remains separate;
 its descriptor must leave no ambiguity between native mapping and full capture binding.
