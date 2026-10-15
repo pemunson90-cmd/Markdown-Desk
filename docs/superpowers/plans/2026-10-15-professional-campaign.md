@@ -52,16 +52,20 @@ historical evidence, not current gate state.
 Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
 preflight `c3177b8`/integration `2f1d14b`, capture plan `a89b284`, writer `92e41bb`
 and copy helper `b4bd0c9` retain approvals scoped to those exact artifacts.
-Private sink `d71dae257f9003f522743de7b2da59e96a8155e0` is independently approved
-after 4 groups: lazy I/O/normal credits, prefix tampering, final same-bytes replacement,
-and retained Error cleanup. The worker's 87 existing assertions plus 7 new actual-copy
-cases pass. One 8 MiB / 1637 ms result is a functional observation only, not performance
-acceptance.
+Completion/handoff commit `1fe3c464e3e3f7ceb48dcceba34989dc9b0dc695` is
+independently approved after 4 groups. Worker results pass: 87 publication assertions,
+7 copy cases and 11 completion cases, including fresh-child JVM checks. It implements
+exact BEGIN204/LINK173/CLOSE credit126, typed-stage allowance, preadmitted retained
+maps and one-use old-owner-claim handoff. Earlier writer `92e41bb`, copy helper
+`b4bd0c9` and private sink `d71dae2` approvals remain point-in-time and scoped to
+those artifacts; none approves the complete current source.
 
-The active worker now owns final BEGIN/LINK and typed-source handoff, with
-Writer/narrowPins/Sources/Storage and its fixtures; root owns orchestration and
-integration. Completion, activation, cold recovery, runtime integration, heap proof
-and performance acceptance remain OPEN. No newer full gate/build/CI covers C2.
+The active worker now owns same-process captured activation and tracked
+declared-source read/drain/CLOSE, with Ops/narrowPins/Store plus Writer.Budget.identity
+and fixtures; root owns orchestration and integration. Activation is not yet implemented;
+cold recovery, runtime integration, whole-heap proof and performance acceptance remain
+OPEN. No newer full gate/build/CI covers C2. The writer runner is registered in the
+aggregate host script; only shell syntax was checked here.
 Independent substantive campaign plan review is approved at
 `73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
 `029269ba83b6897d4e0148c797db63311ddddda2` against ROADMAP and RELEASE_GATES; it
@@ -82,7 +86,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins, C1 accounting and scoped C2 sink/copy helpers are approved; end-to-end producer remains incomplete. Worker owns Writer/narrowPins/Sources/Storage and fixtures for final BEGIN/LINK and typed-source handoff. Activation, cold recovery, runtime integration, heap and performance acceptance remain open. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Worker owns Ops/narrowPins/Store plus Writer.Budget.identity and fixtures for same-process activation and tracked source read/drain/CLOSE. Activation, cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -121,9 +125,9 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | draft PR24; private sinkd71dae2 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Private sinkd71dae2 approved; 87 existing assertions + 7 actual-copy cases pass | Own Writer/narrowPins/Sources/Storage and fixtures; finish final BEGIN/LINK and typed-source handoff. Completion, activation, cold recovery, runtime integration, heap and performance acceptance remain open. |
-| Independent reviewer; accounting_repair_review | Private sinkd71dae2 approved after 4 groups | Approvals remain scoped to exact artifacts; integrated completion review remains open. |
+| Lead; orchestration/integration | draft PR24; completion/handoff1fe3c46 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Completion/handoff1fe3c46 approved; 87 publication + 7 copy + 11 completion cases pass | Own Ops/narrowPins/Store plus Writer.Budget.identity and fixtures for same-process activation and tracked declared-source read/drain/CLOSE. Cold recovery, runtime integration, whole-heap and performance acceptance remain open. |
+| Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Approval is scoped to this exact commit; same-process activation and source read/drain/CLOSE remain unreviewed. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
 
@@ -167,21 +171,17 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 
 ## Next packet preparation, not speculative implementation
 
-**C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
-preflight, capture plan, writer and copy helper have approvals scoped to their exact
-artifacts. Private sink `d71dae257f9003f522743de7b2da59e96a8155e0` is independently
-approved after 4 groups (lazy I/O/normal credits, prefix tampering, final same-bytes
-replacement, retained Error cleanup); 87 existing assertions plus 7 actual-copy cases
-pass. One 8 MiB / 1637 ms result is functional evidence only. The worker owns
-Writer/narrowPins/Sources/Storage and fixtures for final BEGIN/LINK and typed-source
-handoff. Require fresh matches for both original C0 control and L0 ledger hashes
-before P. A legacy PIN BEGIN→CANCELLED CLOSED changes C0/fullGraph while L0 stays
-unchanged; plan authority alone cannot publish P. Complete and review the handoff,
-then implement and affected-test activation, cold recovery, runtime integration, heap
-bounds and crash/ENOSPC/reopen behavior before downstream features. Defer broad
-regression, performance, migration and device batteries to the feature-complete
-candidate. End-to-end production completion remains OPEN; do not promote scoped
-approvals to whole-source or performance claims.
+**C2 capture producer:** Completion/handoff commit
+`1fe3c464e3e3f7ceb48dcceba34989dc9b0dc695` is independently approved after 4 groups.
+Worker results pass 87 publication assertions, 7 copy cases and 11 completion cases,
+including fresh-child JVM checks. Implemented: exact BEGIN204/LINK173/CLOSE credit126,
+typed-stage allowance, preadmitted retained maps and one-use old-owner-claim handoff.
+The worker now owns same-process captured activation and tracked declared-source
+read/drain/CLOSE in Ops/narrowPins/Store plus Writer.Budget.identity and fixtures.
+Earlier writer/copy/sink approvals are point-in-time and do not approve the full current
+source. Activation is not yet implemented; cold recovery, runtime integration, whole-heap
+proof and performance acceptance remain OPEN. The writer runner is registered in the
+aggregate host script; only shell syntax was checked. No full gate/build/CI covers C2.
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
 **Policy/runtime:** complete startup recovery, understandable errors and configurable retention only once new operation evidence participates in all admission/pruning/retirement proofs. Preserve safe ordinary saves and optional-history/export failure isolation. Stop adding speculative protection layers once the approved boundary passes; finish its runtime consumer.
@@ -191,7 +191,7 @@ approvals to whole-source or performance claims.
 ## Verification, publication and completion
 
 - During implementation, run minimum affected tests plus essential compile/build checks. At feature-complete candidate, run broad regression, performance and migration coverage, then required clean committed-source host/two-unsigned gate and owner Fold7 acceptance. Reuse installed inputs. New Android APIs must remain min26-compatible, independent of compiler/platform age. Required merge/release gates remain intact.
-- Current C2 focused assertions/cases do not constitute a full gate. The 8 MiB / 1637 ms observation is functional only; performance acceptance remains open.
+- Current C2 focused assertions/cases and registered writer runner do not constitute a full gate; only `bash -n verification/run_host_checks.sh` has been run for the aggregate script. The prior 8 MiB / 1637 ms observation is functional only; performance acceptance remains open.
 - Keep actual journeys: failed save→recover/new copy; checkpoint→diff→restore preserving newer text; private export→import→reopen; workspace search under revocation/partial results; annotate→edit→reflow; print intended document while switching tabs; signed in-place upgrade preserving sessions/settings/docs.
 - New UI gets accessible loading/empty/error/partial states, cancellation and recovery. Host AST fixtures must extract real dependencies; no stale copied bodies or always-true guards.
 - Physical target is owner-reported Galaxy Z Fold7/Android16/OneUI8.0, installed literal“2.25” unverified. At feature completion, the owner will sign the unsigned APK with the original key and test on Fold7. Device acceptance is batched at that point; do not ask for device work during helper implementation. No replacement signer is allowed.
