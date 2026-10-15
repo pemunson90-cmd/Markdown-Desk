@@ -178,6 +178,33 @@ public final class ColdCancellationCheck {
         r.locked(()->{HistoryControlStore.Inspection c=r.control();PrivateOperationStore.Ledger l=PrivateOperationStore.inspect(r.root,c,new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
             yes(c.operations.pending&&l.pending&&l.complete&&c.operations.terminalCancelled.contains(r.id),"new capture retains old cancellation evidence/credits");});
     }
+    static void foreignClosedLifetime()throws Exception {
+        for(String state:Arrays.asList("uncertain","quiescent")){
+            PreparationPublicationCheck.Capture c=fixture(true);
+            child("foreign-lifetime",c.f.parent.toString(),c.preparation.toString(),state);
+        }groups++;
+    }
+    static void foreignClosedLifetime(Reopen r,boolean uncertain)throws Exception {
+        HistoryControlStore.Inspection c=r.control();PrivateOperationRecord selected=r.p();
+        HistoryPinRecord legacy=HistoryPinRecord.begin(UUID.randomUUID(),c.registration,c.latest,
+                HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,
+                new HistoryPinRecord.Manifest(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,0,HistoryStorage.hex(HistoryStorage.digest().digest(new byte[0]))),Collections.emptyList());
+        Files.write(r.path(legacy.name()),HistoryPinRecord.encode(legacy));r.pins.reconcile();
+        HistoryOperations ops=r.pins.operations();HistoryOperations.OperationHandle handle=ops.activateAcknowledged(legacy.operation.toString(),new ByteArrayInputStream(new byte[0]));
+        if(uncertain)reject(()->ops.openReader(handle,()->{throw new IOException("foreign uncertain factory");}),"foreign factory uncertainty");
+        else yes(ops.quiesce(ops.freeze(handle)).toCompletableFuture().getNow(null)!=null,"foreign previously activated lifetime actually quiescent");
+        Files.write(r.path("pin-"+legacy.operation+".close"),HistoryPinRecord.close(legacy,HistoryPinRecord.Outcome.CANCELLED));
+        Map<String,String> before=bytes(r.parent.toPath());int[] callbacks={0};r.disk.hook=(event,file)->callbacks[0]++;
+        if(uncertain){
+            reject(()->r.cancel(HistoryPins.ColdStages.REJECT),"foreign uncertain closed-audit owner");
+            yes(callbacks[0]==0&&before.equals(bytes(r.parent.toPath())),"foreign lifetime refusal precedes EVERY P/BEGIN durability callback/publication");
+            yes(!Files.exists(r.path(selected.begin.name()))&&!Files.exists(r.path(selected.begin.name()+".stage")),"selected BEGIN remains absent");
+            yes(!ops.quiesce(ops.freeze(handle)).toCompletableFuture().isDone(),"uncertain old resource remains owned; no reset/clear/false proof");
+        }else{
+            r.cancel(HistoryPins.ColdStages.REJECT);
+            r.locked(()->yes(r.control().operations.terminalCancelled.contains(r.id),"existing foreign closed-audit quiescence rules preserved despite historical epoch"));
+        }
+    }
     static void rejectUnchanged(Reopen r,HistoryPins.ColdStages option)throws Exception {
         Map<String,String> before=bytes(r.parent.toPath());reject(()->r.cancel(option),"retained conflicting/partial evidence");
         yes(before.equals(bytes(r.parent.toPath())),"refusal changes no durable byte");
@@ -239,6 +266,7 @@ public final class ColdCancellationCheck {
                 case "promote":rejectUnchanged(r,HistoryPins.ColdStages.REJECT);r.cancel(HistoryPins.ColdStages.PROMOTE_COMPLETE);break;
                 case "fault":fault(r,args[3]);break;
                 case "callback":callback(r,args[3]);break;
+                case "foreign-lifetime":foreignClosedLifetime(r,args[3].equals("uncertain"));break;
                 case "stale":stale(r,true);break;
                 case "verify-stale":stale(r,false);break;
                 case "new-capture":newCapture(r);break;
@@ -249,6 +277,6 @@ public final class ColdCancellationCheck {
                 default:throw new AssertionError(args[0]);
             }return;
         }
-        sameProcess();refusalsAndPromotion();faultsAndCallbacks();staleAndAdmission();System.out.println("Cold cancellation: "+groups+" focused groups PASS");
+        sameProcess();refusalsAndPromotion();faultsAndCallbacks();staleAndAdmission();foreignClosedLifetime();System.out.println("Cold cancellation: "+groups+" focused groups PASS");
     }
 }

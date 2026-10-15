@@ -6,7 +6,7 @@ Run with the existing JDK17 on PATH:
 bash verification/cold_capture_cancel/run.sh
 ```
 
-The runner compiles production source with `--release 11` and runs 11 focused groups
+The runner compiles production source with `--release 11` and runs 12 focused groups
 at `-Xmx128m`. Fixtures use the actual registered store and actual PREPARE writer.
 Cancellation runs in a real child JVM, discharging the original process owner by
 process separation. No static owner reset/removal or reflection is used.
@@ -72,3 +72,19 @@ After the narrow marker fix, the unchanged coordinator runner passes all 59 chec
 the cold cancellation runner passes all 11 focused groups. Both compile production
 source with `--release 11`. No full host suite, restart matrix, build or CI was run
 for this compatibility correction.
+
+Foreign closed-audit regression: the independent `foreign-only` reproduction was
+RED on `a793960`: an unrelated activated operation's throwing reader factory left
+an uncertain counted resource, but cancellation published its selected BEGIN before
+late audit rejection. The added focused group proves refusal before **any** P/BEGIN
+durability callback, with every durable byte unchanged and the uncertain resource
+still owned. A second case proves a genuinely quiescent previously activated foreign
+closed audit remains eligible under the existing rules. A read-only current-control
+closed-audit lifetime guard now runs before publication and after every durability
+callback; it acquires no early claims and performs no reset/removal. Later exact
+lease-owned audit claims are validated rather than mistaken for competing work.
+
+Current correction evidence: the focused runner passes 12 groups, and the unchanged
+independent `foreign-only` reproduction is GREEN against the corrected source.
+Freeze/quiescence request code is unchanged by this correction; the coordinator
+runner was not repeated. No broad matrix, build or CI was run.

@@ -250,6 +250,23 @@ final class HistoryOperations {
             if(claim!=null){if(gate==null)throw new IOException("Cold cancellation gate disappeared");claim.validate();}
         }
     }
+    /** Read-only preflight/refresh: a durable foreign receipt never discharges a live process owner. */
+    static void requireColdCancellationAuditsLocked(File root,HistoryControlStore.Inspection control,
+            HistoryPinRecord own,List<Claim> claimed)throws IOException {
+        rejectParticipant();HistoryStorage.requireMutation(root);HistoryOperations owner=HistoryStorage.operations(root);
+        if(owner==null){if(!claimed.isEmpty())throw new IOException("Closed-audit lifetime owner changed");return;}
+        Set<UUID> closed=new HashSet<>();for(HistoryPinRecord receipt:control.pins.closes)closed.add(receipt.operation);
+        synchronized(owner.gateLock){for(HistoryPinRecord begin:control.pins.begins){
+            if(begin.operation.equals(own.operation)||!closed.contains(begin.operation))continue;
+            Gate gate=owner.gates.get(begin.operation.toString());if(gate==null)continue;
+            boolean leaseClaim=false;
+            for(Claim claim:claimed)if(claim.owner==owner&&claim.gate==gate){claim.validate();leaseClaim=true;}
+            if(!gate.begin.envelopeHash.equals(begin.envelopeHash)||!gate.begin.registrationHash.equals(begin.registrationHash)||!gate.begin.bundle.equals(begin.bundle)
+                    ||gate.phase==Phase.OPEN||gate.phase==Phase.TERMINATING&&!leaseClaim
+                    ||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())
+                throw new IOException("QUIESCENCE_PENDING: foreign closed-audit lifetime");
+        }}
+    }
     /** Preserve existing closed-audit rules while this lease claims its separate cold operation. */
     List<Claim> claimCancellationAuditsLocked(HistoryPinRecord own)throws IOException {
         rejectParticipant();HistoryStorage.requireMutation(root);List<Claim> claims=new ArrayList<>();

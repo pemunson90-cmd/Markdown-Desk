@@ -209,6 +209,7 @@ final class PrivateOperationStore {
             preparation=selected;begin=HistoryPinRecord.encode(selected.begin);close=HistoryPinRecord.close(selected.begin,HistoryPinRecord.Outcome.CANCELLED);
             if(begin.length!=204||close.length!=126)throw new IOException("Noncanonical cancellation template");
             HistoryOperations.requireColdCancellationLocked(root,selected.begin,null);
+            HistoryOperations.requireColdCancellationAuditsLocked(root,c,selected.begin,Collections.emptyList());
             HistoryStorage.siblings(roles.toArray(new File[0]));
             if(c.registration==null||c.registration.bootstrapQuotaBytes!=bootstrap||roles.size()!=4)throw new IOException("Foreign cold cancellation bundle");
             boolean marker=false;
@@ -260,6 +261,7 @@ final class PrivateOperationStore {
             HistoryStorage.Budget scratch=new HistoryStorage.Budget(refreshBytes);scratch.charge((4L<<20)+65536);
             HistoryControlStore.Inspection c=new HistoryControlStore(root.getParentFile()).inspect();
             HistoryPins.requireRetained(root,c);
+            HistoryOperations.requireColdCancellationAuditsLocked(root,c,preparation.begin,audits);
             if(!c.chainComplete||!c.usageComplete||c.registration==null||c.latest==null||!c.operations.valid||!c.pins.valid||c.hasMaintenance()
                     ||!c.stages.isEmpty()||c.operations.links.containsKey(preparation.preparation)
                     ||c.pins.active!=null&&!c.pins.active.operation.equals(preparation.operation)
