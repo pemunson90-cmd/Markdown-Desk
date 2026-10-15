@@ -47,7 +47,8 @@ Verified current source:
   These backends do not implement atomic export capture, verified provider output,
   typed import/adoption, automatic retention or the complete M1 workflow.
 
-Active integration is `codex/operation-export-integration`; no new PR yet.
+Active integration is `codex/operation-export-integration`,
+[draft PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21).
 Operation candidate `5983413` is integrated locally and under independent source
 review, following approved plan `8fe3874` and ADR-004. It introduces tracked
 consumer ownership, asynchronous freeze/drain capabilities, explicit cold recovery
@@ -56,6 +57,9 @@ coordinator and five terminal assertions; 48 crash/write-limit/manifest fixtures
 with 96 fresh-JVM reopens. Existing pin and selected-executor suites passed in the
 worker checkout. These results are not independent approval or the combined clean
 gate. Partial BEGIN remains blocked: absence cannot prove never acknowledged.
+Independent review reproduced an inherited `InputStream.transferTo` lifetime escape:
+an output callback could release a pin before the bulk operation returned. The
+source fix and regression are pending; this is blocking source approval.
 Committed historical closed audits retain their source-independent semantics.
 Compaction, unlimited cancellation availability and a fresh-process arbitrary-
 evidence-loss anchor are not implemented.

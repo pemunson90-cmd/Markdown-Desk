@@ -13,4 +13,6 @@ This is a **reusable session entry point**, not a one-issue task order.
 
 If task execution is interrupted by context, runtime or limits, commit a clean checkpoint and record the exact next command/task in `STATUS.md`. If an approval/hardware/private-key gate blocks a specific task, continue independent work without bypassing that gate.
 
-**Current note (2026-10-14):** PRs #9–#15 are merged; `v2.2.5-baseline` remains protected. Active maintenance recovery work validates intent/survivor evidence and logical tombstones without enabling deletion. Consult live `STATUS.md` and inspect remote heads; preserve both environments' work. Device/release acceptance remains separate.
+`v2.2.5-baseline` remains protected. Read the live `STATUS.md` for current merged
+and draft work rather than relying on a frozen PR list in this resume recipe.
+Preserve both environments' work; device/release acceptance remains separate.
