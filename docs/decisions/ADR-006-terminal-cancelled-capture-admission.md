@@ -3,7 +3,15 @@
 Status: **ACCEPTED engineering direction** — independently reviewed exact commit
 `e8cb1532d514e1d2e0c46d93c8d5f20e52c44820`, ADR blob
 `b54b1629f72f213fb9bf735a6c3a76266ca70cdb`; accepted by root. The first
-source slice is authorized for implementation, not implemented or source-approved.
+source slice is implemented at `af9eebf97174e02c4ab64794a3e80e606179f443`;
+scoped independent source review is **APPROVED** after 4 actual probe groups:
+classification, immutable old-stage anchor refresh, funded capture→activate/read/drain/CLOSE
+preserving old credits, and planner/intent/stale maintenance/retirement refusals with
+an ordinary-save positive control. Worker evidence records 12 focused
+groups and 871 legacy HistoryManifestCheck checks PASS in the
+[terminal admission evidence](../../verification/terminal_cancelled_admission/README.md).
+Actual cold cancellation/reversal remains NOT implemented; the two-fresh-restart
+cancellation test remains NOT RUN.
 
 Date: 2026-10-15
 
