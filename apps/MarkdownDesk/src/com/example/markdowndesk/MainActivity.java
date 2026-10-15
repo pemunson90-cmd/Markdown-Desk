@@ -124,6 +124,10 @@ public class MainActivity extends Activity {
     private PreviewWebView preview;
     private Button previewModeButton;
     private boolean previewReady;
+    private PreviewPage previewPage;
+    private long previewScrollOperation;
+    private Runnable previewScrollRelease;
+    private Runnable previewEditorScroll;
     private long previewRevision;
     private boolean previewStopped;
     private int previewRestoreY;
@@ -646,23 +650,7 @@ public class MainActivity extends Activity {
 
         @Override // android.webkit.WebViewClient
         public void onPageFinished(WebView webView, String str) {
-            MainActivity.this.previewReady = true;
-            MainActivity.this.syncingFromEditor = true;
-            webView.scrollTo(MainActivity.MODE_EDIT, Math.max(MainActivity.MODE_EDIT, MainActivity.this.previewRestoreY));
-            MainActivity.this.main.postDelayed(new Runnable() {
-                @Override // java.lang.Runnable
-                public final void run() {
-                    MainActivity.this.syncingFromEditor = false;
-                }
-            }, 160L);
-            if (MainActivity.this.mode == MainActivity.MODE_SPLIT) {
-                MainActivity.this.schedulePreviewSyncFromEditor();
-            }
-        }
-
-        /* JADX INFO: Access modifiers changed from: private */
-        public /* synthetic */ void lambda$onPageFinished$0() {
-            MainActivity.this.syncingFromEditor = false;
+            MainActivity.this.acknowledgePreviewPage(webView);
         }
     }
 
@@ -3421,6 +3409,20 @@ public class MainActivity extends Activity {
     }
 
     private void invalidatePreview() {
+        if (this.previewReady && this.preview != null) this.previewRestoreY = this.preview.getScrollY();
+        this.previewReady = false;
+        this.previewPage = null;
+        this.previewScrollOperation++;
+        this.syncingFromEditor = false;
+        this.syncingFromPreview = false;
+        if (this.previewScrollRelease != null) this.main.removeCallbacks(this.previewScrollRelease);
+        this.previewScrollRelease = null;
+        if (this.previewEditorScroll != null && this.editor != null) this.editor.removeCallbacks(this.previewEditorScroll);
+        this.previewEditorScroll = null;
+        if (this.editorSyncRunnable != null) this.main.removeCallbacks(this.editorSyncRunnable);
+        if (this.previewSyncRunnable != null) this.main.removeCallbacks(this.previewSyncRunnable);
+        this.editorSyncRunnable = null;
+        this.previewSyncRunnable = null;
         this.previewRevision++;
         this.previewWork.invalidate();
         if (this.previewRunnable != null) this.main.removeCallbacks(this.previewRunnable);
@@ -3436,8 +3438,6 @@ public class MainActivity extends Activity {
     public void renderPreview() {
         invalidatePreview();
         if (this.previewStopped || this.mode == MODE_EDIT || this.preview == null || this.editor == null) return;
-        if (this.previewReady) this.previewRestoreY = this.preview.getScrollY();
-        this.previewReady = false;
         // Capture on main only, after debounce (or an explicit view/appearance render).
         this.previewWork.request(new LatestPreview.Request(previewDocumentId(), this.previewRevision,
                 this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode));
@@ -3449,7 +3449,97 @@ public class MainActivity extends Activity {
                 || request.revision != this.previewRevision || !request.documentId.equals(previewDocumentId())
                 || request.palette != this.palette || Float.compare(request.fontSp, this.previewFontSp) != 0
                 || request.mode != this.mode || this.mode == MODE_EDIT) return;
-        this.preview.loadDataWithBaseURL("https://markdown.local/", result.html, "text/html", "UTF-8", null);
+        PreviewPage page = new PreviewPage(this.preview, request);
+        this.previewPage = page;
+        this.preview.loadDataWithBaseURL("https://markdown.local/", previewPageHtml(result.html, page.token), "text/html", "UTF-8", null);
+    }
+
+    /** Main-owned navigation metadata; never retains the rendered source or HTML. */
+    private static final class PreviewPage {
+        final WebView view;
+        final String token, documentId;
+        final long revision;
+        final UiTheme.Palette palette;
+        final float fontSp;
+        final int mode;
+        boolean probing, probeAgain, acknowledged;
+        long probe;
+
+        PreviewPage(WebView view, LatestPreview.Request request) {
+            this.view = view;
+            this.token = Long.toString(request.revision);
+            this.documentId = request.documentId;
+            this.revision = request.revision;
+            this.palette = request.palette;
+            this.fontSp = request.fontSp;
+            this.mode = request.mode;
+        }
+    }
+
+    private static String previewPageHtml(String html, String token) {
+        final String prefix = "<!doctype html><html>";
+        if (!html.startsWith(prefix)) throw new IllegalArgumentException("Unexpected preview HTML framing");
+        // Full-size builder plus result String at load time; no source/HTML is retained in PreviewPage.
+        return new StringBuilder(html.length() + token.length() + 32)
+                .append("<!doctype html><html data-md-preview=\"").append(token).append("\">")
+                .append(html, prefix.length(), html.length()).toString();
+    }
+
+    private boolean isCurrentPreviewPage(PreviewPage page) {
+        return page != null && page == this.previewPage && page.view == this.preview
+                && !this.previewStopped && !isFinishing() && !isDestroyed()
+                && page.revision == this.previewRevision && page.documentId.equals(previewDocumentId())
+                && page.palette == this.palette && Float.compare(page.fontSp, this.previewFontSp) == 0
+                && page.mode == this.mode && this.mode != MODE_EDIT;
+    }
+
+    private String previewDomGuard(PreviewPage page) {
+        return "document.readyState==='complete'&&document.documentElement.getAttribute('data-md-preview')==='" + page.token + "'";
+    }
+
+    private void acknowledgePreviewPage(WebView view) {
+        final PreviewPage page = this.previewPage;
+        if (!isCurrentPreviewPage(page) || view != page.view || page.acknowledged) return;
+        if (page.probing) { page.probeAgain = true; return; }
+        page.probing = true;
+        page.probeAgain = false;
+        final long probe = ++page.probe;
+        view.evaluateJavascript("document.readyState==='complete'?document.documentElement.getAttribute('data-md-preview'):null", value -> {
+            if (!isCurrentPreviewPage(page) || probe != page.probe) return;
+            page.probing = false;
+            // Generated decimal token: accept only its exact JSON string, never a coerced value.
+            if (!("\"" + page.token + "\"").equals(value)) {
+                if (page.probeAgain) acknowledgePreviewPage(view);
+                return;
+            }
+            if (page.acknowledged) return;
+            page.acknowledged = true;
+            this.previewReady = true;
+            long operation = beginPreviewScroll(true);
+            view.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, this.previewRestoreY));
+            releasePreviewScroll(page, operation, 160L);
+            if (this.mode == MODE_SPLIT) schedulePreviewSyncFromEditor();
+        });
+    }
+
+    private long beginPreviewScroll(boolean fromEditor) {
+        if (this.previewScrollRelease != null) this.main.removeCallbacks(this.previewScrollRelease);
+        this.previewScrollRelease = null;
+        this.syncingFromEditor = fromEditor;
+        this.syncingFromPreview = !fromEditor;
+        return ++this.previewScrollOperation;
+    }
+
+    private void releasePreviewScroll(PreviewPage page, long operation, long delay) {
+        if (!isCurrentPreviewPage(page) || operation != this.previewScrollOperation) return;
+        if (this.previewScrollRelease != null) this.main.removeCallbacks(this.previewScrollRelease);
+        this.previewScrollRelease = () -> {
+            if (!isCurrentPreviewPage(page) || operation != this.previewScrollOperation) return;
+            this.previewScrollRelease = null;
+            this.syncingFromEditor = false;
+            this.syncingFromPreview = false;
+        };
+        this.main.postDelayed(this.previewScrollRelease, delay);
     }
 
     private void stopPreview() {
@@ -3488,99 +3578,56 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void schedulePreviewSyncFromEditor() {
-        if (!this.previewReady || this.mode != MODE_SPLIT) {
-            return;
-        }
-        if (this.editorSyncRunnable != null) {
-            this.main.removeCallbacks(this.editorSyncRunnable);
-        }
-        this.editorSyncRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda77
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$schedulePreviewSyncFromEditor$72();
-            }
+        final PreviewPage page = this.previewPage;
+        if (!this.previewReady || this.mode != MODE_SPLIT || !isCurrentPreviewPage(page)) return;
+        if (this.editorSyncRunnable != null) this.main.removeCallbacks(this.editorSyncRunnable);
+        this.editorSyncRunnable = () -> {
+            this.editorSyncRunnable = null;
+            if (isCurrentPreviewPage(page)) lambda$schedulePreviewSyncFromEditor$72();
         };
         this.main.postDelayed(this.editorSyncRunnable, 55L);
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$72() {
-        if (!this.previewReady || this.syncingFromPreview) {
-            return;
-        }
-        int iEditorOffsetAtViewport = editorOffsetAtViewport();
-        this.syncingFromEditor = true;
-        this.preview.evaluateJavascript("window.mdScrollToSource&&window.mdScrollToSource(" + iEditorOffsetAtViewport + ")", new ValueCallback() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda80
-            @Override // android.webkit.ValueCallback
-            public final void onReceiveValue(Object obj) {
-                MainActivity.this.lambda$schedulePreviewSyncFromEditor$71((String) obj);
-            }
-        });
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$70() {
-        this.syncingFromEditor = false;
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$schedulePreviewSyncFromEditor$71(String str) {
-        this.main.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda60
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$schedulePreviewSyncFromEditor$70();
-            }
-        }, 120L);
+    private void lambda$schedulePreviewSyncFromEditor$72() {
+        final PreviewPage page = this.previewPage;
+        if (!this.previewReady || this.syncingFromPreview || !isCurrentPreviewPage(page)) return;
+        int offset = editorOffsetAtViewport();
+        final long operation = beginPreviewScroll(true);
+        this.preview.evaluateJavascript("if(" + previewDomGuard(page) + "){window.mdScrollToSource&&window.mdScrollToSource(" + offset + ")}",
+                value -> releasePreviewScroll(page, operation, 120L));
     }
 
     private void scheduleEditorSyncFromPreview() {
-        if (!this.previewReady || this.mode != MODE_SPLIT) {
-            return;
-        }
-        if (this.previewSyncRunnable != null) {
-            this.main.removeCallbacks(this.previewSyncRunnable);
-        }
-        this.previewSyncRunnable = new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda58
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$scheduleEditorSyncFromPreview$75();
-            }
+        final PreviewPage page = this.previewPage;
+        if (!this.previewReady || this.mode != MODE_SPLIT || !isCurrentPreviewPage(page)) return;
+        if (this.previewSyncRunnable != null) this.main.removeCallbacks(this.previewSyncRunnable);
+        this.previewSyncRunnable = () -> {
+            this.previewSyncRunnable = null;
+            if (isCurrentPreviewPage(page)) lambda$scheduleEditorSyncFromPreview$75();
         };
         this.main.postDelayed(this.previewSyncRunnable, 75L);
     }
 
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$75() {
-        if (!this.previewReady || this.syncingFromEditor) {
-            return;
-        }
-        this.preview.evaluateJavascript("window.mdSourceAtViewport?window.mdSourceAtViewport():0", new ValueCallback() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda7
-            @Override // android.webkit.ValueCallback
-            public final void onReceiveValue(Object obj) {
-                MainActivity.this.lambda$scheduleEditorSyncFromPreview$74((String) obj);
+    private void lambda$scheduleEditorSyncFromPreview$75() {
+        final PreviewPage page = this.previewPage;
+        if (!this.previewReady || this.syncingFromEditor || !isCurrentPreviewPage(page)) return;
+        final long operation = beginPreviewScroll(false);
+        this.preview.evaluateJavascript("(function(){if(" + previewDomGuard(page) + "){return window.mdSourceAtViewport?window.mdSourceAtViewport():0;}return null;})()", value -> {
+            if (!isCurrentPreviewPage(page) || operation != this.previewScrollOperation) return;
+            if (value == null || "null".equals(value)) {
+                releasePreviewScroll(page, operation, 120L);
+                return;
             }
+            final int offset = parseJsInt(value);
+            if (this.previewEditorScroll != null) this.editor.removeCallbacks(this.previewEditorScroll);
+            this.previewEditorScroll = () -> {
+                if (!isCurrentPreviewPage(page) || operation != this.previewScrollOperation) return;
+                this.previewEditorScroll = null;
+                lambda$scrollEditorToOffset$76(clamp(offset, MODE_EDIT, this.editor.length()));
+                releasePreviewScroll(page, operation, 120L);
+            };
+            this.editor.post(this.previewEditorScroll);
         });
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$74(String str) {
-        if (this.syncingFromEditor) {
-            return;
-        }
-        int jsInt = parseJsInt(str);
-        this.syncingFromPreview = true;
-        scrollEditorToOffset(jsInt, false);
-        this.main.postDelayed(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda57
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$scheduleEditorSyncFromPreview$73();
-            }
-        }, 120L);
-    }
-
-    /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$scheduleEditorSyncFromPreview$73() {
-        this.syncingFromPreview = false;
     }
 
     private int editorOffsetAtViewport() {

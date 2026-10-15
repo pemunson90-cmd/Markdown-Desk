@@ -4,15 +4,16 @@ import java.util.*;
 /** Safety assertions deliberately RED on the inspected baseline; no production repair here. */
 public final class NavigationCheck {
     static int assertions,failures,cases;
-    static boolean printOnly;
+    static boolean printOnly,baseline;
     static void eq(Object expected,Object actual,String message){assertions++;if(!Objects.equals(expected,actual)){failures++;System.out.println("FAIL "+message+" expected="+summary(expected)+" actual="+summary(actual));}}
     static String summary(Object value){String s=String.valueOf(value);return s.length()>120?s.substring(0,90)+"… ("+s.length()+" chars)":s;}
-    static void run(String name,Runnable task){boolean print=name.startsWith("print ")||name.startsWith("successful ready print")||name.startsWith("unavailable print");if(print!=printOnly)return;cases++;System.out.println("CASE "+name);task.run();}
+    static void run(String name,Runnable task){boolean print=name.startsWith("print ")||name.startsWith("successful ready print")||name.startsWith("unavailable print");if(print!=printOnly)return;if(baseline&&(name.startsWith("readiness requires")||name.startsWith("held old probe")||name.startsWith("coalesced current")||name.startsWith("probe delivery")||name.startsWith("duplicate current completion never")||name.startsWith("old same-page JS")))return;cases++;System.out.println("CASE "+name);task.run();}
+    static String plain(String html){return html.replaceFirst(" data-md-preview=\"-?[0-9]+\"", "");}
     static MainActivity ready(){MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(160);return a;}
-    public static void main(String[] args){printOnly=args.length>0&&args[0].equals("--print-hazards");
+    public static void main(String[] args){printOnly=Arrays.asList(args).contains("--print-hazards");baseline=Arrays.asList(args).contains("--baseline");
         run("current load and real renderer control",()->{
             MainActivity a=ready();eq(true,a.previewReady,"current completed load is ready");
-            eq(MarkdownRenderer.render(a.editor.text,a.palette,a.previewFontSp),a.preview.committedHtml,"full rendered HTML unchanged");
+            eq(MarkdownRenderer.render(a.editor.text,a.palette,a.previewFontSp),plain(a.preview.committedHtml),"full rendered HTML unchanged");
             eq("https://markdown.local/",a.preview.loads.get(0).url,"source common URL observed");
         });
         run("old finish while latest render waits",()->{
@@ -44,10 +45,60 @@ public final class NavigationCheck {
             MainActivity a=new MainActivity();a.mode=MainActivity.MODE_SPLIT;a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(300);a.syncFromEditor();a.main.advance(60);a.syncFromEditor();a.main.advance(60);
             eq(true,a.syncingFromEditor,"first same-page120ms reset cannot clear newer scroll operation");
         });
+        run("preview-to-editor deferred last hop rejects changed tab",()->{
+            MainActivity a=new MainActivity();a.mode=MainActivity.MODE_SPLIT;a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(300);
+            a.syncFromPreview();eq(1,a.editor.posts.size(),"actual editor scroll callback queued");
+            a.activeTab=1;a.editor.text="other tab";a.renderPreview();a.editor.drain();
+            eq(0,a.editor.scrollCalls,"old preview offset cannot scroll new tab at deferred editor hop");
+        });
         run("late finish after shutdown cannot revive readiness",()->{
             MainActivity a=ready();a.editor.text="queued";a.renderPreview();a.stop();int scrolls=a.preview.scrollCalls;
             a.new AnonymousClass2().onPageFinished(a.preview,"https://markdown.local/");
             eq(false,a.previewReady,"closed worker cannot become ready through old finish");eq(scrolls,a.preview.scrollCalls,"closed preview cannot be scrolled by late finish");
+        });
+        run("readiness requires complete DOM and exact JSON identity",()->{
+            MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.preview.domComplete=false;
+            a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(false,a.previewReady,"loading DOM rejected");a.preview.domComplete=true;
+            for(String reply:new String[]{"null","true","1","\"99999\"","[1]","{}"," \"1\"","\"1\" "}){
+                a.preview.forcedReply=reply;a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(false,a.previewReady,"strict identity response "+reply);
+            }
+            a.preview.forcedReply=null;a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(true,a.previewReady,"matching complete DOM accepted");
+        });
+        run("held old probe cannot block or acknowledge newer page",()->{
+            MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.preview.holdReplies=true;
+            a.new AnonymousClass2().onPageFinished(a.preview,"ignored");a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(1,a.preview.replies.size(),"one probe while current reply pending");
+            a.activeTab=1;a.editor.text="new B";a.renderPreview();a.deliverRender();a.preview.commit(1);a.preview.holdReplies=false;
+            a.new AnonymousClass2().onPageFinished(a.preview,"old-callback-url");eq(true,a.previewReady,"new page probes despite lost old reply");int scrolls=a.preview.scrollCalls;
+            a.preview.replies();eq(scrolls,a.preview.scrollCalls,"late old acknowledgment cannot scroll again");eq(true,a.previewReady,"old reply cannot clear newer readiness");
+        });
+        run("coalesced current finish retries after older DOM response",()->{
+            MainActivity a=ready();a.editor.text="new DOM";a.renderPreview();a.deliverRender();a.preview.holdReplies=true;
+            a.new AnonymousClass2().onPageFinished(a.preview,"old-finish");a.preview.commit(1);a.new AnonymousClass2().onPageFinished(a.preview,"current-finish");
+            eq(1,a.preview.replies.size(),"one in-flight probe while current completion coalesces");a.preview.holdReplies=false;a.preview.replies();
+            eq(true,a.previewReady,"coalesced current finish gets a fresh DOM probe after obsolete response");
+        });
+        run("probe delivery checks live document options and shutdown",()->{
+            for(String change:new String[]{"tab","font","palette","mode","finishing","destroyed","revision","aba"}){
+                MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.preview.holdReplies=true;a.new AnonymousClass2().onPageFinished(a.preview,"ignored");
+                if(change.equals("tab"))a.activeTab=1;
+                if(change.equals("font"))a.previewFontSp=24;
+                if(change.equals("palette"))a.palette=UiTheme.palette(2,false);
+                if(change.equals("mode"))a.mode=MainActivity.MODE_EDIT;
+                if(change.equals("finishing"))a.finishing=true;
+                if(change.equals("destroyed"))a.preview.destroyed=true;
+                if(change.equals("revision"))a.schedulePreview();
+                if(change.equals("aba")){a.activeTab=1;a.renderPreview();a.activeTab=0;a.renderPreview();}
+                a.preview.replies();eq(false,a.previewReady,"late probe cannot acknowledge after "+change);eq(0,a.preview.scrollCalls,"late probe cannot restore after "+change);
+            }
+        });
+        run("duplicate current completion never adds another probe",()->{
+            MainActivity a=ready();int scripts=a.preview.scripts.size();for(int i=0;i<100;i++)a.new AnonymousClass2().onPageFinished(a.preview,"same-url");eq(scripts,a.preview.scripts.size(),"acknowledged current page is idempotent");
+        });
+        run("old same-page JS reply cannot clear newer operation",()->{
+            MainActivity a=new MainActivity();a.mode=MainActivity.MODE_SPLIT;a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,"ignored");a.main.advance(300);
+            a.preview.holdReplies=true;a.syncFromEditor();a.main.advance(60);a.syncFromEditor();eq(2,a.preview.replies.size(),"two scroll replies held");
+            Runnable first=a.preview.replies.remove(0),second=a.preview.replies.remove(0);second.run();a.main.advance(60);first.run();a.main.advance(60);
+            eq(false,a.syncingFromEditor,"older reply cannot prolong newer operation after its120ms release");
         });
         run("print waits for current render",()->{
             MainActivity a=ready();a.editor.text="new print revision";String old=a.preview.committedHtml;a.requestPrint();
@@ -66,11 +117,11 @@ public final class NavigationCheck {
             eq(1,a.printManager.adapters.size(),"one requested print submitted");
             MainActivity.PrintAdapter adapter=a.printManager.adapters.get(0);
             eq("A.md",adapter.title,"print title remains captured originating document");
-            eq(MarkdownRenderer.render("requested A print",a.palette,a.previewFontSp),adapter.html,"print content remains captured originating document");
+            eq(MarkdownRenderer.render("requested A print",a.palette,a.previewFontSp),plain(adapter.html),"print content remains captured originating document");
         });
         run("successful ready print control",()->{
             MainActivity a=ready();a.editor.text="captured print";a.requestPrint();a.deliverRender();a.preview.commit(1);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(1).url);a.main.advance(350);
-            eq(1,a.printManager.adapters.size(),"ready print submits once");eq(MarkdownRenderer.render("captured print",a.palette,a.previewFontSp),a.printManager.adapters.get(0).html,"ready print sees actual rendered document");
+            eq(1,a.printManager.adapters.size(),"ready print submits once");eq(MarkdownRenderer.render("captured print",a.palette,a.previewFontSp),plain(a.printManager.adapters.get(0).html),"ready print sees actual rendered document");
         });
         run("unavailable print service restores temporary mode",()->{
             MainActivity a=ready();a.mode=MainActivity.MODE_EDIT;a.printManager=null;a.requestPrint();a.main.advance(350);

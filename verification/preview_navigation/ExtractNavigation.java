@@ -11,7 +11,10 @@ public final class ExtractNavigation {
         Set<String> wanted=new LinkedHashSet<>(Arrays.asList("AnonymousClass2", "renderIo", "previewWork",
             "schedulePreview", "invalidatePreview", "previewDocumentId", "renderPreview", "acceptPreview", "stopPreview",
             "printDocument", "lambda$printDocument$67", "schedulePreviewSyncFromEditor",
-            "lambda$schedulePreviewSyncFromEditor$70", "lambda$schedulePreviewSyncFromEditor$71", "lambda$schedulePreviewSyncFromEditor$72"));
+            "lambda$schedulePreviewSyncFromEditor$72", "scheduleEditorSyncFromPreview", "lambda$scheduleEditorSyncFromPreview$75",
+            "parseJsInt", "scrollEditorToOffset", "lambda$scrollEditorToOffset$76"));
+        if(args.length>3)wanted.addAll(List.of("lambda$schedulePreviewSyncFromEditor$70", "lambda$schedulePreviewSyncFromEditor$71", "lambda$scheduleEditorSyncFromPreview$73", "lambda$scheduleEditorSyncFromPreview$74"));
+        else wanted.addAll(List.of("PreviewPage", "previewPage", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "previewPageHtml", "isCurrentPreviewPage", "previewDomGuard", "acknowledgePreviewPage", "beginPreviewScroll", "releasePreviewScroll"));
         Map<String,String> found=new LinkedHashMap<>();
         JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
         try(StandardJavaFileManager fm=compiler.getStandardFileManager(null,null,null)) {

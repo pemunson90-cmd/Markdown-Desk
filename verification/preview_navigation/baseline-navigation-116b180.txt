@@ -1,7 +1,9 @@
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
-Extracted 15 exact production members (including WebViewClient)
+Extracted 22 exact production members (including WebViewClient)
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: verification/build/preview-navigation/MainActivity.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
 CASE current load and real renderer control
 CASE old finish while latest render waits
@@ -16,9 +18,11 @@ FAIL duplicate current finish cannot reset user scroll expected=777 actual=0
 FAIL current page acknowledged only once expected=1 actual=2
 CASE same-page older scroll reset cannot release newer operation
 FAIL first same-page120ms reset cannot clear newer scroll operation expected=true actual=false
+CASE preview-to-editor deferred last hop rejects changed tab
+FAIL old preview offset cannot scroll new tab at deferred editor hop expected=0 actual=1
 CASE late finish after shutdown cannot revive readiness
 FAIL closed worker cannot become ready through old finish expected=false actual=true
 FAIL closed preview cannot be scrolled by late finish expected=1 actual=2
-RED preview-navigation: 7 cases, 16 assertions, 9 failures
-Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 9
-	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:80)
+RED preview-navigation: 8 cases, 18 assertions, 10 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 10
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:87)

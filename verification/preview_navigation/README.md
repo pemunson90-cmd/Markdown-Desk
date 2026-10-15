@@ -1,60 +1,92 @@
-# Preview navigation and printing audit (baseline intentionally RED)
+# Preview DOM identity and scroll ownership
 
-Run from this worktree with JDK17:
+Run with JDK17 on PATH:
 
 ```sh
-PATH=/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH bash verification/preview_navigation/run.sh
+bash verification/preview_navigation/run.sh
+bash verification/preview_navigation/run.sh --baseline
+bash verification/preview_navigation/run.sh --print-hazards
 ```
 
-Baseline source `116b180c80d7395a7c23297979f0cdc90ae9c7e2`:
-**10 cases, 27 assertions, 11 failed safety assertions**, exit1. The output is
-retained in [baseline-116b180.txt](baseline-116b180.txt). This is an investigation,
-not a repaired product or a passing required gate. The runner is deliberately
-not registered centrally. No production code changes are included.
+Current navigation checks: **14 cases / 53 assertions PASS**. The exact-source
+baseline selector reads committed main116b180 through `git show`; its **8 cases /
+18 assertions / 10 failures** remain reproducible (intentional exit1). Baseline
+includes duplicate completion resetting user scroll, same-page scroll reset and
+the last deferred editor-scroll hop. Original investigation output10/27/11 is
+also retained as historical evidence, before splitting navigation from printing.
 
-The javac AST extractor copies15 exact production members without rewriting
-bodies, including the entire `AnonymousClass2` WebViewClient, preview scheduling/
-render/accept/invalidation/stop, print action/timer callback and editor-to-preview
-synchronization. It compiles actual `LatestPreview`, `MarkdownRenderer` and
-`UiTheme`. Android classes are local boundaries. No remote artifacts, WebView
-uploads, real documents, browser engine, full suite or benchmark are used.
+`--print-hazards` deliberately runs a separate RED diagnostic: **5 cases /
+14 assertions / 5 failures**. Fixed350ms printing still can create an adapter
+before rendering/DOM readiness, use a later tab's title/content, or leave Write
+mode changed when PrintManager is missing. Printing production code is unchanged;
+this diagnostic must not be registered as a required passing navigation gate.
 
-| Case | Observed baseline |
-|---|---|
-| Current completed load | Ready, full HTML equals actual renderer; control passes |
-| Old finish while new tab's render waits | Sets ready and applies current restoration position;2 failures |
-| Old finish after another load submission with same URL | Certifies readiness while new DOM not committed;1 failure |
-| Two ordered page finishes80ms apart | First160ms reset clears second page's suppression early;1 failure |
-| Late finish after stopPreview | Revives readiness and scrolls;2 failures |
-| Print with current worker held | Creates adapter at350ms using old host DOM;1 failure |
-| Print with renderer delivered, DOM not committed | Creates adapter before readiness;1 failure |
-| Print A, then load/commit tab B before350ms | Uses B's title and HTML;2 failures |
-| Ready current print | One adapter, expected captured HTML; control passes |
-| Missing PrintManager from Write mode | Reports error but leaves Read mode;1 failure |
+The javac AST extractor copies29 exact production members (including the nested
+WebViewClient), the actual render/accept/invalidate/stop methods, navigation
+state/acknowledgment, both scroll directions and the final editor-scroll method.
+It compiles actual LatestPreview, MarkdownRenderer and UiTheme. Android classes
+are local boundaries; only synthetic source strings are used. Current-page/full
+renderer and ready-print controls remain in place. The existing preview suite
+also passed438 checks with only the root navigation attribute removed for full
+HTML comparison across9themes ×3font sizes.
 
-The host explicitly separates `loadDataWithBaseURL` submission from DOM commit.
-It invokes page callbacks in selected orders and records the committed DOM at
-adapter creation. **This does not prove Android delivers stale page callbacks in
-those orders, nor that Android's print adapter snapshots the DOM when created.**
-What is directly established is that the exact callback unconditionally changes
-readiness/scroll and that the exact print timer invokes the current WebView
-adapter without waiting for the current render or DOM. Current-page controls
-ensure failures are not caused by an always-broken renderer or harness.
+## Protocol and ownership
 
-The overlapping-reset case uses two normally ordered page completions80ms apart;
-it does not require an old callback to arrive after a newer one. Timer values
-come from source; the held worker and DOM are simulated scheduling, not latency
-measurements. `stopPreview` is actual; full Android `onDestroy`/WebView destruction
-is not exercised. `rebuildBody` is a boundary retaining only its source-observed
-invalidation/render order; no claim of full modes/layout coverage is made.
-The link handler is stubbed and this fixture makes no link/security test claim.
+Each accepted render gets a root `data-md-preview` attribute from its immutable
+revision. Renderer source/output API, styles, source mapping, base URL and link/
+security policy remain unchanged. A page finish merely requests a DOM probe:
+readiness requires complete DOM and the exact JSON-encoded identity. Acceptance
+rechecks page object, view, revision, tab, mode, palette/font, shutdown and Activity
+state. Initial scroll restoration is idempotent. One probe and one coalesced
+request per page prevent duplicate work; an obsolete page's lost response cannot
+block a new page, and a coalesced current finish retries after an old DOM response.
 
-[Proposed implementation plan](../../docs/superpowers/plans/2026-10-15-preview-navigation.md)
-records the source findings, DOM-identity acknowledgment and the dedicated
-single-operation print WebView alternative, resource bounds, error cleanup and
-review questions. Root technical review precedes production implementation.
-Original renderer HTML/style/source mapping and WebView security/link policy
-must be preserved. Physical Android WebView, PDF output, print service,
-Fold/IME/SAF and signed release gates are **NOT RUN**.
+Invalidation clears readiness immediately and cancels owned timers/deferred editor
+scroll. Scroll operations have separate tokens, so same-page old JS responses and
+120/160ms resets cannot clear newer suppression. DOM-side sync scripts check the
+page identity; preview-to-editor applies its guard again at the final editor post.
+Normal source jump/outline editor scrolling is unchanged. The separate outline
+preview polling helper remains an existing unguarded retry path, outside this
+slice; it has not been relabeled fixed.
 
-Generated classes stay under ignored `verification/build/preview-navigation`.
+The page metadata holds no source or HTML. Wrapping does allocate a full-size
+StringBuilder plus a result String while the original renderer result is still
+live. WebView may copy/retain more internally. This is a material linear main-thread
+cost after render acceptance, not zero-overhead metadata or a phone memory bound.
+
+## Matched wrapper measurement
+
+`run_benchmark.sh` measures only the actual extracted Activity wrapper, using the
+unchanged10k/100k/500k M0 fixture construction. Source hashes match prior CSVs.
+Each input renders once to obtain HTML (renderer speed is not remeasured), then
+three wrapper warmups and three samples run at `-Xmx128m`. Reflection overhead is
+included; raw CSV retains variance. Reference columns are the old no-wrap reference
+assignment measured in nanoseconds, not renderer timings or a meaningful speedup
+ratio. Inputs/outputs remain checked byte-equivalent apart from the trusted marker.
+
+| Words | Source bytes | HTML chars | Added chars (19-digit token) | Wrapper samples ms |
+|---|---:|---:|---:|---|
+|10k|57,020|63,093|38|0.011 / 0.012 / 0.011|
+|100k|570,200|605,965|38|0.311 / 0.312 / 0.329|
+|500k|2,851,000|3,019,089|38|3.907 / 0.391 / 4.764|
+
+[Raw observations](wrapping-2026-10-15.csv). No GC/peak-memory attribution,
+physical latency threshold, benchmark acceptance budget or renderer improvement
+is claimed. Production tokens normally have fewer digits than the measured19.
+
+## Limits
+
+The host separates load submission from DOM commit and deliberately delivers
+callbacks/results in selected orders. It models DOM-probe return values and
+records generated sync JavaScript; it does not execute a browser JavaScript
+engine. The print adapter records host DOM at creation; Android may lay it out
+later. No Android callback URL/order or real spooler snapshot guarantee is inferred.
+`rebuildBody` preserves only its source-observed render/invalidate order, and link
+handling is a boundary here; full layout/link/security/device acceptance is not
+claimed. Production settings and handler are reviewed unchanged.
+
+[Plan](../../docs/superpowers/plans/2026-10-15-preview-navigation.md) records the
+reviewed Task1 scope and separately reviewed Task2 proposal. Physical Android
+WebView, PDF/service behavior, Fold/IME/SAF and signing/release gates remain NOT RUN.
+No remote artifacts, uploads, full suite or broad benchmark repeat were used.
+Generated classes stay under ignored `verification/build/preview-navigation*`.

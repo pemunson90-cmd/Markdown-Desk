@@ -29,11 +29,14 @@ final class MainActivity {
         public boolean shouldOverrideUrlLoading(WebView view,String url){return false;}
         public void onPageFinished(WebView view,String url){}
     }
-    interface ValueCallback {void onReceiveValue(Object result);}
+    interface ValueCallback<T> {void onReceiveValue(T result);}
     static final class WebView {
         static final class Load {final String url,html;Load(String url,String html){this.url=url;this.html=html;}}
         final Handler handler;final List<Load> loads=new ArrayList<>();final List<String> scripts=new ArrayList<>();
-        String committedHtml="";int y,scrollCalls;boolean destroyed;
+        String committedHtml="";int y,scrollCalls;boolean destroyed,domComplete=true,holdReplies;
+        final List<Runnable> replies=new ArrayList<>();String forcedReply;int sourceOffset=17;
+        String domToken(){java.util.regex.Matcher m=java.util.regex.Pattern.compile("data-md-preview=\"(-?[0-9]+)\"").matcher(committedHtml);return m.find()?m.group(1):null;}
+        void replies(){List<Runnable> copy=new ArrayList<>(replies);replies.clear();for(Runnable r:copy)r.run();}
         WebView(Handler handler){this.handler=handler;}
         int getScrollY(){return y;}
         void loadDataWithBaseURL(String url,String html,String mime,String encoding,String history){
@@ -42,7 +45,12 @@ final class MainActivity {
         void commit(int index){committedHtml=loads.get(index).html;}
         void scrollTo(int x,int y){this.y=y;scrollCalls++;}
         boolean postDelayed(Runnable r,long delay){return handler.postDelayed(r,delay);}
-        void evaluateJavascript(String script,ValueCallback callback){scripts.add(script);if(callback!=null)callback.onReceiveValue("0");}
+        void evaluateJavascript(String script,ValueCallback<String> callback){
+            scripts.add(script);String value="null";
+            if(script.startsWith("document.readyState"))value=forcedReply!=null?forcedReply:domComplete&&domToken()!=null?"\""+domToken()+"\"":"null";
+            else if(script.contains("mdSourceAtViewport"))value=Integer.toString(sourceOffset);
+            if(callback!=null){final String reply=value;Runnable r=()->callback.onReceiveValue(reply);if(holdReplies)replies.add(r);else r.run();}
+        }
         PrintAdapter createPrintDocumentAdapter(String title){return new PrintAdapter(title,committedHtml);}
     }
     static final class PrintAdapter {final String title,html;PrintAdapter(String title,String html){this.title=title;this.html=html;}}
@@ -50,7 +58,13 @@ final class MainActivity {
         final List<PrintAdapter> adapters=new ArrayList<>();boolean fail;
         void print(String title,PrintAdapter adapter,Object attributes){if(fail)throw new IllegalStateException("modeled platform print exception");adapters.add(adapter);}
     }
-    static final class Editor {String text="old document";CharSequence getText(){return text;}}
+    static final class Layout {int getLineForOffset(int offset){return offset;}int getLineTop(int line){return line*10;}}
+    static final class Editor {
+        String text="old document";int scrollCalls,y;final List<Runnable> posts=new ArrayList<>();
+        CharSequence getText(){return text;}int length(){return text.length();}void setSelection(int offset){}
+        boolean post(Runnable r){posts.add(r);return true;}void removeCallbacks(Runnable r){posts.remove(r);}Layout getLayout(){return new Layout();}
+        void scrollTo(int x,int y){this.y=y;scrollCalls++;}void drain(){List<Runnable> copy=new ArrayList<>(posts);posts.clear();for(Runnable r:copy)r.run();}
+    }
     static final class DocumentTab {final String id;DocumentTab(String id){this.id=id;}}
     final Handler main=new Handler();final Editor editor=new Editor();final WebView preview=new WebView(main);
     final List<DocumentTab> tabs=new ArrayList<>(List.of(new DocumentTab("A"),new DocumentTab("B")));
@@ -58,8 +72,8 @@ final class MainActivity {
     int activeTab,mode=MODE_PREVIEW,previewRestoreY,bodyRebuilds;
     boolean previewReady,previewStopped,syncingFromEditor,syncingFromPreview,finishing;
     long previewRevision;float previewFontSp=18;String displayName="A.md";
-    UiTheme.Palette palette=UiTheme.palette(0,false);Runnable previewRunnable,editorSyncRunnable;
-    boolean isFinishing(){return finishing;}void showError(String error){errors.add(error);}
+    UiTheme.Palette palette=UiTheme.palette(0,false);Runnable previewRunnable,editorSyncRunnable,previewSyncRunnable;
+    boolean isFinishing(){return finishing;}boolean isDestroyed(){return preview.destroyed;}int dp(int value){return value;}int clamp(int value,int low,int high){return Math.max(low,Math.min(high,value));}void showError(String error){errors.add(error);}
     Object getSystemService(String name){if(!name.equals("print"))throw new AssertionError(name);return printManager;}
     boolean handlePreviewUri(Uri uri){return true;}int editorOffsetAtViewport(){return 17;}
     // Full Android layout is NOT executed. Preserve only the actual render-affecting calls/order.
@@ -68,6 +82,7 @@ final class MainActivity {
     void deliverRender(){worker().drain();main.advance(0);}
     void requestPrint(){printDocument();}
     void syncFromEditor(){lambda$schedulePreviewSyncFromEditor$72();}
+    void syncFromPreview(){lambda$scheduleEditorSyncFromPreview$75();}
     void stop(){stopPreview();}
     /* EXACT_MEMBERS */
 }
