@@ -58,7 +58,7 @@ cost after render acceptance, not zero-overhead metadata or a phone memory bound
 
 `run_benchmark.sh` measures only the actual extracted Activity wrapper, using the
 unchanged10k/100k/500k M0 fixture construction. Source hashes match prior CSVs.
-Each input renders once to obtain HTML (renderer speed is not remeasured), then
+Observed host: Linux6.18.44 x86_64, Temurin17.0.16+8. Each input renders once to obtain HTML (renderer speed is not remeasured), then
 three wrapper warmups and three samples run at `-Xmx128m`. Reflection overhead is
 included; raw CSV retains variance. Reference columns are the old no-wrap reference
 assignment measured in nanoseconds, not renderer timings or a meaningful speedup
@@ -86,7 +86,11 @@ handling is a boundary here; full layout/link/security/device acceptance is not
 claimed. Production settings and handler are reviewed unchanged.
 
 [Plan](../../docs/superpowers/plans/2026-10-15-preview-navigation.md) records the
-reviewed Task1 scope and separately reviewed Task2 proposal. Physical Android
+reviewed Task1 scope and separately reviewed Task2 proposal. Whole production Java compilation passed against installed Android SDK37 with
+JDK17 `--release 11` after normal merge of main d0b02d7 (history UI); existing
+generated R.java was reused because resources are unchanged. Extracted navigation
+source before/after the merge is byte-identical. This is compile evidence, not an
+APK or Android runtime test. Physical Android
 WebView, PDF/service behavior, Fold/IME/SAF and signing/release gates remain NOT RUN.
 No remote artifacts, uploads, full suite or broad benchmark repeat were used.
 Generated classes stay under ignored `verification/build/preview-navigation*`.
