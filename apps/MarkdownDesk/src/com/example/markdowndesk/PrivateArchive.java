@@ -216,7 +216,14 @@ public final class PrivateArchive {
         }
     }
 
-    /** V2-only provisional callback; scope/identity coordinates never grant source authority. */
+    /** V2-only provisional callbacks; coordinates never grant source authority.
+     * Callbacks and their borrowed-metadata work must be synchronous/quiescent on return.
+     * Rows exist before any PortableResult: a later read failure closes their owner internally.
+     * Retain no borrowed row beyond readPortable completion/failure unless a successful result
+     * remains open. Asynchronous work or independently retained copies require separate
+     * pre-reservation and cleanup; callers must not depend on a future result for that lifetime.
+     * Every successful nonnull begin has exactly one finish, including copy/hash failures.
+     */
     public interface ScopedSink {
         OutputStream begin(PrivateBundleInventory.DirectoryEntry entry) throws IOException;
         default void finish(PrivateBundleInventory.DirectoryEntry entry, OutputStream output,

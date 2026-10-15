@@ -224,9 +224,9 @@ OutputStream, MetadataBudget)` returns ArchiveSummary. Parse/hash the exact pers
 inventory and recheck its bytes on write; stream ordinary repeatable sources in order.
 Proposed `readPortable(InputStream, ScopedSink, LegacySpool, MetadataBudget)` returns
 v1(source summary, provisional spool) or v2 inventory retained under budget until closed.
-ScopedSink receives v2 entries only. Every nonnull begin has exactly one finish, even
-on copy/hash failure; primary failure wins with finish failure suppressed. Caller
-owns outer streams, codec owns source streams; no receipt/outer flush/close/pin release.
+ScopedSink gets v2 borrowed rows before any result: callbacks/borrowed work must return quiescent; failure closes owner.
+No row outlives read completion/failure without successful open result; async/retained copies need separate pre-reservation/cleanup.
+Nonnull begin gets one finish; primary failure suppresses finish failure. Caller owns outer streams; codec owns sources; no receipt.
 The local MDOP v1 descriptor cannot silently receive this inventory: a separately
 reviewed bridge/version must bind its exact identity before output eligibility.
 

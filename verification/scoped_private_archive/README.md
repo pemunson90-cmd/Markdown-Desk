@@ -29,7 +29,11 @@ ownership only: escaped immutable lists/rows remain readable. An explicit probe
 asserts this limitation; close cannot revoke references or force garbage collection.
 A future coordinator must keep the inventory/result open through all borrowed
 consumers and quiescence, separately reserve retained copies, and audit lifetimes
-before integration. Arbitrary callers retaining uncharged objects are outside this
+before integration. ScopedSink callbacks receive borrowed rows before a result exists;
+callbacks and borrowed-metadata work must be synchronous/quiescent on return. A later
+read failure closes the owner internally. No borrowed rows may outlive completion/failure
+without a successful result kept open; asynchronous/independently retained copies need
+separate pre-reservation and cleanup. Arbitrary callers retaining uncharged objects are outside this
 accounting contract; the constrained-heap experiment does not establish such a bound.
 
 `MemoryCheck` runs in a separate 48 MiB heap with 36 MiB held. It streams a generated
