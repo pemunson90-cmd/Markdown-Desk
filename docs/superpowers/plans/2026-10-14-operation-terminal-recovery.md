@@ -544,4 +544,7 @@ locks, and the caller-owned monitor/no-signaling audit split. The clarified root
 ruling permits independent terminal work during metadata-only signaling after all
 operation-consumer work and owned closure finish; it does not require wrapper return
 or a shared frame counter. Inline proof listeners remain guarded even though they
-can run arbitrary code. Final technical plan approval is pending the revised commit.
+can run arbitrary code. Independent reviewer `preview_review` approved exact plan
+revision `8fe3874d9b397ee26964c491bbc9409f3e483974` on 2026-10-15 after final diff
+inspection. This is architecture approval only; implementation and behavioral
+verification remain unperformed and require the separately assigned bounded work.
