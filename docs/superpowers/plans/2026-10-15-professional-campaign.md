@@ -42,8 +42,8 @@ Worker execution stopped at an account usage limit during initial reconciliation
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
 
 Current checkpoint: main/origin main remains `fdb7bd6` (PR23 merged). Active
-`codex/operation-data-capture` has draft PR24; last pushed `7542952`. Root has
-committed writer `92e41bb` and copy helper `b4bd0c9`. The
+`codex/operation-data-capture` has draft PR24. Approved writer `92e41bb` and copy
+helper `b4bd0c9` are being batch-published on that active draft PR. The
 full clean gate at `8dcbea5` passed before subsequent C2 source additions; no newer
 full suite/build/hosted run is claimed. STATUS records exact gate evidence and
 hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 remain
@@ -57,11 +57,12 @@ fixed cached installed-capacity/readiness using a narrow provenance getter and f
 identity/readiness after every callback. This approval excludes production sink,
 BEGIN/LINK, handoff, recovery and heap proof.
 
-Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is committed on root HEAD.
-Preflight30 and copy 16 cases pass; independent copy review remains pending. The
-production sink, final BEGIN/LINK, handoff, recovery and heap proof remain open.
-PreparationSources has 181 focused assertions passing. Root owns orchestration and
-integration; source worker owns source/tests. No newer full gate/build/CI covers C2.
+Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is independently approved
+after 3 scenario groups: exact identity binding; retained handles, Error and ordered
+cleanup; and overlength rejection before forwarding. Preflight 30 and copy 16 cases pass.
+The source worker owns Writer and its fixtures for provisional sink, live-prefix and
+promotion; root owns orchestration/integration. Production sink, final BEGIN/LINK,
+handoff, recovery and heap proof remain OPEN. No newer full gate/build/CI covers C2.
 Independent whole-campaign plan review remains NOT RUN; M1 is not complete. Physical
 acceptance remains for feature completion. STATUS records the latest detailed
 checkpoint.
@@ -79,7 +80,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete; copy-helper review is pending. Finish the actual production sink, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete. The worker owns Writer and its fixtures for provisional sink, live-prefix and promotion. Finish production sink, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -118,9 +119,9 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | draft PR24; writer92e41bb approved; copy helperb4bd0c9 committed | Own integration/accounting, STATUS and coherent boundary. Copy review pending; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Approved writer92e41bb; copy helperb4bd0c9 committed | Own source/tests through coherent producer; writer87 assertions and PreparationSources181 pass. Copy16 cases pass; independent copy review pending. Continue actual sink, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
-| Independent reviewer; accounting_repair_review | Copy helperb4bd0c9 review pending | Review exact copy helper and closure; writer92e41bb approval is scoped to that artifact. |
+| Lead; orchestration/integration | draft PR24; writer92e41bb approved; copy helperb4bd0c9 committed | Own integration/accounting, STATUS and coherent boundary. Approved writer/copy checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Approved writer92e41bb; copy helperb4bd0c9 committed | Own source/tests through coherent producer; writer87 assertions and PreparationSources181 pass. Copy16 cases pass and independent copy review is approved. Worker owns Writer and its fixtures for provisional sink, live-prefix and promotion; continue actual production sink, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
+| Independent reviewer; accounting_repair_review | Copy helperb4bd0c9 independently approved after 3 scenario groups | Writer92e41bb and copy helperb4bd0c9 approvals are scoped to those exact artifacts; production sink and campaign review remain outstanding. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | Not run | Independent campaign review remains outstanding; do not treat source approvals as satisfying it. |
 
@@ -167,11 +168,11 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 **C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
 preflight, and pure capture plan are integrated with scoped exact-artifact approvals.
 Writer `92e41bb` is independently approved (87 assertions; independent 4 scenarios).
-Copy helper `b4bd0c9` is committed; its 16 cases pass and independent review is pending.
+Copy helper `b4bd0c9` is independently approved after 3 scenario groups; its 16 cases pass. The worker now owns Writer and its fixtures for provisional sink, live-prefix and promotion.
 Require both original C0 control and L0 ledger hashes freshly matched before P, including
 the reproduced legacy PIN BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while
-L0 stays unchanged. Plan authority alone cannot publish P. Continue through actual
-production sink, exact typed transitions, final BEGIN/LINK and handoff, cold recovery,
+L0 stays unchanged. Plan authority alone cannot publish P. Continue through Writer-owned provisional
+sink, live-prefix and promotion, then production sink, exact typed transitions, final BEGIN/LINK and handoff, cold recovery,
 and crash/ENOSPC/reopen/heap evidence. Do not promote helper approvals into whole-campaign
 review.
 
