@@ -71,6 +71,7 @@ bash verification/capture_witnesses/run.sh
 bash verification/portable_baseline/run.sh
 bash verification/private_frame_preflight/run.sh
 bash verification/private_capture_plan/run.sh
+bash verification/portable_capture_plan/run.sh
 bash verification/private_capture_writer/run.sh
 bash verification/private_capture_activation/run.sh
 bash verification/terminal_cancelled_admission/run.sh

@@ -130,10 +130,25 @@ C0/L0/tree checks apply PRE-P only; B2 must compose authentic exact own transpor
 transitions, never ignore filename prefixes. The baseline runner is registered once;
 this documentation/runner update ran only shell syntax and diff checks.
 
-Next: B1 isolated producer work is active from `fb22bff4`, owning Plan, new Selection,
-optional concrete SourceCatalog and new fixtures. Assemble actual inventory/catalog/
-capsule/witness sources and prove shared16MiB fit before P; then publication/authentic
-routing, runtime activation, coordinators and UI remain pending. The retained-receipt
+B1 producer exact `ec06a26ef30eac1809b6f08f83b81d7687b920ab` is independently
+APPROVED and integrated at `f0c6a847`; root verified exact files. Two actual review
+probes blocked original `32379`: selected 8 versus actual-empty preferences, and partial
+witness cleanup requiring EOF. Exact canonical actual scalar binding for all tabs,
+recovery/preferences and whole-cursor abandonment with actual close repaired both;
+genuine uncertainty remains retained. Both original probes now PASS, with no others
+added. Worker final 221 plus existing PrivateState848 functional checks PASS; the latter
+ran once for changed serialization, preserving legacy wire bytes (no memory/full run).
+Original parent used/remaining bytes: minimum 10,973,585/5,803,631; two 8MiB tabs 11,155,999/5,621,217;
+12 tabs+recovery+preferences 12,157,289/4,619,927.
+This is producer-only evidence: no P/provider/UI/activation and no whole-B2 overlap proof.
+The portable capture-plan runner is registered once; this update ran syntax/diff checks only.
+
+Next: B2/C preimplementation contract audit found fixed Writer~7MiB plus Pins6MiB
+cannot fit the remaining headroom. Resolve conservative, actual-snapshot-sized whole-path
+funding before P, authentic post-P baseline WriterTransition, domain3 dispatch, outer-ID
+routing and actual-close versus verified-success semantics. The cold worker is preparing
+the funding/interface contract; no B2 source is implemented. Before large implementation,
+check producer/consumer contracts briefly and run minimum affected tests. The retained-receipt
 root is not implemented: verify shared canonical namespace ABSENCE first and fail closed
 if present/unclassified. Actual adoption/route4 and repeated restore→export remain
 required before feature completion. Cold completion implementation remains blocked on an authentic persisted
