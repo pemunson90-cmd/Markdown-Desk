@@ -1,5 +1,7 @@
 package com.example.markdowndesk;
 import java.io.*;import java.nio.*;import java.nio.charset.*;import java.util.*;import java.text.SimpleDateFormat;import android.view.*;import android.widget.*;
+// Print ownership is exercised with the exact helper in preview_navigation/run_print.sh.
+class DocumentPrint {static void cancel(Object activity){}}
 class HostActivity {protected void onPause(){}protected void onDestroy(){}}
 public final class MainActivity extends HostActivity {
  static final int MODE_EDIT=0,MODE_PREVIEW=1;

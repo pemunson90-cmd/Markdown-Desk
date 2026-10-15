@@ -1,6 +1,8 @@
 package com.example.markdowndesk;
 import java.util.*;
 import java.util.concurrent.*;
+// Print ownership is exercised with the exact helper in preview_navigation/run_print.sh.
+class DocumentPrint {static void cancel(Object activity){}}
 class Activity { protected void onDestroy() {} }
 final class PreviewHarness extends Activity {
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;

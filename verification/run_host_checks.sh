@@ -33,6 +33,7 @@ bash verification/status_behavior/run.sh test
 bash verification/statistics/run.sh
 bash verification/preview_behavior/run.sh
 bash verification/preview_navigation/run.sh
+bash verification/preview_navigation/run_print.sh
 bash verification/line_index/run.sh
 bash verification/syntax/run.sh
 

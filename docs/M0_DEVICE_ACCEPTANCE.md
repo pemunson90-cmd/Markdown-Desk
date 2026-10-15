@@ -33,6 +33,20 @@ computer alone does not give the remote Codex workspace ADB access.
 
 Collect read-only context using the already installed Android platform-tools:
 
+For optional ADB collection on the computer connected to the phone:
+
+1. Open **Settings → About phone → Software information**, tap **Build number**
+   seven times and enter the phone's unlock code when prompted.
+2. Open **Settings → Developer options** and enable **USB debugging**. Connect
+   the unlocked phone with a USB data cable.
+3. On that computer run `adb devices -l` using its installed platform-tools.
+   Accept the USB-debugging prompt on the phone. Continue when its state is
+   `device`; `unauthorized` means the phone has not accepted the connection.
+4. Run the collector below from this repository on that computer. This does not
+   connect the phone to remote Codex; that requires a separate working ADB route.
+   Review the generated context report before sharing it. Disable USB debugging
+   afterward if you no longer need it.
+
 ```bash
 python3 verification/device_context.py --adb /path/to/platform-tools/adb --output device-context.json
 ```
@@ -97,13 +111,15 @@ the final column. Unsupported cases remain NOT RUN with the missing prerequisite
 | REC-3 | Restart with synthetic dirty/session/legacy recovery state, a full 12-tab workspace and one deliberately invalid private record; expose recoverable drafts and diagnostics without hiding independent protection. | NOT RUN | — |
 | SPACE-1 | Exercise actual low storage and logical quota exhaustion separately; failed protection blocks provider writer opening, preserves existing bytes and gives an actionable error. Retry after space remediation. | NOT RUN | — |
 | SPACE-2 | Once quota controls exist: lower quota below usage, reopen and retry; retain every file, report over-quota state and verify completion uses only its exact reserved credit. Controls are currently unimplemented. | NOT RUN | Requires implemented quota controls |
-| SPACE-3 | Once pruning exists: preview/confirm only eligible exact groups; named/pinned/unresolved/orphan/newest/sole-local groups survive. Interrupt pruning and replay twice; changed/corrupt proofs cause zero unauthorized deletion. Pruning is currently unimplemented. | NOT RUN | Requires implemented planner/executor |
+| SPACE-3 | Once a maintenance UI and startup replay are enabled: preview/confirm only eligible exact groups; named/pinned/unresolved/orphan/newest/sole-local groups survive. Interrupt pruning and replay twice; changed/corrupt proofs cause zero unauthorized deletion. The SELECTED-only backend exists; no runtime deletion caller is enabled. | NOT RUN | Requires maintenance UI/startup replay and signed candidate |
 | UPG-1 | Verify original signer, matching package and increasing versionCode before an incremental install over the existing signed app; no uninstall or data clear. Existing documents, grants, drafts, tabs and preferences survive. No candidate is selected. | NOT RUN | Requires canonical signed candidate |
 | EDIT-1 | Software and available hardware keyboards: typing, Unicode composition, selection/cursor, cut/copy/paste, undo/redo and find/replace retain expected text and focus; typewriter behavior remains usable. | NOT RUN | — |
 | UI-1 | Folded/unfolded, portrait/landscape and keyboard shown/hidden: Write/Read/Split, Focus/View entry/exit, locks/read-only Save As, divider drag and accessible adjustment preserve context and reachable controls. | NOT RUN | — |
 | UI-2 | Open/switch/close/restore 12 synthetic tabs; check full-slot behavior, names, selection, dirty state and recovery without losing a tab or silently replacing content. | NOT RUN | — |
 | UI-3 | All nine themes, large font and TalkBack: readable header/dialog/Save/tabs/selected states, accessible names and measured touch bounds; Appearance changes in place and retains scroll. | NOT RUN | — |
 | UI-4 | Inspect all 25 approved splash assets on device for intact artwork, scaling and launch behavior; repeat orientation/Fold transitions under the actual selection conditions. | NOT RUN | — |
+| UI-5 | Rapidly edit and switch tabs while preview loads; change font/theme and Write/Read/Split, fold/unfold, then scroll. Only the current document is acknowledged; duplicate/stale callbacks do not reset the viewport or store another tab's coordinates. | NOT RUN | Requires selected signed candidate |
+| PRINT-1 | Print a synthetic document while rendering is pending, then edit/switch tabs and change modes. The PDF must contain the captured source/title without changing editor mode or Focus/View. Exercise unavailable service, delayed load, cancellation and Activity recreation; no stale document or second overlapping print is submitted. | NOT RUN | Requires selected signed candidate and actual print service |
 | PERF-1 | Matched 10k/100k/500k-word and boundary fixtures: repeated cold open, typing, search, tab switch, render and save measurements with method/distribution and device memory observations. | NOT RUN | — |
 
 Record PASS or FAIL only for the observed row and conditions; preserve failures,
