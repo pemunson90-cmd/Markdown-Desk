@@ -259,8 +259,18 @@ kind0. Role4 kinds1=enrollment,2=registration,3=policy,4=C0 preimage,5=ledger pr
 6=graph preimage,7=native-source preimage; all use the SAME row grammar, state2,
 ZERO owner/node, declared=actual exact bytes/hash, futureBytes/futureSlots0, relation0.
 States0=absent,1=directory,2=committed file,3=stage. ZERO owner/node only where the
-namespace root or source-context row has no preparation/artifact identity; control node is persisted
-preparation/operation ID as appropriate. Unknown kinds/shapes remain blocking.
+namespace root, source-context row or verified closed legacy pair has no preparation
+identity; control node is persisted preparation/operation ID as appropriate. Role1
+legacy BEGIN(kind3)/CLOSE(kind4) rows use ZERO owner, node=operation UUID, state2,
+exact declared=actual/raw bytes and hashes, futureBytes/futureSlots0, relation0.
+Allow ONLY a canonical completed domain1 pair: matching canonical filenames/UUID,
+BEGIN purpose/scope/source shape valid under HistoryPinRecord, CLOSE binds that
+BEGIN envelopeHash and manifestHash with valid RELEASED/CANCELLED outcome, no P
+association, unmatched member or conflicting/staged control. Their registration and
+BEGIN generation/policy hash must resolve through the included full raw context chain;
+C0 and ledger witnesses retain both rows exactly. An unavailable old native manifest
+is a preserved historical hash commitment, never activation proof. Every other
+unowned/unclassifiable pair refuses whole backup. Unknown kinds/shapes remain blocking.
 Absent/directory rows have raw/actual length0 and SHA256(empty); absent declaration
 hash is32 zero bytes only for directories. File rawLength=actualLength and bytes/hash
 are exact physical observations. Future byte/slot counters reproduce the typed
@@ -312,8 +322,13 @@ a capsule context section using existing hash inputs, not a new replay/authority
    current `captureActiveTab()` or copy whole text: its Editable.toString duplicates
    an8MiB document. Borrow existing inactive immutable String payloads; pin the active
    Editable through a NEW narrow main-thread read adapter with mutations excluded.
-   While that lease lives, reject/queue IME, programmatic text/tab/recovery mutation
-   and refresh callbacks. Worker frame factories request main-thread getChars chunks
+   Before taking the lease, finish composition preserving all already accepted text;
+   if it cannot settle safely, refuse capture. During the lease disable editing and
+   reject mutating IME/key/programmatic text/tab/recovery actions before acceptance,
+   with one accessible busy indication; never acknowledge then discard input. No text,
+   Runnable or arbitrary event payload is queued. Refreshes use at most one fixed
+   invalidation bitmask and revalidate after release. Worker frame factories request
+   main-thread getChars chunks
    <=16,384 UTF16 units, strict-encode with surrogate carry, stream existing v1 frames
    for preflight and writer second pass; no worker accesses Editable, no history lease
    waits on UI, no second full String/byte[] or unfunded pre-P spool exists. Metadata/
@@ -322,6 +337,8 @@ a capsule context section using existing hash inputs, not a new replay/authority
    final copy is durable and PreparationSources freezes further opens; uncertainty
    retains ownership until proved drain, without
    clearing/resetting PreparationSources. Each row retains original sourceTabId.
+   Device IME/composition/accessibility proof remains NOT RUN; implementation needs
+   host accepted-input/rejection/queue-bound checks before exposing this action.
 2. Add `PrivateCapturePlan.createPortable(File store, File catalog, File identity,
    File index, HistoryArchiveManifest frozen, HistoryGraph.Graph graph,
    HistoryControlStore.Inspection control, PrivateOperationStore.Ledger baseLedger,
@@ -367,6 +384,19 @@ constructor/adapter to PrivateBundleInventory.MetadataBudget that debits that sa
 before reservations/allocations; close may release codec-local use but must not
 restore the parent monotonic debit. Internal prepaid child workspaces may spend only
 already charged amounts. Do not construct a second full-limit budget per helper.
+The current readPortable v1 branch reserves ALL16MiB before calling read: replace
+that branch with an internal `readV1Budgeted(InputStream, LegacySpool, MetadataBudget)`
+using the existing v1 framing loop and incrementally prepaid index, not the old
+whole-limit reservation. Reserve128KiB fixed reader/wrapper/transfer workspace before
+allocation, then384 bytes PER entry before allocating its UUID/index node/growth
+workspace. Keep original MAX_ENTRIES/MAX_INDEX_BYTES, duplicate/header/type/hash/
+terminal/EOF checks and provisional callback/closure semantics; public v1 wire bytes
+and write API stay unchanged. PrivateArchive owns this reader/index change in A;
+coordinator and spool separately precharge their simultaneous state to the SAME
+parent. A small valid v1 must stage→validate→adopt with nonzero coordinator charges;
+large actual index/metadata exhaustion must refuse truthfully without resetting the
+budget, omitting entries or granting a second allowance. Test fixed/per-entry boundary
+failures plus small-v1 success; no v1 dispatch may retain the16MiB upfront debit.
 Simultaneous charge includes capture leases/scalar snapshots/bounded text chunks, graph/control/ledger and
 physical anchors, native map/fingerprint, all record clones/encoding transients,
 I/capsule/catalog owners/indexes, typed validators/remap/provenance, source tables,
