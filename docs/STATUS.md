@@ -1,9 +1,10 @@
 # Current project status
 
-## Current checkpoint — isolated printing and private backup, 2026-10-15
+## Current checkpoint — protected capture and scoped private backup, 2026-10-15
 
-Merged baseline before PR #22 is `50f3a75a47dc9a12b62d308fd15347ecabd00041`:
-[PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
+Main is `b5796ba9061c365538d3192acdea8f69bb204029`: [PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) merged reviewed head `7a13ac5` after required hosted
+run38664300293/job116192539275 passed. Draft38664276730 was skipped, not passing
+evidence. Previous main `50f3a75` came from [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
 head `b9bc16e` after required hosted run38661739767 and its production-recoverability
 job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
 history and earlier exact-source/protected-save foundations remain merged.
@@ -16,13 +17,14 @@ Both match SHA-256
 No downloads/signing credentials; package 2.2.5/code18/min26/target35 and all25
 owner-approved assets preserved. Scoped457 tracked-file credential-pattern scan:
 zero matches/signing-container paths; not an exhaustive history scan. This gate
-includes the reviewed printing changes below. Required hosted validation for
-PR #22 is pending; no signed release is claimed. Hosted run38663648484 failed
+includes the reviewed printing changes below; final required hosted validation
+also passed on launcher correction `7a13ac5`. No signed release is claimed.
+Earlier hosted run38663648484 failed
 because the print launcher required unavailable `rg`. The launcher now uses core
 `find` and rejects a missing stub set; all21 stub inputs are unchanged. A no-rg
 environment passed the actual126 printing and18 controlled-renderer checks.
-Production and behavioral fixture sources remain identical to clean gate05e74ca;
-the required hosted full suite must pass on the corrected launcher before merge.
+Reviewed printing source and its behavioral fixtures match clean gate05e74ca;
+the final required hosted full suite passed on the corrected launcher before merge.
 
 Verified merged behavior:
 
@@ -53,9 +55,8 @@ Verified merged behavior:
   deletion caller or automatic retention is enabled. Private-state and archive
   codecs/manifests remain foundations, not complete backup/import features.
 
-Active integration: `codex/private-backup-integration`, based on review-ready
-[PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) head `7a13ac5` while
-its required hosted check runs. Verified main is merged normally. Printing
+Active integration: `codex/private-backup-integration`, synchronized normally with
+merged main `b5796ba`. Printing
 `8739354` is integrated after independent exact
 source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
 independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
@@ -72,8 +73,9 @@ The first clean attempt at `fe048d2` stopped at status-fixture compilation: its
 extracted teardown lacked the new DocumentPrint boundary. Production code is
 unchanged; adding that isolated fixture boundary passed57 status assertions.
 The corrected clean gate passed at `05e74ca`, including all required recoverability
-and retention fixtures plus both unsigned audits. Evidence-only updates after that
-commit leave tested production and fixture inputs unchanged.
+and retention fixtures plus both unsigned audits. PR #22 evidence-only updates after that
+commit left its tested production and fixture inputs unchanged; newer backup
+source below awaits its own combined gate.
 Historical print failures remain reproducible against the baseline selector.
 
 Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
@@ -82,9 +84,14 @@ restored bundles and accessible drafts, with no user-document writes or tab evic
 Exact codec plan `c279dfaa` and operation-data/capture plan `7a6c72b3` passed
 independent architecture review and are integrated. Root authorized bounded pure
 codec and phased storage/capture source work in separate worktrees. Pure codec
-checkpoint `cf3449a` has worker-reported4,622 focused checks and is undergoing
-independent source review; this is interim evidence, not an integrated gate or
-runtime feature. Storage/capture source remains in implementation.
+source/contracts `f357fe1` passed independent exact-source review; integrated
+`4ed9fbb` adds only the approval record. Worker4,732 functional+7 constrained-memory
+checks and unchanged archive/state/manifest suites passed; reviewer16 independent
+probes passed. The new required runner is registered; combined clean verification
+remains pending. Typed payload validity, durable spool/adoption and runtime backup
+authority are excluded. Borrowed rows require cooperative ownership through
+quiescence or separately reserved copies; closing does not revoke escaped Java
+references or prove GC. Storage/capture source remains in implementation.
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
 transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
@@ -101,8 +108,9 @@ It must preserve search ranges and valid delayed navigation while retiring mode-
 contexts, old sync effects and unbounded retry chains. The raw audit is not a
 required-green runner until repaired; Android timing remains unverified.
 
-Next: complete the hosted PR #22 gate and merge; implement the reviewed
-operation-data/capture and scoped codec plans, then verified provider output,
+Next: complete and independently review operation-data/capture and outline source,
+combine with the reviewed scoped codec and run the clean integration gate; then
+continue the separately reviewed portable bridge, verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
 private-frame capture belong to one meaningful change boundary, not separate
 product claims. Continue directly after each checkpoint; M1 is not complete.
@@ -111,7 +119,8 @@ Required production recoverability remains GREEN; unchanged raw-provider
 truncation hazards remain separate RED diagnostics. Physical Galaxy Z Fold7 /
 Android16 / One UI8, actual WebView/PDF/SAF/IME/TalkBack, app-UID durability,
 canonical signing and upgrade acceptance remain NOT RUN. Installed literal“2.25”
-remains unverified. Device steps and the unrun matrix live in
+remains unverified. Current ADB check found zero connected devices. Device steps
+and the unrun matrix live in
 [device acceptance](M0_DEVICE_ACCEPTANCE.md). No replacement signer is allowed;
 private signing/recovery files stay out of Git/logs/CI. Older Library/provenance
 inputs remain unavailable. No installable release or full campaign completion.

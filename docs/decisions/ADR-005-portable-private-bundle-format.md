@@ -1,9 +1,12 @@
 # ADR-005: Portable scoped private bundles and complete backup inventory
 
-Date: 2026-10-15. Status: **architecture direction and scoped codec schema reviewed; implementation unverified**.
+Date: 2026-10-15. Status: **architecture and pure codec reviewed; storage/capture implementation unverified**.
 Independent review of `d839225` supports scoped v2 inventory, additive adoption and
 bounded completeness. Later independent review approved codec schema `c279dfaa`;
-root authorized that pure codec implementation. Reservation protocol, mutation/read
+root authorized that pure codec implementation. Exact source/contracts `f357fe1`
+subsequently passed independent review (4,732 functional+7 memory checks and16
+independent probes); framing/structural provenance only, with logical borrowed
+metadata ownership and no runtime authority. Reservation protocol, mutation/read
 factories, MDOP bridge, adoption, actual source and test evidence remain separate gates.
 The later operation-data/capture plan `7a6c72b3` also received independent
 architecture approval and root implementation authorization. It defines exact
@@ -185,6 +188,15 @@ and native-map/private-state digests. Its combined envelope must fit the existin
 slice/reference whose digest is bound; never rebuild it while writing. Empty native
 history cannot produce an ambiguous BEGIN→capture link. Exact matching original
 bytes are required for resume/RELEASED; missing/ambiguous evidence blocks.
+
+This is the **future portable-export** binding requirement. The separately approved
+operation-data plan defines a local `LOCAL_CAPTURE_V1` descriptor binding native-map
+and private-frame identities; it contains no portable inventory. Its pin is local
+capture protection, not proof of a complete portable export. The MDOP→portable
+bridge must separately review how exact persisted inventory bytes become bound to
+the output operation before provider access. It may not silently reinterpret a
+local descriptor, regenerate IDs during retry, or claim that existing local BEGIN
+already binds inventory bytes it never contained.
 
 ## Whole-archive bounds and implementation ownership
 
