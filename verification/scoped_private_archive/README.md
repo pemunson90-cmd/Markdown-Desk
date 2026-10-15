@@ -24,7 +24,13 @@ inert policy, reachable/cyclic/dense origin graphs, exact coordinate tags and st
 UTF-8 bounds. Dense-parent budget rejection reproduces the UUID/array-slot undercharge
 found in initial review. Row collections are immutable borrowed views; callers must
 release references before closing the inventory, and reserve any additional copies
-or typed validation data from the same MetadataBudget.
+or typed validation data from the same MetadataBudget. Closing releases logical
+ownership only: escaped immutable lists/rows remain readable. An explicit probe
+asserts this limitation; close cannot revoke references or force garbage collection.
+A future coordinator must keep the inventory/result open through all borrowed
+consumers and quiescence, separately reserve retained copies, and audit lifetimes
+before integration. Arbitrary callers retaining uncharged objects are outside this
+accounting contract; the constrained-heap experiment does not establish such a bound.
 
 `MemoryCheck` runs in a separate 48 MiB heap with 36 MiB held. It streams a generated
 8,421,376-byte payload through read and two-pass write without a payload array,

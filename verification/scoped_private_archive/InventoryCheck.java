@@ -106,6 +106,10 @@ final class InventoryCheck {
   oversized=inv.clone();setInt(oversized,60,65536);final byte[] retainedTooLarge=oversized;fails(()->PrivateBundleInventory.read(new ByteArrayInputStream(retainedTooLarge),budget),"aggregate metadata before allocation");
   oversized=inv.clone();setInt(oversized,12,0xffffffff);final byte[] unsigned=oversized;fails(()->PrivateBundleInventory.read(new ByteArrayInputStream(unsigned),budget),"unsigned length before allocation");
   ok(budget.usedBytes()==0,"count rejection rollback");
+  PrivateBundleInventory owner=PrivateBundleInventory.read(new ByteArrayInputStream(inventory(true)),budget);
+  List<PrivateBundleInventory.DirectoryEntry> escaped=owner.entries();PrivateBundleInventory.DirectoryEntry row=escaped.get(0);
+  owner.close();ok(budget.usedBytes()==0,"close releases logical ownership only");
+  ok(escaped.get(0)==row&&row.identity.equals(new UUID(0,7))&&row.length==218,"escaped immutable views are not revoked or reclaimed by close");
   PrivateBundleInventory closed=PrivateBundleInventory.read(new ByteArrayInputStream(inv),budget);closed.close();closed.close();ok(budget.usedBytes()==0,"idempotent inventory close");
   try{closed.entries();throw new AssertionError("closed rows accessible");}catch(IllegalStateException expected){checks++;}
  }

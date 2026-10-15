@@ -230,7 +230,9 @@ public final class PrivateArchive {
 
     /** Source framing result only. A legacy spool remains provisional and must be replayed
      * against sourceSummary (all descriptors/payloads) before typed validation/adoption.
-     * V2 rows are borrowed until close; do not retain rows after releasing their budget. */
+     * V2 rows are borrowed: keep this result open through consumers and quiescence.
+     * Close releases logical accounting; escaped immutable rows remain readable, not revoked.
+     * Retained copies require separate reservation and a coordinator lifetime audit. */
     public static final class PortableResult implements AutoCloseable {
         public final ArchiveSummary sourceSummary;
         public final LegacySpool provisionalLegacySpool;

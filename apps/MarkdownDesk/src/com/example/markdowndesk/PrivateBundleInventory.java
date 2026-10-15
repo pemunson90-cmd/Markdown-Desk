@@ -10,7 +10,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 /** Pure scoped inventory. Hashes and historical coordinates grant no authority.
- * Rows are borrowed immutable views: callers must stop retaining them before closing the inventory.
+ * Rows are borrowed immutable views. Closing releases logical accounting, not escaped Java objects:
+ * escaped rows/lists stay readable. This is not a GC or arbitrary-retaining-caller heap guarantee.
+ * Coordinators must retain this owner through all borrowed consumers and their quiescence,
+ * separately reserve retained copies, and audit these lifetimes before integrating adoption.
  * Native/private payload validation and durable staging are deliberately outside this codec. */
 public final class PrivateBundleInventory implements AutoCloseable {
     public static final long MAX_METADATA_BYTES = 16L << 20;
@@ -28,8 +31,10 @@ public final class PrivateBundleInventory implements AutoCloseable {
         public synchronized long usedBytes() { return used; }
         public synchronized Reservation reserve(long bytes) throws IOException {
             if (bytes < 0 || bytes > limit - used) throw new IOException("Combined metadata limit exceeded");
+            // Allocate the token before committing credit: allocation failure strands no charge.
+            Reservation reservation = new Reservation(this, bytes);
             used += bytes;
-            return new Reservation(this, bytes);
+            return reservation;
         }
         private synchronized void release(long bytes) { used -= bytes; }
     }

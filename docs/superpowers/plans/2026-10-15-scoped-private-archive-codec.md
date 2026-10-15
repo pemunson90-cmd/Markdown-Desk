@@ -171,8 +171,8 @@ native-key bookkeeping; do not also create an uncharged legacy HashSet/index.
 Inventory is streamed, not first copied into a 16 MiB byte array. One 64 KiB transfer
 buffer and bounded scalar/hash scratch are separate fixed streaming overhead;
 charge additional decoding/raw-string buffers to the metadata budget while live.
-No payload arrays. Process scopes sequentially/release temporary maps. Budget
-shortfall rejects the whole archive/capture; never silently drop members/provenance.
+No payload arrays. Shortfall rejects all members. Accounting is logical, not GC: escaped rows stay readable after close.
+Keep owners open through borrowed consumers/quiescence; reserve copies separately; audit coordinator lifetimes before integration.
 
 Native root caps and document 8 MiB limits still apply. Inventory<=16 MiB and the
 persisted combined pin descriptor<=16 MiB are independent serialized bounds; neither
@@ -246,5 +246,5 @@ reviewed bridge/version must bind its exact identity before output eligibility.
   drafts remain distinct; per-scope duplicates fail. Verify exact aggregate limits,
   multibyte 4096-byte coordinates, legacy-recovery and opaque index coordinates; typed links stay separate.
 
-Checkpoint: 4,730 functional +7 held-heap checks pass; close/ref-accounting RED→GREEN.
+Checkpoint: 4,732 functional +7 held-heap checks pass; close/ref-accounting RED→GREEN.
 Existing archive/state/manifest suites pass unchanged; exact source review pending. No release claim.
