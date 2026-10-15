@@ -3,22 +3,15 @@
 > **For agentic workers:** Use superpowers:executing-plans after independent
 > architecture approval and source authorization. This is a proposed plan only.
 
-**Goal:** Charge durable operation preparations to the existing primary authority,
-then bind an exact persisted capture to a durable pin without a capture/publication gap.
-
-**Architecture:** A bounded operation-data ledger joins the four-root native ledger;
-a typed immutable preparation commitment funds exact artifacts and terminal records.
-Native-source identity and operation-ledger identity remain distinct, and publication
-accepts only enumerated transitions belonging to this exact preparation.
-
-**Tech Stack:** Existing Java backend, JDK17/SDK37 offline, Android min26; no new
-runtime dependency, provider, Activity, portable archive codec or automatic deletion.
-
-**Spec:** Source base `ea289cb`; proposed backup design/ADR-005 at `d839225`, with
-namespace/accounting clarifications at `be6d444` in `codex/backup-adoption-design`.
-Those proposed documents are separate review inputs, not implemented formats.
-Root requested phased work within ONE meaningful backup/capture integration boundary;
-no separate product feature/PR or full gate for each helper checkpoint.
+**Goal:** Charge durable preparations to the primary authority and bind exact
+persisted captures to pins without a source-validation/publication gap.
+**Architecture:** One operation ledger joins native accounting; immutable PREPARE
+funds artifacts/terminal records, with separately proved native-source identity and
+exact allowed preparation transitions. No fifth role, quota or generic bypass.
+**Tech Stack:** Existing Java, JDK17/SDK37 offline, Android min26; no new dependency.
+**Spec:** Source `ea289cb`; proposed backup/ADR-005 `d839225`/`be6d444` on
+`codex/backup-adoption-design`. These are review inputs, not implemented formats.
+Root requires ONE meaningful backup/capture integration, not helper-sized PR/gates.
 
 ## Scope and immutable meanings
 
@@ -27,12 +20,8 @@ no separate product feature/PR or full gate for each helper checkpoint.
   eligible output. Phase B adds caller-provided immutable private captures through
   existing `PrivateStateCodec`: up to 12 tabs, independent recovery, eight allowed
   preferences. No Activity capture adapter, provider/export/import consumer yet.
-- Both phases create a local `CaptureDescriptor`, not ADR-005 portable inventory.
-  It binds preparation UUIDv4, phase, bundle/registration and acknowledged policy,
-  canonical four role names, native-source hash, initial operation-ledger hash,
-  exact native-map artifact UUID/length/hash, ordered private-frame descriptors
-  (kind, generated item/artifact UUID, length/hash), and explicit source-presence flags.
-  Phase B distinguishes absent recovery from failed/unreadable required recovery.
+- Both phases create local CaptureDescriptor (schema below), not portable inventory.
+  Absent recovery differs from failed/unreadable required recovery.
 - `HistoryArchiveManifest` remains the native ID→outer-ID map. Keep its v1 bytes and
   original `graphHash` as historical capture evidence; do not relabel that field.
   Descriptor source hash separately supports final source validation after own writes.
@@ -49,74 +38,86 @@ no separate product feature/PR or full gate for each helper checkpoint.
 
 ## Namespace, bytes and slots
 
-- Fixed first-slice shape: `private_operations/<prepUUID>/map-<UUID>.native`,
-  `capture-<UUID>.descriptor`, and Phase B `state-<UUID>.frame`; `.stage` is the only
-  alternate artifact name. Canonical lowercase UUIDv4; no caller paths or filenames.
-  Namespace root and preparation directories are charged slots, even when empty.
-- Depth two below the namespace is accepted now. Future retained-import schemas
-  require separate review, depth <=5. Globally <=65,536 ALL namespace entries,
-  including the namespace root, directories, files/stages, links and unknown nodes.
-  Count before descent via bounded DirectoryStream; no unbounded listFiles array,
-  following links, arbitrary recursive traversal or fifth registered native role.
-- Physical regular-file lengths (including failed stages) plus outstanding committed
-  data-byte reservations share current primary quota with native actual bytes and
-  native completion credit. Operation slots have the global namespace cap; native
-  per-role caps remain unchanged. Directory slots have zero logical payload bytes.
-- For expected artifact length L: absent => reserve L bytes/one slot; recognized
-  stage of s<=L => physical s/one slot + remaining L-s/zero slots; exact final =>
-  physical L/one slot, no remaining credit. Each required absent directory reserves
-  one slot. Final+stage duplicates, overlength, unknown/nonregular or unreadable
-  evidence block admission and receive no credit. Physical occupancy is never hidden.
-- Pending data stages are recognized only through exact durable PREPARE descriptors;
-  charge their remaining budget even when incomplete/hash-unverified, but mark them
-  unusable for capture. Credit is accounting, not permission to overwrite or resume.
-- Malformed/unknown operation evidence blocks new writers and all prune proofs;
-  existing native snapshot/transaction recovery reads remain independently usable.
-  No new allowance, GC, compaction, receipt expiry, deletion or universal availability.
+- Shape: `private_operations/<prepUUID>/map-<UUID>.native`,
+  `capture-<UUID>.descriptor`, Phase B `state-<UUID>.frame`; only `.stage` alternates.
+  Canonical generated UUIDv4 paths, no caller paths; root/preparation dirs cost slots.
+- Depth two accepted now; separately reviewed retained-import schemas may reach five.
+  Globally <=65,536 ALL entries including root, dirs, files/stages, links/unknowns.
+  Count before descent with bounded DirectoryStream, no unbounded listFiles arrays,
+  symlink following or arbitrary recursion. Directory payload charge is zero bytes.
+- Physical regular-file lengths + committed future data bytes share primary quota
+  with native actual/completion credit. Native role slot caps remain unchanged.
+- Artifact length L: absent reserves L/one slot; recognized stage s<=L costs physical
+  s/one slot + reserved L-s/zero slots; exact final costs L/one slot, no credit.
+  Each absent required dir reserves one slot. Final+stage conflict, overlength,
+  nonregular/unreadable/unknown entry blocks admission, receives no conversion credit.
+- PREPARE-described partial data stages retain remaining budget even before complete
+  hash validation; accounting credit grants no use, overwrite or cold resume.
+  Unknown/malformed inventory blocks writes/pruning, never ordinary native recovery
+  reads. No GC, deletion, expiry, compaction, extra allowance or availability promise.
 
-## Local control frames and conservation
+## Frozen local schema and control conservation
 
-- New explicit local frame kinds: `PREPARE` and `CAPTURE_LINK`, canonical typed
-  versioned framing with stable numeric codes, strict length/checksum and <=16 KiB
-  complete envelopes. Golden bytes/schema review precedes production codecs.
-  Names are `prep-<prepUUID>.reserve` / `.link` with existing `.stage` convention.
-- PREPARE binds preparation UUID, registration/policy, source/initial-ledger hashes,
-  descriptor identity, pin-generated operation UUID/exact BEGIN hash, and at most
-  16 exact artifact descriptors (map+descriptor+
-  14 private frames), directory commitments and fixed control credits. No payloads,
-  arbitrary strings, variable receipt claim or output/provider evidence in control.
-- CAPTURE_LINK binds prepUUID, operationUUID, PREPARE hash, BEGIN hash and descriptor
-  hash: 128-byte body + 13-byte framing + 32-byte checksum = 173 bytes. PREPARE
-  computes actual encoded length P; current ALL_BUNDLE BEGIN is 204 bytes; CLOSE126.
-- Before PREPARE creation admit physical control + existing credits + P + 204 +
-  126 + 173 bytes and FOUR slots. Marker, policies, all pin pairs, stages and these
-  credits share the existing ONE 1 MiB/256 entries. Stage→final is same-slot rename.
-- Durable PREPARE owns BEGIN204/one slot, CLOSE126/one slot and LINK173/one slot.
-  Recognized exact complete BEGIN.stage consumes its 204/slot credit; after committed
-  BEGIN, CLOSE credit transfers to the existing pin inventory, never counted twice
-  or dropped. PREPARE reconstructs the exact BEGIN bytes: a matching partial stage
-  consumes only its physical prefix/slot credit; it still blocks publication/recovery.
-  Unknown prefixes get no credit. No partial-BEGIN repair/quarantine is introduced.
-- LINK stage uses physical s + reserved(173-s), one occupied slot; promotion consumes
-  its remaining credit. CLOSE retains existing canonical-prefix accounting/protocol.
-  Receipt credit is immutable and cannot fund policy, a different receipt or data.
-  Complete final bytes alone do not establish directory-durable acknowledgement.
-- Every control writer/promotion, including policy/enrollment, pins, executor and
-  recovery helpers, uses ONE aggregated checked-arithmetic credit inventory. Validate
-  zero-growth allowance before promotion and again after the last callback.
-- Only LINK is a new receipt in this slice. No EXPORT_VERIFIED/RESTORED receipt or
-  output eligibility exists. Their exact peak credits must be added before enabling
-  those future protocols; do not promise they can be funded by unused LINK credit.
-  Retain PREPARE/LINK and closed pin audits; bounded journal eventually exhausts.
-- Internal `HistoryPins.prepareBeginLocked(manifest)` returns an immutable template;
-  `publishPreparedBeginLocked(preparationCapability, template)` consumes only the
-  exact durable PREPARE credit. Existing `begin` generation/behavior/wire stays intact.
-  No guessed UUID, arbitrary supplied BEGIN, or absence-based acknowledgement.
+- All scalars big-endian; u8 codes, nonnegative i32 counts/lengths, i64 byte counts;
+  UUID16 is network-order bits, SHA32 raw SHA-256. No padding, trailing or optional
+  unknown fields. Envelope: magic ASCII `MDOP`, i32 version1, u8 type, i32 bodyBytes,
+  body, SHA32(header+body). Types PREPARE1/LINK2/DESCRIPTOR3; control <=16 KiB.
+- Common binding C, ordered: prepUUID16, phase(u8 A1/B2), bundleUUID16, registration
+  SHA32, policyGeneration64, policySHA32, bootstrapQuota64, quota64, automaticCount32,
+  exactly four roles (u8 id1..4, i32 UTF8 length1..64, canonical registration basename),
+  nativeSourceSHA32, initialLedgerSHA32, presenceFlags8 (bit0 recovery/bit1 preferences).
+- Artifact row A, exactly77 bytes: kind8 (map1/descriptor2/tab6/recovery7/preferences8),
+  artifactUUID16, itemUUID16, ordinal32, length64, envelopeSHA32. Map/descriptor item
+  is zero UUID and ordinal0; private item/artifact IDs are distinct generated UUIDv4.
+  Row order kind then ordinal; tab ordinals contiguous0..N-1, others0. No duplicates.
+- DESCRIPTOR body = C, map A, privateCount32, private A rows (<=14). Phase A has no
+  private rows/flags; Phase B <=12 tabs, <=1 recovery, exactly1 preferences and flags
+  agree with rows. Frame length <= PrivateStateCodec's per-kind limits; strict codec
+  validation required. Map count <=16,380; map+descriptor bytes together <=16 MiB.
+- PREPARE body = C, directoryMask8 (bit0 absent namespace/bit1 absent prep dir;
+  bit1 required), artifactCount32, all A rows (map+descriptor+private, <=16), exact
+  canonical BEGIN204. C and rows must match descriptor; BEGIN binds that descriptor
+  hash/length/count, bundle/registration/policy, EXPORT/ALL_BUNDLE/domain2, no sources.
+  PREPARE holds no recursive self-hash; descriptor excludes its own artifact row.
+- LINK body = prepUUID16, operationUUID16, PREPARE-SHA32, BEGIN-SHA32, descriptor-SHA32;
+  exactly173 bytes including envelope. Names `prep-<UUID>.reserve` / `.link`, `.stage`
+  alternate. BEGIN stays existing204 bytes; CLOSE126. Existing native/pin/map bytes
+  unchanged; bundle UUID follows current authority, newly allocated IDs are UUIDv4.
+- Independent golden vector: UUID suffixes1=prep/2=bundle/3=map/4=descriptor/5=operation,
+  each `00000000-0000-4000-8000-00000000000n`; phase1, generation0, both quotas67108864,
+  automaticCount10, roles store/catalog/identity/index; source/ledger/registration/
+  policy/map SHA fields repeat bytes11/22/33/44/55(hex), flags0, map length212,
+  privateCount0, directoryMask3, artifactCount2. Descriptor row derives from D;
+  BEGIN derives from D and operation5; P uses that BEGIN, LINK derives from P/B/D.
+  Complete length/SHA256 (codec vectors, not a semantically validated native map):
+  D361 `990d77ac4677f257c9bc2e746e739232d5802b3f02c248c24210d55c45bd9b41`;
+  B204 `1548e74c29a6196e7e9c0aa81f85dbfcae71c75205013287e50dad3a97321959`;
+  P643 `a11eecf61d1bf1c61dba8825b65b65f2da50b66953959207faafef4e5c0b7f65`;
+  L173 `1cb4f91da7862cf36c37880de51a4d045f35c9bbcf889ffd4539512a36d7ecdd`.
+- Before PREPARE, admit physical control + existing credits + encoded P +204+126+173
+  bytes/FOUR slots inside ONE1MiB/256 including marker, policies, pins and all stages.
+  Complete PREPARE.stage derives the same credits before promotion, without ack.
+  PREPARE owns BEGIN204/1, CLOSE126/1, LINK173/1. Exact partial BEGIN s consumes its
+  physical s/1, leaving204-s/0; it STILL blocks, no repair/quarantine/ack by absence.
+- At exact complete BEGIN.stage, existing pin inventory already owns CLOSE126/1:
+  aggregated inventory suppresses PREPARE's same CLOSE credit then and after committed
+  BEGIN. Deduplicate only by exact prepared BEGIN binding; no global suppression.
+  Conflicting stage+final/unknown prefix blocks and gets no conversion credit.
+- LINK stage costs physical s/1 + reserved173-s/0; exact promotion exhausts its credit.
+  CLOSE uses existing canonical-prefix credit. No bytes alone prove directory ack.
+  Every writer/promotion uses ONE aggregate inventory; check allowance before any
+  promotion and after last callback. Credits cannot fund another receipt/policy/data.
+- Only LINK is new receipt; no EXPORT_VERIFIED/RESTORED writer/output eligibility.
+  Future protocols must reserve their own exact peak credits before enabling them.
+  Retain PREPARE/LINK/closed audits: finite journal eventually exhausts.
+- `HistoryPins.prepareBeginLocked(manifest)` internally allocates immutable template;
+  `publishPreparedBeginLocked(preparationCapability, template)` consumes that exact
+  durable credit. Existing begin behavior stays; no caller-guessed/reconstructed ID.
 
 ## Capture, callbacks and exact own transitions
 
-1. Outside history/gate locks, strictly preflight immutable private captures with
-   PrivateStateCodec into a counting/hash sink, no disk writes. Bound metadata and
+1. Outside locks, preflight with PrivateStateCodec into a counting/hash sink, no disk
+   writes; step3 owned-resource/close rules apply to preflight too. Bound metadata and
    document lengths; regenerate deterministic frame bytes from the same caller-owned
    immutable captures only during this initial preparation. No native/provider reads
    through callbacks while locked. Frame suppliers are trusted ownership adapters;
@@ -135,9 +136,15 @@ no separate product feature/PR or full gate for each helper checkpoint.
    no caller-supplied stream/factory/close code runs inside the monitor/lease.
    `admitPreparedArtifactLocked` accepts only its exact live preparation capability
    and funded conversion, never a general bypass of blocked ordinary admission.
-   No writable storage delegate escapes. No waits/join: commit rejects while a source
-   call is live; context guards reject nested preparation/publication from callbacks.
-   Finalization syncs/readbacks exact complete bytes before atomic promotion+dirsync.
+   Until LINK acknowledgement, unfinished preparation blocks ordinary mutations;
+   afterward quota-admitted appends/policy changes retain existing ALL_BUNDLE semantics.
+   No writable delegate escapes; no waits/join. Registration covers opening, live
+   source and owned close, NOT just callbacks. Failed close retains resource+count
+   and blocks commit across handles; only retry of actual owned close can release it,
+   never finally-decrement/boolean confirmation. Guard remains through closure/signals.
+   Factory failures must account for every acquired resource; trusted reviewed adapters
+   cannot retain raw delegates/spawn untracked work. Unknown ownership stays blocked.
+   Finalization follows successful closure, exact sync/readback and atomic move+dirsync.
 4. Under one final monitor/lease, require no preparation I/O/callbacks, freshly prove
    native sources and every artifact, then publish BEGIN through a narrow locked pin
    helper using the exact descriptor. Do not release exclusion between final source
@@ -200,9 +207,9 @@ no separate product feature/PR or full gate for each helper checkpoint.
 ## Tasks, ownership and executable evidence
 
 - [ ] 1. Behavioral RED fixtures first in `verification/history_operation_data`:
-  actual policy/native writers at exact shared quota/control byte+slot limits; empty
-  directory floods, wrong depth/symlink/unknown nodes; stages and integer overflow;
-  native recovery readable while new admission rejects uncertain operation inventory.
+  exact control/quota limits across all writers, cold complete BEGIN.stage CLOSE
+  deduplication, partial/conflicting stages, integer overflow, empty-directory floods,
+  depth/links/unknowns; native recovery reads survive uncertain operation inventory.
 - [ ] 2. Implement `PrivateOperationStore`, local commitment/descriptor codec and
   ledger; narrow HistoryControlStore/HistoryCapacity/HistoryStorage admission hooks.
   HistoryPinRecord owns additive domain2 and centralized credit decoding. Existing
@@ -215,8 +222,9 @@ no separate product feature/PR or full gate for each helper checkpoint.
   same-byte replacement during callbacks and forbidden source/consumer reentrancy.
 - [ ] 4. Add Phase B `preflightPrivate`/`copyPrivateFrame` using PrivateStateCodec;
   dirty/BOM/CRLF tabs, independently present/absent recovery and exact preferences.
-  Changed repeat stream, throwing source/close, retained source reference, callback
-  races and budget rejection must produce no BEGIN/consumer success. Private payloads
+  Changed streams, throwing open/read/close, idle-live source and second-handle reopen
+  cannot bypass ownership counts; retry close/hostile callbacks never mint false proof.
+  Races/budget failure produce no BEGIN/consumer success. Private payloads
   stream with <=65,536-byte buffers; no document/frame arrays or multiple full maps.
 - [ ] 5. Update Graph/Pruner/MaintenanceRecovery/Executor and terminal capacity paths.
   Test all planner modes, projected partial/all-absent closure, second-handle retirement,
@@ -232,14 +240,11 @@ no separate product feature/PR or full gate for each helper checkpoint.
   capacity/pin/operations/manifest/planner/executor/controller regressions as affected;
   root owns one coherent clean-host/two-unsigned gate, central runners and status.
 
-## Review focus and decisions before source
+## Review focus / exclusions
 
-Confirm additive LOCAL_CAPTURE_V1 domain and local PREPARE/LINK frame golden schema;
-exact credit transfer for retained BEGIN.stage; immutable-capture adapter ownership
-outside locks; complete own-transition proof despite generation changes; legacy empty
-ledger compatibility and every terminal bypass. This plan authorizes no source yet.
-Portable v2 inventory/schema, retained-import projection/remap/receipt budgets, actual
-UI capture completeness, output verification, import adoption and journal compaction
-remain separate reviewed work. Future failed/retained staging cannot be silently
-omitted from whole backup: only a bounded explicit lossless-projection proof could
-permit omission; this slice provides no such proof or complete-backup claim.
+Review domain2/schema/goldens, exact staged-BEGIN credit owner, resource-close proof,
+reversible own transitions and all terminal ledger paths before source authorization.
+Portable v2 inventory, retained-import/remap/receipt protocols, UI capture, output
+verification/adoption and compaction remain separate reviewed work. Failed/retained
+staging cannot silently disappear from whole backup: a future bounded lossless
+projection proof is required; this slice claims neither that proof nor full backup.
