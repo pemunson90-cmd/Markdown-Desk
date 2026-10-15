@@ -79,7 +79,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete and current writer guards await review. Finish private-copy closure, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete; copy-helper review is pending. Finish the actual production sink, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -118,9 +118,9 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | root active HEAD1ee52fd; draft PR24 | Own integration/accounting, STATUS and coherent boundary. Writer review pending; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Writer/Sources/tests + two runner lines, integrated in root HEAD1ee52fd | Own source/tests through coherent producer; PreparationSources181 and writer81 focused assertions pass. Continue payload copy, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof; independent writer review pending. |
-| Independent reviewer; accounting_repair_review | Current writer/source diff pending | Review exact current guards and closure; prior helper/plan approvals do not carry forward. |
+| Lead; orchestration/integration | draft PR24; writer92e41bb approved; copy helperb4bd0c9 committed | Own integration/accounting, STATUS and coherent boundary. Copy review pending; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Approved writer92e41bb; copy helperb4bd0c9 committed | Own source/tests through coherent producer; writer87 assertions and PreparationSources181 pass. Copy16 cases pass; independent copy review pending. Continue actual sink, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
+| Independent reviewer; accounting_repair_review | Copy helperb4bd0c9 review pending | Review exact copy helper and closure; writer92e41bb approval is scoped to that artifact. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | Not run | Independent campaign review remains outstanding; do not treat source approvals as satisfying it. |
 
@@ -166,14 +166,14 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 
 **C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
 preflight, and pure capture plan are integrated with scoped exact-artifact approvals.
-The current writer is committed but remains independently unreviewed and incomplete;
-see STATUS for current ownership and precise remaining closure. Require both original C0 control
-and L0 ledger hashes freshly matched before P, including the reproduced legacy PIN
-BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while L0 stays unchanged.
-Plan authority alone cannot publish P. Continue through private-copy closure, exact
-typed transitions, final BEGIN/LINK and handoff, cold recovery, and crash/ENOSPC/reopen/
-heap evidence, then review the coherent source boundary. The focused writer runner passes, but current guard source is not independently
-reviewed. Do not promote helper approvals into whole-campaign review.
+Writer `92e41bb` is independently approved (87 assertions; independent 4 scenarios).
+Copy helper `b4bd0c9` is committed; its 16 cases pass and independent review is pending.
+Require both original C0 control and L0 ledger hashes freshly matched before P, including
+the reproduced legacy PIN BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while
+L0 stays unchanged. Plan authority alone cannot publish P. Continue through actual
+production sink, exact typed transitions, final BEGIN/LINK and handoff, cold recovery,
+and crash/ENOSPC/reopen/heap evidence. Do not promote helper approvals into whole-campaign
+review.
 
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
