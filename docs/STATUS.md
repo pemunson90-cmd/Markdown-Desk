@@ -37,26 +37,31 @@ with a narrow provenance getter and fresh identity/readiness checks after each
 callback. Approval remains scoped to this exact writer; the production sink,
 BEGIN/LINK, handoff, recovery and whole-heap proof are excluded.
 
-Private sink commit `d71dae257f9003f522743de7b2da59e96a8155e0` is independently
-APPROVED after 4 groups: lazy I/O/normal credits, prefix tampering, final same-bytes
-replacement, and retained Error cleanup. The worker's 87 existing assertions plus
-7 new actual-copy cases pass. One 8 MiB / 1637 ms result is a functional observation,
-not performance acceptance.
+Completion/handoff commit `1fe3c464e3e3f7ceb48dcceba34989dc9b0dc695` is
+independently APPROVED after 4 groups. Worker results pass: 87 publication
+assertions, 7 copy cases and 11 completion cases, including fresh-child JVM checks.
+It implements exact BEGIN204/LINK173/CLOSE credit126, typed-stage allowance,
+preadmitted retained maps and one-use old-owner-claim handoff. Earlier writer `92e41bb`,
+copy helper `b4bd0c9` and private sink `d71dae2` approvals remain point-in-time and
+scoped to those artifacts; none approves the complete current source.
 
-Existing approvals for writer `92e41bb` and copy helper `b4bd0c9` remain scoped to
-those exact artifacts. The active worker now owns final BEGIN/LINK and typed-source
-handoff, with Writer/narrowPins/Sources/Storage and its fixtures. Completion,
-activation, cold recovery, runtime integration, heap proof and performance acceptance
-remain OPEN. No newer full gate/build/CI covers C2. Root owns orchestration and integration.
+The active worker now owns same-process captured activation and tracked declared-source
+read/drain/CLOSE, with Ops/narrowPins/Store plus Writer.Budget.identity and fixtures.
+Activation is not yet implemented; cold recovery, runtime integration, whole-heap
+proof and performance acceptance remain OPEN. No newer full gate/build/CI covers C2.
+The writer runner is registered in the aggregate host script; only shell syntax was
+checked here. Root owns orchestration and integration.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: complete and review final BEGIN/LINK and typed-source handoff in the
-Writer/narrowPins/Sources/Storage scope. Implement and affected-test activation, cold
-recovery, runtime integration, heap bounds, and crash/ENOSPC/reopen behavior before
-downstream features. Defer only the broad regression, performance, migration, and
-device battery to the feature-complete candidate. Continue M0–M7 directly; M1 is not
+Next: implement and affected-test same-process captured activation plus tracked
+declared-source read/drain/CLOSE in the Ops/narrowPins/Store and
+Writer.Budget.identity scope. Then implement and affected-test cold recovery, runtime
+integration and lifecycle/error closure before downstream features. Prove the minimum
+affected memory bounds before downstream storage consumers. Broad whole-heap and
+performance acceptance, regression, migration and device batteries remain for the
+feature-complete candidate. Continue M0–M7 directly; M1 is not
 complete. Source approvals remain limited to their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
