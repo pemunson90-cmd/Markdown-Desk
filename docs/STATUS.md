@@ -2,21 +2,22 @@
 
 ## Current checkpoint — isolated printing and private backup, 2026-10-15
 
-Main is `50f3a75a47dc9a12b62d308fd15347ecabd00041`:
+Merged baseline before PR #22 is `50f3a75a47dc9a12b62d308fd15347ecabd00041`:
 [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
 head `b9bc16e` after required hosted run38661739767 and its production-recoverability
 job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
 history and earlier exact-source/protected-save foundations remain merged.
 
-Latest clean gate **PASS** at `b0adcf7458b1e788b2416303d2828a980b01a045`:
+Latest clean gate **PASS** at `05e74ca2906695ebe6e7ae4e2d68b6b536a24a47`:
 `python3 verification/check_clean_rebuild.py` completed the required host suite
 once from a clean committed checkout and audited two fresh unsigned builds.
 Both match SHA-256
-`8524e6e91c6ea996debdae10bc73340dd0bd68424687de4a0b870f1b61c56351`.
+`7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
 No downloads/signing credentials; package 2.2.5/code18/min26/target35 and all25
-owner-approved assets preserved. Scoped427 tracked-file credential-pattern scan:
+owner-approved assets preserved. Scoped457 tracked-file credential-pattern scan:
 zero matches/signing-container paths; not an exhaustive history scan. This gate
-predates the printing changes below; no signed release is claimed.
+includes the reviewed printing changes below. Required hosted validation for
+PR #22 is pending; no signed release is claimed.
 
 Verified merged behavior:
 
@@ -60,11 +61,13 @@ teardown through process-owned handoff. Exposed adapter resources release only
 after successful delegated onFinish and view disposal. Missing/throwing finish or
 disposal retains the one owner; cancellation does not prove quiescence. Independent
 review repaired normal synchronous finish incorrectly canceling its returned job.
-The required print runner is registered; the combined printing gate is pending.
+The required print runner is registered and passed in the combined clean gate.
 The first clean attempt at `fe048d2` stopped at status-fixture compilation: its
 extracted teardown lacked the new DocumentPrint boundary. Production code is
 unchanged; adding that isolated fixture boundary passed57 status assertions.
-The corrected clean gate must pass before the PR becomes review-ready.
+The corrected clean gate passed at `05e74ca`, including all required recoverability
+and retention fixtures plus both unsigned audits. Evidence-only updates after that
+commit leave tested production and fixture inputs unchanged.
 Historical print failures remain reproducible against the baseline selector.
 
 Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
@@ -77,7 +80,7 @@ through graph/pruner/retirement proofs, preserve uncertain source ownership, and
 transfer CLOSE credit exactly once even for complete BEGIN.stage. Exact schema/
 golden bytes and the reservation protocol must be settled before coding.
 
-Next: complete the clean printing integration gate and PR; implement the reviewed
+Next: complete the hosted PR #22 gate and merge; implement the reviewed
 operation-data/capture and scoped codec plans, then verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
 private-frame capture belong to one meaningful change boundary, not separate
