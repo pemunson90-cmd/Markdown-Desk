@@ -127,6 +127,16 @@ final class HistoryStorage {
     static void requireMutation(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.mutator!=Thread.currentThread())throw new IOException("History mutation scope required");
     }
+    /** Native writers keep operation evidence stable across their external durability callbacks. */
+    static PrivateOperationStore.Ledger operationWriteProof(File root)throws IOException {
+        requireMutation(root);return controlled(root)?PrivateOperationStore.completeDataLocked(root):null;
+    }
+    static void verifyOperationWrite(File root,PrivateOperationStore.Ledger proof)throws IOException {
+        requireMutation(root);
+        if(proof==null){if(controlled(root))throw new IOException("History authority appeared during legacy write");return;}
+        if(!controlled(root))throw new IOException("History authority disappeared during write");
+        PrivateOperationStore.unchangedDataLocked(root,proof);
+    }
     static boolean constructorReadOnly(File root,int role,Long bootstrap)throws IOException {
         requireMutation(root);if(!controlled(root))return false;
         if(!Files.isDirectory(root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Controlled roots must already exist");

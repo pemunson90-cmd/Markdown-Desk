@@ -77,6 +77,7 @@ public final class HistoryCatalog {
 
     public Checkpoint name(String snapshotId,String label) throws IOException {
         synchronized(lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,2)){
+            PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
             HistoryStorage.requireRole(store.storageRoot(),1);validateId(snapshotId);validateLabel(label);
             Inventory inventory=inventory();
             // Invalid committed metadata cannot silently become a partial history.
@@ -99,12 +100,14 @@ public final class HistoryCatalog {
             }
             // Revalidate the source immediately before metadata publication. No source is ever rewritten.
             validateSource(checkpoint);
+            HistoryStorage.verifyOperationWrite(root,operationBefore);
             durability.move(stage,destination);
             if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic move did not consume catalog stage");
             durability.syncDirectory(root);
             byte[] committed=readRecord(destination);
             if(!Arrays.equals(record,committed))throw new IOException("Committed checkpoint differs");
-            return decodeAndValidate(destination,committed);
+            Checkpoint result=decodeAndValidate(destination,committed);
+            HistoryStorage.verifyOperationWrite(root,operationBefore);return result;
         }}
     }
 

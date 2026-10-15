@@ -41,3 +41,11 @@ cases/96 reopens, executor44/88. These are host results, not capture producer,
 Android durability, complete integration or independent source approval.
 The interrupted tracked patch is preserved at
 `verification/build/handoff/a92a999-interrupted-accounting-repairs.patch`.
+
+Independent review of4a29200 found12 native-writer acceptance failures (six writer
+kinds at file-sync/final directory-sync callbacks), despite later admission blocking.
+The follow-up adds scoped operation-data proofs around native publication and final
+acknowledgment, preserving legacy operation behavior and retained failure evidence.
+Current native-admission mode passes60 assertions across15 schedules, including
+completed-transaction, identity and ownership-index retries. Broader host checks
+and renewed independent review remain pending;4a29200 is not an approved baseline.

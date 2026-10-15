@@ -238,6 +238,7 @@ public final class ProtectionStore {
     public void complete(Transaction transaction) throws IOException {
         synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,1)){
             if (transaction==null) throw new IOException("Missing transaction");
+            PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
             File stage=file(transaction.id,".completion-stage");
             if(!ACTIVE_COMPLETIONS.add(stage))throw new IOException("Recursive completion of the same stage");
             try {
@@ -249,18 +250,20 @@ public final class ProtectionStore {
                 byte[] envelope=transactionEnvelope(stored,COMPLETE);
                 CompletionProof proof=completionProof(stored,completed,envelope);
                 // Registered completion converts a freshly validated existing reservation at zero charged growth. Legacy constructor quotas remain unchanged.
-                if(completed){durability.syncDirectory(root);return;}
+                if(completed){durability.syncDirectory(root);HistoryStorage.verifyOperationWrite(root,operationBefore);return;}
                 if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admitCompletion(new CompletionConversion(this,stored.id,envelope.length,proof.stagedBytes));
                 else checkCapacity(0,0,0);
                 if(proof.stagedBytes>=0&&proof.stagedBytes!=envelope.length)
                     throw new IOException("Partial completion stage retained; retry blocked");
                 commitCompletion(stage,destination,envelope,proof.stagedBytes>=0);
                 readCompletion(stored);
+                HistoryStorage.verifyOperationWrite(root,operationBefore);
             }finally{ACTIVE_COMPLETIONS.remove(stage);}
         }}
     }
 
     private void commitCompletion(File stage,File destination,byte[] envelope,boolean reuse)throws IOException {
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable destination exists");
         HistoryStorage.changed(root);
         if(reuse){
@@ -283,10 +286,12 @@ public final class ProtectionStore {
         }
         // Revalidate through a nofollow channel immediately before moving the retained bytes.
         if(readCompletionStage(stage,envelope)!=envelope.length)throw new IOException("Partial completion stage retained");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination)))throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
 
     public Transaction validate(Transaction transaction) throws IOException {
@@ -359,6 +364,7 @@ public final class ProtectionStore {
 
     private void commit(String name, byte[] envelope) throws IOException {
         HistoryStorage.requireMutation(root);entries();
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         File stage=file(UUID.randomUUID().toString(),".stage");
         File destination=new File(root,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Immutable destination exists");
@@ -370,10 +376,12 @@ public final class ProtectionStore {
             stream.flush();
             durability.syncFile(stream.getFD());
         }
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination))) throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
 
     public void setQuotaBytes(long quotaBytes)throws IOException {
@@ -524,6 +532,7 @@ public final class ProtectionStore {
 
     private void commitSnapshot(Snapshot snapshot,byte[] prefix,byte[] payload) throws IOException {
         HistoryStorage.requireMutation(root);entries();
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         MessageDigest checksum=shaDigest();checksum.update(prefix);checksum.update(payload);
         byte[] expectedChecksum=checksum.digest();
         File stage=file(UUID.randomUUID().toString(),".stage"),destination=file(snapshot.id,".snapshot");
@@ -533,12 +542,14 @@ public final class ProtectionStore {
         try(FileOutputStream out=new FileOutputStream(stage)) {
             out.write(prefix);out.write(payload);out.write(expectedChecksum);out.flush();durability.syncFile(out.getFD());
         }
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         SnapshotData committed=readSnapshotData(snapshot.id,false);
         if(!sameSnapshot(snapshot,committed.snapshot) || !MessageDigest.isEqual(expectedChecksum,committed.checksum))
             throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
     private byte[] transactionEnvelope(Transaction t,byte type) throws IOException {
         ByteArrayOutputStream body=new ByteArrayOutputStream();

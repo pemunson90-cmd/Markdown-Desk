@@ -206,6 +206,42 @@ public final class OperationDataCheck {
         old.reconcile();check(inspect(historical).pins.closes.size()==1,"historical CLOSED audit remains source independent beside unknown data");
         rejects(()->historical.capacity.setPolicy(new HistoryPolicy(128L<<20,10)),"historical audit grants no new writer authority");
     }
+    static void nativeAdmissionBarriers()throws Exception {
+        for(String writer:new String[]{"snapshot","prepare","completion","catalog","identity","index","completion-retry","identity-retry","index-retry"}){
+            for(String event:writer.endsWith("-retry")?new String[]{"dir-after"}:new String[]{"file-after","dir-after"}){
+                Fixture f=new Fixture();String history=writer.startsWith("index")?f.identity.resolve("uri","tab"):null;
+                if(writer.startsWith("index")||writer.equals("completion-retry"))f.store.complete(f.pending);
+                if(writer.equals("index-retry"))f.index.recordVerified(history,f.pending.id);
+                if(writer.equals("identity-retry"))f.identity.resolve("existing-uri","tab");
+                String role=writer.equals("catalog")?"catalog":writer.startsWith("identity")?"identity":writer.startsWith("index")?"index":"store";
+                long before=committedFiles(f.parent.resolve(role));boolean[] fired={false},moved={writer.endsWith("-retry")};
+                f.disk.hook=(at,file)->{
+                    if(at.equals("move-after"))moved[0]=true;
+                    if(!fired[0]&&at.equals(event)&&(!event.equals("dir-after")||moved[0])&&(file==null||file.getName().equals(role))){fired[0]=true;foreign(f);}
+                };
+                rejects(()->{
+                    switch(writer){
+                        case "snapshot":f.store.putSnapshot("t","u","n",3,new byte[]{9},"attempted");break;
+                        case "prepare":f.store.prepare(f.original,f.attempted,f.original.hash);break;
+                        case "completion":case "completion-retry":f.store.complete(f.pending);break;
+                        case "catalog":f.catalog.name(f.original.id,"callback test");break;
+                        case "identity":f.identity.resolve("new-uri","tab");break;
+                        case "identity-retry":f.identity.resolve("existing-uri","tab");break;
+                        case "index":case "index-retry":f.index.recordVerified(history,f.pending.id);break;
+                    }
+                },writer+" must not acknowledge unknown accounting from "+event);
+                f.disk.hook=null;check(fired[0],"native publication callback actually reached");
+                long expected=before+(event.equals("dir-after")&&!writer.endsWith("-retry")?1:0);
+                check(committedFiles(f.parent.resolve(role))==expected,"pre-move refusal retains stage; post-move refusal retains committed evidence");
+                check(f.capacity.inspect().mutationBlocked,"unknown accounting blocks subsequent admission");
+            }
+        }
+    }
+    static long committedFiles(Path directory)throws IOException {
+        try(java.util.stream.Stream<Path> files=Files.list(directory)){
+            return files.filter(p->!p.toString().endsWith(".stage")&&!p.toString().endsWith(".completion-stage")).count();
+        }
+    }
     static void foreign(Fixture f)throws IOException {
         Path namespace=f.parent.resolve("private_operations");if(!Files.exists(namespace))Files.createDirectory(namespace);
         Files.write(namespace.resolve("foreign"),new byte[]{1});
@@ -232,6 +268,7 @@ public final class OperationDataCheck {
         if(args.length==0||args[0].equals("replacement"))controlReplacement();
         if(args.length==0||args[0].equals("policy-stage"))policyStageBarrier();
         if(args.length==0||args[0].equals("recovery-accounting"))recoveryAndReadBarriers();
+        if(args.length==0||args[0].equals("native-admission"))nativeAdmissionBarriers();
         System.out.println("Operation data checks PASS "+checks);
     }
 }
