@@ -1,0 +1,1 @@
+package android.widget;import android.view.*;public class ArrayAdapter<T> {public final T[] items;final Object context;public ArrayAdapter(Object c,int layout,T[] v){context=c;items=v;}public View getView(int p,View recycled,ViewGroup parent){TextView v=recycled==null?new TextView(context):(TextView)recycled;v.setText(items[p].toString());return v;}}

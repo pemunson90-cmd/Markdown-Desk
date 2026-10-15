@@ -47,6 +47,8 @@ bash verification/split_resize/run.sh
 bash verification/history_catalog/run.sh
 bash verification/history_index/run.sh
 bash verification/history_diff/run.sh
+bash verification/history_ui/run.sh
+bash verification/history_ui_integration/run.sh
 bash verification/private_archive/run.sh all
 bash verification/private_state/run.sh
 bash verification/history_archive_manifest/run.sh

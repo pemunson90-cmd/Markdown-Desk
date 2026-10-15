@@ -9,6 +9,8 @@ public final class RecoveryLoaderCheck {
     public static void main(String[] args) throws Exception {
         root=Files.createTempDirectory("recovery-loader-");
         try {
+            run("shared authority failure keeps independent session/draft reads and raw protected evidence", () -> sharedStartupFailure());
+            run("registered startup protects draft only after real controller reconciliation", () -> controlledStartup());
             run("legacy recovery replacement retries protection after storage repair", () -> protectionRetry());
             run("startup protection is immutable and deduplicates across restart", () -> deduplicate());
             run("protection failure blocks legacy replace and clear", () -> protectionFailure());
@@ -45,6 +47,31 @@ public final class RecoveryLoaderCheck {
         MainActivity.Intent intent=new MainActivity.Intent(); a.lambda$restoreSessionOrRecovery$42(intent);
         eq(0,a.deliveries,"callback asynchronous"); eq(1,a.main.queue.size(),"one posted callback");
         a.main.drain(); eq(1,a.deliveries,"one delivered callback"); eq(intent,a.deliveredIntent,"same intent forwarded");
+    }
+    private static void sharedStartupFailure() throws Exception {
+        MainActivity seed=fixture("shared-startup-failure");seed.controller();
+        ProtectionStore.Snapshot retained=seed.getProtectionStore().putSnapshot("retained",null,"retained.md",1,"retained evidence".getBytes(java.nio.charset.StandardCharsets.UTF_8),"attempted");
+        Path envelope=seed.getFilesDir().toPath().resolve("protected_saves").resolve(retained.id+".snapshot");byte[] before=Files.readAllBytes(envelope);
+        SessionStore.write(seed,Arrays.asList(tab(0)),0,300L);RecoveryStore.write(seed,draft(200L,"content://fixture/old"));
+        Path recovery=seed.getFilesDir().toPath().resolve("recovery-v2.json"),session=seed.getFilesDir().toPath().resolve("open-tabs.json");byte[] recoveryBefore=Files.readAllBytes(recovery),sessionBefore=Files.readAllBytes(session);
+        Path enrollment=seed.getFilesDir().toPath().resolve("history_enrollment.control");byte[] valid=Files.readAllBytes(enrollment),invalid=valid.clone();invalid[invalid.length-1]^=1;Files.write(enrollment,invalid);
+        MainActivity a=new MainActivity(seed.getFilesDir());load(a);
+        eq(null,a.historyController,"failed startup never publishes controller");eq(false,a.legacyRecoveryProtected,"unacknowledged authority cannot protect old slot");eq(true,a.legacyRecoveryProtectionFailed,"protection failure explicit");
+        yes(a.deliveredError instanceof java.io.IOException,"startup authority failure delivered");eq("session text 0",a.deliveredState.tabs.get(0).text,"valid session independently retained");assertDraft(a.deliveredDraft);
+        eq("retained evidence",new String(a.getProtectionStore().snapshot(retained.id).bytes(),java.nio.charset.StandardCharsets.UTF_8),"raw protected evidence still readable under bad enrollment");
+        a.lambda$clearRecoveryAsync$47();RecoveryStore.Draft newer=draft(400L,"content://newer");newer.text="newer edit";a.lambda$writeRecoveryNow$46(newer);a.main.drain();
+        eq(true,Arrays.equals(recoveryBefore,Files.readAllBytes(recovery)),"failed shared startup preserves exact recovery file through clear/replace");
+        eq(true,Arrays.equals(sessionBefore,Files.readAllBytes(session)),"failed shared startup preserves exact session file");eq(true,Arrays.equals(before,Files.readAllBytes(envelope)),"existing protected envelope unchanged");
+        eq(2,a.errors.size(),"blocked clear and replacement both report preserved recovery");eq(1,a.getProtectionStore().snapshots().size(),"failed startup publishes no duplicate snapshot");
+        Files.write(enrollment,valid);a.lambda$writeRecoveryNow$46(newer);a.main.drain();
+        eq("newer edit",RecoveryStore.read(a).text,"explicit replacement after authority repair succeeds");eq(true,a.legacyRecoveryProtected,"old recovery protected before repaired replacement");eq(2,a.getProtectionStore().snapshots().size(),"repair adds exact old draft protection once");
+    }
+    private static void controlledStartup() throws Exception {
+        MainActivity seed=fixture("controlled-startup");seed.controller();RecoveryStore.write(seed,draft(200L,"content://fixture/old"));
+        MainActivity a=new MainActivity(seed.getFilesDir());eq(null,a.historyController,"new Activity starts without published controller");load(a);
+        eq(true,a.historyController!=null,"actual accessor reconciles controlled bundle during loader I/O");eq(true,a.legacyRecoveryProtected,"controlled draft protection succeeds");eq(null,a.deliveredError,"controlled startup no error");
+        HistoryCapacity.Usage usage=HistoryStorage.capacity(a.getProtectionStore().storageRoot()).inspect();eq(false,usage.mutationBlocked,"protection used ready acknowledged shared authority");
+        eq(1,a.getProtectionStore().snapshots().size(),"one protected recovery snapshot");assertDraft(a.deliveredDraft);
     }
     private static void protectionRetry() throws Exception {
         MainActivity a=fixture("retry-protection");RecoveryStore.write(a,draft(200L,"content://fixture/old"));put(a,"protected_saves","blocking file");load(a);

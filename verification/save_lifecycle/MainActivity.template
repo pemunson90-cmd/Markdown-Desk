@@ -46,6 +46,7 @@ public final class MainActivity extends HostActivity {
     static final class R { static final class string { static final int saving=11; } }
     interface DialogInterface { interface OnClickListener {void onClick(DialogInterface dialog,int which);} }
     static final class AlertDialog {
+        boolean dismissed; void dismiss(){dismissed=true;}
         static final class Builder {
             final MainActivity owner; String[] labels; DialogInterface.OnClickListener positive,negative,neutral,items;
             Builder(MainActivity a){owner=a;}
@@ -58,7 +59,8 @@ public final class MainActivity extends HostActivity {
         }
     }
     static class ActivityNotFoundException extends RuntimeException {}
-    boolean isFinishing(){return false;}
+    boolean finishing;
+    boolean isFinishing(){return finishing;}
     String markdownName(String s){return s;}
     int pickerRequest; Intent pickerIntent;
     void startActivityForResult(Intent i,int request){pickerIntent=i;pickerRequest=request;}
@@ -67,6 +69,7 @@ public final class MainActivity extends HostActivity {
     void launchSaveAs(){captureActiveTab();saveAsTabId=tabs.get(activeTab).id;}
     static final class RecentStore { static void touch(MainActivity a,String uri,String name){a.recents.add(uri);} }
     static final class Toast {
+        static final int LENGTH_LONG=1;
         static Toast makeText(MainActivity a,String text,int duration){a.toasts.add(text);return new Toast();} void show(){}
     }
     static final class Provider {
@@ -95,6 +98,8 @@ public final class MainActivity extends HostActivity {
     }
     File filesDir;
     ProtectionStore protectionStore;
+    HistoryController historyController;
+    long historyRequest; AlertDialog historyDialog;
     MainActivity(){try{filesDir=Files.createTempDirectory("activity-save-").toFile();}catch(IOException e){throw new RuntimeException(e);}}
     File getFilesDir(){return filesDir;}
     long capturedSaveRevision;
@@ -114,6 +119,7 @@ public final class MainActivity extends HostActivity {
     void scheduleRecovery(){recoveriesScheduled++;} void clearRecoveryAsync(){recoveriesCleared++;}
     void scheduleSession(){sessionsScheduled++;} void updateStatus(){statusUpdates++;} void updateTabsUi(){tabsUpdates++;}
     ProtectionStore store()throws IOException{return getProtectionStore();}
+    HistoryController controller()throws IOException{return getHistoryController();}
     void beginSave(boolean saveAs){saveInternal(saveAs);}
     // UI restoration modeled at the seam; captureActiveTab itself is actual extracted app source.
     void switchToTab(int index,boolean unused){captureActiveTab();activeTab=index;restoreFixtureTab();}

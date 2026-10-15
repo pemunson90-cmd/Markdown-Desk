@@ -1,0 +1,2 @@
+package android.widget;
+public class TextView extends android.view.View {public String text=""; public int color; public boolean heading,selectable; public TextView(Object context){} public void setText(CharSequence s){text=s.toString();}public String getText(){return text;}public void setTextColor(int c){color=c;}public void setTextSize(int s){}public void setAccessibilityHeading(boolean b){heading=b;}public void setTypeface(Object o){}public void setTextIsSelectable(boolean b){selectable=b;}}

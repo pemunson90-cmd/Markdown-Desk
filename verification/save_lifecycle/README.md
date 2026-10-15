@@ -7,7 +7,7 @@ bash verification/save_lifecycle/run.sh
 bash verification/save_lifecycle/run.sh --safety
 ```
 
-Current observed safety coverage: **33 cases / 227 assertions PASS**. Baseline
+Current observed safety coverage: **39 cases / 320 assertions PASS**. Baseline
 mode retains all ordinary lifecycle cases; safety mode adds six Save As identity
 and continuation checks. The initial protected-save additions were RED with
 five failures: no original/attempted protection, generic force bypassing changed
@@ -21,7 +21,9 @@ The runner extracts unchanged production MainActivity method text through javac
 AST source positions. It exercises request capture, picker results, actual
 conflict dialog closures, protected worker, success/failure callbacks, async
 version listing and explicit restore picker, and disk-revalidated copy worker.
-DocumentTab, EditorTools, ProtectionStore and SaveCoordinator are actual
+The controller accessor and history invalidation method are also extracted
+unchanged. DocumentTab, EditorTools, ProtectionStore, SaveCoordinator,
+HistoryController, HistoryCapacity, HistoryIdentity and HistoryIndex are actual
 production classes. Only Android widgets, URI/Intent/picker plumbing,
 DocumentIO/provider operations and durability system calls have host doubles.
 The host durability adapter performs real file and directory sync and atomic
@@ -36,6 +38,32 @@ Restore requires an explicit copy picker, revalidates disk snapshots, refuses th
 original URI, uses snapshot bytes rather than active editor text, preserves all
 12 tabs, retains evidence, and fails closed on corruption or quota exhaustion.
 Canceled and busy copy picker results cannot write.
+
+History integration checks prove shared initialization stays on the I/O queue,
+corrupt enrollment publishes no controller and prevents additional provider
+writes while keeping dirty edits and exact protected bytes. Raw inspection and
+explicit retry after authority repair remain available. Actual identity records
+prove same-URI, existing-destination Save As and unsaved TAB-origin provenance;
+failed writes/readback and cancellation create no aliases. Consent after tab
+switching retains the captured route and revision.
+
+Real corrupt identity/index files exercise optional indexing failure after a
+verified provider save: completion, URI adoption and newer edits remain intact,
+and the failure callback is not used. A successful continuation may switch tabs
+or change URI; the optional warning is checked afterward and suppressed for a
+changed destination, different tab, closed origin or finishing Activity. The
+actual success callback invalidates and dismisses history only when an active
+saving tab adopts a changed URI. Tab restoration itself is a host boundary in
+this harness; these assertions cover callback invalidation, not the complete
+history UI lifecycle.
+
+The quota fixture fills the acknowledged shared data quota with bounded native
+stage files and first verifies complete accounting and unblocked authority. It
+then proves restore admission fails before any provider write. The former tiny
+ProtectionStore constructor hint ceased to constrain the registered 64 MiB
+shared policy; its observed failing assertion led to this explicit quota setup,
+not a relaxation of the no-write requirement. Recovery file fidelity and startup
+protection flags are checked by the separate recovery-loader suite.
 
 Generated files stay under `verification/build/save-lifecycle`. Separate provider
 loss probes remain red: retained recoverable bytes do not imply atomic provider
