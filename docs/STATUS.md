@@ -143,7 +143,7 @@ Original parent used/remaining bytes: minimum 10,973,585/5,803,631; two 8MiB tab
 This is producer-only evidence: no P/provider/UI/activation and no whole-B2 overlap proof.
 The portable capture-plan runner is registered once; this update ran syntax/diff checks only.
 
-Funding-input observations at `aaa852b` have independent spec/quality approval.
+Funding-input observations at `f24f479` have independent spec/quality approval.
 The estimator now uses three read-only methods bound to the actual measured inputs
 and exact original Budget instead of reflecting capsule/evidence/item fields.
 Focused provenance/state/coordinate checks and four real B1 estimator cases PASS
@@ -159,20 +159,23 @@ current native membership needs actual per-member file-key anchors across callba
 original capture cardinality and the estimator's256KiB candidate do not bound later
 native appends. The three scoped resource prerequisites implemented below preserve
 ordinary append semantics, actual fileKey equality and exact reservations.
-Whole-path consumer integration remains the next task.
+Whole-path consumer integration remains the next task. The initial push was rejected
+by GitHub email privacy protection; only these five unpublished commits were
+re-authored with the existing public noreply identity. Their complete source tree
+was verified unchanged before updating the commit references here.
 
 Three resource prerequisites now have scoped independent spec/quality approval:
 
-- `baf3348`: bounded control inspection enforces physical byte/entry caps before
+- `b99df13`: bounded control inspection enforces physical byte/entry caps before
   record allocation, including parent enrollment, stages and unknown entries.
   New30 checks and existing control14 cases/209 assertions PASS.
-- `574b1f6`: sequential current-store validation reuses real snapshot/transaction/
+- `ec312d7`: sequential current-store validation reuses real snapshot/transaction/
   completion parsers and exact reservations with a prepaid512KiB reader workspace.
   Review caught the second-stat allocation race and second-workspace reentry;
   both reproduced RED and passed after repair. Focused79/74 checks, fresh8MiB
   snapshot and allocation-race child probes under8MiB heap, plus affected protection
   31 cases/272 assertions, completion7/86 and its restart/write-failure probes PASS.
-- `32a00b4`: one reusable current-native identity table, separately prepaid on the
+- `21e7b4d`: one reusable current-native identity table, separately prepaid on the
   supplied parent, preserves actual key equality and current-record validation.
   Owner lease expiry now clears retained evidence after a reviewed RED→GREEN fix;
   final189 focused checks PASS. Original capture count is not its capacity bound.
