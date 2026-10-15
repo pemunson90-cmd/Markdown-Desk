@@ -45,24 +45,29 @@ preadmitted retained maps and one-use old-owner-claim handoff. Earlier writer `9
 copy helper `b4bd0c9` and private sink `d71dae2` approvals remain point-in-time and
 scoped to those artifacts; none approves the complete current source.
 
-The active worker now owns same-process captured activation and tracked declared-source
-read/drain/CLOSE, with Ops/narrowPins/Store plus Writer.Budget.identity and fixtures.
-Activation is not yet implemented; cold recovery, runtime integration, whole-heap
-proof and performance acceptance remain OPEN. No newer full gate/build/CI covers C2.
-The writer runner is registered in the aggregate host script; only shell syntax was
-checked here. Root owns orchestration and integration.
+Same-process activation and tracked declared-source read/drain/CLOSE are implemented
+at exact `c71add45ba689fbe0626b6eb0d7e78ef89ebabf2`; independent review is PENDING.
+Worker evidence: 5 new groups PASS and unchanged coordinator 59 smoke checks PASS.
+The implementation requires authentic returned binding and the exact original Budget,
+uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
+Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
+Activation is frozen for review; the worker only prepares the cold stale/partial
+cancellation packet. Cold recovery, runtime integration, full-heap and performance,
+migration and device acceptance remain OPEN. Minimum affected memory bounds are
+required before downstream storage consumers; broad batteries remain for feature completion.
+Both writer and activation runners are registered in the aggregate host script; only
+shell syntax was checked for this registration revision. No 48-fault matrix, new full
+suite, APK or CI is claimed. Root owns orchestration and integration.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: implement and affected-test same-process captured activation plus tracked
-declared-source read/drain/CLOSE in the Ops/narrowPins/Store and
-Writer.Budget.identity scope. Then implement and affected-test cold recovery, runtime
-integration and lifecycle/error closure before downstream features. Prove the minimum
-affected memory bounds before downstream storage consumers. Broad whole-heap and
-performance acceptance, regression, migration and device batteries remain for the
-feature-complete candidate. Continue M0–M7 directly; M1 is not
-complete. Source approvals remain limited to their exact artifacts.
+Next: independently review frozen activation at exact `c71add4`; the worker prepares
+only the cold stale/partial cancellation packet. After review, implement and affected-test
+cold recovery, runtime integration and lifecycle/error closure before downstream features.
+Prove minimum affected memory bounds before downstream storage consumers. Broad full-heap,
+performance, regression, migration and device batteries remain for feature completion.
+Continue M0–M7 directly; M1 is not complete. Source approvals remain exact-artifact scoped.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
 owner will sign the unsigned APK with the original key and test the Fold7; no device
