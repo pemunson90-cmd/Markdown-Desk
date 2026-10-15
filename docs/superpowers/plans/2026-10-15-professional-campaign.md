@@ -42,29 +42,29 @@ Worker execution stopped at an account usage limit during initial reconciliation
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
 
 Current checkpoint: main/origin main remains `fdb7bd6` (PR23 merged). Active
-`codex/operation-data-capture` has draft PR24; last pushed `2b78efd`. Root active
-HEAD `1ee52fd164b08150e28cbf21cd9fe50603eca72d` includes normally merged,
-reviewed preflight and record assembly. The
+`codex/operation-data-capture` has draft PR24; last pushed `7542952`. Root has
+committed writer `92e41bb` and copy helper `b4bd0c9`. The
 full clean gate at `8dcbea5` passed before subsequent C2 source additions; no newer
 full suite/build/hosted run is claimed. STATUS records exact gate evidence and
 hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 remain
 historical evidence, not current gate state.
 
 Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
-preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` each
-have scoped approvals only. Their worker evidence and boundaries are point-in-time;
-these approvals do not cover the committed writer/source guard changes or the whole
-campaign. The writer is committed at root active branch `1ee52fd164b08150e28cbf21cd9fe50603eca72d`;
-independent writer review remains pending. Its 81 focused assertions pass and cover
-P/funded directories/native map/D only. PreparationSources has 181 focused assertions
-passing. Private payload copy, final BEGIN/LINK,
-source handoff, cold recovery and whole-heap proof remain open. The source worker
-owns committed Writer/Sources/tests and two runner lines; root owns orchestration
-and
-integration; `accounting_repair_review` owns independent review. Do not duplicate
-full gates or split helper PRs. Independent whole-campaign plan review remains NOT
-RUN. M1 is not complete; physical/device/signing/upgrade gates remain NOT RUN.
+preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` retain
+scoped approvals for those exact artifacts. Writer `92e41bb5827cf7d1d553bbe720744f20f239538e`
+is independently approved; its targeted 87 and independent 4 scenarios pass. Review
+fixed cached installed-capacity/readiness using a narrow provenance getter and fresh
+identity/readiness after every callback. This approval excludes production sink,
+BEGIN/LINK, handoff, recovery and heap proof.
 
+Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is committed on root HEAD.
+Preflight30 and copy 16 cases pass; independent copy review remains pending. The
+production sink, final BEGIN/LINK, handoff, recovery and heap proof remain open.
+PreparationSources has 181 focused assertions passing. Root owns orchestration and
+integration; source worker owns source/tests. No newer full gate/build/CI covers C2.
+Independent whole-campaign plan review remains NOT RUN; M1 is not complete. Physical
+acceptance remains for feature completion. STATUS records the latest detailed
+checkpoint.
 ## Whole-roadmap coverage and dependency map
 
 Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` unless prefixed otherwise. Existing issue IDs are reused; suffixes distinguish obligations, not new GitHub issues.
