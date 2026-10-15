@@ -21,7 +21,7 @@ final class FramingCheck {
   int begins,finishes; final PrivateBundleInventory.MetadataBudget budget; boolean fail;
   Spool(PrivateBundleInventory.MetadataBudget b){budget=b;}
   public OutputStream begin(PrivateArchive.Entry e)throws IOException {
-   ok(budget.usedBytes()==16L<<20,"entire legacy metadata reservation");begins++;
+   ok(budget.usedBytes()>0&&budget.usedBytes()<16L<<20,"incremental legacy metadata reservation");begins++;
    return new OutputStream(){public void write(int v)throws IOException{if(fail)throw new IOException("legacy write");}};
   }
   public void finish(PrivateArchive.Entry e,OutputStream output,boolean good){finishes++;}
@@ -90,21 +90,7 @@ final class FramingCheck {
   byte[] terminalBad=wire.clone();terminalBad[802]^=1;Sink terminalSink=new Sink();
   fails(()->PrivateArchive.readPortable(new Input(terminalBad),terminalSink,null,budget),"terminal count mismatch");
   ok(terminalSink.verified==2&&budget.usedBytes()==0,"terminal failure keeps callbacks provisional");
-  // Existing v1 remains the actual compatibility oracle; portable path delegates unchanged.
-  Output v1=new Output();PrivateArchive.ArchiveSummary original=PrivateArchive.write(source(true,false,new int[1]),v1);
-  Spool spool=new Spool(budget);Sink ordinary=new Sink();Input legacy=new Input(v1.toByteArray());legacy.zero=true;
-  try(PrivateArchive.PortableResult result=PrivateArchive.readPortable(legacy,ordinary,spool,budget)) {
-   ok(result.inventory==null&&result.provisionalLegacySpool==spool&&result.sourceSummary.sha256.equals(original.sha256),"legacy original summary/provisional spool");
-  }
-  ok(ordinary.begins==0&&spool.begins==2&&spool.finishes==2&&legacy.closes==0&&budget.usedBytes()==0,"legacy ownership");
-  try(PrivateBundleInventory.Reservation held=budget.reserve(1)) {
-   fails(()->PrivateArchive.readPortable(new Input(v1.toByteArray()),ordinary,spool,budget),"legacy requires idle full budget");
-   ok(spool.begins==2&&budget.usedBytes()==1,"legacy rejects before spool");
-  }
-  Spool broken=new Spool(budget);broken.fail=true;Input brokenInput=new Input(v1.toByteArray());
-  fails(()->PrivateArchive.readPortable(brokenInput,ordinary,broken,budget),"legacy spool failure");
-  ok(broken.begins==1&&broken.finishes==1&&brokenInput.closes==0&&budget.usedBytes()==0,"failed legacy settlement");
-  for(int cut=0;cut<v1.size();cut++){Input shortInput=new Input(Arrays.copyOf(v1.toByteArray(),cut));Spool s=new Spool(budget);fails(()->PrivateArchive.readPortable(shortInput,ordinary,s,budget),"legacy truncated");ok(shortInput.closes==0&&s.begins==s.finishes&&budget.usedBytes()==0,"legacy truncation ownership");}
+  legacy();
   fails(()->PrivateArchive.read(new Input(wire),new Spool(budget)),"v1 rejects v2");
   byte[] v1Type10=archive(inventory(false),false);v1Type10[18]=1;
   fails(()->PrivateArchive.read(new Input(v1Type10),new Spool(budget)),"v1 rejects type10");
@@ -112,6 +98,35 @@ final class FramingCheck {
   // A source's first close can fail after parsing. The retained metadata must still be released.
   fails(()->PrivateArchive.writeV2(q(3),()->new ByteArrayInputStream(inv){public void close()throws IOException{throw new IOException("close");}},source(true,false,new int[1]),new Output(),budget),"inventory close failure");
   ok(budget.usedBytes()==0,"inventory first-close failure releases retained metadata");
+ }
+ static void legacy()throws Exception {
+  PrivateBundleInventory.MetadataBudget budget=new PrivateBundleInventory.MetadataBudget();
+  // Existing v1 remains the actual compatibility oracle; portable path delegates unchanged.
+  Output v1=new Output();PrivateArchive.ArchiveSummary original=PrivateArchive.write(source(true,false,new int[1]),v1);
+  Spool spool=new Spool(budget);Sink ordinary=new Sink();Input legacy=new Input(v1.toByteArray());legacy.zero=true;
+  try(PrivateArchive.PortableResult result=PrivateArchive.readPortable(legacy,ordinary,spool,budget)) {
+   ok(result.inventory==null&&result.provisionalLegacySpool==spool&&result.sourceSummary.sha256.equals(original.sha256),"legacy original summary/provisional spool");
+  }
+  ok(ordinary.begins==0&&spool.begins==2&&spool.finishes==2&&legacy.closes==0&&budget.usedBytes()==0,"legacy ownership");
+  PrivateBundleInventory.MetadataBudget shared=new PrivateBundleInventory.MetadataBudget(1L<<20);
+  Spool concurrent=new Spool(shared);
+  try(PrivateBundleInventory.Reservation held=shared.reserve(1024);
+      PrivateArchive.PortableResult result=PrivateArchive.readPortable(new Input(v1.toByteArray()),ordinary,concurrent,shared)) {
+   ok(result.sourceSummary.sha256.equals(original.sha256)&&concurrent.begins==2,"small legacy shares coordinator budget");
+   ok(shared.usedBytes()==1024,"reader settles while coordinator remains charged");
+  }
+  try(PrivateBundleInventory.Reservation held=shared.reserve((1L<<20)-65536)) {
+   fails(()->PrivateArchive.readPortable(new Input(v1.toByteArray()),ordinary,concurrent,shared),"actual simultaneous metadata exhaustion");
+   ok(concurrent.begins==2&&shared.usedBytes()==(1L<<20)-65536,"exhaustion refuses before spool");
+  }
+  Spool broken=new Spool(budget);broken.fail=true;Input brokenInput=new Input(v1.toByteArray());
+  fails(()->PrivateArchive.readPortable(brokenInput,ordinary,broken,budget),"legacy spool failure");
+  ok(broken.begins==1&&broken.finishes==1&&brokenInput.closes==0&&budget.usedBytes()==0,"failed legacy settlement");
+  for(int cut=0;cut<v1.size();cut++){Input shortInput=new Input(Arrays.copyOf(v1.toByteArray(),cut));Spool s=new Spool(budget);fails(()->PrivateArchive.readPortable(shortInput,ordinary,s,budget),"legacy truncated");ok(shortInput.closes==0&&s.begins==s.finishes&&budget.usedBytes()==0,"legacy truncation ownership");}
+ }
+ public static void main(String[] args)throws Exception {
+  if(args.length!=1||!args[0].equals("legacy"))throw new IllegalArgumentException("Expected legacy selector");
+  legacy();System.out.println("PASS affected legacy framing checks="+checks);
  }
  static void zeroCallbacks(byte[] wire,PrivateBundleInventory.MetadataBudget budget,String why)throws Exception {
   Input input=new Input(wire);Sink sink=new Sink();fails(()->PrivateArchive.readPortable(input,sink,null,budget),why);ok(sink.begins==0&&input.closes==0&&budget.usedBytes()==0,why+" preflight/ownership");

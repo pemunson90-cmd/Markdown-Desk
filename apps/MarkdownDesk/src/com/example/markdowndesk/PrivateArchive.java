@@ -26,6 +26,7 @@ public final class PrivateArchive {
     /** Conservative ID/frame/bookkeeping charge; the index budget can bind before entry count. */
     public static final int INDEX_BYTES_PER_ENTRY = 384;
     private static final byte[] MAGIC = "MDESKBACKUP\r\n\032\n".getBytes(StandardCharsets.US_ASCII);
+    private static final long READER_WORKSPACE_BYTES = 128L << 10;
     private static final int VERSION = 1, ENTRY = 1, TERMINAL = 0, ENTRY_HEADER_BYTES = 58,
             TERMINAL_BYTES = 45;
 
@@ -36,7 +37,9 @@ public final class PrivateArchive {
         SNAPSHOT(1, true), PREPARATION(2, false), COMPLETION(3, false), CHECKPOINT(4, false),
         IDENTITY(5, false), SESSION_TAB(6, true), RECOVERY(7, true), PREFERENCES(8, false),
         /** Complete native HistoryIndex .index envelope; opaque bounded metadata at this layer. */
-        INDEX(9, false);
+        INDEX(9, false),
+        /** Inert streaming capsule, available only in explicit version3/schema2 framing. */
+        OPERATION_EVIDENCE(11, false);
         private final int wireId;
         private final boolean document;
         Type(int wireId, boolean document) { this.wireId = wireId; this.document = document; }
@@ -149,6 +152,11 @@ public final class PrivateArchive {
 
     /** Never closes caller input or sink. Summary exists only after manifest and true EOF verify. */
     public static ArchiveSummary read(InputStream input, EntrySink sink) throws IOException {
+        return readV1(input, sink, null);
+    }
+
+    private static ArchiveSummary readV1(InputStream input, EntrySink sink,
+            PrivateBundleInventory.Reservation prepaid) throws IOException {
         if (input == null || sink == null) throw new IOException("Missing archive input/sink");
         Tracker tracker = new Tracker();
         InputStream tracked = new InputStream() {
@@ -198,6 +206,7 @@ public final class PrivateArchive {
             if (marker != ENTRY) throw new IOException("Unknown archive frame");
             tracker.ensure(1); tracker.account(marker);
             Type type = Type.decode(in.readUnsignedByte());
+            if (prepaid != null) prepaid.grow(INDEX_BYTES_PER_ENTRY);
             UUID id = new UUID(in.readLong(), in.readLong());
             long length = in.readLong();
             validate(id, type, length);
@@ -216,7 +225,7 @@ public final class PrivateArchive {
         }
     }
 
-    /** V2-only provisional callbacks; coordinates never grant source authority.
+    /** V2/V3 provisional callbacks; coordinates never grant source authority.
      * Callbacks and their borrowed-metadata work must be synchronous/quiescent on return.
      * Rows exist before any PortableResult: a later read failure closes their owner internally.
      * Retain no borrowed row beyond readPortable completion/failure unless a successful result
@@ -230,14 +239,14 @@ public final class PrivateArchive {
                             boolean payloadVerified) throws IOException { }
     }
 
-    /** Trusted, preadmitted streaming spool. While called, the entire metadata budget is held
-     * by v1 framing: retain no entries/index and invoke no ordinary scoped callbacks.
-     * Caller owns staging format, scratch, admission and closure. No durability is implied. */
+    /** Trusted, preadmitted streaming spool. V1 framing incrementally charges its own index.
+     * Caller separately precharges simultaneous spool/coordinator state to the same budget;
+     * retain no borrowed entries/index. Caller owns staging, admission and closure. */
     public interface LegacySpool extends EntrySink { }
 
     /** Source framing result only. A legacy spool remains provisional and must be replayed
      * against sourceSummary (all descriptors/payloads) before typed validation/adoption.
-     * V2 rows are borrowed: keep this result open through consumers and quiescence.
+     * Scoped rows are borrowed: keep this result open through consumers and quiescence.
      * Close releases logical accounting; escaped immutable rows remain readable, not revoked.
      * Retained copies require separate reservation and a coordinator lifetime audit. */
     public static final class PortableResult implements AutoCloseable {
@@ -254,40 +263,47 @@ public final class PrivateArchive {
     public static PortableResult readPortable(InputStream input, ScopedSink sink, LegacySpool spool,
             PrivateBundleInventory.MetadataBudget budget) throws IOException {
         if(input==null||budget==null) throw new IOException("Missing portable input/budget");
-        byte[] header=new byte[MAGIC.length+4];
-        new DataInputStream(progress(input)).readFully(header);
-        for(int i=0;i<MAGIC.length;i++) if(header[i]!=MAGIC[i]) throw new IOException("Unknown archive magic");
-        int version=new DataInputStream(new java.io.ByteArrayInputStream(header,MAGIC.length,4)).readInt();
-        InputStream replay=new InputStream() {
-            int at;
-            public int read() throws IOException {return at<header.length?header[at++]&255:input.read();}
-            public int read(byte[] b,int off,int len)throws IOException {
-                if(len==0)return 0;
-                if(at<header.length){int n=Math.min(len,header.length-at);System.arraycopy(header,at,b,off,n);at+=n;return n;}
-                return input.read(b,off,len);
+        // Own wrapper/transfer workspace before allocation or any caller input read.
+        try(PrivateBundleInventory.Reservation workspace=budget.reserve(READER_WORKSPACE_BYTES)) {
+            byte[] header=new byte[MAGIC.length+4];
+            new DataInputStream(progress(input)).readFully(header);
+            for(int i=0;i<MAGIC.length;i++) if(header[i]!=MAGIC[i]) throw new IOException("Unknown archive magic");
+            int version=new DataInputStream(new java.io.ByteArrayInputStream(header,MAGIC.length,4)).readInt();
+            InputStream replay=new InputStream() {
+                int at;
+                public int read() throws IOException {return at<header.length?header[at++]&255:input.read();}
+                public int read(byte[] b,int off,int len)throws IOException {
+                    if(len==0)return 0;
+                    if(at<header.length){int n=Math.min(len,header.length-at);System.arraycopy(header,at,b,off,n);at+=n;return n;}
+                    return input.read(b,off,len);
+                }
+                // Deliberately non-owning. Unlike SequenceInputStream, exhaustion closes nothing.
+            };
+            if(version==1) {
+                if(spool==null)throw new IOException("Missing trusted legacy spool");
+                return readV1Budgeted(replay,spool,workspace);
             }
-            // Deliberately non-owning. Unlike SequenceInputStream, exhaustion closes nothing.
-        };
-        if(version==1) {
-            if(spool==null)throw new IOException("Missing trusted legacy spool");
-            try(PrivateBundleInventory.Reservation held=budget.reserve(MAX_INDEX_BYTES)) {
-                return new PortableResult(read(replay,spool),spool,null);
-            }
+            if(version!=2&&version!=3)throw new IOException("Unknown archive version");
+            if(sink==null)throw new IOException("Missing scoped sink");
+            return readScoped(replay,sink,budget,version);
         }
-        if(version!=2)throw new IOException("Unknown archive version");
-        if(sink==null)throw new IOException("Missing scoped sink");
-        return readV2(replay,sink,budget);
     }
 
-    private static PortableResult readV2(InputStream input,ScopedSink sink,
-            PrivateBundleInventory.MetadataBudget budget)throws IOException {
+    private static PortableResult readV1Budgeted(InputStream input,LegacySpool spool,
+            PrivateBundleInventory.Reservation workspace)throws IOException {
+        return new PortableResult(readV1(input,spool,workspace),spool,null);
+    }
+
+    private static PortableResult readScoped(InputStream input,ScopedSink sink,
+            PrivateBundleInventory.MetadataBudget budget,int version)throws IOException {
         Tracker tracker=new Tracker(); DataInputStream in=new DataInputStream(trackedInput(input,tracker));
         byte[] header=new byte[MAGIC.length+4];in.readFully(header); // dispatch already validated these bytes
         if(in.readUnsignedByte()!=ENTRY||in.readUnsignedByte()!=10)throw new IOException("Missing first inventory");
         UUID inventoryId=new UUID(in.readLong(),in.readLong());PrivateBundleInventory.requireGenerated(inventoryId);
         long length=in.readLong();if(length<144||length>MAX_INDEX_BYTES)throw new IOException("Inventory frame limit");
         byte[] hash=new byte[32];in.readFully(hash);
-        PrivateBundleInventory inventory=PrivateBundleInventory.read(slice(in,length),budget);
+        PrivateBundleInventory inventory=version==3?PrivateBundleInventory.readSchema2(slice(in,length),budget)
+                :PrivateBundleInventory.read(slice(in,length),budget);
         boolean returned=false;
         try {
             if(inventory.serializedLength!=length||!inventory.sha256.equals(hex(hash)))throw new IOException("Inventory outer hash/length mismatch");
@@ -321,41 +337,54 @@ public final class PrivateArchive {
      * Owns opened source streams only; caller settles outer flush/close and fresh readback. */
     public static ArchiveSummary writeV2(UUID inventoryId,StreamOpener frozenInventory,ArchiveSource source,
             OutputStream output,PrivateBundleInventory.MetadataBudget budget)throws IOException {
+        return writeScoped(inventoryId,frozenInventory,source,output,budget,2);
+    }
+
+    /** Explicit v3 output; framing and hashes do not establish semantic backup completion. */
+    public static ArchiveSummary writeV3(UUID inventoryId,StreamOpener frozenInventory,ArchiveSource source,
+            OutputStream output,PrivateBundleInventory.MetadataBudget budget)throws IOException {
+        return writeScoped(inventoryId,frozenInventory,source,output,budget,3);
+    }
+
+    private static ArchiveSummary writeScoped(UUID inventoryId,StreamOpener frozenInventory,ArchiveSource source,
+            OutputStream output,PrivateBundleInventory.MetadataBudget budget,int version)throws IOException {
         PrivateBundleInventory.requireGenerated(inventoryId);
-        if(frozenInventory==null||source==null||output==null||budget==null)throw new IOException("Missing v2 source/output/budget");
-        PrivateBundleInventory parsed=null;
-        try(InputStream input=openInventory(frozenInventory)){parsed=PrivateBundleInventory.read(input,budget);}
-        catch(IOException|RuntimeException|Error failure) {
-            if(parsed!=null)parsed.close();
-            throw failure;
-        }
-        final PrivateBundleInventory inventory=parsed;
-        try(PrivateBundleInventory retained=inventory) {
-            rejectInventoryCollision(inventoryId,inventory);
-            Tracker tracker=new Tracker();DataOutputStream out=new DataOutputStream(trackedOutput(output,tracker));
-            byte[] buffer=new byte[TRANSFER_BYTES];out.write(MAGIC);out.writeInt(2);
-            writeFrame(out,10,inventoryId,inventory.serializedLength,inventory.sha256);
-            try(InputStream input=openInventory(frozenInventory)) {
-                if(!inventory.sha256.equals(hex(transfer(input,out,inventory.serializedLength,buffer,true))))
-                    throw new IOException("Frozen inventory changed");
+        if(frozenInventory==null||source==null||output==null||budget==null)throw new IOException("Missing scoped source/output/budget");
+        try(PrivateBundleInventory.Reservation workspace=budget.reserve(READER_WORKSPACE_BYTES)) {
+            PrivateBundleInventory parsed=null;
+            try(InputStream input=openInventory(frozenInventory)){parsed=version==3?PrivateBundleInventory.readSchema2(input,budget):PrivateBundleInventory.read(input,budget);}
+            catch(IOException|RuntimeException|Error failure) {
+                if(parsed!=null)parsed.close();
+                throw failure;
             }
-            for(PrivateBundleInventory.DirectoryEntry row:inventory.entries()) {
-                SourceEntry entry=source.next();
-                if(entry==null||!row.id.equals(entry.id)||entry.type==null||row.type!=entry.type.wireId||row.length!=entry.length)
-                    throw new IOException("Source inventory membership mismatch");
-                try(InputStream input=entry.open()) {
-                    if(!row.sha256.equals(hex(transfer(input,null,entry.length,buffer,true))))throw new IOException("Source inventory hash mismatch");
+            final PrivateBundleInventory inventory=parsed;
+            try(PrivateBundleInventory retained=inventory) {
+                rejectInventoryCollision(inventoryId,inventory);
+                Tracker tracker=new Tracker();DataOutputStream out=new DataOutputStream(trackedOutput(output,tracker));
+                byte[] buffer=new byte[TRANSFER_BYTES];out.write(MAGIC);out.writeInt(version);
+                writeFrame(out,10,inventoryId,inventory.serializedLength,inventory.sha256);
+                try(InputStream input=openInventory(frozenInventory)) {
+                    if(!inventory.sha256.equals(hex(transfer(input,out,inventory.serializedLength,buffer,true))))
+                        throw new IOException("Frozen inventory changed");
                 }
-                writeFrame(out,row.type,row.id,row.length,row.sha256);
-                try(InputStream input=entry.open()) {
-                    if(!row.sha256.equals(hex(transfer(input,out,entry.length,buffer,true))))throw new IOException("Entry source changed");
+                for(PrivateBundleInventory.DirectoryEntry row:inventory.entries()) {
+                    SourceEntry entry=source.next();
+                    if(entry==null||!row.id.equals(entry.id)||entry.type==null||row.type!=entry.type.wireId||row.length!=entry.length)
+                        throw new IOException("Source inventory membership mismatch");
+                    try(InputStream input=entry.open()) {
+                        if(!row.sha256.equals(hex(transfer(input,null,entry.length,buffer,true))))throw new IOException("Source inventory hash mismatch");
+                    }
+                    writeFrame(out,row.type,row.id,row.length,row.sha256);
+                    try(InputStream input=entry.open()) {
+                        if(!row.sha256.equals(hex(transfer(input,out,entry.length,buffer,true))))throw new IOException("Entry source changed");
+                    }
                 }
+                if(source.next()!=null)throw new IOException("Extra source entry");
+                long preceding=tracker.count;byte[] prefix=tracker.prefix.digest();tracker.terminal=true;
+                out.writeByte(TERMINAL);out.writeInt(inventory.entries().size()+1);out.writeLong(preceding);out.write(prefix);
+                if(tracker.count!=inventory.archiveBytes)throw new IOException("Archive total mismatch");
+                return new ArchiveSummary(inventory.entries().size()+1,tracker.count,hex(tracker.complete.digest()));
             }
-            if(source.next()!=null)throw new IOException("Extra source entry");
-            long preceding=tracker.count;byte[] prefix=tracker.prefix.digest();tracker.terminal=true;
-            out.writeByte(TERMINAL);out.writeInt(inventory.entries().size()+1);out.writeLong(preceding);out.write(prefix);
-            if(tracker.count!=inventory.archiveBytes)throw new IOException("Archive total mismatch");
-            return new ArchiveSummary(inventory.entries().size()+1,tracker.count,hex(tracker.complete.digest()));
         }
     }
     private static InputStream openInventory(StreamOpener opener)throws IOException {
@@ -400,7 +429,7 @@ public final class PrivateArchive {
 
     private static void validate(UUID id, Type type, long length) throws IOException {
         if (id == null || id.version() != 4 || id.variant() != 2) throw new IOException("Invalid generated entry ID");
-        if (type == null) throw new IOException("Missing entry type");
+        if (type == null || type == Type.OPERATION_EVIDENCE) throw new IOException("Unsupported v1 entry type");
         long cap = type.document ? MAX_DOCUMENT_ENTRY_BYTES : MAX_METADATA_ENTRY_BYTES;
         // Wire lengths are unsigned64. The sign-bit range is necessarily beyond every cap.
         if (length < 0 || length > cap) throw new IOException("Entry length limit exceeded");
