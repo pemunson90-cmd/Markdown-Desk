@@ -9,4 +9,3 @@ public final class Handler {
  public void drain(){while(true){Task next; synchronized(this){next=tasks.stream().filter(t->t.at<=SystemClock.now).min(Comparator.comparingLong(t->t.at)).orElse(null);if(next==null)return;tasks.remove(next);}next.r.run();}}
  public synchronized Runnable takeFirstImmediate(){for(Task t:tasks)if(t.at<=SystemClock.now){tasks.remove(t);return t.r;}throw new AssertionError("no immediate callback");}
 }
-
