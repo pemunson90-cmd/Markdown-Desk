@@ -1,107 +1,91 @@
 # Current project status
 
-## Current checkpoint — operation recovery and DOM readiness, 2026-10-15
+## Current checkpoint — isolated printing and private backup, 2026-10-15
 
-Merged baseline before PR #21 is `d0b02d79057f546b6c9bc215cc5c948455f2bb88`:
-[PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20) merged after
-required hosted run38657841514 passed at reviewed head `3bc070a`.
-Draft run38657830265 was skipped, not passing evidence. PR #19 selected retention
-and portable manifests merged at `116b180` after hosted run38656747429 passed;
-earlier exact-source and protected-save foundations remain preserved.
+Main is `50f3a75a47dc9a12b62d308fd15347ecabd00041`:
+[PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
+head `b9bc16e` after required hosted run38661739767 and its production-recoverability
+job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
+history and earlier exact-source/protected-save foundations remain merged.
 
-Latest combined gate **PASS** at `b0adcf7458b1e788b2416303d2828a980b01a045`:
-`python3 verification/check_clean_rebuild.py` completed normally, running the
-required host suite once from clean committed source and auditing two fresh
-unsigned builds. Both match SHA-256
+Latest clean gate **PASS** at `b0adcf7458b1e788b2416303d2828a980b01a045`:
+`python3 verification/check_clean_rebuild.py` completed the required host suite
+once from a clean committed checkout and audited two fresh unsigned builds.
+Both match SHA-256
 `8524e6e91c6ea996debdae10bc73340dd0bd68424687de4a0b870f1b61c56351`.
-No signing inputs/downloads; package 2.2.5/code 18/min 26/target 35 and all 25
-owner-approved assets preserved. Scoped credential-pattern scan: 427 tracked
-files, zero matches or signing-container paths; not a whole-history proof. No
-installable release is claimed. Source review and local gates are complete for
-PR #21; required hosted validation remains pending before merge.
+No downloads/signing credentials; package 2.2.5/code18/min26/target35 and all25
+owner-approved assets preserved. Scoped427 tracked-file credential-pattern scan:
+zero matches/signing-container paths; not an exhaustive history scan. This gate
+predates the printing changes below; no signed release is claimed.
 
-Verified current source:
+Verified merged behavior:
 
-- Workspace document history provides 100-row pages, captured named revisions,
-  bounded exact comparison and the existing restore-to-new-copy picker. Stale
-  request/tab/URI/Activity guards preserve newer edits, View/Focus, locks and 12
-  tabs. All nine palettes bind row/title/message colors. Pending, orphan and
-  unindexed saves remain explicit. Source review repaired a captured-array race
-  and dark-dialog/status defects before integration.
-- Mandatory saves, protected-copy restores and legacy recovery protection require
-  acknowledged shared startup on the existing I/O queue. Independent recovery and
-  Protected saves reads remain available on initialization failure. Captured
-  Save As origin/destination/tab/revision survives conflict consent; optional
-  history errors preserve actual verified provider success and newer dirty edits.
-- Controller 123 functional checks, six fresh-JVM assertions and capture-race
-  regression; action 84 checks plus three source-sensitivity probes; save lifecycle
-  40 cases/323 assertions; recovery 15 cases/223 assertions plus seven UI callbacks
-  passed. Independent controller 30 raced captures/23 backend checks and final
-  32 Activity/native-backend checks passed. Host models do not prove Android UI.
-- SELECTED-only retention has exact acknowledged authority, durable intent,
-  per-victim proofs and shared retirement recovery: 747 behavioral/22 memory
-  checks and 44 fault/crash fixtures with 88 fresh JVM reopens passed, plus 25
-  independent probes. No runtime deletion caller; automatic modes and retained
-  intent stages remain blocked. Startup replay is required before a future UI
-  can enable destructive maintenance.
-- Durable BEGIN/CLOSE pins and the strict private-state codec are merged. Frozen
-  native manifests preserve portable IDs and separate wire/index/archive bounds.
-  These backends do not implement atomic export capture, verified provider output,
-  typed import/adoption, automatic retention or the complete M1 workflow.
+- Guarded per-document history has paged lists, captured named revisions, bounded
+  exact comparison and restore-to-new-copy. Mandatory saves and recovery protection
+  require acknowledged shared startup; independent recovery reads remain available.
+  Captured Save As provenance survives conflict consent, while optional history
+  failure preserves actual verified provider success and newer dirty edits.
+- Operation source `cf0bf818` enforces shared tracked consumer ownership, freeze/drain
+  capabilities and append-only canonical CLOSE recovery. Prefix1658, coordinator59,
+  terminal5 and 48 fault fixtures/96 fresh-JVM reopens passed in the clean gate;
+  24 independent backend probes approved the final source. Whole bulk transfer and
+  in-flight callback scheduling stay counted. Fresh RELEASED needs the original
+  manifest; historical committed CLOSED audits remain source-independent.
+- Operation identity binds canonical role paths, bundle/registration/BEGIN and
+  process epoch, with fresh terminal-entry inode stability. No cross-discovery
+  inode-preservation or fresh-process arbitrary-evidence-loss anchor is promised.
+  Partial BEGIN, conflicting evidence and uncertain ownership remain blocked.
+- Preview `6ebe563` binds DOM readiness, deferred scroll and viewport capture to the
+  current page/document/options. One physical readiness probe spans replacements;
+  a lost response stalls acknowledgment until return or Activity replacement.
+  Existing scroll JavaScript is not all globally bounded. Navigation18/66,
+  preview438, save40/323 and history actions84 passed in the clean gate;
+  20 independent navigation checks approved the source.
+- SELECTED-only retention has durable intent, per-victim proofs and shared retirement
+  recovery. Existing capacity, pin, maintenance and executor suites all passed the
+  gate, including executor44 crash/write-limit fixtures/88 reopens. No runtime
+  deletion caller or automatic retention is enabled. Private-state and archive
+  codecs/manifests remain foundations, not complete backup/import features.
 
-Active integration is `codex/operation-export-integration`,
-[draft PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21).
-Operation source `cf0bf818` is integrated locally after independent approval,
-following approved plan `8fe3874` and ADR-004. It introduces tracked
-consumer ownership, asynchronous freeze/drain capabilities, explicit cold recovery
-and append-only canonical CLOSE repair. Worker evidence: 1,658 prefix, 59
-coordinator and five terminal assertions; 48 crash/write-limit/manifest fixtures
-with 96 fresh-JVM reopens. Existing pin and selected-executor suites passed in the
-worker checkout. Independent review reproduced an inherited `InputStream.transferTo`
-lifetime escape; the fix guards the entire transfer, and callback scheduling stays
-counted until its delegate returns. The final source passed 24 independent backend
-checks. The clean integration gate also passed all 48 recovery scenarios/96 fresh
-reopens and the complete required host suite on the final source. Partial BEGIN remains blocked:
-absence cannot prove never acknowledged. Identity binds canonical role paths and
-bundle/registration/BEGIN/process epoch; fresh terminal-entry inode stability is
-required, without promising cross-discovery inode preservation.
-Committed historical closed audits retain their source-independent semantics.
-Compaction, unlimited cancellation availability and a fresh-process arbitrary-
-evidence-loss anchor are not implemented.
+Active integration: `codex/printing-backup-integration`; no new PR yet. Verified
+main is merged normally. Printing `8739354` is integrated after independent exact
+source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
+independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
+captures source/title/options before queuing, uses an isolated DOM and one
+process-wide physical ownership slot, and preserves editor mode/Focus/View.
+Strict8MiB UTF-8/BOM validation and a fixed30s pre-submission deadline are new
+printing guards, not measured device budgets. Queued/running work survives Activity
+teardown through process-owned handoff. Exposed adapter resources release only
+after successful delegated onFinish and view disposal. Missing/throwing finish or
+disposal retains the one owner; cancellation does not prove quiescence. Independent
+review repaired normal synchronous finish incorrectly canceling its returned job.
+The required print runner is registered; the combined printing gate is pending.
+Historical print failures remain reproducible against the baseline selector.
 
-Preview Task 1 `6ebe563` is integrated locally after independent actual-source
-approval (20 checks). Navigation 18 cases/66 assertions, existing preview 438,
-save lifecycle 40 cases/323 assertions, history actions 84 and SDK37 whole-Java
-compilation passed. Current DOM identity owns readiness, scroll and native viewport
-capture. One physical readiness probe spans page generations; a lost callback
-stalls acknowledgment until return or Activity replacement. This does not bound
-all scroll JavaScript. Printing remains unchanged and separately RED (five cases,
-14 assertions/five failures); isolated process-wide print ownership is implementing
-after exact plan `1f96dbd` approval, using Android's documented adapter onFinish
-contract. Host callback/DOM
-models do not prove physical Android behavior. Both new default runners are
-registered and passed in the clean integration gate. Final evidence-only docs
-`ea289cb` leave reviewed production source unchanged.
+Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
+proposes explicit v2 scoped inventory, inert policy provenance, additive read-only
+restored bundles and accessible drafts, with no user-document writes or tab eviction.
+Exact codec plan `195ca1f` and operation-data/capture plan `489c06a` remain under
+review outside this branch; no source authorization or runtime feature is claimed.
+Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
+through graph/pruner/retirement proofs, preserve uncertain source ownership, and
+transfer CLOSE credit exactly once even for complete BEGIN.stage. Exact schema/
+golden bytes and the reservation protocol must be settled before coding.
 
-Backup/adoption design `d839225` proposes additive read-only restored bundles,
-accessible private drafts and shared operation-data admission. It is not approved
-for implementation. It now binds BEGIN to the unique full export descriptor,
-rather than a potentially identical native-only manifest. Its proposed ADR-005
-defines a v2 scoped inventory; v1 has no bundle discriminator or embedded manifest.
-Shared accounting must also reach graph/pruner/retirement proofs. Both the format
-and operation-data admission still need review; no backup/import is complete.
+Next: complete the clean printing integration gate and PR; implement the reviewed
+operation-data/capture and scoped codec plans, then verified provider output,
+strict import/adoption and eligible M0–M7 work. Internal native-only capture and
+private-frame capture belong to one meaningful change boundary, not separate
+product claims. Continue directly after each checkpoint; M1 is not complete.
 
-Next: complete the required hosted PR #21 gate and merge, then persisted export capture
-and verified backup/export; continue strict import/adoption and eligible M0–M7
-work. Integrate preview/printing repairs after their source and behavioral gates.
-Do not stop at a PR or milestone checkpoint; no full M1 completion is claimed.
-
-Required production recoverability is GREEN. Unchanged raw-provider truncation
-hazards remain separate RED diagnostics. Physical Galaxy Z Fold7/Android 16/
-One UI 8, SAF/IME/TalkBack, Android filesystem durability, canonical signing and
-upgrade acceptance remain NOT RUN. Owner-reported installed version “2.25” remains
-unverified. No replacement signing identity is allowed; signing/private recovery material
-stays out of Git, logs and CI. Older Library/provenance inputs remain unavailable.
+Required production recoverability remains GREEN; unchanged raw-provider
+truncation hazards remain separate RED diagnostics. Physical Galaxy Z Fold7 /
+Android16 / One UI8, actual WebView/PDF/SAF/IME/TalkBack, app-UID durability,
+canonical signing and upgrade acceptance remain NOT RUN. Installed literal“2.25”
+remains unverified. Device steps and the unrun matrix live in
+[device acceptance](M0_DEVICE_ACCEPTANCE.md). No replacement signer is allowed;
+private signing/recovery files stay out of Git/logs/CI. Older Library/provenance
+inputs remain unavailable. No installable release or full campaign completion.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
