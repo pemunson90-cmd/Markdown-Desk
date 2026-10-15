@@ -104,7 +104,8 @@ private constructors produce these package-private types:
 - `AuditQuiescence`: a bounded batch of exact committed closed keys, each sealed
   against admission, for existing multi-pair audit/maintenance reconciliation.
 
-Proposed interfaces (all may throw IOException; await also InterruptedException):
+Proposed interfaces (synchronous validation may throw IOException; completion
+stages report subsequent failures without blocking their caller):
 
 ```
 HistoryOperations forBundle(store, catalog, identity, index)
@@ -114,8 +115,9 @@ TrackedOutput openWriter(OperationHandle operation, WriterFactory factory)
 CallbackTicket post(OperationHandle operation, CallbackQueue queue, Runnable callback)
 boolean cancelPending(CallbackTicket ticket)
 DrainRequest freeze(OperationHandle operation)
-Quiescence awaitQuiescent(DrainRequest request)
-AuditQuiescence prepareClosedAudits()
+DrainRequest freezeForTerminal(String operationId)
+CompletionStage<Quiescence> quiesce(DrainRequest request)
+CompletionStage<AuditQuiescence> prepareClosedAudits()
 ```
 
 `ReaderFactory.open()` returns InputStream; `WriterFactory.open()` returns
@@ -124,14 +126,55 @@ wrapper. These are internal seams for synthetic tests and later reviewed adapter
 not provider implementations in this slice. Delegate streams remain private to
 tracked wrappers; no API returns an untracked delegate or a caller-closeable count.
 The initial wrappers are thread-confined to their opening worker. A future adapter
-requiring transfer must add a reviewed explicit ownership protocol.
+requiring transfer must add a reviewed explicit ownership protocol. Generic
+wrappers cannot prevent a factory/delegate from retaining raw references or
+spawning unregistered work: factories, delegates and runtime adapters are a trusted,
+independently reviewed ownership boundary. An adapter that lets such work escape
+is not eligible to use this coordinator; no malicious-delegate confinement claim.
 
-Lifecycle is COLD_FROZEN -> OPEN -> FREEZING -> QUIESCENT -> TERMINAL. A terminal
-failure retains frozen state; there is no finally-unfreeze path. Failed or expired
-attempt tokens can be replaced only by fresh proof of the same frozen epoch.
-Successful terminal acknowledgement seals the key permanently. Resuming a valid
-active operation without a terminal stage requires explicit fresh manifest/source
-validation and a new epoch; every old handle/ticket/capability then fails.
+Lifecycle is COLD_FROZEN -> OPEN -> FREEZING -> QUIESCENT -> TERMINATING -> TERMINAL.
+An attempt that fails after claiming TERMINATING enters TERMINAL_RETRY, still
+frozen; no finally-unfreeze path. A private single-attempt claim binds the exact
+quiescence key/nonce/epoch and prevents token reuse or concurrent terminal attempts.
+`freezeForTerminal` can prepare a new drained attempt from TERMINAL_RETRY only
+after the earlier attempt has exited; it cannot steal a live TERMINATING claim.
+Successful terminal acknowledgement seals the key permanently.
+
+Activation is an atomic competing transition. `activateAcknowledged` rejects a
+caller already holding a mutation lease, acquires its own history monitor/lease,
+validates the exact committed active BEGIN with no CLOSE or terminal stage and
+captures expected gate state/epoch. After callback-capable manifest/source work it
+freshly validates all disk/control/source evidence, then checks that same expected
+gate state/epoch and advances epoch+OPEN under history->coordinator locking before
+releasing the history monitor. No callback runs while the coordinator lock is held.
+Only COLD_FROZEN or a QUIESCENT gate that has never claimed a terminal attempt can
+activate. Every old handle/ticket/capability becomes invalid at the new epoch.
+
+Terminal entry, under the history monitor and its single mutation lease, atomically
+validates Quiescence and claims TERMINATING under the coordinator lock **before**
+any manifest, durability or other callback-capable work. Reentrant activation
+rejects its nested lease; competing activation cannot pass the history lock and
+then reopen the gate. Keep the claim across the entire no-stage prepublication
+window, all writes/syncs and final acknowledgement. A no-stage terminal failure
+still blocks consumer reactivation in this slice; explicit terminal retry remains
+available. Reopening such an attempted operation would need a separately specified
+safe abandonment/new-epoch protocol, not an absence check. Fresh-process discovery
+still starts frozen and revalidates durable evidence independently.
+
+Cold terminal recovery does not require an active consumer handle.
+`freezeForTerminal(operationId)` rejects nested mutation-lease entry, briefly owns
+the history monitor/lease, validates exact registered roots/bootstrap/enrollment,
+committed BEGIN, operation UUID/hash, policy ancestry and complete control evidence,
+then atomically binds/freezes its gate under history->coordinator locking. It
+returns DrainRequest without entering OPEN or reading an original manifest. An
+existing OPEN handle's participants remain counted and are drained normally; a
+cold gate has accepted none. Partial/full matching CLOSE stages are eligible for
+this discovery, as is a valid active BEGIN without a terminal stage. Partial BEGIN,
+foreign/missing binding and conflicting evidence reject. This entry cannot append,
+promote or acknowledge a receipt. CANCELLED recovery therefore works after loss of
+the external manifest; RELEASED stage recovery still validates the original
+persisted manifest at the terminal step. Already committed CLOSED pairs use the
+separate audit-batch entry and can never activate.
 
 Startup begins frozen **before any consumer is accepted**, including queued work
 restored by a future runtime owner. Disk discovery may bind a gate but cannot open
@@ -139,16 +182,25 @@ it. `HistoryPins.resume` must no longer be an independent admission path: it eit
 returns a validated description through the coordinator or requires its operation
 handle. Complete BEGIN promotion does not automatically activate consumers.
 
-Admission reserves an opening ticket before calling a stream factory. An exception from a generic factory does not prove that it left no
-resource or callback behind: retain an indeterminate opening registration and
-freeze the operation. There is no caller-asserted clear method; this conservative
-case may require fresh-process recovery. A later concrete opener may add a
-reviewed ownership proof, not an exception-type heuristic. Freeze closes new admission immediately and rejects future reads/writes from obsolete
-handles; an already running I/O call remains counted until it returns and the
-owned stream actually closes. Closing I/O, flushes and delegate callbacks execute
-outside both coordinator and history locks. A close exception does not certify
-closure: retain the outstanding registration unless closure is positively proved
-by the owned resource, and otherwise remain blocked for explicit retry.
+Admission reserves an opening ticket before calling a stream factory. An exception
+from a generic factory does not prove that it left no resource or callback behind:
+retain an indeterminate opening registration and freeze the operation. There is no
+caller-asserted clear method; this conservative case may require fresh-process
+recovery. A later concrete opener may add a reviewed ownership proof, not an
+exception-type heuristic. Freeze closes admission immediately and rejects new
+operation I/O; an already running call remains counted until it returns and the
+owned stream actually closes. Freeze alone never decrements a live registration.
+
+Wrappers cover every delegate-touching method, including all read/write overloads,
+skip, available, mark/reset/markSupported, transferTo, flush and close; inherited
+bulk helpers must route through guarded operations. Count an I/O call before
+releasing the gate lock and never invoke a delegate while holding that lock.
+Counted owner-close remains allowed after freeze so draining can finish; any
+flush required to close remains part of that counted close, not fresh admission.
+Closing I/O, flushes and delegate callbacks execute outside coordinator/history
+locks. A close exception does not certify closure: retain the outstanding
+registration unless closure is positively proved by the owned resource, and
+otherwise remain blocked for explicit retry.
 
 A posted callback registers **before** calling the scheduler. Its only scheduled
 object is a coordinator wrapper, which atomically claims a pending ticket or
@@ -157,22 +209,34 @@ removes delivery authority and clears the callback reference; separately tracked
 resources remain counted until closed. A callback already running remains counted
 through its `finally`, even after cancellation. A scheduler exception cannot allow
 an already queued wrapper to execute unregistered. No new callback can appear
-through a reader's completion after freeze. No user callback runs under a lock.
+through a reader's completion after freeze. No operation-delivery callback runs
+under either lock; administrative manifest/durability callbacks retain the existing
+history-lease contract and never run under the coordinator lock.
 
-`awaitQuiescent` rejects calls while the caller holds the history monitor/mutation
-lease or owns live operation I/O/is executing an operation callback. A participant
-can request freeze but must schedule draining elsewhere. Timeout/interruption
-leaves the gate frozen and returns no capability. Cancellation of a worker is a
-request, not a decrement. Stuck external work can prevent progress; do not pretend
-that a timeout drained it.
+`quiesce` and `prepareClosedAudits` expose nonblocking completion only. There is no
+production blocking await API. Count/state transitions mint proof only at actual
+zero work and arrange completion after releasing both locks; no user continuation
+runs under a lock. Participants may request freeze and return to complete/close
+work. Completion does not itself release protection or reopen admission.
+
+Future owners must chain terminal work asynchronously on an independent terminal
+executor, never block an operation/callback executor or wait while holding history
+coordination. A test-only blocking observer runs on an independent controller
+thread. Self-owner/callback checks cannot detect arbitrary scheduler dependency
+cycles; neither the coordinator nor this plan claims deadlock freedom for arbitrary
+shared executors. An adapter that calls get/join while occupying an executor needed
+by registered work violates the required lifecycle. Timeout, observer cancellation
+or interruption leaves the gate frozen, changes no participant count and grants no
+capability; quiescence may be requested again explicitly. Stuck work may prevent
+progress indefinitely.
 
 Lock order: never acquire history while holding the coordinator lock. Brief
-history->coordinator validation is allowed, with no callback or wait under either.
-Freeze/drain occurs after releasing the history monitor and mutation lease. Once
-quiescent, the terminal entry point acquires the history monitor and one lease,
-then briefly verifies exact gate/epoch/counts without waiting. Final validation
-checks the capability again after the last callback. Ordinary unrelated native
-writers retain existing quota admission; only operation consumers are frozen.
+history->coordinator validation and atomic activation/terminal claims are allowed,
+with no callback or wait under the coordinator lock. Freeze/drain completion occurs
+outside the history monitor and mutation lease. Terminal entry claims TERMINATING
+as described above; final validation checks the exact claim again after the last
+callback. Ordinary unrelated native writers retain existing quota admission;
+only operation consumers are frozen.
 
 ## Terminal APIs and filesystem protocol
 
@@ -188,23 +252,34 @@ void recoverClose(Quiescence capability, RecoveryChoice choice, InputStream orig
 the existing lease. `HistoryPins` owns source/control validation, durable
 publication and acknowledgement. Existing no-capability close/reconcile routes
 must reject terminal transitions rather than silently synthesize permission.
-Public ordinary open/reconcile may perform the coordinator preflight outside the
-history monitor; locked helpers accept explicit capabilities and never drain.
+Public ordinary open/reconcile may initiate coordinator preflight outside history
+coordination. Synchronous legacy entry points may consume an already-completed
+zero-work proof or return QUIESCENCE_PENDING; they never block waiting for it. An
+explicit asynchronous owner obtains proof before calling capability-taking methods.
+Locked helpers accept explicit capabilities and never initiate or wait for drain.
 
 Committed-audit reconciliation uses `AuditQuiescence`, never a blanket boolean.
-`prepareClosedAudits()` briefly inspects/binds exact closed keys under history
-coordination, releases it, freezes/drains those gates, and returns the batch.
+`prepareClosedAudits()` rejects nested mutation-lease entry, briefly acquires its
+own history monitor/lease to inspect/bind exact closed keys, releases both, freezes
+those gates, and completes the batch only after
+actual drain. This discovery must also work during same-process Retirement through
+its exact capability/control-only validator; it must not call ordinary
+requireOperational, requireReady or recursive readView paths that retirement blocks.
 Reacquisition revalidates every key and retained pair; new/different/active/staged
 pins reject. The same permit remains valid across the executor's exact intent
 retirement because it binds operation keys, not a stale whole-control inventory.
 Existing final control/directory identity checks still refresh after intent removal.
 The executor's outer entry points must obtain this preflight outside their lease
 and pass it into `reconcileMaintenanceAuditsLocked`; no nested public Pins.open.
+The synchronous executor may consume an immediately completed batch (including cold
+closed-only zero-work discovery); otherwise it returns QUIESCENCE_PENDING before
+acquiring its mutation lease and requires an asynchronous caller retry with proof.
 Already sealed keys can satisfy zero-work proof without resurrecting consumers.
 
 Partial-stage algorithm:
 
-1. Under the lease, verify exact capability, canonical roles/bootstrap/enrollment,
+1. Under the lease, atomically claim TERMINATING from exact Quiescence before
+   callbacks; verify canonical roles/bootstrap/enrollment,
    committed BEGIN, policy ancestry/current authority, retained evidence and complete
    shared accounting. Dedicated recovery explicitly syncs valid existing control
    authority without promoting unrelated stages or enabling ordinary writer
@@ -229,7 +304,7 @@ Partial-stage algorithm:
    and the corresponding smaller reservation; no rollback or rewrite.
 6. Use the existing same-directory atomic stage->CLOSE move and directory sync.
    Validate exact bytes/inode, roots/control/ancestry, native source proof and
-   capability after all callbacks. Only then acknowledge release and seal key.
+   terminal claim after all callbacks. Only then acknowledge release and seal key.
    Full126-byte stage recovery starts with read-only sync at this step; it still
    requires the same quiescence, manifest and fresh-source rules.
 7. Failure after rename leaves committed evidence but no premature release. A later
@@ -272,8 +347,14 @@ narrow `HistoryStorage.java` shared state; create
       queue-post exception after enqueue, and delayed old-epoch delivery. Assert
       no terminal capability until actual completion, and no late callback runs.
 - [ ] Add two-handle shared-gate tests, fresh frozen startup, wrong key/root/BEGIN/
-      epoch/nonce rejection, self-drain rejection, interrupt/timeout preserving
-      freeze and native worker completion needing the released history monitor.
+      epoch/nonce rejection, nonblocking completion while owner work remains,
+      observer interrupt/timeout preserving freeze and native worker completion
+      needing the released history monitor. Exercise a single-thread callback queue
+      with independent terminal continuation: requesting freeze must return promptly
+      so pending work can finish; no get/join on that queue.
+- [ ] Exercise every delegate-touching wrapper method and owner-close after freeze;
+      no count drops merely because admission closed. Test callbacks spawned by
+      delegated close and queue-post failures through the documented trusted adapters.
 - [ ] Implement the exact interfaces/lifecycle above with private tracked resources.
       Use deterministic barriers, never sleeping tests or a caller-supplied zero count.
 - [ ] Run `bash verification/history_operation_recovery/run.sh coordinator`; require
@@ -290,6 +371,14 @@ Preserve HistoryPinRecord encoding and existing control allowance semantics.
       committed-close reconciliation and maintenance audit entry cannot release
       protection while any registered participant remains. Exercise every entry
       with a second handle; no caller-omitted capability path is allowed.
+- [ ] Test frozen cold discovery for partial/full CLOSE.stage without any consumer
+      activation. CANCELLED with missing manifest must obtain DrainRequest and recover;
+      RELEASED still rejects without its original manifest. Partial BEGIN stays blocked.
+- [ ] Test activation racing a held terminal manifest callback and final proof, plus
+      nested activation from manifest/file/move/directory callbacks. No OPEN transition
+      is possible after TERMINATING claim, including a failure before stage creation;
+      terminal retry succeeds while consumer activation remains blocked. Also race an
+      activation that wins first: old Quiescence must fail before publication.
 - [ ] Implement close/recovery capability consumption and audit preflight outside
       locks, with fresh callback-free checks under the existing lease. Keep active
       pin graph/planner freeze mandatory throughout terminal uncertainty.
@@ -299,7 +388,9 @@ Preserve HistoryPinRecord encoding and existing control allowance semantics.
       cancellation admits legitimate PREPARED with incomplete optional pruning data.
 - [ ] Test cold committed CLOSED audits with missing retired sources and no external
       manifest beside a committed prune.intent; execute/replay twice, preserving
-      exact audit bytes. Attempted operation/read/callback resume must always reject.
+      exact audit bytes. Repeat during same-process Retirement after intent removal;
+      audit preflight must use the exact retirement path without ordinary readiness.
+      Attempted operation/read/callback resume must always reject.
 - [ ] Run `bash verification/history_operation_recovery/run.sh terminal` and affected
       pin/executor runners; require all PASS before critical helper review/commit.
 
@@ -332,9 +423,10 @@ Files: create `HistoryPinTerminalRecovery.java`; narrow `HistoryPins.java`;
 
 ## Questions for independent review
 
-1. Does tracked thread-confined I/O plus scheduler-owned callback tickets cover all
-   future consumer escape paths? This plan deliberately supplies no runtime adapter;
-   one that exposes raw delegates or starts work before admission must be rejected.
+1. Are the trusted adapter ownership requirements explicit enough to reject raw
+   delegate escape, unregistered spawned work and blocking shared-executor waits?
+   Generic wrappers cannot enforce correctness inside arbitrary factories/delegates;
+   this plan deliberately supplies no runtime adapter or general deadlock guarantee.
 2. Does the proposed audit batch preflight preserve the cold CLOSED+intent path and
    exact retirement helper without waiting under the common monitor or accepting
    changed pairs? Confirm every terminal entry point, not merely public close.
@@ -348,3 +440,13 @@ Files: create `HistoryPinTerminalRecovery.java`; narrow `HistoryPins.java`;
 No product permission question or runtime enablement is implied. The next action
 is independent review of this plan, followed only by explicitly assigned bounded
 implementation. Current backend partial-stage blocks remain unchanged.
+
+## Plan-review refinements
+
+Review of `dbd6e19` identified missing cold-stage quiescence discovery and an
+activation/terminal race before stage publication. This revision adds frozen
+`freezeForTerminal`, atomic final activation and TERMINATING ownership, and
+mandatory nonblocking quiescence/audit completion. It also makes delegated method
+coverage, owner-close, trusted adapter limits and Retirement-aware audit discovery
+explicit. These are design corrections only; no implementation or behavioral test
+result is claimed. Final technical plan approval is pending the revised commit.
