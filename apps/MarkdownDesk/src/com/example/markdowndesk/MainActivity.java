@@ -133,6 +133,12 @@ public class MainActivity extends Activity {
     private long previewScrollOperation;
     private Runnable previewScrollRelease;
     private Runnable previewEditorScroll;
+    private long sourceNavigationRevision;
+    private long sourceRouteRevision;
+    private long explicitNavigationSequence;
+    private SourceNavigation pendingOutlineNavigation;
+    private SourceNavigation sourceEditorNavigation;
+    private Runnable sourceEditorScroll;
     private long previewRevision;
     private boolean previewStopped;
     private int previewRestoreY;
@@ -441,6 +447,7 @@ public class MainActivity extends Activity {
 
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                MainActivity.this.sourceNavigationRevision++;
                 MainActivity.this.invalidatePreview();
                 MainActivity.this.invalidateStatistics();
                 MainActivity.this.syntaxHighlight.changed(charSequence, i, i2, i3);
@@ -1332,6 +1339,7 @@ public class MainActivity extends Activity {
     }
 
     private void setMode(int i, boolean z) {
+        if (this.mode != i) this.sourceRouteRevision++;
         this.mode = i;
         if (i == MODE_SPLIT && !this.preferences.getBoolean("split_hint_seen", false)) {
             Toast.makeText(this, "Split: Markdown source + rendered Read view", MODE_PREVIEW).show();
@@ -3613,6 +3621,7 @@ public class MainActivity extends Activity {
     }
 
     private void invalidatePreview() {
+        retireStaleSourceNavigation();
         // Options can already have changed; preserve the outgoing acknowledged document's viewport.
         PreviewPage outgoing = this.previewPage;
         if (this.previewReady && outgoing != null && outgoing.acknowledged && outgoing.view == this.preview
@@ -3621,17 +3630,7 @@ public class MainActivity extends Activity {
         this.previewReady = false;
         this.previewPage = null;
         this.previewProbePending = null; // Physical probe ownership survives logical invalidation.
-        this.previewScrollOperation++;
-        this.syncingFromEditor = false;
-        this.syncingFromPreview = false;
-        if (this.previewScrollRelease != null) this.main.removeCallbacks(this.previewScrollRelease);
-        this.previewScrollRelease = null;
-        if (this.previewEditorScroll != null && this.editor != null) this.editor.removeCallbacks(this.previewEditorScroll);
-        this.previewEditorScroll = null;
-        if (this.editorSyncRunnable != null) this.main.removeCallbacks(this.editorSyncRunnable);
-        if (this.previewSyncRunnable != null) this.main.removeCallbacks(this.previewSyncRunnable);
-        this.editorSyncRunnable = null;
-        this.previewSyncRunnable = null;
+        retirePreviewSynchronization();
         this.previewRevision++;
         this.previewWork.invalidate();
         if (this.previewRunnable != null) this.main.removeCallbacks(this.previewRunnable);
@@ -3730,6 +3729,7 @@ public class MainActivity extends Activity {
                 view.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, this.previewRestoreY));
                 releasePreviewScroll(page, operation, 160L);
                 if (this.mode == MODE_SPLIT) schedulePreviewSyncFromEditor();
+                applyPendingOutlineNavigation();
             }
             PreviewPage current = this.previewPage;
             if (isCurrentPreviewPage(current) && !current.acknowledged && (pending == current || current != page))
@@ -3882,16 +3882,77 @@ public class MainActivity extends Activity {
     }
 
     private void scrollEditorToOffset(int i, boolean z) {
-        final int iClamp = clamp(i, MODE_EDIT, this.editor.length());
-        if (z) {
-            this.editor.setSelection(iClamp);
-        }
-        this.editor.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda92
-            @Override // java.lang.Runnable
-            public final void run() {
-                MainActivity.this.lambda$scrollEditorToOffset$76(iClamp);
+        final SourceNavigation navigation = new SourceNavigation(clamp(i, MODE_EDIT, this.editor.length()));
+        if (!isCurrentSourceNavigation(navigation)) return;
+        retireExplicitSourceNavigation();
+        retirePreviewSynchronization();
+        final long sequence = this.explicitNavigationSequence;
+        this.sourceEditorNavigation = navigation;
+        if (z) this.editor.setSelection(navigation.offset);
+        this.sourceEditorScroll = () -> {
+            if (sequence != this.explicitNavigationSequence || this.sourceEditorNavigation != navigation) return;
+            this.sourceEditorScroll = null;
+            this.sourceEditorNavigation = null;
+            if (!isCurrentSourceNavigation(navigation)) return;
+            // Sync may have started while this final effect waited in the editor queue.
+            retirePreviewSynchronization();
+            if (this.editor.getLayout() == null) return;
+            final PreviewPage page = this.previewPage;
+            boolean split = this.mode == MODE_SPLIT && previewScrollIsCurrent();
+            long operation = split ? beginPreviewScroll(true) : this.previewScrollOperation;
+            lambda$scrollEditorToOffset$76(clamp(navigation.offset, MODE_EDIT, this.editor.length()));
+            if (split) {
+                releasePreviewScroll(page, operation, 120L);
+                schedulePreviewSyncFromEditor();
             }
-        });
+        };
+        this.editor.post(this.sourceEditorScroll);
+    }
+
+    /** No text snapshot or renderer result; the view references are compared only by identity. */
+    private final class SourceNavigation {
+        final String documentId = previewDocumentId();
+        final long revision = sourceNavigationRevision, route = sourceRouteRevision;
+        final Object editorView = editor, previewView = preview;
+        final int requestedMode = mode;
+        final int offset;
+        SourceNavigation(int offset) { this.offset = offset; }
+    }
+
+    private boolean isCurrentSourceNavigation(SourceNavigation navigation) {
+        return navigation != null && !this.previewStopped && !isFinishing() && !isDestroyed()
+                && navigation.editorView == this.editor && navigation.previewView == this.preview
+                && navigation.documentId.equals(previewDocumentId())
+                && navigation.revision == this.sourceNavigationRevision
+                && navigation.route == this.sourceRouteRevision && navigation.requestedMode == this.mode;
+    }
+
+    private void retireExplicitSourceNavigation() {
+        this.explicitNavigationSequence++;
+        this.pendingOutlineNavigation = null;
+        this.sourceEditorNavigation = null;
+        if (this.sourceEditorScroll != null && this.editor != null) this.editor.removeCallbacks(this.sourceEditorScroll);
+        this.sourceEditorScroll = null;
+    }
+
+    private void retireStaleSourceNavigation() {
+        if ((this.pendingOutlineNavigation != null && !isCurrentSourceNavigation(this.pendingOutlineNavigation))
+                || (this.sourceEditorNavigation != null && !isCurrentSourceNavigation(this.sourceEditorNavigation)))
+            retireExplicitSourceNavigation();
+    }
+
+    private void retirePreviewSynchronization() {
+        this.previewScrollOperation++;
+        this.syncingFromEditor = false;
+        this.syncingFromPreview = false;
+        if (this.previewScrollRelease != null) this.main.removeCallbacks(this.previewScrollRelease);
+        if (this.editorSyncRunnable != null) this.main.removeCallbacks(this.editorSyncRunnable);
+        if (this.previewSyncRunnable != null) this.main.removeCallbacks(this.previewSyncRunnable);
+        if (this.previewEditorScroll != null && this.editor != null) this.editor.removeCallbacks(this.previewEditorScroll);
+        this.previewScrollRelease = null;
+        this.editorSyncRunnable = null;
+        this.previewSyncRunnable = null;
+        this.previewEditorScroll = null;
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -3904,6 +3965,7 @@ public class MainActivity extends Activity {
     }
 
     private void showOutline() {
+        final SourceNavigation context = new SourceNavigation(0);
         final List<MarkdownStructure.Heading> headings = MarkdownStructure.headings(this.editor.getText().toString());
         if (headings.isEmpty()) {
             Toast.makeText(this, "No headings in this document", MODE_EDIT).show();
@@ -3925,6 +3987,7 @@ public class MainActivity extends Activity {
                 @Override public void onClick(View v) {
                     int offset = heading.offset;
                     dialog.dismiss();
+                    if (!isCurrentSourceNavigation(context)) return;
                     if (mode == MODE_PREVIEW) scrollPreviewToSourceOffset(offset);
                     else jumpToSourceOffset(offset);
                 }
@@ -3954,12 +4017,24 @@ public class MainActivity extends Activity {
     }
 
     private void scrollPreviewToSourceOffset(int offset) {
-        if (!this.previewReady) {
-            final int pending = offset;
-            this.preview.postDelayed(new Runnable() { @Override public void run() { scrollPreviewToSourceOffset(pending); } }, 180L);
-            return;
-        }
-        this.preview.evaluateJavascript("window.mdScrollToSource(" + Math.max(0, offset) + ");", null);
+        SourceNavigation navigation = new SourceNavigation(Math.max(0, offset));
+        if (this.mode != MODE_PREVIEW || !isCurrentSourceNavigation(navigation)) return;
+        retireExplicitSourceNavigation();
+        retirePreviewSynchronization();
+        this.pendingOutlineNavigation = navigation;
+        applyPendingOutlineNavigation();
+    }
+
+    private void applyPendingOutlineNavigation() {
+        SourceNavigation navigation = this.pendingOutlineNavigation;
+        if (navigation == null) return;
+        if (!isCurrentSourceNavigation(navigation)) { this.pendingOutlineNavigation = null; return; }
+        if (!previewScrollIsCurrent()) return;
+        this.pendingOutlineNavigation = null;
+        PreviewPage page = this.previewPage;
+        long operation = beginPreviewScroll(true);
+        this.preview.evaluateJavascript("if(" + previewDomGuard(page) + "){window.mdScrollToSource(" + navigation.offset + ");}", null);
+        releasePreviewScroll(page, operation, 120L);
     }
 
     private void wrap(String str, String str2) {

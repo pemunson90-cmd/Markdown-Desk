@@ -216,6 +216,188 @@ public final class PrivateArchive {
         }
     }
 
+    /** V2-only provisional callbacks; coordinates never grant source authority.
+     * Callbacks and their borrowed-metadata work must be synchronous/quiescent on return.
+     * Rows exist before any PortableResult: a later read failure closes their owner internally.
+     * Retain no borrowed row beyond readPortable completion/failure unless a successful result
+     * remains open. Asynchronous work or independently retained copies require separate
+     * pre-reservation and cleanup; callers must not depend on a future result for that lifetime.
+     * Every successful nonnull begin has exactly one finish, including copy/hash failures.
+     */
+    public interface ScopedSink {
+        OutputStream begin(PrivateBundleInventory.DirectoryEntry entry) throws IOException;
+        default void finish(PrivateBundleInventory.DirectoryEntry entry, OutputStream output,
+                            boolean payloadVerified) throws IOException { }
+    }
+
+    /** Trusted, preadmitted streaming spool. While called, the entire metadata budget is held
+     * by v1 framing: retain no entries/index and invoke no ordinary scoped callbacks.
+     * Caller owns staging format, scratch, admission and closure. No durability is implied. */
+    public interface LegacySpool extends EntrySink { }
+
+    /** Source framing result only. A legacy spool remains provisional and must be replayed
+     * against sourceSummary (all descriptors/payloads) before typed validation/adoption.
+     * V2 rows are borrowed: keep this result open through consumers and quiescence.
+     * Close releases logical accounting; escaped immutable rows remain readable, not revoked.
+     * Retained copies require separate reservation and a coordinator lifetime audit. */
+    public static final class PortableResult implements AutoCloseable {
+        public final ArchiveSummary sourceSummary;
+        public final LegacySpool provisionalLegacySpool;
+        public final PrivateBundleInventory inventory;
+        private PortableResult(ArchiveSummary summary, LegacySpool spool, PrivateBundleInventory inventory) {
+            sourceSummary=summary; provisionalLegacySpool=spool; this.inventory=inventory;
+        }
+        public void close() { if (inventory!=null) inventory.close(); }
+    }
+
+    /** Explicit portable dispatch. Never closes caller input, including prefix exhaustion/errors. */
+    public static PortableResult readPortable(InputStream input, ScopedSink sink, LegacySpool spool,
+            PrivateBundleInventory.MetadataBudget budget) throws IOException {
+        if(input==null||budget==null) throw new IOException("Missing portable input/budget");
+        byte[] header=new byte[MAGIC.length+4];
+        new DataInputStream(progress(input)).readFully(header);
+        for(int i=0;i<MAGIC.length;i++) if(header[i]!=MAGIC[i]) throw new IOException("Unknown archive magic");
+        int version=new DataInputStream(new java.io.ByteArrayInputStream(header,MAGIC.length,4)).readInt();
+        InputStream replay=new InputStream() {
+            int at;
+            public int read() throws IOException {return at<header.length?header[at++]&255:input.read();}
+            public int read(byte[] b,int off,int len)throws IOException {
+                if(len==0)return 0;
+                if(at<header.length){int n=Math.min(len,header.length-at);System.arraycopy(header,at,b,off,n);at+=n;return n;}
+                return input.read(b,off,len);
+            }
+            // Deliberately non-owning. Unlike SequenceInputStream, exhaustion closes nothing.
+        };
+        if(version==1) {
+            if(spool==null)throw new IOException("Missing trusted legacy spool");
+            try(PrivateBundleInventory.Reservation held=budget.reserve(MAX_INDEX_BYTES)) {
+                return new PortableResult(read(replay,spool),spool,null);
+            }
+        }
+        if(version!=2)throw new IOException("Unknown archive version");
+        if(sink==null)throw new IOException("Missing scoped sink");
+        return readV2(replay,sink,budget);
+    }
+
+    private static PortableResult readV2(InputStream input,ScopedSink sink,
+            PrivateBundleInventory.MetadataBudget budget)throws IOException {
+        Tracker tracker=new Tracker(); DataInputStream in=new DataInputStream(trackedInput(input,tracker));
+        byte[] header=new byte[MAGIC.length+4];in.readFully(header); // dispatch already validated these bytes
+        if(in.readUnsignedByte()!=ENTRY||in.readUnsignedByte()!=10)throw new IOException("Missing first inventory");
+        UUID inventoryId=new UUID(in.readLong(),in.readLong());PrivateBundleInventory.requireGenerated(inventoryId);
+        long length=in.readLong();if(length<144||length>MAX_INDEX_BYTES)throw new IOException("Inventory frame limit");
+        byte[] hash=new byte[32];in.readFully(hash);
+        PrivateBundleInventory inventory=PrivateBundleInventory.read(slice(in,length),budget);
+        boolean returned=false;
+        try {
+            if(inventory.serializedLength!=length||!inventory.sha256.equals(hex(hash)))throw new IOException("Inventory outer hash/length mismatch");
+            rejectInventoryCollision(inventoryId,inventory);
+            byte[] buffer=new byte[TRANSFER_BYTES];
+            for(PrivateBundleInventory.DirectoryEntry row:inventory.entries()) {
+                if(in.readUnsignedByte()!=ENTRY)throw new IOException("Missing ordinary frame");
+                Type type=Type.decode(in.readUnsignedByte());UUID id=new UUID(in.readLong(),in.readLong());
+                long n=in.readLong();byte[] expected=new byte[32];in.readFully(expected);
+                if(!row.id.equals(id)||row.type!=type.wireId||row.length!=n||!row.sha256.equals(hex(expected)))
+                    throw new IOException("Inventory frame membership mismatch");
+                OutputStream output=sink.begin(row);if(output==null)throw new IOException("Missing scoped staging output");
+                try(ScopedCompletion completion=new ScopedCompletion(sink,row,output)) {
+                    if(!MessageDigest.isEqual(expected,transfer(in,output,n,buffer,false)))throw new IOException("Entry hash mismatch");
+                    completion.verified=true;
+                }
+            }
+            long preceding=tracker.count;byte[] prefix=tracker.prefix.digest();
+            tracker.terminal=true;
+            if(in.readUnsignedByte()!=TERMINAL||Integer.toUnsignedLong(in.readInt())!=inventory.entries().size()+1L
+                    ||in.readLong()!=preceding)throw new IOException("Invalid scoped terminal");
+            byte[] terminalHash=new byte[32];in.readFully(terminalHash);
+            if(!MessageDigest.isEqual(prefix,terminalHash)||tracker.count!=inventory.archiveBytes||input.read()!=-1)
+                throw new IOException("Invalid scoped terminal/hash/EOF");
+            PortableResult result=new PortableResult(new ArchiveSummary(inventory.entries().size()+1,tracker.count,
+                    hex(tracker.complete.digest())),null,inventory);returned=true;return result;
+        } finally {if(!returned)inventory.close();}
+    }
+
+    /** Explicit v2 output. Frozen inventory and each source are re-opened and checked for change.
+     * Owns opened source streams only; caller settles outer flush/close and fresh readback. */
+    public static ArchiveSummary writeV2(UUID inventoryId,StreamOpener frozenInventory,ArchiveSource source,
+            OutputStream output,PrivateBundleInventory.MetadataBudget budget)throws IOException {
+        PrivateBundleInventory.requireGenerated(inventoryId);
+        if(frozenInventory==null||source==null||output==null||budget==null)throw new IOException("Missing v2 source/output/budget");
+        PrivateBundleInventory parsed=null;
+        try(InputStream input=openInventory(frozenInventory)){parsed=PrivateBundleInventory.read(input,budget);}
+        catch(IOException|RuntimeException|Error failure) {
+            if(parsed!=null)parsed.close();
+            throw failure;
+        }
+        final PrivateBundleInventory inventory=parsed;
+        try(PrivateBundleInventory retained=inventory) {
+            rejectInventoryCollision(inventoryId,inventory);
+            Tracker tracker=new Tracker();DataOutputStream out=new DataOutputStream(trackedOutput(output,tracker));
+            byte[] buffer=new byte[TRANSFER_BYTES];out.write(MAGIC);out.writeInt(2);
+            writeFrame(out,10,inventoryId,inventory.serializedLength,inventory.sha256);
+            try(InputStream input=openInventory(frozenInventory)) {
+                if(!inventory.sha256.equals(hex(transfer(input,out,inventory.serializedLength,buffer,true))))
+                    throw new IOException("Frozen inventory changed");
+            }
+            for(PrivateBundleInventory.DirectoryEntry row:inventory.entries()) {
+                SourceEntry entry=source.next();
+                if(entry==null||!row.id.equals(entry.id)||entry.type==null||row.type!=entry.type.wireId||row.length!=entry.length)
+                    throw new IOException("Source inventory membership mismatch");
+                try(InputStream input=entry.open()) {
+                    if(!row.sha256.equals(hex(transfer(input,null,entry.length,buffer,true))))throw new IOException("Source inventory hash mismatch");
+                }
+                writeFrame(out,row.type,row.id,row.length,row.sha256);
+                try(InputStream input=entry.open()) {
+                    if(!row.sha256.equals(hex(transfer(input,out,entry.length,buffer,true))))throw new IOException("Entry source changed");
+                }
+            }
+            if(source.next()!=null)throw new IOException("Extra source entry");
+            long preceding=tracker.count;byte[] prefix=tracker.prefix.digest();tracker.terminal=true;
+            out.writeByte(TERMINAL);out.writeInt(inventory.entries().size()+1);out.writeLong(preceding);out.write(prefix);
+            if(tracker.count!=inventory.archiveBytes)throw new IOException("Archive total mismatch");
+            return new ArchiveSummary(inventory.entries().size()+1,tracker.count,hex(tracker.complete.digest()));
+        }
+    }
+    private static InputStream openInventory(StreamOpener opener)throws IOException {
+        InputStream input=opener.open();if(input==null)throw new IOException("Missing inventory stream");return input;
+    }
+    private static void rejectInventoryCollision(UUID id,PrivateBundleInventory inventory)throws IOException {
+        for(PrivateBundleInventory.DirectoryEntry row:inventory.entries())if(id.equals(row.id))throw new IOException("Inventory entry ID collision");
+    }
+    private static void writeFrame(DataOutputStream out,int type,UUID id,long length,String hash)throws IOException {
+        out.writeByte(ENTRY);out.writeByte(type);out.writeLong(id.getMostSignificantBits());out.writeLong(id.getLeastSignificantBits());
+        out.writeLong(length);PrivateBundleInventory.putHash(out,hash);
+    }
+    private static InputStream slice(InputStream input,long length) {
+        return new InputStream(){long remaining=length;
+            public int read()throws IOException {if(remaining==0)return -1;int b=input.read();if(b>=0)remaining--;return b;}
+            public int read(byte[] b,int off,int len)throws IOException {if(len==0)return 0;if(remaining==0)return -1;
+                int n=input.read(b,off,(int)Math.min(len,remaining));if(n>0)remaining-=n;return n;}
+        };
+    }
+    private static InputStream progress(InputStream input) {
+        return new InputStream(){public int read()throws IOException{return input.read();}
+            public int read(byte[] b,int off,int len)throws IOException {if(len==0)return 0;int n=input.read(b,off,len);
+                if(n==0){int v=read();if(v<0)return -1;b[off]=(byte)v;return 1;}return n;}
+        };
+    }
+    private static InputStream trackedInput(InputStream input,Tracker tracker) {
+        InputStream moving=progress(input);
+        return new InputStream(){public int read()throws IOException{int b=moving.read();if(b>=0){tracker.ensure(1);tracker.account(b);}return b;}
+            public int read(byte[] b,int off,int len)throws IOException {int n=moving.read(b,off,Math.min(len,TRANSFER_BYTES));if(n>0){tracker.ensure(n);tracker.account(b,off,n);}return n;}
+        };
+    }
+    private static OutputStream trackedOutput(OutputStream output,Tracker tracker) {
+        return new OutputStream(){public void write(int b)throws IOException{tracker.ensure(1);output.write(b);tracker.account(b);}
+            public void write(byte[] b,int off,int n)throws IOException{tracker.ensure(n);output.write(b,off,n);tracker.account(b,off,n);}
+        };
+    }
+    private static final class ScopedCompletion implements AutoCloseable {
+        final ScopedSink sink;final PrivateBundleInventory.DirectoryEntry entry;final OutputStream output;boolean verified;
+        ScopedCompletion(ScopedSink sink,PrivateBundleInventory.DirectoryEntry entry,OutputStream output){this.sink=sink;this.entry=entry;this.output=output;}
+        public void close()throws IOException{sink.finish(entry,output,verified);}
+    }
+
     private static void validate(UUID id, Type type, long length) throws IOException {
         if (id == null || id.version() != 4 || id.variant() != 2) throw new IOException("Invalid generated entry ID");
         if (type == null) throw new IOException("Missing entry type");

@@ -12,7 +12,7 @@ public final class ExtractPreview {
         boolean baseline = args.length > 3;
         Set<String> names = baseline ? Set.of("schedulePreview", "renderPreview")
                 : Set.of("schedulePreview", "renderPreview", "invalidatePreview", "previewDocumentId",
-                        "acceptPreview", "stopPreview", "onDestroy", "previewPageHtml", "isCurrentPreviewPage", "previewScrollIsCurrent");
+                        "acceptPreview", "stopPreview", "onDestroy", "previewPageHtml", "isCurrentPreviewPage", "previewScrollIsCurrent", "isCurrentSourceNavigation", "retireExplicitSourceNavigation", "retireStaleSourceNavigation", "retirePreviewSynchronization");
         List<String> methods = new ArrayList<>(), fields = new ArrayList<>(), watchers = new ArrayList<>();
         String[] layout = {""};
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -34,9 +34,9 @@ public final class ExtractPreview {
                             if (!layout[0].equals("invalidatePreview();")) throw new AssertionError("Layout must invalidate first");
                         }
                     }
-                    if (!baseline && member instanceof ClassTree && ((ClassTree) member).getSimpleName().contentEquals("PreviewPage")) fields.add(raw.apply(member));
+                    if (!baseline && member instanceof ClassTree && Set.of("PreviewPage", "SourceNavigation").contains(((ClassTree) member).getSimpleName().toString())) fields.add(raw.apply(member));
                     if (member instanceof VariableTree && Set.of("renderIo", "previewRenderToken", "previewWork",
-                            "previewRevision", "previewStopped", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll").contains(((VariableTree) member).getName().toString())) {
+                            "previewRevision", "previewStopped", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "sourceNavigationRevision", "sourceRouteRevision", "explicitNavigationSequence", "pendingOutlineNavigation", "sourceEditorNavigation", "sourceEditorScroll").contains(((VariableTree) member).getName().toString())) {
                         fields.add(raw.apply(member));
                     }
                 }

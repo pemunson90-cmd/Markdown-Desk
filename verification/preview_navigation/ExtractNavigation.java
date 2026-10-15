@@ -18,6 +18,7 @@ public final class ExtractNavigation {
         if(printing)wanted.addAll(List.of("printDocument", "lambda$printDocument$67"));
         if(baseline)wanted.addAll(List.of("lambda$schedulePreviewSyncFromEditor$70", "lambda$schedulePreviewSyncFromEditor$71", "lambda$scheduleEditorSyncFromPreview$73", "lambda$scheduleEditorSyncFromPreview$74"));
         else wanted.addAll(List.of("PreviewPage", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollIsCurrent", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "previewPageHtml", "isCurrentPreviewPage", "previewDomGuard", "acknowledgePreviewPage", "beginPreviewScroll", "releasePreviewScroll"));
+        if (!printing) wanted.addAll(List.of("SourceNavigation", "sourceNavigationRevision", "sourceRouteRevision", "explicitNavigationSequence", "pendingOutlineNavigation", "sourceEditorNavigation", "sourceEditorScroll", "isCurrentSourceNavigation", "retireExplicitSourceNavigation", "retireStaleSourceNavigation", "retirePreviewSynchronization", "applyPendingOutlineNavigation"));
         Map<String,String> found=new LinkedHashMap<>();
         JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
         try(StandardJavaFileManager fm=compiler.getStandardFileManager(null,null,null)) {
