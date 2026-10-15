@@ -38,6 +38,14 @@ source compile PASS. No persisted tree grants/navigation UI or recursive search 
 yet wired; M3 is not complete. The helper reports partial/cancelled/failed listings
 explicitly and makes no provider-pagination or whole-process heap guarantee.
 
+Print-only paged layout is independently approved:13 framing checks,15 real host
+Chromium PDFs and8 inspected page rasters PASS (tables/code/oversized rows/themes;
+A4/Letter). Existing print20 cases/134 checks plus18 controlled-render checks PASS.
+The original admission/security/lifecycle contract stays intact; immutable reader
+style is captured for rendering. Android WebView/print spooler and print-dialog
+margin behavior remain NOT RUN. The required aggregate registers Java-only checks;
+actual PDFs remain an explicit tool-dependent runner, not an aggregate claim.
+
 Next current-phone work: wire reader typography into Appearance/persistence and
 captured async previews; implement bounded SAF folder navigation and paged PDF
 improvements with serial Activity ownership and focused independent reviews.

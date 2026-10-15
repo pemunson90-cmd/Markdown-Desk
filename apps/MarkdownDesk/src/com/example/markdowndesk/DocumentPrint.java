@@ -37,8 +37,13 @@ final class DocumentPrint {
         final UiTheme.Palette palette;
         final float fontSp;
         final boolean bom;
+        final ReaderTypography typography;
 
         Capture(CharSequence source, String title, UiTheme.Palette palette, float fontSp, boolean bom) {
+            this(source, title, palette, fontSp, bom, ReaderTypography.defaults());
+        }
+
+        Capture(CharSequence source, String title, UiTheme.Palette palette, float fontSp, boolean bom, ReaderTypography typography) {
             if (source == null || source.length() > DocumentIO.MAX_DOCUMENT_BYTES)
                 throw new IllegalArgumentException("Printing supports documents up to 8 MiB.");
             this.source = source.toString();
@@ -46,6 +51,7 @@ final class DocumentPrint {
             this.palette = palette;
             this.fontSp = fontSp;
             this.bom = bom;
+            this.typography = typography == null ? ReaderTypography.defaults() : typography;
         }
     }
 
@@ -131,7 +137,7 @@ final class DocumentPrint {
                     Capture input = capture;
                     validate(input);
                     if (!retired && SystemClock.elapsedRealtime() < deadline)
-                        html = MarkdownRenderer.render(input.source, input.palette, input.fontSp);
+                        html = MarkdownRenderer.render(input.source, input.palette, input.fontSp, input.typography);
                 }
             } catch (RuntimeException failed) {
                 error = failed instanceof IllegalArgumentException ? failed.getMessage() : "Unable to render the document for printing.";
@@ -179,12 +185,8 @@ final class DocumentPrint {
                         if (v == view && request.isForMainFrame() && !exposed) cancel("Unable to load the document for printing.");
                     }
                 });
-                final String prefix = "<!doctype html><html>";
-                if (!html.startsWith(prefix)) throw new IllegalArgumentException("Unexpected print HTML framing");
-                // Same trusted metadata contract as preview; this incurs a full HTML builder/result copy.
-                String page = new StringBuilder(html.length() + token.length() + 32)
-                        .append("<!doctype html><html data-md-preview=\"").append(token).append("\">")
-                        .append(html, prefix.length(), html.length()).toString();
+                // One framing copy adds paper styles and the exact trusted readiness token.
+                String page = DocumentPrintLayout.frame(html, token);
                 view.loadDataWithBaseURL("https://markdown.local/", page, "text/html", "UTF-8", null);
             } catch (RuntimeException failed) {
                 cancel("Unable to load the document for printing.");
