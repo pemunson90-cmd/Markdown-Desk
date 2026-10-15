@@ -1,8 +1,7 @@
 # Private backup and non-destructive adoption — technical design
 
 Source: `620275b6cc0aae6d139c353d16fd1d3ec26200b9`; design only, not implementation approval.
-Goal: verified portable backups; resumable import preserves current drafts/history
-and makes zero user-document writes.
+Goal: verified backups; import preserves current drafts/history and never writes user documents.
 Java/JDK17, existing non-Gradle build, min26/target35; retain 2.2.5/code18.
 [ADR-001](../../decisions/ADR-001-safe-save-boundary.md),
 [ADR-002](../../decisions/ADR-002-retention-journal.md) and
@@ -57,8 +56,8 @@ Administrative receipts are <=16 KiB; BEGIN/receipt stages and reservations shar
 the existing **1 MiB/256-entry control allowance**, including pins. No payload or large mapping
 uses it. Add recognized bounded receipt framing to `HistoryControlStore`; do not
 put unrecognized files there. Reserve receipt space/slots before starting work.
-A manifest/remap is data charged to quota; reserve its peak stage+final occupancy.
-Logical reservation never substitutes for actual write, file sync or directory sync.
+Manifest/remap stage+final occupancy is quota-charged; logical reservation never
+substitutes for actual write, file sync or directory sync.
 Native mappings cap at **16,380 entries**; serialized manifest and mapping indexes
 cap at **16 MiB** each. `PrivateArchive` caps are **1 GiB**, 65,536 entries and a
 16 MiB framing index. For this initial single-bundle scope, allow at most 12 SESSION_TAB,
@@ -80,15 +79,16 @@ whole capture; never truncate, silently omit native records or reconstruct them.
    scan fresh `HistoryGraph` and control evidence, and freeze every native record.
    Persist the original `HistoryArchiveManifest` with stage, file sync, same-directory
    move, directory sync and exact fresh readback. Persist a separate export descriptor
-   binding its digest and the private-state frames. Neither is regenerated on retry.
+   with unique preparation UUID, native-manifest digest and private-state frame table.
+   This <=16 MiB descriptor is the opaque original pin manifest; never regenerate it.
 4. Still excluding native mutations, revalidate graph/policy/roots and every source
-   envelope against that persisted manifest, then publish acknowledged EXPORT /
-   ALL_BUNDLE BEGIN via `HistoryPins`. `freeze` alone grants no authority. The adapter
+   envelope against the native manifest, then publish acknowledged EXPORT /
+   ALL_BUNDLE BEGIN binding the descriptor via `HistoryPins`. The adapter
    needs one internal capture-and-BEGIN boundary; sequential unlocked calls are unsafe.
    Callbacks remain under existing reentrancy checks; revalidate after durability hooks.
-   BEGIN currently chooses its UUID: bind it to the prior export descriptor by manifest
-   identity, then persist the operation link. A crash between BEGIN and link is recovered
-   by exact manifest identity matching, never a newly generated map or guessed source.
+   BEGIN chooses its UUID: persist its link to the unique descriptor hash. After death
+   between BEGIN and link, match exactly that persisted descriptor, even for empty
+   native history. Ambiguous/missing matches block; never guess or regenerate IDs.
 5. Start ADR-004 tracked consumers only after acknowledged BEGIN. Enumerate native
    `SourceEntry`s using the original mapping; open bounded full native envelopes
    through a new role-bound adapter, not `Snapshot.bytes()` payloads. Each hash/write
@@ -102,13 +102,12 @@ whole capture; never truncate, silently omit native records or reconstruct them.
 7. After `PrivateArchive.write` returns, settle destination flush/close, reopen a
    fresh input and run `PrivateArchive.read` through a verifying discard sink.
    Compare count/length/whole-stream hash and every descriptor to the frozen export;
-   typed frames already validated at capture remain hash-bound. Readback input closure
-   must also settle. No success follows from `write`, entry callbacks or pin CLOSE.
+   typed frames remain hash-bound. Readback input closure must also settle. No success follows from `write`, entry callbacks or pin CLOSE.
 8. Freeze/drain all consumers outside the native monitor/lease. After positive
    quiescence, persist a bounded EXPORT_VERIFIED receipt with descriptor/manifest,
    BEGIN, destination identity and archive summary hashes. Receipt publication uses
    sync/move/directory-sync/readback. Then perform capability-checked RELEASED CLOSE
-   with the original manifest; report verified output and cleanup status separately.
+   with the original descriptor; report verified output and cleanup status separately.
    Missing receipt after death means unconfirmed output; explicitly re-read the same
    destination if available or export to a new destination. Never append/resume the
    provider byte stream. CLOSE failure keeps pins; cancellation never means output success.
@@ -121,7 +120,7 @@ The local capture policy is NOT recoverable from v1; quota/automatic retention a
 not allowlisted preferences. Import never activates captured deletion/policy authority.
 First v1 slice covers one native bundle plus private state. Retained imports block
 whole-private-backup output: never omit/flatten UUID/URI/sequence namespaces. Repeated
-backup/restore requires a separately reviewed ADR/typed format extension: an explicit
+backup/restore needs [proposed ADR-005](../../decisions/ADR-005-portable-private-bundle-format.md): an explicit
 bundle manifest/discriminator, bundle-scoped entry references and inert capture
 policy provenance. Keep v1 readable; no INDEX/PREFERENCES payload disguise. Until
 that extension and multi-bundle tests pass, do not claim complete private backup.
@@ -196,16 +195,19 @@ images and private Library content are excluded. Preferences are exactly
    from a verified receipt; preserve missing keys and report failure independently.
    There is no atomic history/session/preferences adoption claim.
 
-No automatic prune/cleanup authority: executor stays SELECTED-only; imported records
-never become active-bundle survivor proof. Retained failed attempts remain charged.
+No automatic pruning: executor stays SELECTED-only, failed attempts remain charged,
+and imported records never become active-bundle survivor proof.
 
 ## File ownership and next eligible source slices
 
-All names in this paragraph are **proposed**, not existing callable methods.
+New components below are **proposed**, not existing callable methods.
 Create `PrivateOperationStore.java` for immutable data descriptors/remaps and receipt
-publication; extend `HistoryCapacity.java`, `HistoryControlStore.java` and
-`HistoryStorage.java` only for typed bounded accounting/admission of that data and
-receipt lifecycle. Keep four native roles and one control allowance. Create
+publication; extend `HistoryCapacity`, `HistoryControlStore`, `HistoryStorage`,
+`HistoryGraph`, `HistoryPruner`, `HistoryMaintenanceExecutor` and pin preflights.
+Bind one authoritative operation-data ledger into all admission, graph/pressure,
+replay and retirement proofs, including `prepareTerminalLocked`; operation files
+are never native deletion candidates. Include receipt credit in every shared-control
+reservation check; extending `ledger` alone is insufficient. Create
 `PrivateBackupCoordinator.java` for capture, stream adapters and verified-output
 state; add a package-private capture entry in `HistoryController.java` so shared
 native handles/authority cannot be assembled from arbitrary callers.
@@ -216,12 +218,10 @@ Create `PrivateImportCoordinator.java` for typed graph/remap/commit and a read-o
 `RestoredItems.java` facade. `MainActivity.java` captures state and shows/open items;
 `SessionStore`/`RecoveryStore` keep their current independent persistence contracts.
 
-Next slice after ADR-004 review: **persisted export capture and operation-data
-admission**, with no provider UI/importer activation. First
-prove crash-safe descriptors, fixed archive UUIDs and atomic fresh capture→BEGIN.
-Then separately review tracked export/readback receipts; strict offline import
-validation/remapping; finally isolated adoption and accessible UI. This document
-does not approve any of those source changes.
+Next slice: **operation-data admission and persisted capture→BEGIN**, after ADR-004
+review, without provider UI/importer activation. Prove total-ledger propagation and
+crash-safe fixed IDs; then review export receipts, strict import and accessible
+adoption separately. This document approves no source changes.
 
 ## Required verification and remaining risks
 
@@ -231,7 +231,7 @@ history-controller runners only when affected. No tests were run for this design
 
 - Capture races: graph/policy/root replacement before BEGIN, reentrant durability
   callbacks, changing repeatable openers, 16,380/16,381 mappings, combined 1 GiB
-  framing, full metadata roots and full 1 MiB/256 control including pin credit.
+  framing, metadata caps, terminal/replay ledger changes and full shared-control credit.
 - Invalid input: all native kind/UUID/reference collisions, forged completion,
   namespace/sequence conflict, bad UTF-8/BOM/cursors, duplicate prefs/tabs, every
   truncated frame/terminal and trailing bytes. Assert zero active-state/provider writes.
