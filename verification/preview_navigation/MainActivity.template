@@ -67,6 +67,7 @@ final class MainActivity {
     QueueExecutor worker(){return (QueueExecutor)renderIo;}
     void deliverRender(){worker().drain();main.advance(0);}
     void requestPrint(){printDocument();}
+    void syncFromEditor(){lambda$schedulePreviewSyncFromEditor$72();}
     void stop(){stopPreview();}
     /* EXACT_MEMBERS */
 }

@@ -4,11 +4,12 @@ import java.util.*;
 /** Safety assertions deliberately RED on the inspected baseline; no production repair here. */
 public final class NavigationCheck {
     static int assertions,failures,cases;
+    static boolean printOnly;
     static void eq(Object expected,Object actual,String message){assertions++;if(!Objects.equals(expected,actual)){failures++;System.out.println("FAIL "+message+" expected="+summary(expected)+" actual="+summary(actual));}}
     static String summary(Object value){String s=String.valueOf(value);return s.length()>120?s.substring(0,90)+"… ("+s.length()+" chars)":s;}
-    static void run(String name,Runnable task){cases++;System.out.println("CASE "+name);task.run();}
+    static void run(String name,Runnable task){boolean print=name.startsWith("print ")||name.startsWith("successful ready print")||name.startsWith("unavailable print");if(print!=printOnly)return;cases++;System.out.println("CASE "+name);task.run();}
     static MainActivity ready(){MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(160);return a;}
-    public static void main(String[] args){
+    public static void main(String[] args){printOnly=args.length>0&&args[0].equals("--print-hazards");
         run("current load and real renderer control",()->{
             MainActivity a=ready();eq(true,a.previewReady,"current completed load is ready");
             eq(MarkdownRenderer.render(a.editor.text,a.palette,a.previewFontSp),a.preview.committedHtml,"full rendered HTML unchanged");
@@ -33,6 +34,15 @@ public final class NavigationCheck {
             a.editor.text="second revision";a.renderPreview();a.deliverRender();a.preview.commit(1);a.new AnonymousClass2().onPageFinished(a.preview,"https://markdown.local/");
             eq(true,a.syncingFromEditor,"new callback starts suppression");a.main.advance(80);
             eq(true,a.syncingFromEditor,"prior 160ms reset cannot clear newer navigation suppression");
+        });
+        run("duplicate current finish preserves user scroll",()->{
+            MainActivity a=ready();a.preview.y=777;int scrolls=a.preview.scrollCalls;
+            a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);
+            eq(777,a.preview.y,"duplicate current finish cannot reset user scroll");eq(scrolls,a.preview.scrollCalls,"current page acknowledged only once");
+        });
+        run("same-page older scroll reset cannot release newer operation",()->{
+            MainActivity a=ready();a.mode=MainActivity.MODE_SPLIT;a.syncFromEditor();a.main.advance(60);a.syncFromEditor();a.main.advance(60);
+            eq(true,a.syncingFromEditor,"first same-page120ms reset cannot clear newer scroll operation");
         });
         run("late finish after shutdown cannot revive readiness",()->{
             MainActivity a=ready();a.editor.text="queued";a.renderPreview();a.stop();int scrolls=a.preview.scrollCalls;
