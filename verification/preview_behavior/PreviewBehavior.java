@@ -97,7 +97,7 @@ public final class PreviewBehavior {
     }
 
     static void scrollAndShutdown() {
-        PreviewHarness h=new PreviewHarness(); h.previewReady=true; h.preview.y=317;
+        PreviewHarness h=new PreviewHarness(); h.acknowledgeForCapture(); h.preview.y=317;
         h.renderPreview(); equal(317,h.previewRestoreY,"existing ready scroll captured");
         h.preview.y=0; h.renderPreview(); equal(317,h.previewRestoreY,"in-flight render retains restore Y");
         h.settle(); equal(expected(h),loaded(h),"scroll render HTML");

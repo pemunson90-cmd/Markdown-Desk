@@ -128,6 +128,9 @@ public class MainActivity extends Activity {
     private Button previewModeButton;
     private boolean previewReady;
     private PreviewPage previewPage;
+    private PreviewPage previewProbePending;
+    private boolean previewProbeRunning;
+    private long previewProbeSequence;
     private long previewScrollOperation;
     private Runnable previewScrollRelease;
     private Runnable previewEditorScroll;
@@ -659,6 +662,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$buildInterface$7(View view, int i, int i2, int i3, int i4) {
+        if (view != this.preview || !previewScrollIsCurrent()) return;
         if (this.activeTab >= 0 && this.activeTab < this.tabs.size()) {
             this.tabs.get(this.activeTab).previewScrollY = i2;
         }
@@ -1708,7 +1712,7 @@ public class MainActivity extends Activity {
         documentTab.selectionStart = Math.max(MODE_EDIT, this.editor.getSelectionStart());
         documentTab.selectionEnd = Math.max(documentTab.selectionStart, this.editor.getSelectionEnd());
         documentTab.editorScrollY = Math.max(MODE_EDIT, this.editor.getScrollY());
-        documentTab.previewScrollY = this.preview == null ? documentTab.previewScrollY : Math.max(MODE_EDIT, this.preview.getScrollY());
+        documentTab.previewScrollY = previewScrollIsCurrent() ? Math.max(MODE_EDIT, this.preview.getScrollY()) : documentTab.previewScrollY;
         documentTab.mode = this.mode;
     }
 
@@ -3638,9 +3642,14 @@ public class MainActivity extends Activity {
     }
 
     private void invalidatePreview() {
-        if (this.previewReady && this.preview != null) this.previewRestoreY = this.preview.getScrollY();
+        // Options can already have changed; preserve the outgoing acknowledged document's viewport.
+        PreviewPage outgoing = this.previewPage;
+        if (this.previewReady && outgoing != null && outgoing.acknowledged && outgoing.view == this.preview
+                && outgoing.revision == this.previewRevision && outgoing.documentId.equals(previewDocumentId()))
+            this.previewRestoreY = this.preview.getScrollY();
         this.previewReady = false;
         this.previewPage = null;
+        this.previewProbePending = null; // Physical probe ownership survives logical invalidation.
         this.previewScrollOperation++;
         this.syncingFromEditor = false;
         this.syncingFromPreview = false;
@@ -3691,8 +3700,7 @@ public class MainActivity extends Activity {
         final UiTheme.Palette palette;
         final float fontSp;
         final int mode;
-        boolean probing, probeAgain, acknowledged;
-        long probe;
+        boolean acknowledged;
 
         PreviewPage(WebView view, LatestPreview.Request request) {
             this.view = view;
@@ -3726,28 +3734,35 @@ public class MainActivity extends Activity {
         return "document.readyState==='complete'&&document.documentElement.getAttribute('data-md-preview')==='" + page.token + "'";
     }
 
+    private boolean previewScrollIsCurrent() {
+        return this.previewReady && isCurrentPreviewPage(this.previewPage) && this.previewPage.acknowledged;
+    }
+
     private void acknowledgePreviewPage(WebView view) {
         final PreviewPage page = this.previewPage;
         if (!isCurrentPreviewPage(page) || view != page.view || page.acknowledged) return;
-        if (page.probing) { page.probeAgain = true; return; }
-        page.probing = true;
-        page.probeAgain = false;
-        final long probe = ++page.probe;
+        if (this.previewProbeRunning) { this.previewProbePending = page; return; }
+        this.previewProbeRunning = true;
+        this.previewProbePending = null;
+        final long probe = ++this.previewProbeSequence;
         view.evaluateJavascript("document.readyState==='complete'?document.documentElement.getAttribute('data-md-preview'):null", value -> {
-            if (!isCurrentPreviewPage(page) || probe != page.probe) return;
-            page.probing = false;
+            // A lost callback intentionally holds this physical slot: invalidation cannot queue more probes.
+            if (!this.previewProbeRunning || probe != this.previewProbeSequence) return;
+            this.previewProbeRunning = false;
+            PreviewPage pending = this.previewProbePending;
+            this.previewProbePending = null;
             // Generated decimal token: accept only its exact JSON string, never a coerced value.
-            if (!("\"" + page.token + "\"").equals(value)) {
-                if (page.probeAgain) acknowledgePreviewPage(view);
-                return;
+            if (isCurrentPreviewPage(page) && ("\"" + page.token + "\"").equals(value) && !page.acknowledged) {
+                page.acknowledged = true;
+                this.previewReady = true;
+                long operation = beginPreviewScroll(true);
+                view.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, this.previewRestoreY));
+                releasePreviewScroll(page, operation, 160L);
+                if (this.mode == MODE_SPLIT) schedulePreviewSyncFromEditor();
             }
-            if (page.acknowledged) return;
-            page.acknowledged = true;
-            this.previewReady = true;
-            long operation = beginPreviewScroll(true);
-            view.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, this.previewRestoreY));
-            releasePreviewScroll(page, operation, 160L);
-            if (this.mode == MODE_SPLIT) schedulePreviewSyncFromEditor();
+            PreviewPage current = this.previewPage;
+            if (isCurrentPreviewPage(current) && !current.acknowledged && (pending == current || current != page))
+                acknowledgePreviewPage(current.view);
         });
     }
 

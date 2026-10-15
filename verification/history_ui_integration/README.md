@@ -72,3 +72,9 @@ physical pause/process death, Fold, SAF provider behavior, app-UID durability,
 whole-application build, performance benchmark, signing or release acceptance.
 No Focus/layout or editor mutation is introduced by these fixtures; broader mode
 compatibility remains an integration/device gate. No production source is edited.
+
+Preview navigation integration: captureActiveTab remains exact extracted source.
+Its previewScrollIsCurrent boundary now models explicit ready/acknowledged-tab
+ownership; it is not an unconditional true stub. Full document/revision/options/
+DOM ownership is tested by verification/preview_navigation. Existing84 action
+checks passed after this adapter update; no history action logic changed.

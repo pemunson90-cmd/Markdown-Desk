@@ -4,13 +4,28 @@ import java.util.*;
 /** Safety assertions deliberately RED on the inspected baseline; no production repair here. */
 public final class NavigationCheck {
     static int assertions,failures,cases;
-    static boolean printOnly,baseline;
+    static boolean printOnly,baseline,scrollHazard;
     static void eq(Object expected,Object actual,String message){assertions++;if(!Objects.equals(expected,actual)){failures++;System.out.println("FAIL "+message+" expected="+summary(expected)+" actual="+summary(actual));}}
     static String summary(Object value){String s=String.valueOf(value);return s.length()>120?s.substring(0,90)+"… ("+s.length()+" chars)":s;}
-    static void run(String name,Runnable task){boolean print=name.startsWith("print ")||name.startsWith("successful ready print")||name.startsWith("unavailable print");if(print!=printOnly)return;if(baseline&&(name.startsWith("readiness requires")||name.startsWith("held old probe")||name.startsWith("coalesced current")||name.startsWith("probe delivery")||name.startsWith("duplicate current completion never")||name.startsWith("old same-page JS")))return;cases++;System.out.println("CASE "+name);task.run();}
+    static void run(String name,Runnable task){if(scrollHazard&&!name.startsWith("native "))return;boolean print=name.startsWith("print ")||name.startsWith("successful ready print")||name.startsWith("unavailable print");if(print!=printOnly)return;if(baseline&&(name.startsWith("readiness requires")||name.startsWith("held old probe")||name.startsWith("global physical")||name.startsWith("coalesced current")||name.startsWith("probe delivery")||name.startsWith("duplicate current completion never")||name.startsWith("old same-page JS")))return;cases++;System.out.println("CASE "+name);task.run();}
     static String plain(String html){return html.replaceFirst(" data-md-preview=\"-?[0-9]+\"", "");}
     static MainActivity ready(){MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(160);return a;}
-    public static void main(String[] args){printOnly=Arrays.asList(args).contains("--print-hazards");baseline=Arrays.asList(args).contains("--baseline");
+    public static void main(String[] args){printOnly=Arrays.asList(args).contains("--print-hazards");baseline=Arrays.asList(args).contains("--baseline");scrollHazard=Arrays.asList(args).contains("--scroll-state-hazard");
+        run("native scroll from unacknowledged DOM preserves new tab state",()->{
+            MainActivity a=ready();a.tabs.get(1).previewScrollY=91;a.activeTab=1;a.previewRestoreY=91;a.previewReady=false;a.editor.text="B pending";a.renderPreview();
+            a.scrollEvent(7);eq(91,a.tabs.get(1).previewScrollY,"old DOM native scroll cannot overwrite pending tab scroll");eq(0,a.sessions,"unacknowledged scroll cannot schedule persisted session");
+        });
+        run("native capture cannot persist old DOM coordinate in pending tab",()->{
+            MainActivity a=ready();a.preview.y=7;a.tabs.get(1).previewScrollY=91;a.activeTab=1;a.previewRestoreY=91;a.previewReady=false;a.editor.text="B pending";a.renderPreview();
+            a.capture();eq(91,a.tabs.get(1).previewScrollY,"pending tab capture preserves its saved preview coordinate");eq("B pending",a.tabs.get(1).text,"guard does not prevent current text capture");
+            a.deliverRender();a.preview.commit(1);a.new AnonymousClass2().onPageFinished(a.preview,"same-url");a.preview.y=123;a.capture();eq(123,a.tabs.get(1).previewScrollY,"acknowledged current DOM scroll captured");a.scrollEvent(150);eq(150,a.tabs.get(1).previewScrollY,"acknowledged native scroll stored");eq(1,a.sessions,"acknowledged native scroll schedules session");
+        });
+        run("outgoing acknowledged page preserves scroll on option changes",()->{
+            for(String change:new String[]{"font","palette","mode"}){MainActivity a=ready();a.preview.y=321;
+                if(change.equals("font"))a.previewFontSp=24;if(change.equals("palette"))a.palette=UiTheme.palette(2,false);if(change.equals("mode"))a.mode=MainActivity.MODE_SPLIT;
+                a.renderPreview();eq(321,a.previewRestoreY,"outgoing acknowledged document scroll retained for "+change);
+            }
+        });
         run("current load and real renderer control",()->{
             MainActivity a=ready();eq(true,a.previewReady,"current completed load is ready");
             eq(MarkdownRenderer.render(a.editor.text,a.palette,a.previewFontSp),plain(a.preview.committedHtml),"full rendered HTML unchanged");
@@ -64,12 +79,18 @@ public final class NavigationCheck {
             }
             a.preview.forcedReply=null;a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(true,a.previewReady,"matching complete DOM accepted");
         });
+        run("global physical probe remains bounded across page replacement",()->{
+            MainActivity a=new MainActivity();a.preview.holdReplies=true;
+            for(int i=0;i<100;i++){a.editor.text="revision "+i;a.renderPreview();a.deliverRender();a.preview.commit(i);a.new AnonymousClass2().onPageFinished(a.preview,"same-url");}
+            eq(1,a.preview.replies.size(),"rapid replacements retain one physical readiness callback");eq(false,a.previewReady,"held callback cannot certify current DOM");
+            a.preview.holdReplies=false;a.preview.replies();eq(true,a.previewReady,"old physical callback return triggers latest current probe");
+        });
         run("held old probe cannot block or acknowledge newer page",()->{
             MainActivity a=new MainActivity();a.renderPreview();a.deliverRender();a.preview.commit(0);a.preview.holdReplies=true;
             a.new AnonymousClass2().onPageFinished(a.preview,"ignored");a.new AnonymousClass2().onPageFinished(a.preview,"ignored");eq(1,a.preview.replies.size(),"one probe while current reply pending");
             a.activeTab=1;a.editor.text="new B";a.renderPreview();a.deliverRender();a.preview.commit(1);a.preview.holdReplies=false;
-            a.new AnonymousClass2().onPageFinished(a.preview,"old-callback-url");eq(true,a.previewReady,"new page probes despite lost old reply");int scrolls=a.preview.scrollCalls;
-            a.preview.replies();eq(scrolls,a.preview.scrollCalls,"late old acknowledgment cannot scroll again");eq(true,a.previewReady,"old reply cannot clear newer readiness");
+            a.new AnonymousClass2().onPageFinished(a.preview,"old-callback-url");eq(false,a.previewReady,"new page waits for physical old probe to return");int scrolls=a.preview.scrollCalls;
+            a.preview.replies();eq(scrolls+1,a.preview.scrollCalls,"old response triggers one current DOM acknowledgment");eq(true,a.previewReady,"old reply cannot clear newer readiness");
         });
         run("coalesced current finish retries after older DOM response",()->{
             MainActivity a=ready();a.editor.text="new DOM";a.renderPreview();a.deliverRender();a.preview.holdReplies=true;

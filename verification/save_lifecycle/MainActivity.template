@@ -99,6 +99,10 @@ public final class MainActivity extends HostActivity {
     File filesDir;
     ProtectionStore protectionStore;
     HistoryController historyController;
+    // Navigation acknowledgment is modeled here; exact DOM ownership is exercised in preview_navigation.
+    boolean previewReady; String acknowledgedPreviewTabId;
+    boolean previewScrollIsCurrent(){return previewReady && activeTab>=0 && activeTab<tabs.size() && tabs.get(activeTab).id.equals(acknowledgedPreviewTabId);}
+    void captureForFixture(){captureActiveTab();}
     long historyRequest; AlertDialog historyDialog;
     MainActivity(){try{filesDir=Files.createTempDirectory("activity-save-").toFile();}catch(IOException e){throw new RuntimeException(e);}}
     File getFilesDir(){return filesDir;}

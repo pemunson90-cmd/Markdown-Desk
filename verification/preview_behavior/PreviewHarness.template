@@ -72,11 +72,15 @@ final class PreviewHarness extends Activity {
     final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
     void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
     void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
-    void stopStatistics() {} boolean isFinishing() { mainOnly(); return finishing; }
+    void stopStatistics() {} boolean isDestroyed() { return preview.destroyed; } boolean isFinishing() { mainOnly(); return finishing; }
     QueueExecutor worker() { return (QueueExecutor) renderIo; }
     void changed(String text, boolean suppressed) {
         editor.text = new Text(text); suppressChanges = suppressed;
         watcher.onTextChanged(editor.text, 0, 0, text.length()); suppressChanges = false;
+    }
+    void acknowledgeForCapture() {
+        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode));
+        previewPage.acknowledged=true;previewReady=true;
     }
     void layout() { /* LAYOUT */ }
     void settle() {
