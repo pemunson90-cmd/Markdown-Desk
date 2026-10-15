@@ -217,7 +217,32 @@ final class HistoryControlStore {
         return committedName+".stage";
     }
 
-    Inspection inspect()throws IOException {
+    Inspection inspect()throws IOException {return inspect(null);}
+
+    /** Physical input caps only. Caller must separately precharge its workspace;
+     * these limits grant no policy, decode, or portable activation authority. */
+    Inspection inspectBounded(long maximumBytes,int maximumEntries)throws IOException {
+        if(maximumBytes<0||maximumBytes>MAX_BYTES||maximumEntries<0||maximumEntries>MAX_ENTRIES)
+            throw new IOException("Invalid control inspection limits");
+        return inspect(new InputLimits(maximumBytes,maximumEntries));
+    }
+    private static final class InputLimitException extends IOException {
+        InputLimitException(String message){super(message);}
+    }
+    private static final class InputLimits {
+        final long bytes;final int entries;
+        InputLimits(long bytes,int entries){this.bytes=bytes;this.entries=entries;}
+        void entry(int count)throws InputLimitException {
+            if(count<0||count>=entries)throw new InputLimitException("Control inspection entry limit");
+        }
+        void record(long used,BasicFileAttributes actual)throws InputLimitException {
+            // The very same attributes govern read allocation; no preliminary stat.
+            long size=actual.size();
+            if(!actual.isRegularFile()||size<0)throw new InputLimitException("Control inspection unknown physical size");
+            if(used<0||used>bytes||size>bytes-used)throw new InputLimitException("Control inspection byte limit");
+        }
+    }
+    private Inspection inspect(InputLimits limits)throws IOException {
         List<Entry> entries=new ArrayList<>();List<StageDescriptor> stages=new ArrayList<>();List<String> diagnostics=new ArrayList<>();
         long bytes=0;int count=0;boolean usageComplete=true,inventoryValid=true;
         Registration registration=null;Record latest=null;SortedMap<Long,Policy> policies=new TreeMap<>();
@@ -227,9 +252,11 @@ final class HistoryControlStore {
         for(String name:Arrays.asList(ENROLLMENT_NAME,ENROLLMENT_STAGE)){
             Path path=parent.toPath().resolve(name);BasicFileAttributes before;
             try{before=attributes(path);}catch(NoSuchFileException absent){continue;}
-            catch(IOException failure){diagnostics.add("control: enrollment unreadable");usageComplete=false;inventoryValid=false;entries.add(new Entry(name,0,null,null,name.equals(ENROLLMENT_STAGE)));count++;continue;}
+            catch(IOException failure){if(limits!=null)limits.entry(count);diagnostics.add("control: enrollment unreadable");usageComplete=false;inventoryValid=false;entries.add(new Entry(name,0,null,null,name.equals(ENROLLMENT_STAGE)));count++;continue;}
+            if(limits!=null)limits.entry(count);
             count++;long size=before.size();String hash=null;Record record=null;
             try{
+                if(limits!=null)limits.record(bytes,before);
                 if(!before.isRegularFile()||size<0)throw new IOException("Nonregular enrollment");
                 bytes=Math.addExact(bytes,size);
                 if(size>MAX_RECORD)throw new IOException("Oversized enrollment");
@@ -238,7 +265,7 @@ final class HistoryControlStore {
                 validatePhysicalRoles((Registration)record);
                 if(name.equals(ENROLLMENT_NAME))enrollment=(Registration)record;
                 else throw new IOException("Retained enrollment stage");
-            }catch(IOException|ArithmeticException failure){diagnostics.add("control: invalid enrollment");inventoryValid=false;if(!before.isRegularFile()||size<0)usageComplete=false;}
+            }catch(IOException|ArithmeticException failure){if(failure instanceof InputLimitException)throw (InputLimitException)failure;diagnostics.add("control: invalid enrollment");inventoryValid=false;if(!before.isRegularFile()||size<0)usageComplete=false;}
             entries.add(new Entry(name,size,hash,record,name.equals(ENROLLMENT_STAGE)));
         }
         BasicFileAttributes directoryBefore;
@@ -256,6 +283,7 @@ final class HistoryControlStore {
         }
         try(DirectoryStream<Path> paths=Files.newDirectoryStream(root)) {
             for(Path path:paths) {
+                if(limits!=null)limits.entry(count);
                 if(count==MAX_ENTRIES){diagnostics.add("control: entry limit");usageComplete=false;inventoryValid=false;break;}
                 count++;
                 String name=path.getFileName().toString();boolean stage=name.endsWith(".stage");
@@ -270,6 +298,7 @@ final class HistoryControlStore {
                 if(!known){diagnostics.add("control: unknown entry");inventoryValid=false;}
                 try {
                     BasicFileAttributes before=attributes(path);size=before.size();
+                    if(limits!=null)limits.record(bytes,before);
                     if(!before.isRegularFile()||size<0)throw new IOException("Nonregular control entry");
                     bytes=Math.addExact(bytes,size);
                     int limit=maintenance?HistoryPruneIntent.MAX_BYTES:MAX_RECORD;
@@ -288,6 +317,7 @@ final class HistoryControlStore {
                         }
                     }
                 }catch(IOException|ArithmeticException invalid) {
+                    if(invalid instanceof InputLimitException)throw (InputLimitException)invalid;
                     diagnostics.add("control: unreadable entry");usageComplete=false;inventoryValid=false;
                 }
                 Entry entry=new Entry(known?name:null,size,hash,record,stage,intent,pin,pinBytes);entries.add(entry);
@@ -298,6 +328,7 @@ final class HistoryControlStore {
                 }
             }
         }catch(IOException|DirectoryIteratorException failure) {
+            if(failure instanceof InputLimitException)throw (InputLimitException)failure;
             diagnostics.add("control: inventory unavailable");usageComplete=false;inventoryValid=false;
         }
         if(bytes>MAX_BYTES){diagnostics.add("control: byte limit");inventoryValid=false;}
