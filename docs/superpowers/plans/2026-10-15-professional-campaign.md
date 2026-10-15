@@ -118,10 +118,10 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 **Allowed:** merge exact reviewed MainActivity/authorized AST fixtures; outline plan/README; root runner/STATUS. **Forbidden:** storage/capture mutation, renderer/security/link-policy redesign, release/version/signing changes.
 **Contracts:** exact source context/route/explicit-navigation token helpers in93a5cc5; existing `PrivateArchive.readPortable(InputStream,ScopedSink,LegacySpool,PrivateBundleInventory.MetadataBudget)` and `writeV2(UUID,StreamOpener,ArchiveSource,OutputStream,MetadataBudget)`. Results are provisional; borrowed metadata is synchronous or separately reserved, never GC-revoked.
 
-- [ ] Verify canonical Activity blob and changed fixtures against recorded review; inspect final diff and preserve baseline RED selector separately.
-- [ ] Merge93a5cc5 normally; register `bash verification/outline_navigation/run.sh` only, never `--baseline`, in required host runner. Keep scoped archive runner registered.
-- [ ] Run focused integration checks only for changed/conflicted inputs; expected current outline32cases/74assertions GREEN, legacy baseline15RED preserved as historical diagnostic. Check status/preview/nav/mode/syntax dependency closure without weakening guards.
-- [ ] At the coherent integration boundary commit intended source, then run `python3 verification/check_clean_rebuild.py` once with configured JDK17 PATH/SDK37.0/tools36.0.0. Do not repeat host immediately outside that wrapper.
+- [x] Verify canonical Activity blob and changed fixtures against recorded review; inspect final diff and preserve baseline RED selector separately.
+- [x] Merge93a5cc5 normally; register `bash verification/outline_navigation/run.sh` only, never `--baseline`, in required host runner. Keep scoped archive runner registered.
+- [x] Run focused integration checks only for changed/conflicted inputs; expected current outline32cases/74assertions GREEN, legacy baseline15RED preserved as historical diagnostic. Check status/preview/nav/mode/syntax dependency closure without weakening guards.
+- [x] At the coherent integration boundary commit intended source, then run `python3 verification/check_clean_rebuild.py` once with configured JDK17 PATH/SDK37.0/tools36.0.0. Do not repeat host immediately outside that wrapper.
 - [ ] Review exact source/privacy/assets/docs; draft PR while local verification proceeds, deliberate ready transition only after applicable gates. Required hosted success on final head precedes authorized merge. Independent source review is retained only for identical reviewed artifacts; changed risky source needs fresh review.
 - [ ] Read back main/ancestry, update STATUS once, continue C1/C2. If capture is not ready, do not merge its unsafe source to force a combined PR; choose an independently reviewable boundary and record the scope honestly.
 

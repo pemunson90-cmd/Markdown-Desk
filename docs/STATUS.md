@@ -8,7 +8,6 @@ Lead self-review is complete; new independent plan review is NOT RUN. Worker
 execution reached an account usage limit and no child remains active; lead
 continues supported ready work inline, without changing spending or waiving review.
 
-
 Main is `b5796ba9061c365538d3192acdea8f69bb204029`: [PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) merged reviewed head `7a13ac5` after required hosted
 run38664300293/job116192539275 passed. Draft38664276730 was skipped, not passing
 evidence. Previous main `50f3a75` came from [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
@@ -16,22 +15,26 @@ head `b9bc16e` after required hosted run38661739767 and its production-recoverab
 job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
 history and earlier exact-source/protected-save foundations remain merged.
 
-Latest clean gate **PASS** at `05e74ca2906695ebe6e7ae4e2d68b6b536a24a47`:
+Latest clean integration gate **PASS** at `ed4cba7051891114b1088ad8d115040b86f8e0f0`:
 `python3 verification/check_clean_rebuild.py` completed the required host suite
-once from a clean committed checkout and audited two fresh unsigned builds.
+once from a fresh committed checkout, then audited two fresh unsigned builds.
 Both match SHA-256
+`7c5132f285ecfe2c1b950819edf52f82e58f7dc6d508a111549f77a2a3702545`.
+The gate includes reviewed outline/codec source, actual production recoverability,
+capacity, pins, operation48 fault fixtures/96 reopens and executor44/88.
+No dependency downloads or signing credentials; package2.2.5/code18/min26/target35,
+exact25 owner-cleared assets and unsigned/alignment audits pass. Scoped477 tracked
+files: zero credential-pattern matches/signing-container paths (not exhaustive/history).
+[PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23) contains this
+outline/codec candidate and campaign plan; required hosted verification is next.
+Unapproved storage/capture source remains excluded in its separate worktree.
+
+Historical printing clean gate05e74ca produced identical unsigned SHA-256
 `7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
-No downloads/signing credentials; package 2.2.5/code18/min26/target35 and all25
-owner-approved assets preserved. Scoped457 tracked-file credential-pattern scan:
-zero matches/signing-container paths; not an exhaustive history scan. This gate
-includes the reviewed printing changes below; final required hosted validation
-also passed on launcher correction `7a13ac5`. No signed release is claimed.
-Earlier hosted run38663648484 failed
-because the print launcher required unavailable `rg`. The launcher now uses core
-`find` and rejects a missing stub set; all21 stub inputs are unchanged. A no-rg
-environment passed the actual126 printing and18 controlled-renderer checks.
-Reviewed printing source and its behavioral fixtures match clean gate05e74ca;
-the final required hosted full suite passed on the corrected launcher before merge.
+Its subsequent launcher correction7a13ac5 passed final hosted run38664300293.
+Earlier run38663648484 failed for unavailable `rg`; core `find` fixed the launcher
+and clean no-rg checks passed. That portability issue is resolved, not a current
+product failure. No signed release is claimed.
 
 Verified merged behavior:
 
@@ -94,8 +97,7 @@ codec and phased storage/capture source work in separate worktrees. Pure codec
 source/contracts `f357fe1` passed independent exact-source review; integrated
 `4ed9fbb` adds only the approval record. Worker4,732 functional+7 constrained-memory
 checks and unchanged archive/state/manifest suites passed; reviewer16 independent
-probes passed. The new required runner is registered; combined clean verification
-remains pending. Typed payload validity, durable spool/adoption and runtime backup
+probes passed. The new required runner is registered and passed the combined clean gate above. Typed payload validity, durable spool/adoption and runtime backup
 authority are excluded. Borrowed rows require cooperative ownership through
 quiescence or separately reserved copies; closing does not revoke escaped Java
 references or prove GC. Storage/accounting checkpoint `a92a999` remains unapproved
@@ -121,9 +123,9 @@ blocker on Activity blob13c27c32b0b387e4a45dccf80b5ee06add06f531 with20 probes;
 canonical Activity blob matches the reviewed artifact exactly and source is now
 integrated. The only merge conflict was README evidence; both printing-portability
 and outline notes are retained. Current outline runner is registered GREEN; frozen
-baseline15RED stays separate. Combined clean gate is next; no Android timing acceptance.
+baseline15RED stays separate. Combined clean gate passed above; no Android timing acceptance.
 
-Next: run the committed outline/codec clean integration gate while repairing
+Next: complete PR #23 required hosted verification while repairing
 unapproved operation accounting in its separate worktree. Capture stays excluded
 from this candidate until independent safety review clears its source. Then
 continue the separately reviewed portable bridge, verified provider output,
