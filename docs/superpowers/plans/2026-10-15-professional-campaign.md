@@ -60,12 +60,19 @@ maps and one-use old-owner-claim handoff. Earlier writer `92e41bb`, copy helper
 `b4bd0c9` and private sink `d71dae2` approvals remain point-in-time and scoped to
 those artifacts; none approves the complete current source.
 
-The active worker now owns same-process captured activation and tracked
-declared-source read/drain/CLOSE, with Ops/narrowPins/Store plus Writer.Budget.identity
-and fixtures; root owns orchestration and integration. Activation is not yet implemented;
-cold recovery, runtime integration, whole-heap proof and performance acceptance remain
-OPEN. No newer full gate/build/CI covers C2. The writer runner is registered in the
-aggregate host script; only shell syntax was checked here.
+Same-process activation and tracked declared-source read/drain/CLOSE are implemented
+at exact `c71add45ba689fbe0626b6eb0d7e78ef89ebabf2`; independent review is PENDING.
+Worker evidence: 5 new groups PASS and unchanged coordinator 59 smoke checks PASS.
+The implementation requires authentic returned binding and the exact original Budget,
+uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
+Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
+Activation is frozen for review; the worker only prepares the cold stale/partial
+cancellation packet. Cold recovery, runtime integration, full-heap and performance,
+migration and device acceptance remain OPEN. Minimum affected memory bounds are
+required before downstream storage consumers; broad batteries remain for feature completion.
+Both writer and activation runners are registered in the aggregate host script; only
+shell syntax was checked for this registration revision. No 48-fault matrix, new full
+suite, APK or CI is claimed. Root owns orchestration and integration.
 Independent substantive campaign plan review is approved at
 `73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
 `029269ba83b6897d4e0148c797db63311ddddda2` against ROADMAP and RELEASE_GATES; it
@@ -86,7 +93,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Worker owns Ops/narrowPins/Store plus Writer.Budget.identity and fixtures for same-process activation and tracked source read/drain/CLOSE. Activation, cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Same-process activation/tracked source read/drain/CLOSE is implemented at c71add4; independent review PENDING, 5 new groups and coordinator59 smoke PASS. Cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -126,8 +133,8 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
 | Lead; orchestration/integration | draft PR24; completion/handoff1fe3c46 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Completion/handoff1fe3c46 approved; 87 publication assertions + 7 copy cases + 11 completion cases pass | Own Ops/narrowPins/Store plus Writer.Budget.identity and fixtures for same-process activation and tracked declared-source read/drain/CLOSE. Cold recovery, runtime integration, whole-heap and performance acceptance remain open. |
-| Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Approval is scoped to this exact commit; same-process activation and source read/drain/CLOSE remain unreviewed. |
+| Capture worker; operation-data-capture | Activation c71add4 implemented; review PENDING; 5 new groups + coordinator59 smoke PASS | Activation frozen for independent review; prepare cold stale/partial cancellation packet only. Cold/runtime/full-heap/performance/migration/device remain open; minimum affected memory bounds precede downstream consumers. |
+| Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Approval is scoped to this exact commit; activation/source read/drain/CLOSE c71add4 review is PENDING. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
 
@@ -176,18 +183,26 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 Worker results pass 87 publication assertions, 7 copy cases and 11 completion cases,
 including fresh-child JVM checks. Implemented: exact BEGIN204/LINK173/CLOSE credit126,
 typed-stage allowance, preadmitted retained maps and one-use old-owner-claim handoff.
-The worker now owns same-process captured activation and tracked declared-source
-read/drain/CLOSE in Ops/narrowPins/Store plus Writer.Budget.identity and fixtures.
+Same-process activation and tracked declared-source read/drain/CLOSE are implemented
+at exact `c71add45ba689fbe0626b6eb0d7e78ef89ebabf2`; independent review is PENDING.
+Worker evidence: 5 new groups PASS and unchanged coordinator 59 smoke checks PASS.
+The implementation requires authentic returned binding and the exact original Budget,
+uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
+Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
+Activation is frozen for review; the worker only prepares the cold stale/partial
+cancellation packet. Cold recovery, runtime integration, full-heap and performance,
+migration and device acceptance remain OPEN. Minimum affected memory bounds are
+required before downstream storage consumers; broad batteries remain for feature completion.
+Both writer and activation runners are registered in the aggregate host script; only
+shell syntax was checked for this registration revision. No 48-fault matrix, new full
+suite, APK or CI is claimed. Root owns orchestration and integration.
 Before P, freshly match BOTH original C0 control and L0 ledger hashes. A legacy
 PIN BEGIN→CANCELLED CLOSED changes C0/fullGraph while L0 remains unchanged; the
 freshness guard must reject that mismatch. Plan authority alone cannot publish P.
 Retain this safety contract in future evidence updates.
 Earlier writer/copy/sink approvals are point-in-time and do not approve the full current
-source. Activation is not yet implemented; cold recovery and runtime integration
-remain OPEN. Minimum affected memory bounds must be proved before downstream storage
-consumers; broad whole-heap proof and performance acceptance remain OPEN for the
-feature-complete candidate. The writer runner is registered in the
-aggregate host script; only shell syntax was checked. No full gate/build/CI covers C2.
+source. Next: independently review frozen activation; prepare only the cold
+stale/partial cancellation packet before its implementation. No full gate/build/CI covers C2.
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
 **Policy/runtime:** complete startup recovery, understandable errors and configurable retention only once new operation evidence participates in all admission/pruning/retirement proofs. Preserve safe ordinary saves and optional-history/export failure isolation. Stop adding speculative protection layers once the approved boundary passes; finish its runtime consumer.
@@ -197,7 +212,7 @@ aggregate host script; only shell syntax was checked. No full gate/build/CI cove
 ## Verification, publication and completion
 
 - During implementation, run minimum affected tests plus essential compile/build checks. At feature-complete candidate, run broad regression, performance and migration coverage, then required clean committed-source host/two-unsigned gate and owner Fold7 acceptance. Reuse installed inputs. New Android APIs must remain min26-compatible, independent of compiler/platform age. Required merge/release gates remain intact.
-- Current C2 focused assertions/cases and registered writer runner do not constitute a full gate; the new writer-registration revision has only received
+- Current C2 focused assertions/cases and registered writer/activation runners do not constitute a full gate; the new aggregate registration revision has only received
   `bash -n verification/run_host_checks.sh`; no new aggregate run is claimed. The
   historical full host gate at `8dcbea5` remains attributed to its earlier source. The prior 8 MiB / 1637 ms observation is functional only; performance acceptance remains open.
 - Keep actual journeys: failed save→recover/new copy; checkpoint→diff→restore preserving newer text; private export→import→reopen; workspace search under revocation/partial results; annotate→edit→reflow; print intended document while switching tabs; signed in-place upgrade preserving sessions/settings/docs.
