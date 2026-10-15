@@ -1,98 +1,77 @@
 # Current project status
 
-## Current checkpoint — guarded document history, 2026-10-15
+## Current checkpoint — operation recovery and backup/export, 2026-10-15
 
-Main is `116b180c80d7395a7c23297979f0cdc90ae9c7e2`: [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
-merged at reviewed head `bd1d3e4` after required hosted run38656747429 passed.
-Draft run38656737069 was skipped, not passing evidence. PR #18 operation
-foundations, PR #17 bounded workers and earlier exact-source/protected-save
-changes remain merged. No installable release is claimed.
+Main is `d0b02d79057f546b6c9bc215cc5c948455f2bb88`:
+[PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20) merged after
+required hosted run38657841514 passed at reviewed head `3bc070a`.
+Draft run38657830265 was skipped, not passing evidence. PR #19 selected retention
+and portable manifests merged at `116b180` after hosted run38656747429 passed;
+earlier exact-source and protected-save foundations remain preserved.
 
-Latest clean backend gate at `715cdab92808f278b933ab160fe5579c0aae5304` completed
-all required host checks across an unchanged-source interrupted session, then two
-audited unsigned builds matching SHA-256
-`332516409ff54a9c27d3bd781a61f63d7a0f3b41a87741b1c32eaa54c27a437c`.
-Every archived source file was verified before resuming only unfinished checks.
-No downloads/signing inputs; package 2.2.5/code 18/min 26/target 35 and all 25
-approved assets preserved. Scoped credential-pattern scan: 381 tracked files,
-zero matches; not a whole-history proof. This is not the combined UI gate.
-
-Verified backend additions:
-
-- Durable pins (`092c12b`, codec `478eb42`) retain immutable BEGIN/CLOSE audits
-  within the existing 1 MiB/256-entry control allowance. Terminal reservations
-  survive policy-stage promotion; known missing evidence blocks writers/pruning.
-  Closed audit reconciliation supports interrupted maintenance. Worker 909 codec,
-  332 lifecycle, four streamed-manifest checks and 20 SIGKILL boundaries with
-  42 fresh JVM reopens passed; independent persistence review approved corrections.
-- Private-state codec (`3cd61fc`) streams tab/recovery bytes and eight allowlisted
-  preferences. URI/baseline/clean fields are provenance only. Worker 848 functional
-  and 99 streaming checks plus 301 independent checks passed. An independent
-  8 MiB stream passed at 48 MiB heap with 32 MiB retained; not an Android budget.
-- Pin stages remain preserved/blocked when partial. No eventual-cancellation
-  promise, runtime consumer, operation quiescence, terminal repair, compaction
-  or fresh-process arbitrary-evidence-loss anchor is implemented.
-
-Active integration: `codex/history-ui-integration`, [PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20),
-with verified main merged normally.
-
-- Frozen native archive manifest `73655d5` is integrated byte-identically through
-  `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
-  plus 62 independent checks passed. MAX 16,380 entries; serialized and conservative
-  retained-index budgets are separate. Preparation/completion get distinct archive
-  IDs despite sharing a native UUID. Retries must read persisted mapping.
-  This pure artifact proves no current filesystem freshness, atomic capture, pin
-  publication or verified export; its default runner is registered for next gate.
-- Selected retention executor `367ca34` (source `c36b093`) is integrated unchanged.
-  Worker 747 behavioral and 22 memory checks passed, with 44 crash/OS-limit/
-  corruption fixtures and 88 fresh JVM reopens. Independent 25 boundary checks
-  and the reproduced bootstrap-admission defect passed after its repair. It
-  requires exact acknowledged capacity, durable intent, per-victim fresh proofs
-  and shared terminal retirement; no runtime caller or automatic execution.
-  Retained intent stages remain blocked. Its default runner is now required.
-- Independently approved controller `43f7094` is integrated unchanged as `ce59d69`.
-  Worker 123 functional checks, six fresh-JVM assertions and a capture-race
-  regression passed; reviewer 30 raced captures and 23 native-backend checks passed.
-  Owned-copy validation fixes the reproduced validate-before-clone race.
-- Activity startup/save-route hooks and guarded history actions have passed scoped
-  fixtures and source review. Worker save lifecycle: 39 cases/320 assertions;
-  recovery loader: 15 cases/223 assertions plus seven actual UI callbacks. New
-  history actions: 84 assertions, including a spaced checkout path; three copied-
-  source guard/color/status sensitivity probes failed as expected. These are new
-  API sensitivity checks, not regressions against a preceding production UI.
-  Exact Activity blob `73be90c5076916c8221b29ab7bcdae0d36ef7d15` also passed
-  whole-app JDK17/SDK37 Java compilation. The new required runners still await
-  the coherent clean host/build gate and final whole-branch review.
-- Mandatory writes require acknowledged shared startup. Save As origin/revision
-  survives conflict consent; optional indexing failure preserves actual provider
-  success, dirty edits and recovery. Global Protected saves remains independently
-  readable. History offers 100-row pages, captured named revisions, bounded exact
-  comparison and the existing restore-to-new-copy picker, with tab/URI/request/
-  Activity guards and palette-colored dialogs. No automatic deletion or export/
-  import runtime caller is enabled. Android rendering/provider/device gates remain
-  NOT RUN.
-
-Combined gate **PASS** at `f6ea92192f41039d0fe082f200ed477c871c42d9`:
+Latest combined gate **PASS** at `f6ea92192f41039d0fe082f200ed477c871c42d9`:
 `python3 verification/check_clean_rebuild.py` completed normally, running the
-required host suite once in a clean checkout, including the new controller and
-actual history-action runners. Two fresh audited unsigned builds match SHA-256
+required host suite once from clean committed source and auditing two fresh
+unsigned builds. Both match SHA-256
 `934f816160a6e55fa5937fccfaa5acb39d4a4718c9703209337cc8d6254ea56f`.
-No downloads or signing inputs; exact package/version and all 25 assets preserved.
-Scoped credential-pattern scan: 401 tracked files, zero matches; not a whole-
-history proof. Final reviewed Activity blob remains unchanged.
+No signing inputs/downloads; package 2.2.5/code 18/min 26/target 35 and all 25
+owner-approved assets preserved. Scoped credential-pattern scan: 401 tracked
+files, zero matches; not a whole-history proof. No installable release is claimed.
 
-Next: required hosted validation for PR #20, merge only after success, then
-continue reviewed operation quiescence/terminal repair, persisted export capture,
-strict import/adoption and the remaining M0–M7 campaign. A separate existing-
-preview/printing audit is reproducing callback/ready-state failures locally;
-no production fix is implemented or claimed. No full M1 or release completion.
+Verified current source:
 
-Required local production recoverability is GREEN; independent hosted validation
-for PR #20 remains pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
-TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
-Existing same-URL WebView completion/scroll ordering and fixed-delay printing
-remain separate Android gaps. Host queue observations are not typing latency,
-peak memory or device acceptance. No installable release is claimed.
+- Workspace document history provides 100-row pages, captured named revisions,
+  bounded exact comparison and the existing restore-to-new-copy picker. Stale
+  request/tab/URI/Activity guards preserve newer edits, View/Focus, locks and 12
+  tabs. All nine palettes bind row/title/message colors. Pending, orphan and
+  unindexed saves remain explicit. Source review repaired a captured-array race
+  and dark-dialog/status defects before integration.
+- Mandatory saves, protected-copy restores and legacy recovery protection require
+  acknowledged shared startup on the existing I/O queue. Independent recovery and
+  Protected saves reads remain available on initialization failure. Captured
+  Save As origin/destination/tab/revision survives conflict consent; optional
+  history errors preserve actual verified provider success and newer dirty edits.
+- Controller 123 functional checks, six fresh-JVM assertions and capture-race
+  regression; action 84 checks plus three source-sensitivity probes; save lifecycle
+  39 cases/320 assertions; recovery 15 cases/223 assertions plus seven UI callbacks
+  passed. Independent controller 30 raced captures/23 backend checks and final
+  32 Activity/native-backend checks passed. Host models do not prove Android UI.
+- SELECTED-only retention has exact acknowledged authority, durable intent,
+  per-victim proofs and shared retirement recovery: 747 behavioral/22 memory
+  checks and 44 fault/crash fixtures with 88 fresh JVM reopens passed, plus 25
+  independent probes. No runtime deletion caller; automatic modes and retained
+  intent stages remain blocked. Startup replay is required before a future UI
+  can enable destructive maintenance.
+- Durable BEGIN/CLOSE pins and the strict private-state codec are merged. Frozen
+  native manifests preserve portable IDs and separate wire/index/archive bounds.
+  These backends do not implement atomic export capture, verified provider output,
+  typed import/adoption, automatic retention or the complete M1 workflow.
+
+Active integration is `codex/operation-export-integration`; no new PR yet.
+`codex/operation-terminal-recovery` is finalizing independent review of enforced
+consumer quiescence and append-only canonical CLOSE recovery before code. Partial
+BEGIN quarantine remains blocked: absence cannot prove never acknowledged.
+Committed historical closed audits retain their source-independent semantics.
+Compaction, unlimited cancellation availability and a fresh-process arbitrary-
+evidence-loss anchor are not implemented.
+
+In parallel, `codex/preview-navigation` has actual-source host reproductions for
+navigation/scroll readiness and fixed-delay printing. Task 1 DOM identity/readiness
+is implementing after technical review; isolated print ownership is under design
+review against Android's documented adapter onFinish contract. Production changes
+are not integrated or verified yet; host callback/DOM models are not device proof.
+
+Next: implement and review operation terminal recovery, persisted export capture
+and verified backup/export; continue strict import/adoption and eligible M0–M7
+work. Integrate preview/printing repairs after their source and behavioral gates.
+Do not stop at a PR or milestone checkpoint; no full M1 completion is claimed.
+
+Required production recoverability is GREEN. Unchanged raw-provider truncation
+hazards remain separate RED diagnostics. Physical Galaxy Z Fold7/Android 16/
+One UI 8, SAF/IME/TalkBack, Android filesystem durability, canonical signing and
+upgrade acceptance remain NOT RUN. Owner-reported installed version “2.25” remains
+unverified. No replacement signing identity is allowed; signing/private recovery material
+stays out of Git, logs and CI. Older Library/provenance inputs remain unavailable.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
