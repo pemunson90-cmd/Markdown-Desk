@@ -69,5 +69,7 @@ bash verification/private_frame_preflight/run.sh
 bash verification/private_capture_plan/run.sh
 bash verification/private_capture_writer/run.sh
 bash verification/private_capture_activation/run.sh
+bash verification/terminal_cancelled_admission/run.sh
+bash verification/cold_capture_cancel/run.sh
 bash verification/history_maintenance/run.sh
 bash verification/history_executor/run.sh

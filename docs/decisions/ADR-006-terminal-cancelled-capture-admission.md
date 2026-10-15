@@ -10,8 +10,16 @@ preserving old credits, and planner/intent/stale maintenance/retirement refusals
 an ordinary-save positive control. Worker evidence records 12 focused
 groups and 871 legacy HistoryManifestCheck checks PASS in the
 [terminal admission evidence](../../verification/terminal_cancelled_admission/README.md).
-Actual cold cancellation/reversal remains NOT implemented; the two-fresh-restart
-cancellation test remains NOT RUN.
+Narrow cold cancellation at `2078e8e2ceb401ffad4277d6428fac62f3a2e9db` has scoped
+independent **APPROVAL**. Two new actual probes passed: foreign uncertain audit
+RED→GREEN with bytes unchanged, and legitimate activated/drained audit positive.
+Earlier owner-exclusion, stale-final strict-ledger and callback groups retain their
+exact scope. The cold-only callback marker (a793960) and foreign-audit guard before
+publication/every refresh (2078e8e) fix both blockers. Latest worker evidence: 12 cold
+groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice;
+coordinator59 was RED there, GREEN at a793960 and not rerun at 2078e8e.
+Cold completion/reversed-original-graph recovery, portable backup, runtime integration,
+full-heap and performance, migration and device acceptance remain OPEN.
 
 Date: 2026-10-15
 

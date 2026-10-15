@@ -48,7 +48,8 @@ scoped to those artifacts; none approves the complete current source.
 Same-process activation and tracked declared-source read/drain/CLOSE are implemented
 at exact `4795c3cdaeacea5a7ef134284929cdecba1c269f`; scoped independent review is
 APPROVED. Worker evidence: 6 focused groups PASS after the retention RED repair.
-Previous coordinator 59 smoke checks remain recorded; they were not rerun.
+The earlier activation coordinator59 checkpoint remains historical; later cold-path
+coordinator results are scoped separately below.
 Independent groups prove identity, budget, hashed skip and resource closure, plus
 `terminalRetry` retaining `sourceTable` versus TERMINAL releasing the full table
 and budget while retaining bounded D for historical CLOSE.
@@ -69,19 +70,32 @@ This slice retains global pending/prune blocks and all bytes/credits,
 a physically present verified namespace, selected activation's own completeness and
 immutable old-stage anchors. ADR-006 supersedes only the old plan's new-capture-block
 clause for its fully typed eligible state; all other contracts remain.
-Actual cold cancellation/reversal is NOT implemented; the two-fresh-restart cancellation
-test is NOT RUN. Cold recovery, runtime integration, full-heap and performance,
-migration and device acceptance remain OPEN. Minimum affected memory bounds are
+Narrow cold cancellation at `2078e8e2ceb401ffad4277d6428fac62f3a2e9db` has scoped
+independent **APPROVAL**. Two new actual probes passed: foreign uncertain audit
+RED→GREEN with bytes unchanged, and legitimate activated/drained audit positive.
+Earlier owner-exclusion, stale-final strict-ledger and callback groups retain their
+exact scope. The cold-only callback marker (a793960) and foreign-audit guard before
+publication/every refresh (2078e8e) fix both blockers. Latest worker evidence: 12 cold
+groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice;
+coordinator59 was RED there, GREEN at a793960 and not rerun at 2078e8e.
+Cold completion/reversed-original-graph recovery, portable backup, runtime integration,
+full-heap and performance, migration and device acceptance remain OPEN. Minimum affected memory bounds are
 required before downstream storage consumers; broad batteries remain for feature completion.
-Both writer and activation runners are registered in the aggregate host script; only
-shell syntax was checked for this registration revision. No 48-fault matrix, new full
+Writer, activation, terminal-admission and cold-cancellation runners are registered in
+the aggregate host script; only shell syntax was checked for this registration revision. No 48-fault matrix, new full
 suite, APK or CI is claimed. Root owns orchestration and integration.
+Portable source contract `d43dbb17e110edb73eaf68d4597f208b4186d5d0` (plan blob
+`dab01bedacdafb650120a5d6339e3bde94694f01`) is accepted after independent e7 review
+and root's mechanical fix. A1 codec work is active in isolated `portable-wire-codecs`,
+owning Archive/Inventory/Evidence and its fixtures only; version3/schema2 source is
+NOT implemented or approved until committed and reviewed. No other source writer is active.
+
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: implement the narrow cold cancellation capability separately, following scoped
-independent approval of `af9eebf97174e02c4ab64794a3e80e606179f443`. Preserve global
+Next: prepare the separate cold completion/reversed-original-graph recovery slice;
+source and runtime integration remain OPEN. Preserve global
 pending/prune blocks, all bytes/credits, physical namespace eligibility, selected-own
 completeness and immutable old-stage anchors. Runtime integration and lifecycle/error
 closure remain before downstream features.

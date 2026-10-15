@@ -63,7 +63,8 @@ those artifacts; none approves the complete current source.
 Same-process activation and tracked declared-source read/drain/CLOSE are implemented
 at exact `4795c3cdaeacea5a7ef134284929cdecba1c269f`; scoped independent review is
 APPROVED. Worker evidence: 6 focused groups PASS after the retention RED repair.
-Previous coordinator 59 smoke checks remain recorded; they were not rerun.
+The earlier activation coordinator59 checkpoint remains historical; later cold-path
+coordinator results are scoped separately below.
 Independent groups prove identity, budget, hashed skip and resource closure, plus
 `terminalRetry` retaining `sourceTable` versus TERMINAL releasing the full table
 and budget while retaining bounded D for historical CLOSE.
@@ -84,12 +85,19 @@ This slice retains global pending/prune blocks and all bytes/credits,
 a physically present verified namespace, selected activation's own completeness and
 immutable old-stage anchors. ADR-006 supersedes only the old plan's new-capture-block
 clause for its fully typed eligible state; all other contracts remain.
-Actual cold cancellation/reversal is NOT implemented; the two-fresh-restart cancellation
-test is NOT RUN. Cold recovery, runtime integration, full-heap and performance,
-migration and device acceptance remain OPEN. Minimum affected memory bounds are
+Narrow cold cancellation at `2078e8e2ceb401ffad4277d6428fac62f3a2e9db` has scoped
+independent **APPROVAL**. Two new actual probes passed: foreign uncertain audit
+RED→GREEN with bytes unchanged, and legitimate activated/drained audit positive.
+Earlier owner-exclusion, stale-final strict-ledger and callback groups retain their
+exact scope. The cold-only callback marker (a793960) and foreign-audit guard before
+publication/every refresh (2078e8e) fix both blockers. Latest worker evidence: 12 cold
+groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice;
+coordinator59 was RED there, GREEN at a793960 and not rerun at 2078e8e.
+Cold completion/reversed-original-graph recovery, portable backup, runtime integration,
+full-heap and performance, migration and device acceptance remain OPEN. Minimum affected memory bounds are
 required before downstream storage consumers; broad batteries remain for feature completion.
-Both writer and activation runners are registered in the aggregate host script; only
-shell syntax was checked for this registration revision. No 48-fault matrix, new full
+Writer, activation, terminal-admission and cold-cancellation runners are registered in
+the aggregate host script; only shell syntax was checked for this registration revision. No 48-fault matrix, new full
 suite, APK or CI is claimed. Root owns orchestration and integration.
 Independent substantive campaign plan review is approved at
 `73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
@@ -111,7 +119,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Same-process activation/tracked source read/drain/CLOSE at exact 4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped independent APPROVAL; 6 focused groups PASS after retention repair. Previous coordinator59 smoke evidence is retained, not rerun. ADR006 engineering direction is accepted; first typed historical-cancellation admission slice is implemented at af9eebf97174e02c4ab64794a3e80e606179f443, with scoped independent APPROVAL after 4 actual probe groups. Worker evidence: 12 focused groups and 871 HistoryManifestCheck checks PASS. Actual cold cancellation/reversal remains unimplemented; two-fresh-restart cancellation test NOT RUN. Cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Completion/handoff `1fe3c46` is approved with 87 publication assertions, 7 copy cases and 11 completion cases passing. Exact BEGIN/LINK/CLOSE-credit and typed-stage handoff are implemented. Same-process activation/tracked source read/drain/CLOSE at exact 4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped independent APPROVAL; 6 focused groups PASS after retention repair. Earlier activation coordinator59 evidence remains historical; later cold-path results are scoped separately. ADR006 engineering direction is accepted; first typed historical-cancellation admission slice is implemented at af9eebf97174e02c4ab64794a3e80e606179f443, with scoped independent APPROVAL after 4 actual probe groups. Worker evidence: 12 focused groups and 871 HistoryManifestCheck checks PASS. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold recovery, runtime and whole-heap/performance acceptance remain open. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -151,7 +159,7 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
 | Lead; orchestration/integration | draft PR24; completion/handoff1fe3c46 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Admission exact af9eebf97174e02c4ab64794a3e80e606179f443 implemented; scoped independent APPROVAL after 4 actual probe groups. Activation4795c3c retains scoped APPROVAL; prior coordinator59 smoke retained, not rerun | ADR006 direction accepted; first typed historical-cancellation admission slice implemented at af9eebf97174e02c4ab64794a3e80e606179f443; scoped independent APPROVAL after 4 actual probe groups; worker evidence: 12 groups and 871 HistoryManifestCheck checks PASS. Implement narrow cold cancellation capability next. Retain global pending/prune blocks, all bytes/credits, physically present namespace, selected-own completeness and immutable old-stage anchors. Actual cold cancellation/reversal remains unimplemented; two-fresh-restart cancellation test NOT RUN. Cold/runtime/full-heap/performance/migration/device remain open; minimum affected memory bounds precede downstream consumers. |
+| Capture worker; operation-data-capture | Admission exact af9eebf97174e02c4ab64794a3e80e606179f443 implemented; scoped independent APPROVAL after 4 actual probe groups. Activation4795c3c retains scoped APPROVAL; earlier coordinator59 evidence historical; later cold results scoped separately | ADR006 direction accepted; first typed historical-cancellation admission slice implemented at af9eebf97174e02c4ab64794a3e80e606179f443; scoped independent APPROVAL after 4 actual probe groups; worker evidence: 12 groups and 871 HistoryManifestCheck checks PASS. Prepare cold completion/reversed-original-graph recovery next. Retain global pending/prune blocks, all bytes/credits, physically present namespace, selected-own completeness and immutable old-stage anchors. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold/runtime/full-heap/performance/migration/device remain open; minimum affected memory bounds precede downstream consumers. |
 | Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Activation/source read/drain/CLOSE exact4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped APPROVAL, including identity/budget/hashed-skip/resource closure and terminal retention/release checks. This does not approve cold source or runtime integration. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
@@ -204,7 +212,8 @@ typed-stage allowance, preadmitted retained maps and one-use old-owner-claim han
 Same-process activation and tracked declared-source read/drain/CLOSE are implemented
 at exact `4795c3cdaeacea5a7ef134284929cdecba1c269f`; scoped independent review is
 APPROVED. Worker evidence: 6 focused groups PASS after the retention RED repair.
-Previous coordinator 59 smoke checks remain recorded; they were not rerun.
+The earlier activation coordinator59 checkpoint remains historical; later cold-path
+coordinator results are scoped separately below.
 Independent groups prove identity, budget, hashed skip and resource closure, plus
 `terminalRetry` retaining `sourceTable` versus TERMINAL releasing the full table
 and budget while retaining bounded D for historical CLOSE.
@@ -225,21 +234,33 @@ This slice retains global pending/prune blocks and all bytes/credits,
 a physically present verified namespace, selected activation's own completeness and
 immutable old-stage anchors. ADR-006 supersedes only the old plan's new-capture-block
 clause for its fully typed eligible state; all other contracts remain.
-Actual cold cancellation/reversal is NOT implemented; the two-fresh-restart cancellation
-test is NOT RUN. Cold recovery, runtime integration, full-heap and performance,
-migration and device acceptance remain OPEN. Minimum affected memory bounds are
+Narrow cold cancellation at `2078e8e2ceb401ffad4277d6428fac62f3a2e9db` has scoped
+independent **APPROVAL**. Two new actual probes passed: foreign uncertain audit
+RED→GREEN with bytes unchanged, and legitimate activated/drained audit positive.
+Earlier owner-exclusion, stale-final strict-ledger and callback groups retain their
+exact scope. The cold-only callback marker (a793960) and foreign-audit guard before
+publication/every refresh (2078e8e) fix both blockers. Latest worker evidence: 12 cold
+groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice;
+coordinator59 was RED there, GREEN at a793960 and not rerun at 2078e8e.
+Cold completion/reversed-original-graph recovery, portable backup, runtime integration,
+full-heap and performance, migration and device acceptance remain OPEN. Minimum affected memory bounds are
 required before downstream storage consumers; broad batteries remain for feature completion.
-Both writer and activation runners are registered in the aggregate host script; only
-shell syntax was checked for this registration revision. No 48-fault matrix, new full
+Writer, activation, terminal-admission and cold-cancellation runners are registered in
+the aggregate host script; only shell syntax was checked for this registration revision. No 48-fault matrix, new full
 suite, APK or CI is claimed. Root owns orchestration and integration.
 Before P, freshly match BOTH original C0 control and L0 ledger hashes. A legacy
 PIN BEGIN→CANCELLED CLOSED changes C0/fullGraph while L0 remains unchanged; the
 freshness guard must reject that mismatch. Plan authority alone cannot publish P.
 Retain this safety contract in future evidence updates.
 Earlier writer/copy/sink approvals are point-in-time and do not approve the full current
-source. Next: implement the narrow cold cancellation capability separately, following scoped
-independent approval of af9eebf97174e02c4ab64794a3e80e606179f443. Actual cold cancellation/reversal
-is unimplemented; two-fresh-restart cancellation test NOT RUN. No full gate/build/CI covers C2.
+source. Next: prepare the separate cold completion/reversed-original-graph recovery slice;
+source and runtime integration remain OPEN. No full gate/build/CI covers C2.
+Portable source contract `d43dbb17e110edb73eaf68d4597f208b4186d5d0` (plan blob
+`dab01bedacdafb650120a5d6339e3bde94694f01`) is accepted after independent e7 review
+and root's mechanical fix. A1 codec work is active in isolated `portable-wire-codecs`,
+owning Archive/Inventory/Evidence and its fixtures only; version3/schema2 source is
+NOT implemented or approved until committed and reviewed. No other source writer is active.
+
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
 **Policy/runtime:** complete startup recovery, understandable errors and configurable retention only once new operation evidence participates in all admission/pruning/retirement proofs. Preserve safe ordinary saves and optional-history/export failure isolation. Stop adding speculative protection layers once the approved boundary passes; finish its runtime consumer.
