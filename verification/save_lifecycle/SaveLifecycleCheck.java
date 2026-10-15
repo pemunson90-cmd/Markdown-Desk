@@ -8,6 +8,7 @@ public final class SaveLifecycleCheck {
     static final String ORIGINAL="content://fixture/original",DESTINATION="content://fixture/save-as",OTHER="content://fixture/other";
     public static void main(String[] args)throws Exception{
         boolean safety=Arrays.asList(args).contains("--safety");
+        run("PREVIEW capture retains pending scroll and accepts acknowledged scroll",()->previewCapture());
         run("HISTORY changed active Save As invalidates old dialog",()->historySaveAsInvalidation());
         run("HISTORY startup remains on I/O queue and blocked control retains evidence",()->historyStartup());
         run("HISTORY verified same-URI and Save As routes retain exact identity",()->historyRoutes());
@@ -66,6 +67,11 @@ public final class SaveLifecycleCheck {
     static HistoryIdentity.Descriptor uriHistory(MainActivity a,String uri)throws java.io.IOException {
         for(HistoryIdentity.Descriptor d:identities(a).descriptors())if(uri.equals(d.exactUri))return d;
         throw new AssertionError("No actual URI history: "+uri);
+    }
+    static void previewCapture(){MainActivity a=fixture();a.tabs.get(0).previewScrollY=31;a.preview.scroll=99;
+        a.captureForFixture();eq(31,a.tabs.get(0).previewScrollY,"pending preview retains stored coordinate");
+        a.previewReady=true;a.acknowledgedPreviewTabId="origin";a.captureForFixture();eq(99,a.tabs.get(0).previewScrollY,"acknowledged origin captures preview coordinate");
+        a.acknowledgedPreviewTabId="other";a.preview.scroll=5;a.captureForFixture();eq(99,a.tabs.get(0).previewScrollY,"foreign acknowledgment cannot capture old DOM position");
     }
     static void historySaveAsInvalidation(){for(String route:new String[]{"same-uri","active-save-as","inactive-save-as"}){
         MainActivity a=fixture();a.historyRequest=17;MainActivity.AlertDialog old=new MainActivity.AlertDialog();a.historyDialog=old;

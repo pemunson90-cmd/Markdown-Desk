@@ -1,0 +1,29 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 35 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE native scroll from unacknowledged DOM preserves new tab state
+CASE native capture cannot persist old DOM coordinate in pending tab
+CASE outgoing acknowledged page preserves scroll on option changes
+FAIL outgoing acknowledged document scroll retained for font expected=321 actual=0
+FAIL outgoing acknowledged document scroll retained for palette expected=321 actual=0
+FAIL outgoing acknowledged document scroll retained for mode expected=321 actual=0
+CASE current load and real renderer control
+CASE old finish while latest render waits
+CASE same URL callbacks have no accepted-load identity
+CASE old reset cannot end newer scroll suppression
+CASE duplicate current finish preserves user scroll
+CASE same-page older scroll reset cannot release newer operation
+CASE preview-to-editor deferred last hop rejects changed tab
+CASE late finish after shutdown cannot revive readiness
+CASE readiness requires complete DOM and exact JSON identity
+CASE global physical probe remains bounded across page replacement
+CASE held old probe cannot block or acknowledge newer page
+CASE coalesced current finish retries after older DOM response
+CASE probe delivery checks live document options and shutdown
+CASE duplicate current completion never adds another probe
+CASE old same-page JS reply cannot clear newer operation
+RED preview-navigation: 18 cases, 66 assertions, 3 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 3
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:152)

@@ -21,6 +21,9 @@ public final class MainActivity extends HostActivity {
  MainActivity(HistoryController c,ProtectionStore s){controller=c;store=s;}
  HistoryController getHistoryController(){return controller;}ProtectionStore getProtectionStore(){return store;}
  long historyRequest,capturedSaveRevision;AlertDialog historyDialog;boolean finishing,destroyed;
+ // Modeled DOM acknowledgment boundary; production navigation guards are exercised separately.
+ String acknowledgedPreviewTabId;
+ boolean previewScrollIsCurrent(){return previewReady&&activeTab>=0&&activeTab<tabs.size()&&tabs.get(activeTab).id.equals(acknowledgedPreviewTabId);}
  final List<DocumentTab> tabs=new ArrayList<>();int activeTab=-1;final EditText editor=new EditText(this);final Preview preview=new Preview();
  Uri currentUri;String displayName,baselineHash;long baselineModified;boolean utf8Bom,readOnly,editorLocked,dirty,suppressChanges,previewReady;int mode,previewRestoreY;
  final Queue io=new Queue(),main=new Queue();UiTheme.Palette palette=UiTheme.palette(0,false);final List<String> errors=new ArrayList<>();String pickerId;int sessions,recoveries;

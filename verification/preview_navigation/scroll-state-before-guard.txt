@@ -1,0 +1,13 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 31 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE native scroll from unacknowledged DOM preserves new tab state
+FAIL old DOM native scroll cannot overwrite pending tab scroll expected=91 actual=7
+FAIL unacknowledged scroll cannot schedule persisted session expected=0 actual=1
+CASE native capture cannot persist old DOM coordinate in pending tab
+FAIL pending tab capture preserves its saved preview coordinate expected=91 actual=7
+RED preview-navigation: 2 cases, 4 assertions, 3 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 3
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:145)

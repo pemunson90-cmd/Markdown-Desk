@@ -44,8 +44,9 @@ final class PreviewHarness extends Activity {
     static final class Editor {
         Text text = new Text("hello");
         CharSequence getText() { mainOnly(); return text; }
+        void removeCallbacks(Runnable task) { mainOnly(); }
     }
-    static final class Preview {
+    static final class WebView {
         int y, loads; boolean destroyed; String html;
         int getScrollY() { mainOnly(); return y; }
         void loadDataWithBaseURL(String url, String value, String mime, String charset, String history) {
@@ -58,24 +59,28 @@ final class PreviewHarness extends Activity {
     static final class DocumentTab { final String id; boolean dirty; DocumentTab(String id) { this.id = id; } }
     final Handler main = new Handler();
     final QueueExecutor io = new QueueExecutor();
-    Editor editor = new Editor(); Preview preview = new Preview();
+    Editor editor = new Editor(); WebView preview = new WebView();
     final List<DocumentTab> tabs = new ArrayList<>(List.of(new DocumentTab("A"), new DocumentTab("B")));
     int activeTab, mode = MODE_PREVIEW, previewRestoreY;
-    boolean previewReady, suppressChanges, dirty, finishing;
+    boolean previewReady, suppressChanges, dirty, finishing, syncingFromEditor, syncingFromPreview;
     float previewFontSp = 18f;
     UiTheme.Palette palette = UiTheme.palette(0, false);
-    Runnable previewRunnable;
+    Runnable previewRunnable, editorSyncRunnable, previewSyncRunnable;
     /* FIELDS */
     final TextWatcher watcher = /* WATCHER */;
     static final class SyntaxBoundary { void changed(CharSequence text, int start, int before, int count) {} }
     final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
     void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
     void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
-    void stopStatistics() {} boolean isFinishing() { mainOnly(); return finishing; }
+    void stopStatistics() {} boolean isDestroyed() { return preview.destroyed; } boolean isFinishing() { mainOnly(); return finishing; }
     QueueExecutor worker() { return (QueueExecutor) renderIo; }
     void changed(String text, boolean suppressed) {
         editor.text = new Text(text); suppressChanges = suppressed;
         watcher.onTextChanged(editor.text, 0, 0, text.length()); suppressChanges = false;
+    }
+    void acknowledgeForCapture() {
+        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode));
+        previewPage.acknowledged=true;previewReady=true;
     }
     void layout() { /* LAYOUT */ }
     void settle() {
