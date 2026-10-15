@@ -24,7 +24,7 @@
 
 ## Resolved checkpoint and evidence limits
 
-Main/origin main is `b5796ba9061c365538d3192acdea8f69bb204029` (merged PR22).
+Planning began at main/origin main `b5796ba9061c365538d3192acdea8f69bb204029` (merged PR22).
 Required hosted run38664300293/job116192539275 passed on exact head7a13ac5.
 Local committed clean gate05e74ca ran host checks once and two unsigned builds,
 both SHA256 `7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
@@ -37,9 +37,16 @@ Outline source93a5cc5 is committed in its isolated worktree; Activity blob13c27c
 Operation accounting checkpointa92a999 is **not approved**; dirty repairs remain in its worktree. Capture producer/activation is not implemented. See blocking probes below.
 Open issues2–8 remain the scope references; issue1 and source-baseline PR9 are complete. PR search found no open PR at reconciliation. Local archive/source branches and old untracked historical plan copies are preserved, not assumed active or pushed wholesale.
 
-Worker execution stopped at an account usage limit during reconciliation. No child remains running. Do not change spending/account limits or pretend workers continue. Lead takes ready work inline; new independent review remains unavailable until execution capacity returns. Prior exact-source review is retained; new risky changes cannot be merged on self-report. This is a capability constraint, not a physical-device gate or permission to waive review.
+Worker execution stopped at an account usage limit during initial reconciliation; bounded worker execution became available again during the subsequent continuation. Do not change spending/account limits or pretend workers continue. Lead takes ready work inline; new independent review remains unavailable until execution capacity returns. Prior exact-source review is retained; new risky changes cannot be merged on self-report. This is a capability constraint, not a physical-device gate or permission to waive review.
 
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
+
+Subsequent checkpoint: PR23 merged atfdb7bd6 after clean gateed4cba7 and required
+hosted38759593422 passed. Current accounting continuation46d8bd8 is independently
+approved for C1 only (39 scenarios); its initial clean run failed a printing-fixture
+queue race, corrected fixture-only at4321957. Final clean gate and C2 producer
+remain pending. Portable direction a4b9d36 is independently reviewed, with no new
+schema/source authority. STATUS is authoritative for current heads/evidence.
 
 ## Whole-roadmap coverage and dependency map
 
@@ -90,7 +97,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 
 Critical path: C1 accounting repair → C2 native/private capture → portable binding/semantic validation → verified export/import/adoption journey → configurable retention/runtime recovery → G2 → workspace/reader → editor/interoperability → complete M7 acceptance. N1 outline repair is independently ready and joins the next source integration. Existing print capture is reused, not rebuilt.
 
-Normal supported team: lead/integrator + two independent implementers + shared critical reviewer when useful. Sensitive persistence reviews use capable reasoning; bounded fixture/UI work uses cheaper demonstrably capable contexts. Expand only for ready disjoint work, never to fill slots. Current effective team is lead only because worker execution hit usage limits; no automatic retry loop or paid workaround.
+Normal supported team: lead/integrator + two independent implementers + shared critical reviewer when useful. Sensitive persistence reviews use capable reasoning; bounded fixture/UI work uses cheaper demonstrably capable contexts. Expand only for ready disjoint work, never to fill slots. Current team is lead plus the bounded native-fingerprint implementer and review capacity; earlier usage limits did not trigger paid workarounds or retry loops.
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
@@ -122,8 +129,8 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 - [x] Merge93a5cc5 normally; register `bash verification/outline_navigation/run.sh` only, never `--baseline`, in required host runner. Keep scoped archive runner registered.
 - [x] Run focused integration checks only for changed/conflicted inputs; expected current outline32cases/74assertions GREEN, legacy baseline15RED preserved as historical diagnostic. Check status/preview/nav/mode/syntax dependency closure without weakening guards.
 - [x] At the coherent integration boundary commit intended source, then run `python3 verification/check_clean_rebuild.py` once with configured JDK17 PATH/SDK37.0/tools36.0.0. Do not repeat host immediately outside that wrapper.
-- [ ] Review exact source/privacy/assets/docs; draft PR while local verification proceeds, deliberate ready transition only after applicable gates. Required hosted success on final head precedes authorized merge. Independent source review is retained only for identical reviewed artifacts; changed risky source needs fresh review.
-- [ ] Read back main/ancestry, update STATUS once, continue C1/C2. If capture is not ready, do not merge its unsafe source to force a combined PR; choose an independently reviewable boundary and record the scope honestly.
+- [x] Review exact source/privacy/assets/docs; draft PR while local verification proceeds, deliberate ready transition only after applicable gates. Required hosted success on final head precedes authorized merge. Independent source review is retained only for identical reviewed artifacts; changed risky source needs fresh review.
+- [x] Read back main/ancestry, update STATUS once, continue C1/C2. If capture is not ready, do not merge its unsafe source to force a combined PR; choose an independently reviewable boundary and record the scope honestly.
 
 ## Ready packet C1 — repair operation accounting before producers
 

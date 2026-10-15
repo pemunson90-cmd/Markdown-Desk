@@ -4,16 +4,16 @@
 
 The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
 maps retained M0–M7 obligations to source, evidence, dependencies and next packets.
-Lead self-review is complete; new independent plan review is NOT RUN. Worker
-execution reached an account usage limit and no child remains active; lead
-continues supported ready work inline, without changing spending or waiving review.
+Lead self-review is complete; independent whole-campaign review remains NOT RUN.
+Earlier worker execution reached a usage limit; bounded execution is now available
+again. Lead owns integration/accounting; a worker owns only the new native capture
+fingerprint helper, with independent review capacity. No spending/account limits changed.
 
-Main is `b5796ba9061c365538d3192acdea8f69bb204029`: [PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) merged reviewed head `7a13ac5` after required hosted
-run38664300293/job116192539275 passed. Draft38664276730 was skipped, not passing
-evidence. Previous main `50f3a75` came from [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
-head `b9bc16e` after required hosted run38661739767 and its production-recoverability
-job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
-history and earlier exact-source/protected-save foundations remain merged.
+Main is `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3`: [PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23)
+merged exact head53e8f44 after required hosted run38759593422/job116507027915
+passed all steps. Draft38759559333 was skipped, not passing evidence. It integrates
+reviewed outline/source-navigation repair, scoped archive framing and the campaign
+plan. PR #22 printing and earlier protected-save/history foundations remain merged.
 
 Latest clean integration gate **PASS** at `ed4cba7051891114b1088ad8d115040b86f8e0f0`:
 `python3 verification/check_clean_rebuild.py` completed the required host suite
@@ -25,9 +25,8 @@ capacity, pins, operation48 fault fixtures/96 reopens and executor44/88.
 No dependency downloads or signing credentials; package2.2.5/code18/min26/target35,
 exact25 owner-cleared assets and unsigned/alignment audits pass. Scoped477 tracked
 files: zero credential-pattern matches/signing-container paths (not exhaustive/history).
-[PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23) contains this
-outline/codec candidate and campaign plan; required hosted verification is next.
-Unapproved storage/capture source remains excluded in its separate worktree.
+PR #23 passed final hosted validation and merged. The separate accounting/capture
+branch is not covered by that gate and remains outside main.
 
 Historical printing clean gate05e74ca produced identical unsigned SHA-256
 `7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
@@ -65,8 +64,8 @@ Verified merged behavior:
   deletion caller or automatic retention is enabled. Private-state and archive
   codecs/manifests remain foundations, not complete backup/import features.
 
-Active integration: `codex/private-backup-integration`, synchronized normally with
-merged main `b5796ba`. Printing
+Active continuation: `codex/operation-data-capture`, synchronized normally with
+merged main `fdb7bd6`. Previous `codex/private-backup-integration` is merged. Printing
 `8739354` is integrated after independent exact
 source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
 independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
@@ -100,19 +99,32 @@ checks and unchanged archive/state/manifest suites passed; reviewer16 independen
 probes passed. The new required runner is registered and passed the combined clean gate above. Typed payload validity, durable spool/adoption and runtime backup
 authority are excluded. Borrowed rows require cooperative ownership through
 quiescence or separately reserved copies; closing does not revoke escaped Java
-references or prove GC. Storage/accounting checkpoint `a92a999` remains unapproved
-in `operation-data-capture`, with four tracked dirty repairs preserved. Independent
-probes found policy/stage/pin/resume/CLOSE writer-admission gaps and same-byte
-PREPARE inode replacement at a final callback. These are source integration
-blockers; no producer/activation or backup UI is implemented. Lead takes the
-interrupted repair inline; new risky source still requires independent review.
+references or prove GC. Accounting source46d8bd8 received scoped independent
+approval after39 actual backend scenarios, including12 native writer callback
+bypasses repaired by e23825d. Initial repair4a29200 was insufficient and is not
+approved: future admission blocking did not prevent current native writes from
+acknowledging callback-introduced uncertainty. Guards now cover native publication,
+post-commit source reads, no-op returns, policy/pins and fresh PREPARE inode identity.
+Worker3374 focused checks and native15 schedules/60 assertions passed separately;
+affected backend suites passed on the earlier repair. Final combined evidence is
+pending; no capture producer/activation or backup UI is implemented.
+
+First clean attempt46d8bd8 failed in unchanged printing fixture: PrintCheck inspected
+Handler.tasks ArrayList while the worker could append, causing ConcurrentModificationException.
+Fixture-only4321957 takes the existing Handler queue lock; printing126+controlled18
+checks pass. Production source is byte-identical to approved46d8bd8. Corrected clean
+host/two-unsigned gate is next; original failure log is retained locally.
+
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
 transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
 failed/stale preparations permit ordinary quota-admitted saves; native changes
 invalidate capture freshness. Exact schema/golden and reservation choices are in
 the approved plans and ADR-005. The MDOP/portable bridge, verified provider output
-and import/adoption still require review.
+and import/adoption still require source-ready review. Portable binding direction
+plan a4b9d36 passed independent architecture review: a separate opt-in preparation
+before first BEGIN must persist inventory/active selection; no new schema/domain,
+source implementation, output/adoption or cleanup authority is granted.
 
 Outline audit/repair plan `ba86c17` also passed independent review and is integrated
 without production changes:21 cases/46 assertions reproduce15 genuine stale-effect
@@ -125,10 +137,11 @@ integrated. The only merge conflict was README evidence; both printing-portabili
 and outline notes are retained. Current outline runner is registered GREEN; frozen
 baseline15RED stays separate. Combined clean gate passed above; no Android timing acceptance.
 
-Next: complete PR #23 required hosted verification while repairing
-unapproved operation accounting in its separate worktree. Capture stays excluded
-from this candidate until independent safety review clears its source. Then
-continue the separately reviewed portable bridge, verified provider output,
+Next: finish the corrected accounting clean gate, then complete the already
+approved native/private capture producer and its resource/fault/metadata-budget
+proofs. NativeCaptureFingerprint API is accepted for bounded implementation in
+its isolated worktree; root retains all existing shared source ownership. Then
+continue the source-ready portable bridge, verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
 private-frame capture belong to one meaningful change boundary, not separate
 product claims. Continue directly after each checkpoint; M1 is not complete.
