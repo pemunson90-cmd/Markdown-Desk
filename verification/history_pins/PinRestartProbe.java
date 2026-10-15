@@ -25,7 +25,9 @@ public final class PinRestartProbe {
             if(expected.equals("blocked")){
                 try{HistoryPins.open(store,catalog,identity,index,disk);throw new AssertionError("partial/unknown stage promoted");}catch(IOException blocked){System.out.println("BLOCKED");return;}
             }
-            HistoryPins.open(store,catalog,identity,index,disk);HistoryControlStore.Inspection after=controls.inspect();
+            if(!before.pins.stages.isEmpty()&&before.pins.stages.get(0).filename.endsWith(".close.stage")){
+                HistoryPins recovery=HistoryPins.forRecovery(store,catalog,identity,index,disk);HistoryPinsCheck.recover(recovery,before.pins.active.operation.toString(),null);
+            }else HistoryPins.open(store,catalog,identity,index,disk);HistoryControlStore.Inspection after=controls.inspect();
             if(HistoryStorage.capacity(store.storageRoot())!=null)throw new AssertionError("pin reconciliation enabled ordinary authority");
             try{store.putSnapshot("tab",null,null,1,new byte[]{5},"attempted");throw new AssertionError("pin open enabled writer");}catch(IOException expectedFailure){}
             boolean active=expected.equals("active");if(HistoryPins.pruneBlocked(store.storageRoot(),after)!=active||!after.pins.stages.isEmpty())throw new AssertionError("bad reconciled pin state");
@@ -45,7 +47,7 @@ public final class PinRestartProbe {
             System.out.println("BOUNDARY "+boundary);System.out.flush();
             try{Thread.sleep(60000);}catch(InterruptedException interrupted){throw new IOException(interrupted);}throw new IOException("parent failed to kill child");
         };
-        if(close)pins.close(id,Outcome.CANCELLED,null);
+        if(close)HistoryPinsCheck.close(pins,id,Outcome.CANCELLED,null);
         else pins.begin(Purpose.RESTORE,Scope.EXACT_SUBSET,Collections.singleton(Files.readString(parent.resolve("source"))),PinLifecycleCheck.manifest());
         throw new AssertionError("boundary not reached");
     }

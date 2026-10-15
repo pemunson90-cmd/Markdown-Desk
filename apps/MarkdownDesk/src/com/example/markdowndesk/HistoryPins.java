@@ -32,8 +32,37 @@ final class HistoryPins {
         roots=Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());HistoryStorage.siblings(roots.toArray(new File[0]));
         parent=roots.get(0).getParentFile();controlRoot=new File(parent,HistoryControlStore.ROOT_NAME);monitor=HistoryStorage.monitorFor(roots.get(0));
     }
+    private static final ProtectionStore.Durability INSPECTION_ONLY=new ProtectionStore.Durability(){
+        public void syncFile(FileDescriptor fd)throws IOException{throw new IOException("Inspection cannot publish");}
+        public void syncDirectory(File directory)throws IOException{throw new IOException("Inspection cannot publish");}
+        public void move(File from,File to)throws IOException{throw new IOException("Inspection cannot publish");}
+    };
+    static HistoryPins operationProbe(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index)throws IOException {
+        return new HistoryPins(store,catalog,identity,index,INSPECTION_ONLY);
+    }
+    HistoryControlStore.Inspection operationControlLocked()throws IOException {
+        if(!Thread.holdsLock(monitor))throw new IOException("History monitor required");return control(true);
+    }
+    HistoryPinRecord operationBeginLocked(String operation,boolean terminal)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryMetadataIO.id(operation);HistoryControlStore.Inspection c=control();
+        HistoryPinRecord begin=find(c.pins.begins,UUID.fromString(operation));if(begin==null)throw new IOException("Missing committed operation BEGIN");
+        if(!terminal){active(c,operation);requireAcknowledged(c);}
+        return begin;
+    }
+    HistoryPinRecord operationResumeLocked(String operation,InputStream originalManifest)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
+        HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operation);requireAcknowledged(before);
+        Map<File,BasicFileAttributes> stable=capture(before),directories=captureDirectories(),protectedFiles=captureSources(active);
+        manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);return active;
+    }
+    HistoryOperations operations()throws IOException{return HistoryOperations.forBundle(store,catalog,identity,index);}
     static HistoryPins open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
         HistoryPins pins=new HistoryPins(store,catalog,identity,index,durability);pins.reconcile();return pins;
+    }
+    /** Explicit cold recovery handle; validates evidence without acknowledging or enabling writers. */
+    static HistoryPins forRecovery(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        HistoryPins pins=new HistoryPins(store,catalog,identity,index,durability);
+        synchronized(pins.monitor){pins.control();}return pins;
     }
     void reconcile()throws IOException {synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){HistoryStorage.requireOperational(store.storageRoot());reconcileLocked();}}}
     /** Closed audit durability only, under the executor's existing lease and exact intent/capability. */
@@ -46,6 +75,12 @@ final class HistoryPins {
         if(control.pins.present)new HistoryPins(store,catalog,identity,index,durability).reconcileLocked();
     }
     private void reconcileLocked()throws IOException {
+        HistoryControlStore.Inspection control=control(true);
+        if(control.pins.stages.stream().anyMatch(entry->entry.filename.endsWith(".close.stage")))throw new IOException("CLOSE stage requires explicit quiesced recovery");
+        HistoryOperations ops=operations();HistoryOperations.AuditQuiescence audit=ops.retainedAuditsNowLocked();List<HistoryOperations.Claim> claims=ops.claimAuditsLocked(audit);
+        try{reconcileLocked(null,claims);for(HistoryOperations.Claim claim:claims)claim.finish();}finally{for(HistoryOperations.Claim claim:claims)claim.close();}
+    }
+    private void reconcileLocked(HistoryOperations.Claim terminal,List<HistoryOperations.Claim> audits)throws IOException {
         HistoryControlStore.Inspection before=control(true);HistoryPinRecord newlyClosed=null;
         if(!before.pins.stages.isEmpty()){
             if(before.pins.stages.size()!=1)throw new IOException("Conflicting pin stages");HistoryControlStore.Entry stage=before.pins.stages.get(0);
@@ -62,7 +97,7 @@ final class HistoryPins {
         durability.syncDirectory(parent);for(File root:roots)durability.syncDirectory(root);durability.syncDirectory(controlRoot);
         HistoryControlStore.Inspection after=control(true);unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);
         checkCaptured(protectedFiles);if(protectedSource!=null)validateSources(protectedSource);checkNative(nativeBefore);
-        acknowledge(after);
+        if(terminal!=null)terminal.validate();for(HistoryOperations.Claim audit:audits)audit.validate();acknowledge(after);
     }
     String begin(Purpose purpose,Scope scope,Collection<String> snapshotIds,ManifestIdentity manifest)throws IOException {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
@@ -77,34 +112,69 @@ final class HistoryPins {
             publish(before,begin.name(),bytes,false,begin);acknowledge(control());return begin.operation.toString();
         }}
     }
-    /** Exact input binding only: neither output progress nor provider authority is reconstructed. */
+    /** Description only; consumer admission is exclusively HistoryOperations.activateAcknowledged. */
     HistoryPinRecord resume(String operationId,InputStream originalManifest)throws IOException {
+        synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){return operationResumeLocked(operationId,originalManifest);}}
+    }
+    /** Retained to fail explicitly for old callers, never synthesizes quiescence. */
+    void close(String operationId,Outcome outcome,InputStream originalManifest)throws IOException {
+        throw new IOException("Exact operation quiescence capability required");
+    }
+    void close(HistoryOperations.Quiescence capability,Outcome outcome,InputStream originalManifest)throws IOException {
+        HistoryOperations.rejectParticipant();if(capability==null||outcome==null)throw new IOException("Missing terminal capability/outcome");
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
-            HistoryStorage.requireOperational(store.storageRoot());HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operationId);requireAcknowledged(before);
-            Map<File,BasicFileAttributes> stable=capture(before);Map<File,BasicFileAttributes> directories=captureDirectories();Map<File,BasicFileAttributes> protectedFiles=captureSources(active);
-            manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);return active;
+            HistoryStorage.requireOperational(store.storageRoot());HistoryControlStore.Inspection before=control();
+            HistoryPinRecord begin=find(before.pins.begins,UUID.fromString(capability.operation()));if(begin==null)throw new IOException("Unknown pin");
+            HistoryPinRecord closed=find(before.pins.closes,begin.operation);
+            if(closed!=null){operations().validateCommittedLocked(capability,begin);if(closed.outcome!=outcome)throw new IOException("Conflicting immutable pin outcome");reconcileLocked();return;}
+            try(HistoryOperations.Claim claim=operations().claimLocked(capability,begin)){
+                if(!before.pins.stages.isEmpty())throw new IOException("Retained CLOSE requires explicit recoverClose");
+                requireReady();active(before,begin.operation.toString());requireAcknowledged(before);
+                Map<File,BasicFileAttributes> stable=capture(before),directories=captureDirectories(),protectedFiles=captureSources(begin);NativeEvidence nativeBefore=begin.scope==Scope.ALL_BUNDLE?nativeEvidence():null;
+                if(outcome==Outcome.RELEASED||originalManifest!=null)manifest(begin,originalManifest);
+                validateSources(begin);requireReady();HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(begin);checkNative(nativeBefore);claim.validate();
+                if(after.pins.reservedBytes!=CLOSE_BYTES||after.pins.reservedEntries!=1)throw new IOException("Missing exact close reservation");
+                publish(after,"pin-"+begin.operation+".close",HistoryPinRecord.close(begin,outcome),false,begin);claim.validate();acknowledge(control());claim.finish();
+            }
         }}
     }
-    void close(String operationId,Outcome outcome,InputStream originalManifest)throws IOException {
+    enum RecoveryChoice {CANCEL_UNBOUND,RECOVER_BOUND}
+    void recoverClose(HistoryOperations.Quiescence capability,RecoveryChoice choice,InputStream originalManifest)throws IOException {
+        recoverClose(capability,choice,originalManifest,event->{});
+    }
+    void recoverClose(HistoryOperations.Quiescence capability,RecoveryChoice choice,InputStream originalManifest,HistoryPinTerminalRecovery.Boundary boundary)throws IOException {
+        HistoryOperations.rejectParticipant();if(capability==null||choice==null||boundary==null)throw new IOException("Missing terminal recovery authority");
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
-            HistoryStorage.requireOperational(store.storageRoot());if(outcome==null)throw new IOException("Missing pin outcome");HistoryMetadataIO.id(operationId);UUID operation=UUID.fromString(operationId);
-            HistoryControlStore.Inspection before=control();HistoryPinRecord begin=find(before.pins.begins,operation);if(begin==null)throw new IOException("Unknown pin");
-            HistoryPinRecord closed=find(before.pins.closes,operation);
-            if(closed!=null){if(closed.outcome!=outcome)throw new IOException("Conflicting immutable pin outcome");reconcileLocked();return;}
-            byte[] expected=HistoryPinRecord.close(begin,outcome);
-            if(!before.pins.stages.isEmpty()){
-                if(before.pins.stages.size()!=1||before.pins.stages.get(0).pin==null||before.pins.stages.get(0).pin.begin
-                        ||!before.pins.stages.get(0).pin.envelopeHash.equals(HistoryStorage.hex(HistoryStorage.digest().digest(expected))))throw new IOException("Partial/conflicting CLOSE retained");
-                reconcileLocked();return;
+            HistoryStorage.requireOperational(store.storageRoot());HistoryControlStore.Inspection before=control();HistoryPinRecord begin=find(before.pins.begins,UUID.fromString(capability.operation()));
+            if(begin==null)throw new IOException("Missing committed BEGIN");
+            try(HistoryOperations.Claim claim=operations().claimLocked(capability,begin)){
+                if(before.pins.stages.size()!=1)throw new IOException("Exactly one retained CLOSE stage required");HistoryControlStore.Entry entry=before.pins.stages.get(0);
+                String name="pin-"+begin.operation+".close";File stage=file(name+".stage");
+                if(!entry.filename.equals(name+".stage")||entry.length<0||entry.length>CLOSE_BYTES)throw new IOException("Foreign terminal stage");
+                byte[] cancelled=HistoryPinRecord.close(begin,Outcome.CANCELLED),released=HistoryPinRecord.close(begin,Outcome.RELEASED),expected;Outcome outcome;
+                if(entry.length<=93){if(choice!=RecoveryChoice.CANCEL_UNBOUND)throw new IOException("Explicit unbound cancellation required");outcome=Outcome.CANCELLED;expected=cancelled;}
+                else{if(choice!=RecoveryChoice.RECOVER_BOUND)throw new IOException("Bound outcome cannot change");
+                    if(entry.pinPrefix(released)){outcome=Outcome.RELEASED;expected=released;}else if(entry.pinPrefix(cancelled)){outcome=Outcome.CANCELLED;expected=cancelled;}else throw new IOException("Unknown CLOSE prefix");}
+                if(!entry.pinPrefix(expected))throw new IOException("Noncanonical terminal prefix");
+                HistoryOperations ops=operations();List<HistoryOperations.Claim> audits=ops.claimAuditsLocked(ops.retainedAuditsNowLocked());
+                try{
+                Map<File,BasicFileAttributes> stable=capture(before),directories=captureDirectories(),protectedFiles=captureSources(begin);NativeEvidence nativeBefore=begin.scope==Scope.ALL_BUNDLE?nativeEvidence():null;
+                if(outcome==Outcome.RELEASED||originalManifest!=null)manifest(begin,originalManifest);
+                // Dedicated read-only reconciliation never enables ordinary capacity readiness.
+                for(HistoryControlStore.Entry control:before.entries){File file=file(control.filename);sync(file,read(file),attributes(file));}
+                durability.syncDirectory(parent);for(File role:roots)durability.syncDirectory(role);durability.syncDirectory(controlRoot);
+                HistoryPinTerminalRecovery.Validation validation=()->{
+                    HistoryControlStore.Inspection current=control();unchanged(before,current,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(begin);checkNative(nativeBefore);claim.validate();
+                };
+                validation.check();
+                if(entry.length<CLOSE_BYTES){HistoryStorage.changed(store.storageRoot());HistoryPinTerminalRecovery.append(stage,expected,validation,boundary);}
+                HistoryControlStore.Inspection appended=control();unchanged(before,appended,Collections.singleton(name+".stage"));
+                BasicFileAttributes oldStage=stable.remove(stage),now=attributes(stage);
+                if(!now.isRegularFile()||oldStage.fileKey()==null||!Objects.equals(oldStage.fileKey(),now.fileKey())||!oldStage.creationTime().equals(now.creationTime())||!Arrays.equals(expected,read(stage)))throw new IOException("Recovered CLOSE inode/bytes changed");
+                checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(begin);checkNative(nativeBefore);claim.validate();
+                publish(appended,name,expected,true,begin);claim.validate();for(HistoryOperations.Claim audit:audits)audit.validate();acknowledge(control());claim.finish();for(HistoryOperations.Claim audit:audits)audit.finish();
+                }finally{for(HistoryOperations.Claim audit:audits)audit.close();}
             }
-            requireReady();active(before,operationId);requireAcknowledged(before);
-            Map<File,BasicFileAttributes> stable=capture(before);Map<File,BasicFileAttributes> directories=captureDirectories();
-            Map<File,BasicFileAttributes> protectedFiles=captureSources(begin);NativeEvidence nativeBefore=begin.scope==Scope.ALL_BUNDLE?nativeEvidence():null;
-            if(outcome==Outcome.RELEASED||originalManifest!=null)manifest(begin,originalManifest);
-            validateSources(begin);
-            requireReady();HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(begin);checkNative(nativeBefore);
-            if(after.pins.reservedBytes!=CLOSE_BYTES||after.pins.reservedEntries!=1)throw new IOException("Missing exact close reservation");
-            publish(after,"pin-"+operation+".close",expected,false,begin);acknowledge(control());
         }}
     }
     private void manifest(HistoryPinRecord begin,InputStream input)throws IOException {
@@ -129,7 +199,7 @@ final class HistoryPins {
         if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()||!control.pins.valid
                 ||control.actualBytes>HistoryControlStore.MAX_BYTES-control.pins.reservedBytes||control.actualEntries>HistoryControlStore.MAX_ENTRIES-control.pins.reservedEntries)throw new IOException("Incomplete pin control authority");
         if(control.hasMaintenance()&&!(auditOnly&&control.committedIntent!=null&&control.committedIntent.intent!=null&&control.intentStage==null
-                &&control.pins.present&&control.pins.active==null&&control.pins.stages.isEmpty()))throw new IOException("Maintenance incompatible with pin operation");
+                &&control.pins.active==null&&control.pins.stages.isEmpty()))throw new IOException("Maintenance incompatible with pin operation");
         boolean marker=false;for(HistoryControlStore.Entry entry:control.entries)if(HistoryControlStore.ENROLLMENT_NAME.equals(entry.filename)&&control.registration.envelopeHash.equals(entry.envelopeHash))marker=true;
         if(!marker||control.registration.bootstrapQuotaBytes!=store.constructorQuotaBytes())throw new IOException("Invalid pin enrollment/bootstrap");
         for(int i=0;i<4;i++)if(!control.registration.roles.get(i).basename.equals(roots.get(i).getName()))throw new IOException("Foreign pin role bundle");return control;
@@ -184,6 +254,7 @@ final class HistoryPins {
     }
     private void acknowledge(HistoryControlStore.Inspection control)throws IOException {
         if(!control.pins.stages.isEmpty())throw new IOException("Unreconciled pin stage");
+        operations().requireAcknowledgementLocked(control);
         Map<File,BasicFileAttributes> files=capture(control),directories=captureDirectories();Map<String,String> records=pinRecords(control);
         HistoryStorage.changed(store.storageRoot());acknowledged=control.pins.fingerprint;acknowledgedFiles=Collections.unmodifiableMap(files);
         acknowledgedDirectories=Collections.unmodifiableMap(directories);retainedPins=Collections.unmodifiableMap(records);HistoryStorage.pins(store.storageRoot(),this);
