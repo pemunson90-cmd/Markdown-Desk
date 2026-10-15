@@ -117,14 +117,26 @@ prove the whole coordinator fits16MiB. Canonical inputs preserve the original nu
 profile and shared budget; witnesses confer no authority. The witness runner is
 registered once; this update ran shell syntax/diff checks only.
 
-Next: the C-owned original-baseline raw inventory/source seam is required before full
-B1 Selection/Plan assembly. Existing ledger DTOs lack real controls and old failed-stage
-bytes; never fabricate them. The portable worker is preparing the source brief; no C
-source implementation is claimed. For the unimplemented retained-receipt root, first
-verify ABSENCE in the shared canonical namespace; fail closed if present or unclassified.
-Actual adoption/route4 and repeated restore→export remain required before feature
-completion. Sequence: C raw sources → B1 producer → publication/authentic routing →
-coordinators/UI. Cold completion implementation remains blocked on an authentic persisted
+Portable baseline sources at exact `cce8a6ee34785b889ff58aa7ea142c8640711347` have
+independent spec/quality APPROVAL and are integrated at `fb22bff4`; root verified exact
+Store/fixture matches. Worker focused59 plus large1 PASS: a 9,437,187-byte UNKNOWN stage
+with 36MiB held under `-Xmx48m`. Review duplicated no tests. Canonical hashes and generic
+admission predicates are unchanged. One owned cursor exposes 72 policy rows, original
+provenance, exact physical/missing credits and canonical `private_retained` absence only.
+Additive read-only funded missing-root inventory preserves credits via
+`sourceOnlyMissingRoot`; generic historical capture/Graph/native admission still rejects
+that state and B1 must refuse it. A snapshot grants no write authority. Strict original
+C0/L0/tree checks apply PRE-P only; B2 must compose authentic exact own transport
+transitions, never ignore filename prefixes. The baseline runner is registered once;
+this documentation/runner update ran only shell syntax and diff checks.
+
+Next: B1 isolated producer work is active from `fb22bff4`, owning Plan, new Selection,
+optional concrete SourceCatalog and new fixtures. Assemble actual inventory/catalog/
+capsule/witness sources and prove shared16MiB fit before P; then publication/authentic
+routing, runtime activation, coordinators and UI remain pending. The retained-receipt
+root is not implemented: verify shared canonical namespace ABSENCE first and fail closed
+if present/unclassified. Actual adoption/route4 and repeated restore→export remain
+required before feature completion. Cold completion implementation remains blocked on an authentic persisted
 original profile. Contract `28147af8`
 (plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
 APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:

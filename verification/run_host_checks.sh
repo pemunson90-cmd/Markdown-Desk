@@ -68,6 +68,7 @@ bash verification/history_operation_data/run.sh
 bash verification/capture_native_sources/run.sh
 bash verification/capture_source_ownership/run.sh
 bash verification/capture_witnesses/run.sh
+bash verification/portable_baseline/run.sh
 bash verification/private_frame_preflight/run.sh
 bash verification/private_capture_plan/run.sh
 bash verification/private_capture_writer/run.sh
