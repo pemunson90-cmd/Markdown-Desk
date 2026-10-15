@@ -249,24 +249,28 @@ final class PrivateCapturePlan {
         /** Retry only the actual retained cursor; never clear uncertain Source ownership. */
         void retrySourceClose()throws IOException {if(pending!=null)pending.close();}
         private final class EvidenceCursor implements PrivateOperationEvidence.Cursor {
-            private PrivateOperationStore.PortableBaseline.BaselineCursor physical;private int at=-1;private EvidenceSlot current;private InputStream raw;private boolean ended,rowOpened,rowDone;
+            private PrivateOperationStore.PortableBaseline.BaselineCursor physical;private int at=-1;private EvidenceSlot current;private InputStream raw,witnessReader;private boolean ended,abandoning,rowOpened,rowDone;
             public PrivateOperationEvidence.Row next()throws IOException {
-                if(ended||raw!=null||current!=null&&!rowDone)throw invalid("Evidence row must reach EOF and close before advance");at++;rowOpened=false;rowDone=false;
+                if(ended||abandoning||raw!=null||current!=null&&!rowDone)throw invalid("Evidence row must reach EOF and close before advance");at++;rowOpened=false;rowDone=false;
                 if(at>=evidence.size()){current=null;if(physical.next()!=null)throw invalid("Extra original evidence row");return null;}
                 current=evidence.get(at);if(current.witness==null&&physical.next()!=current.row)throw invalid("Original evidence identity/order changed");return current.row;
             }
             public InputStream openRaw()throws IOException {
-                if(ended||current==null||raw!=null||rowOpened)throw invalid("No unopened evidence row");budget.charge(512);
+                if(ended||abandoning||current==null||raw!=null||rowOpened)throw invalid("No unopened evidence row");budget.charge(512);
                 InputStream input=current.witness==null?physical.openRaw(current.row):current.witness.open();
-                rowOpened=true;
+                if(current.witness!=null)witnessReader=input;rowOpened=true;
                 raw=new FilterInputStream(input){private boolean done;private long left=current.row.actualLength;
-                    public int read()throws IOException {int n=super.read();if(n>=0)left--;return n;}
-                    public int read(byte[] b,int off,int len)throws IOException {int n=in.read(b,off,len);if(n>0)left-=n;return n;}
-                    public void close()throws IOException {if(!done){if(left!=0||in.read()!=-1)throw invalid("Evidence row not completely consumed");super.close();done=true;rowDone=true;raw=null;}}
+                    private void ready()throws IOException {if(ended||abandoning||done)throw invalid("Evidence row reader closed/abandoned");}
+                    public int read()throws IOException {ready();int n=super.read();if(n>=0)left--;return n;}
+                    public int read(byte[] b,int off,int len)throws IOException {ready();int n=in.read(b,off,len);if(n>0)left-=n;return n;}
+                    public void close()throws IOException {if(done||ended)return;ready();if(left!=0||in.read()!=-1)throw invalid("Evidence row not completely consumed");super.close();witnessReader=null;done=true;rowDone=true;raw=null;}
                 };return raw;
             }
             public void close()throws IOException {
-                if(ended)return;if(raw!=null&&current.witness!=null)raw.close();
+                if(ended)return;abandoning=true;
+                // Whole-cursor abandonment proves actual closure, never row EOF/hash or
+                // completion. Keep the exact delegate until its close succeeds for retry.
+                if(witnessReader!=null){witnessReader.close();witnessReader=null;raw=null;}
                 if(physical!=null)physical.close();ended=true;pending=null;raw=null;
             }
         }

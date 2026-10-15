@@ -89,7 +89,9 @@ final class PrivateFramePreflight {
         final UUID itemId,artifactId;
         final long envelopeBytes;
         final String envelopeHash,sourceTabIdHash;
+        private final String scalarCommitment;
         private ClosedFrame(Attempt a,PrivateStateCodec.Record decoded,long length,String hash)throws IOException {
+            scalarCommitment=PrivateStateCodec.scalarCommitment(decoded.kind,decoded.tab,decoded.recovery,decoded.preferences);
             owner=a.workspace.owner;kind=a.kind;ordinal=a.ordinal;itemId=a.itemId;artifactId=a.artifactId;
             envelopeBytes=length;envelopeHash=hash;payloadBytes=decoded.payloadBytes;utf16Units=decoded.utf16Units;
             // readString already proved strict UTF8; retain only a bounded identity
@@ -98,6 +100,7 @@ final class PrivateFramePreflight {
                 HistoryStorage.hex(HistoryStorage.digest().digest(decoded.tab.sourceTabId.getBytes(StandardCharsets.UTF_8))):null;
         }
         boolean belongsTo(PreparationSources expectedOwner){return owner==expectedOwner;}
+        boolean matchesScalars(String expected){return scalarCommitment.equals(expected);}
     }
     /** Byte/actual-close evidence for exactly one expected frame and internal sink token.
      * No stage promotion, durable acknowledgement or captured-bundle authority.
@@ -150,13 +153,17 @@ final class PrivateFramePreflight {
                     public void write(int b){}public void write(byte[] b,int o,int n){}
                 });
                 if(decoded.kind!=kind)throw invalid("Raw frame kind differs from frozen request");
+                // The read workspace already funds decoded scalars; fund the additional
+                // canonical encoder/digest and retained commitment before allocating it.
+                workspace.owner.reserveMetadata(workspace.budget,PrivateStateCodec.scalarCommitmentCharge(decoded.kind,decoded.tab,decoded.recovery,decoded.preferences));
                 ClosedFrame observed=new ClosedFrame(this,decoded,input.count,HistoryStorage.hex(input.digest.digest()));
                 if(expected==null)result=observed;
                 else {
                     if(observed.kind!=expected.kind||observed.ordinal!=expected.ordinal||!observed.itemId.equals(expected.itemId)
                             ||!observed.artifactId.equals(expected.artifactId)||observed.envelopeBytes!=expected.envelopeBytes
                             ||!observed.envelopeHash.equals(expected.envelopeHash)||observed.payloadBytes!=expected.payloadBytes
-                            ||observed.utf16Units!=expected.utf16Units||!Objects.equals(observed.sourceTabIdHash,expected.sourceTabIdHash))
+                            ||observed.utf16Units!=expected.utf16Units||!Objects.equals(observed.sourceTabIdHash,expected.sourceTabIdHash)
+                            ||!observed.scalarCommitment.equals(expected.scalarCommitment))
                         throw invalid("Copied raw frame differs from original preflight");
                     result=new CopiedFrame(workspace.owner,expected,sinkIdentity);
                 }

@@ -27,3 +27,13 @@ budget debit/headroom. Writer/copy/activation/readback overlap on that same orig
 budget remains the next B2 integration obligation; producer success does not prove
 that overlap fits. C1 strict originals also require a later authentic own-transport
 transition after PREPARE, with no filename-prefix or caller-boolean exception.
+
+Review regressions bind every selected tab/recovery scalar and all eight preference
+key/value pairs to commitments privately captured from actual preflight decodes.
+The codec streams its existing canonical metadata writers for both commitments;
+new workspace/hash admissions use actual bounded scalar lengths on the original
+budget. A12-tab+recovery+preferences fixture preserves all14 supported private rows.
+Whole-cursor abandonment closes the actual failed witness and physical reader;
+normal row closure still requires EOF, while genuine closure uncertainty retains
+its actual cursor/owner for retry. Existing PrivateStateCheck is also compiled/run
+separately once when those canonical metadata writers change.
