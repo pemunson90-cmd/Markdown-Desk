@@ -145,6 +145,9 @@ public final class PrivateOperationEvidence {
         final Map<UUID,HistoryPinRecord> begins=new HashMap<>(),closes=new HashMap<>();
         final List<HistoryPinRecord> ownedPins=new ArrayList<>();
         final Set<UUID> ownedPinNodes=new HashSet<>();
+        // One physical control namespace, independent of the row's preparation annotation.
+        // Lazy allocation follows a debit to the same retained owner, never a second allowance.
+        Set<String> controlSlots;
         final List<PrivateOperationRecord> preparations=new ArrayList<>();
         final PrivateBundleInventory.Reservation reservation;
         Validation(PrivateBundleInventory.Reservation reservation){this.reservation=reservation;}
@@ -161,6 +164,13 @@ public final class PrivateOperationEvidence {
                 require(committed<=256,"Source control namespace limit");controls=(int)committed;
                 controlBytes=add(controlBytes,add(row.actualLength,row.futureBytes));
                 require(controlBytes<=HistoryControlStore.MAX_BYTES,"Source control byte/reservation limit");
+                if(controlSlots==null) {
+                    reservation.grow(512);extraMetadata+=512;controlSlots=new HashSet<>();
+                }
+                // Includes alias String, hash node/table growth and temporary insertion workspace.
+                long charge=384L+2L*row.name.length();reservation.grow(charge);extraMetadata+=charge;
+                String slot=row.state==3?row.name.substring(0,row.name.length()-6):row.name;
+                require(controlSlots.add(slot),"Duplicate global control slot");
             } else if(row.role==2||row.role==3) {
                 slots=add(slots,add(row.state==0?0:1,row.futureSlots));
                 require(slots<=65536,"Source operation namespace limit");

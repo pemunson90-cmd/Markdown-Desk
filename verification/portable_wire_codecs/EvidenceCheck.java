@@ -55,7 +55,36 @@ public final class EvidenceCheck {
         rejects(()->PrivateOperationEvidence.read(new ByteArrayInputStream(wire),r->{throw new IOException("sink");},budget),"sink failure");check(budget.usedBytes()==0,"failure releases reservation");
         List<Item> relation=new ArrayList<>(failed);PrivateOperationEvidence.Row old=failed.get(0).row;relation.set(0,new Item(row(2,PREP,NODE,6,3,old.name,100,NIL,3,old.actualHash,97,0,1),failed.get(0).raw));rejects(()->read(fixture(relation)),"unproved prefix relation");
         List<Item> path=new ArrayList<>(failed);path.set(0,new Item(row(2,PREP,NODE,6,3,"../bad",100,NIL,3,old.actualHash,97,0,0),failed.get(0).raw));rejects(()->read(fixture(path)),"path basename");
-        boundaries(base,failed);policyChain(base);legacy(base);large(base);System.out.println("EvidenceCheck PASS "+checks+" checks");
+        globalControlSlots(base);boundaries(base,failed);policyChain(base);legacy(base);large(base);System.out.println("EvidenceCheck PASS "+checks+" checks");
+    }
+    static Item stagedPin(UUID owner,UUID node,int kind) {
+        return new Item(row(1,owner,node,kind,3,"pin-"+node+(kind==3?".begin.stage":".close.stage"),1,EMPTY,0,EMPTY,1,0,0),new byte[0]);
+    }
+    static void collision(List<Item> rows,String why)throws Exception {
+        byte[] wire=fixture(rows);PrivateBundleInventory.MetadataBudget budget=new PrivateBundleInventory.MetadataBudget();
+        for(boolean writing:new boolean[]{false,true}) {
+            try(PrivateOperationEvidence.Summary ignored=writing?PrivateOperationEvidence.write(source(rows),new ByteArrayOutputStream(),budget):
+                    PrivateOperationEvidence.read(new ByteArrayInputStream(wire),null,budget)) {throw new AssertionError("Accepted "+why+(writing?" writer":" reader"));}
+            catch(IOException expected){check(expected.getMessage().contains("Duplicate global control slot"),why+" rejected at global identity check");}
+            check(budget.usedBytes()==0,why+" releases local owner");
+        }
+    }
+    static void globalControlSlots(List<Item> base)throws Exception {
+        UUID other=UUID.fromString("22345678-1234-4234-8234-123456789abc"),unrelated=UUID.fromString("97654321-4321-4321-8321-987654321abc");
+        // Independently packed reviewer repro: owner annotations do not create another physical pin slot.
+        List<Item> same=new ArrayList<>();same.add(stagedPin(PREP,NODE,3));same.add(stagedPin(other,NODE,3));same.addAll(base);
+        collision(same,"same global basename under different owners");
+        List<Item> apart=new ArrayList<>();apart.add(stagedPin(PREP,NODE,3));apart.add(stagedPin(PREP,unrelated,4));apart.add(stagedPin(other,NODE,3));apart.addAll(base);
+        collision(apart,"nonadjacent owner collision");
+        HistoryControlStore.Registration registration=(HistoryControlStore.Registration)HistoryControlStore.decode(base.get(4).raw);
+        HistoryPinRecord begin=HistoryPinRecord.begin(NODE,registration,registration,HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,
+            new HistoryPinRecord.Manifest(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,0,EMPTY),Collections.emptyList());byte[] raw=HistoryPinRecord.encode(begin);
+        List<Item> aliases=new ArrayList<>(apart);aliases.set(2,new Item(row(1,other,NODE,3,2,begin.name(),raw.length,sha(raw),raw.length,sha(raw),0,0,0),raw));
+        collision(aliases,"nonadjacent global stage/final alias");
+        List<Item> distinct=new ArrayList<>();distinct.add(stagedPin(PREP,NODE,3));distinct.add(stagedPin(other,NODE,4));distinct.addAll(base);
+        read(fixture(distinct));checks++;
+        ByteArrayOutputStream out=new ByteArrayOutputStream();try(PrivateOperationEvidence.Summary ignored=PrivateOperationEvidence.write(source(distinct),out,new PrivateBundleInventory.MetadataBudget())){}
+        check(Arrays.equals(fixture(distinct),out.toByteArray()),"BEGIN/CLOSE names remain distinct slots across owners");
     }
     static void boundaries(List<Item> base,List<Item> failed)throws Exception {
         byte[] empty=fixture(Collections.emptyList());read(empty);checks++;
