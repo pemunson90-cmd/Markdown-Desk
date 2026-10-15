@@ -7,9 +7,9 @@ maps retained M0–M7 obligations and dependencies. Lead self-review is complete
 independent whole-campaign review remains NOT RUN. Main/origin main remains
 `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
 `codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
-last pushed head is `2b78efd`. Root active branch is committed at
-`1ee52fd164b08150e28cbf21cd9fe50603eca72d`; it includes normal merged, reviewed
-preflight and record assembly plus the current writer checkpoint.
+last pushed head is `7542952`. Root active branch includes the reviewed writer
+`92e41bb` and committed copy helper `b4bd0c9`; the helper will be batch-pushed
+after review.
 
 The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
 It ran the required host suite once and audited two fresh unsigned builds, both
@@ -29,21 +29,25 @@ original C0 control and L0 ledger hashes before P. A legacy PIN BEGIN→CANCELLE
 CLOSED can change C0/fullGraph while leaving L0 unchanged; this counterprobe
 reproduced and requires a guard. Plan authority alone does not authorize P.
 
-PrivateCaptureWriter is committed on the root active branch, but independent
-writer review remains pending. Its 81 focused assertions pass and cover P/funded
-directories/native map/D,
-including callbacks, target failpoints, same-bytes replacements, foreign operation
-data, legacy private-file metadata, stale-plan legacy PIN, and a callback claim
-while an FD is open. It does not yet copy private payloads, complete final BEGIN/LINK,
-hand off sources, cold-recover, or prove the whole heap. PreparationSources has
-181 focused assertions passing. The source worker owns Writer/Sources/tests and two runner lines; root owns
-orchestration/integration. `accounting_repair_review` is the independent reviewer.
+PrivateCaptureWriter exact commit `92e41bb5827cf7d1d553bbe720744f20f239538e` is
+independently APPROVED. Its targeted runner passed 87 assertions; independent review
+passed 4 scenarios. Review found and fixed a cached installed-capacity/readiness bug
+with a narrow provenance getter and fresh identity/readiness checks after each
+callback. Approval remains scoped to this exact writer; the production sink,
+BEGIN/LINK, handoff, recovery and whole-heap proof are excluded.
+
+Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is committed on root HEAD.
+Existing preflight 30 and new copy 16 cases pass; independent copy review is pending.
+The actual production sink, final BEGIN/LINK, handoff, recovery and heap proof remain
+open. PreparationSources has 181 focused assertions passing. The source worker owns
+source/tests; root owns orchestration/integration. `accounting_repair_review` is the
+independent reviewer. No newer full gate/build/CI covers C2.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: obtain independent review of the committed writer, then complete coherent
-producer, private-copy closure, exact typed transitions,
+Next: obtain independent copy-helper review, then complete coherent producer,
+actual production sink, exact typed transitions,
 final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
 proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
 plan review remains NOT RUN, and scoped source approvals do not satisfy it.
