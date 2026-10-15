@@ -15,7 +15,8 @@ cannot assemble. This initial idle check grants no final source quiescence proof
 
 The result retains final references/scalars only:
 `nativeMap`, `nativeSources`, `sourceOwner`, immutable `privateFrames`, `prepare`,
-`descriptor`, `link`, `initialLedgerHash` and summed new `artifactBytes`. It retains
+`descriptor`, `link`, `initialLedgerHash`, transient `initialControlHash` and summed
+new `artifactBytes`. It retains
 no factories, source payloads, serialized map array or decoded private-state Record.
 The caller must already charge the live map/Graph/control/ledger, immutable captures
 and preflight ownership to the same budget. Assembly reserves **256 KiB fixed plus
@@ -65,11 +66,25 @@ preparation directory +artifact slots <=65,536. Overflow fails closed. Native by
 are not copied into operation data; the new map stores their exact frozen mapping.
 A valid record plan is neither durable funding nor publication/activation authority.
 
-Focused evidence: **28 scenario groups**, primarily real native backends and codec
+The transient initialControlHash binds the original supplied C0: SHA-256 of ASCII
+`MDOP-initial-control-v1\n`, big-endian i32 entry count, then all entries sorted by
+filename, each as big-endian i32 UTF-8 name length + name bytes + i64 length + raw32
+envelope hash + u8 stage. Its bounded <=256-reference sort table, name temporaries
+and 64-hex result fit the assembly's existing fixed reserve. Fresh standalone callers
+must likewise prepay transient workspace. It adds no MDOP/P/map wire field; the
+original full graph hash remains persisted within the frozen map. The writer MUST
+compare a fresh control hash with this original value before its first PREPARE and
+before capturing a physical baseline. A newly CLOSED legacy domain1 pin can leave
+the operation ledger unchanged; metadata-only assembly deliberately preserves the
+supplied C0 and may still return an old plan, which grants no publication authority.
+This hash binds control names/bytes/stages, without cross-discovery old-inode claims.
+
+Focused evidence: **29 scenario groups**, primarily real native backends and codec
 frames: zero-native exact preparation identity/distinct descriptors, native completion
 credit, all14 frames and presence flags, order/ordinal/prefs/source-ID/owner/UUID
 rejection, immutable list isolation, absent/present ledger goldens and MDOP roundtrips,
-mutated/null ledger tables, stale graph/policy, live/frozen owners and budget failure,
+mutated/null ledger tables, control digest re-read/permutation stability, new CLOSED
+legacy-pin divergence with unchanged absent ledger, stale graph/policy, live/frozen owners and budget failure,
 pending captures/active pins/stages/unknown namespace, and prior acknowledged CLOSED
 capture with no source-owner reset. Nine real 8 MiB frames reject 64 MiB quota and
 pass after a fresh 128 MiB policy capture. A real valid 253-entry control chain rejects

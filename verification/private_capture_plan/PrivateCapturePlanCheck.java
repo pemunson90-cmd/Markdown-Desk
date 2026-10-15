@@ -208,6 +208,37 @@ public final class PrivateCapturePlanCheck {
             f.capacity.reconcile();f.refresh();f.locked(()->{check(f.control.actualEntries==253&&f.graph.complete,"valid near-limit control backend");try{f.create(Collections.emptyList());throw new AssertionError("Accepted unfunded four control slots");}catch(IOException expected){check(expected.getMessage().contains("funding"),"actual control slots reject new capture");}});scenarios++;
         }
     }
+    static HistoryControlStore.Inspection permuted(HistoryControlStore.Inspection c)throws Exception {
+        List<HistoryControlStore.Entry> entries=new ArrayList<>(c.entries);Collections.reverse(entries);
+        Constructor<HistoryControlStore.Inspection> make=HistoryControlStore.Inspection.class.getDeclaredConstructor(HistoryControlStore.State.class,HistoryControlStore.Registration.class,HistoryControlStore.Record.class,List.class,List.class,long.class,int.class,boolean.class,boolean.class,List.class);make.setAccessible(true);
+        return make.newInstance(c.state,c.registration,c.latest,entries,c.stages,c.actualBytes,c.actualEntries,c.usageComplete,c.chainComplete,c.diagnostics);
+    }
+    static String independentControlHash(HistoryControlStore.Inspection c)throws IOException {
+        List<HistoryControlStore.Entry> rows=new ArrayList<>(c.entries);rows.sort(Comparator.comparing(e->e.filename));
+        ByteArrayOutputStream bytes=new ByteArrayOutputStream();DataOutputStream out=new DataOutputStream(bytes);
+        out.write("MDOP-initial-control-v1\n".getBytes(StandardCharsets.US_ASCII));out.writeInt(rows.size());
+        for(HistoryControlStore.Entry e:rows){byte[] name=e.filename.getBytes(StandardCharsets.UTF_8);out.writeInt(name.length);out.write(name);out.writeLong(e.length);for(int i=0;i<32;i++)out.writeByte(Integer.parseInt(e.envelopeHash.substring(2*i,2*i+2),16));out.writeByte(e.stage?1:0);}
+        return PrivateOperationRecord.sha(bytes.toByteArray());
+    }
+    static void initialControlBinding()throws Exception {
+        try(F f=new F(false)){f.locked(()->{
+            PrivateCapturePlan original=f.create(Collections.emptyList());
+            check(original.initialControlHash.equals(PrivateCapturePlan.initialControlHash(f.control)),"plan retains original complete control binding");
+            check(original.initialControlHash.equals(independentControlHash(f.control)),"independent exact control domain/count/UTF8/length/SHA/stage encoding");
+            check(original.initialControlHash.equals(PrivateCapturePlan.initialControlHash(new HistoryControlStore(f.parent.toFile()).inspect())),"fresh unchanged inspection has stable digest");
+            check(original.initialControlHash.equals(PrivateCapturePlan.initialControlHash(permuted(f.control))),"physical enumeration permutation does not change digest");
+            HistoryPinRecord begin=HistoryPinRecord.begin(UUID.randomUUID(),f.control.registration,f.control.latest,HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,new HistoryPinRecord.Manifest(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,0,PrivateOperationRecord.sha(new byte[0])),Collections.emptyList());
+            Files.write(f.parent.resolve("history_control/"+begin.name()),HistoryPinRecord.encode(begin));Files.write(f.parent.resolve("history_control/pin-"+begin.operation+".close"),HistoryPinRecord.close(begin,HistoryPinRecord.Outcome.CANCELLED));
+            HistoryControlStore.Inspection fresh=new HistoryControlStore(f.parent.toFile()).inspect();PrivateOperationStore.Ledger latest=PrivateOperationStore.inspect(f.store.storageRoot(),fresh,f.budget);
+            check(fresh.pins.active==null&&fresh.pins.valid,"actual legacy pin is closed, not active");
+            check(original.initialLedgerHash.equals(PrivateCapturePlan.initialLedgerHash(latest)),"closed legacy domain1 pin leaves absent operation ledger unchanged");
+            check(!original.initialControlHash.equals(PrivateCapturePlan.initialControlHash(fresh)),"new CLOSED legacy pin changes full original-control digest");
+            check(PrivateCapturePlan.initialControlHash(fresh).equals(independentControlHash(fresh)),"fresh legacy pin entries bind count/hash/order");
+            PrivateCapturePlan metadataOnly=f.create(Collections.emptyList());
+            check(metadataOnly.initialControlHash.equals(original.initialControlHash),"pure assembly preserves supplied C0 rather than discovering/rebinding newer control");
+            check(!Files.exists(f.parent.resolve("history_control/"+metadataOnly.prepare.name())),"stale metadata planning never publishes PREPARE");
+        });scenarios++;}
+    }
     static void scalarFunding()throws Exception {
         Method admit=PrivateCapturePlan.class.getDeclaredMethod("admit",long.class,long.class,long.class,long.class,long.class,long.class,long.class,long.class,long.class,int.class,int.class);admit.setAccessible(true);
         class Probe {void call(long data,long artifacts,long quota,long control,long credit,long p,long controls,long slots,long op,int dirs)throws Exception {
@@ -224,5 +255,5 @@ public final class PrivateCapturePlanCheck {
         rejects(()->probe.call(0,1,100,0,0,100,0,65536-3,0,2),"namespace slots +1");
         rejects(()->probe.call(Long.MAX_VALUE,1,Long.MAX_VALUE,0,0,100,0,0,0,2),"overflow cannot wrap funding");scenarios++;
     }
-    public static void main(String[] args)throws Exception {nativeAndEmpty();privateTable();identitiesAndEvidence();closedCapture();existingClosedAllowed();badFreshEvidence();realQuotaAndControlAdmission();scalarFunding();System.out.println("Private capture plan: "+scenarios+" scenarios PASS");}
+    public static void main(String[] args)throws Exception {nativeAndEmpty();privateTable();identitiesAndEvidence();closedCapture();existingClosedAllowed();badFreshEvidence();realQuotaAndControlAdmission();initialControlBinding();scalarFunding();System.out.println("Private capture plan: "+scenarios+" scenarios PASS");}
 }

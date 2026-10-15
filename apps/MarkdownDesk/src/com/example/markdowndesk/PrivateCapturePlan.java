@@ -2,6 +2,9 @@ package com.example.markdowndesk;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.CodingErrorAction;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.*;
@@ -13,7 +16,7 @@ final class PrivateCapturePlan {
     final PreparationSources sourceOwner;
     final List<PrivateFramePreflight.ClosedFrame> privateFrames;
     final PrivateOperationRecord prepare,descriptor,link;
-    final String initialLedgerHash;
+    final String initialLedgerHash,initialControlHash;
     final long artifactBytes;
     private static final long FIXED_METADATA_BYTES=256L<<10,FRAME_METADATA_BYTES=4096;
 
@@ -41,6 +44,7 @@ final class PrivateCapturePlan {
                 ||graph.controlActualBytes!=control.actualBytes||graph.controlActualEntries!=control.actualEntries)
             throw invalid("Incomplete initial graph/control authority");
         validateLedger(baseLedger,graph,control);
+        String controlHash=initialControlHash(control);
         List<PrivateFramePreflight.ClosedFrame> retained=Collections.unmodifiableList(new ArrayList<>(frames));
         Set<UUID> generated=new HashSet<>();generated.add(frozen.bundleId);
         unique(generated,preparation);unique(generated,operation);unique(generated,mapId);unique(generated,descriptorId);
@@ -89,11 +93,11 @@ final class PrivateCapturePlan {
         PrivateOperationRecord link=PrivateOperationRecord.link(prepare);
         admit(graph.chargedBytes,bytes,frozen.quotaBytes,control.actualBytes,control.controlReservedBytes,prepare.encoded().length,
             add(control.actualEntries,control.controlReservedEntries),baseLedger.occupiedEntries,baseLedger.reservedEntries,namespacePresent?1:2,all.size());
-        return new PrivateCapturePlan(frozen,nativeProof,owner,retained,prepare,descriptor,link,ledgerHash,bytes);
+        return new PrivateCapturePlan(frozen,nativeProof,owner,retained,prepare,descriptor,link,ledgerHash,controlHash,bytes);
     }
     private PrivateCapturePlan(HistoryArchiveManifest map,NativeCaptureFingerprint proof,PreparationSources owner,List<PrivateFramePreflight.ClosedFrame> frames,
-            PrivateOperationRecord prepare,PrivateOperationRecord descriptor,PrivateOperationRecord link,String ledger,long bytes){
-        nativeMap=map;nativeSources=proof;sourceOwner=owner;privateFrames=frames;this.prepare=prepare;this.descriptor=descriptor;this.link=link;initialLedgerHash=ledger;artifactBytes=bytes;
+            PrivateOperationRecord prepare,PrivateOperationRecord descriptor,PrivateOperationRecord link,String ledger,String control,long bytes){
+        nativeMap=map;nativeSources=proof;sourceOwner=owner;privateFrames=frames;this.prepare=prepare;this.descriptor=descriptor;this.link=link;initialLedgerHash=ledger;initialControlHash=control;artifactBytes=bytes;
     }
     private static void validateLedger(PrivateOperationStore.Ledger ledger,HistoryGraph.Graph graph,HistoryControlStore.Inspection control)throws IOException {
         if(!ledger.complete||ledger.pending||!ledger.diagnostics.isEmpty()||ledger.actualBytes<0||ledger.reservedBytes<0||ledger.occupiedEntries<0||ledger.reservedEntries<0
@@ -124,6 +128,37 @@ final class PrivateCapturePlan {
             out.writeLong(control.controlReservedBytes);out.writeInt(control.controlReservedEntries);out.writeBoolean(ledger.complete);
         }
         if(!ledger.fingerprint.equals(HistoryStorage.hex(digest.digest())))throw invalid("Initial operation ledger fingerprint changed");
+    }
+    /**
+     * Transient original-C0 binding. The writer must compare freshly inspected
+     * control BEFORE its first PREPARE and before adopting a physical baseline.
+     * This does not replace full accounting/current authority checks or bind old
+     * inode identity across discovery. The persistent map.graphHash is unchanged.
+     * Its <=256-reference sort table/UTF8 temporaries fit assembly's fixed reserve;
+     * other callers must prepay equivalent transient workspace in their budget.
+     */
+    static String initialControlHash(HistoryControlStore.Inspection control)throws IOException {
+        if(control==null||control.entries.size()>HistoryControlStore.MAX_ENTRIES
+                ||control.entries.size()!=control.actualEntries)throw invalid("Invalid original control entry count");
+        HistoryControlStore.Entry[] entries=control.entries.toArray(new HistoryControlStore.Entry[control.entries.size()]);
+        for(HistoryControlStore.Entry e:entries)if(e==null||e.filename==null||e.filename.isEmpty()||e.filename.length()>255
+                ||e.length<0||!canonicalHash(e.envelopeHash))throw invalid("Noncanonical original control entry");
+        Arrays.sort(entries,Comparator.comparing(e->e.filename));
+        MessageDigest hash=HistoryStorage.digest();
+        try(DataOutputStream out=new DataOutputStream(new DigestOutputStream(discard(),hash))){
+            out.write("MDOP-initial-control-v1\n".getBytes(StandardCharsets.US_ASCII));out.writeInt(entries.length);
+            String previous=null;
+            for(HistoryControlStore.Entry e:entries){
+                if(e.filename.equals(previous))throw invalid("Duplicate original control name");previous=e.filename;
+                ByteBuffer name=StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(e.filename));
+                if(name.remaining()>255)throw invalid("Original control name exceeds bound");
+                out.writeInt(name.remaining());out.write(name.array(),name.arrayOffset()+name.position(),name.remaining());out.writeLong(e.length);
+                for(int i=0;i<32;i++)out.writeByte((Character.digit(e.envelopeHash.charAt(2*i),16)<<4)|Character.digit(e.envelopeHash.charAt(2*i+1),16));
+                out.writeByte(e.stage?1:0);
+            }
+        }
+        return HistoryStorage.hex(hash.digest());
     }
     /** Canonical domain conversion; caller first validates complete canonical ledger evidence. */
     static String initialLedgerHash(PrivateOperationStore.Ledger ledger)throws IOException {
