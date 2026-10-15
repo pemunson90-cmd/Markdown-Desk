@@ -3,8 +3,10 @@
 ## Current checkpoint — protected capture and scoped private backup, 2026-10-15
 
 The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
-maps retained M0–M7 obligations and dependencies. Lead self-review is complete;
-independent whole-campaign review remains NOT RUN. Main/origin main remains
+maps retained M0–M7 obligations and dependencies. Independent substantive campaign
+plan review is approved at `73372f50db109c378235406a75ca7abbf4cd85a6` against
+ROADMAP and RELEASE_GATES; reviewed plan blob `029269ba83b6897d4e0148c797db63311ddddda2`.
+Main/origin main remains
 `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
 `codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
 The approved writer `92e41bb` and copy helper `b4bd0c9` are being batch-published
@@ -49,8 +51,8 @@ candidate. Avoid duplicating full gates.
 Next: implement and review the Writer-owned provisional sink, live-prefix and
 promotion, then complete coherent producer, exact typed transitions,
 final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
-proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
-plan review remains NOT RUN, and scoped source approvals do not satisfy it.
+proofs. Continue M0–M7 directly; M1 is not complete. Source approvals remain limited to
+their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
 owner will sign the unsigned APK with the original key and test the Fold7; no device
