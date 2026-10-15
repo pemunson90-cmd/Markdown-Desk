@@ -63,9 +63,12 @@ cleanup; and overlength rejection before forwarding. Preflight 30 and copy 16 ca
 The source worker owns Writer and its fixtures for provisional sink, live-prefix and
 promotion; root owns orchestration/integration. Production sink, final BEGIN/LINK,
 handoff, recovery and heap proof remain OPEN. No newer full gate/build/CI covers C2.
-Independent whole-campaign plan review remains NOT RUN; M1 is not complete. Physical
-acceptance remains for feature completion. STATUS records the latest detailed
-checkpoint.
+Independent substantive campaign plan review is approved at
+`73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
+`029269ba83b6897d4e0148c797db63311ddddda2` against ROADMAP and RELEASE_GATES; it
+found no cycles or missing clauses. This approval is for the plan, not source. M1 is
+not complete. Physical acceptance remains for feature completion. STATUS records the
+latest detailed checkpoint.
 ## Whole-roadmap coverage and dependency map
 
 Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` unless prefixed otherwise. Existing issue IDs are reused; suffixes distinguish obligations, not new GitHub issues.
@@ -111,9 +114,9 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 
 **G1 performance prerequisite:** matched fixture host results and bounded-work/memory evidence for the changed path. During implementation, run the minimum affected tests and essential compile/build checks. At a feature-complete candidate, run broad regression, performance and migration coverage; batch device acceptance then. Do not invent device thresholds or treat host timing as physical evidence.
 
-**G2 next workspace/reader implementation:** G0/G1 plus accepted M1 storage/capture/adoption interfaces and successful host lost-work/restore journey. Do not start multiple consumers against an unfinished authority. M3 enumeration and M4 typography/anchor work can then run independently behind accepted contracts; Activity integration stays serial. Their device exit gates remain open until actual tests.
+**G2 next workspace/reader implementation:** accepted M1 storage/capture/adoption interfaces and a successful host lost-work/restore safety journey. Apply G0/G1 checks to each lane. Do not start multiple consumers against an unfinished authority. Once these safety conditions are met, M3 tree enumeration and M4 typography/anchor work can proceed independently; unfinished configurable-retention UI details do not block them. Activity integration stays serial. Device exit gates remain open until actual tests.
 
-Critical path: C1 accounting repair → C2 native/private capture → portable binding/semantic validation → verified export/import/adoption journey → configurable retention/runtime recovery → G2 → workspace/reader → editor/interoperability → complete M7 acceptance. N1 outline repair is independently ready and joins the next source integration. Existing print capture is reused, not rebuilt.
+Schedule: C1 accounting repair → C2 native/private capture → portable binding/semantic validation → verified export/import/adoption journey → configurable retention/runtime recovery → G2 → workspace/reader → editor/interoperability → complete M7 acceptance. This ordering is a campaign schedule, not a dependency from retention UI details to G2; G2 depends on accepted M1 storage/adoption and host lost-work/restore safety. N1 outline repair is independently ready and joins the next source integration. Existing print capture is reused, not rebuilt.
 
 Team policy: root owns orchestration, integration and critical review. Use cheaper demonstrably capable agents for bounded implementation, tests and documentation. Sensitive persistence review must remain independent and capable. Keep ownership disjoint and avoid duplicated gates.
 
@@ -123,7 +126,7 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 | Capture worker; operation-data-capture | Approved writer92e41bb; copy helperb4bd0c9 committed | Own source/tests through coherent producer; writer87 assertions and PreparationSources181 pass. Copy16 cases pass and independent copy review is approved. Worker owns Writer and its fixtures for provisional sink, live-prefix and promotion; continue actual production sink, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
 | Independent reviewer; accounting_repair_review | Copy helperb4bd0c9 independently approved after 3 scenario groups | Writer92e41bb and copy helperb4bd0c9 approvals are scoped to those exact artifacts; production sink and campaign review remain outstanding. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
-| Whole-campaign plan reviewer | Not run | Independent campaign review remains outstanding; do not treat source approvals as satisfying it. |
+| Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
 
 Old worktrees/branches/untracked historical notes remain untouched. No push--all, force-push, broad cleanup or deletion. Shared SDK/JDK/JSON dependency remain read-only inputs; each writer owns its checkout outputs and test temporary roots. One heavy build/gate at a time until resource evidence justifies more.
 
@@ -189,5 +192,5 @@ review.
 - New UI gets accessible loading/empty/error/partial states, cancellation and recovery. Host AST fixtures must extract real dependencies; no stale copied bodies or always-true guards.
 - Physical target is owner-reported Galaxy Z Fold7/Android16/OneUI8.0, installed literal“2.25” unverified. At feature completion, the owner will sign the unsigned APK with the original key and test on Fold7. Device acceptance is batched at that point; do not ask for device work during helper implementation. No replacement signer is allowed.
 - Canonical certificate remains `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Original private signing inputs/older Library provenance are unavailable. Never generate keys, publish private artifacts, recommend uninstalling or claim a source-only unsigned APK is an upgrade.
-- Self-review checked every ROADMAP milestone/exit and open issue2–8 against this map. Lead reviewed dependencies/ownership/current artifacts; **new independent campaign-plan review is NOT RUN because worker execution hit usage limits**. Existing architecture/source approvals are scoped above. Obtain available PM/independent review at its applicable gate; do not repeatedly ask Pat for routine plan confirmation.
+- Self-review checked every ROADMAP milestone/exit and open issue2–8 against this map. Independent substantive campaign-plan review is approved at `73372f50db109c378235406a75ca7abbf4cd85a6` for reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2`, against ROADMAP and RELEASE_GATES; it found no cycles or missing clauses. This approval does not replace exact-source review.
 - Publish this plan on the continuation branch and link STATUS. Continue ready already-authorized execution inline; when capacity/runtime ends, preserve committed source or explicit patch and exact failing tests. Do not call planning, a PR, a codec or M1 completion the end of the Professional campaign.
