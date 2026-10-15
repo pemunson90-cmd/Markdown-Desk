@@ -103,11 +103,13 @@ During implementation, run minimum affected tests and essential compile/build ch
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates; mandatory integration/release gates remain required.
 
-Next: continue isolated A2 record codec work and review the separate cold
-completion/reversed-original-graph recovery implementation. Contract `28147af8`
+Next: continue A2 record codec work, then bounded portable producer/runtime
+integration. Cold completion implementation remains blocked on an authentic persisted
+original profile. Contract `28147af8`
 (plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
 APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:
-cold completion safely refuses without writes, while eligible cancellation is preserved.
+the contract requires refusing cold completion without writes; no completion API is
+implemented. Eligible cancellation remains implemented.
 A future portable witness must retain that exact profile. Source/runtime implementation
 remains OPEN. Preserve global
 pending/prune blocks, all bytes/credits, physical namespace eligibility, selected-own
