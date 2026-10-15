@@ -47,7 +47,8 @@ Verified merged behavior:
   deletion caller or automatic retention is enabled. Private-state and archive
   codecs/manifests remain foundations, not complete backup/import features.
 
-Active integration: `codex/printing-backup-integration`; no new PR yet. Verified
+Active integration: `codex/printing-backup-integration`,
+[draft PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22). Verified
 main is merged normally. Printing `8739354` is integrated after independent exact
 source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
 independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
@@ -60,6 +61,10 @@ after successful delegated onFinish and view disposal. Missing/throwing finish o
 disposal retains the one owner; cancellation does not prove quiescence. Independent
 review repaired normal synchronous finish incorrectly canceling its returned job.
 The required print runner is registered; the combined printing gate is pending.
+The first clean attempt at `fe048d2` stopped at status-fixture compilation: its
+extracted teardown lacked the new DocumentPrint boundary. Production code is
+unchanged; adding that isolated fixture boundary passed57 status assertions.
+The corrected clean gate must pass before the PR becomes review-ready.
 Historical print failures remain reproducible against the baseline selector.
 
 Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005

@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.concurrent.*;
 
 class Activity { protected void onDestroy() {} }
+// Statistics boundary only; actual print ownership and extracted teardown run in run_print.sh.
+class DocumentPrint { static void cancel(Object activity) {} }
 
 final class StatusHarness extends Activity {
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
