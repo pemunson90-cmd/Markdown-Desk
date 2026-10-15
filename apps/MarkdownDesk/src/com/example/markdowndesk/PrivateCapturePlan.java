@@ -319,6 +319,22 @@ final class PrivateCapturePlan {
                     if(!a.outer.equals(b.outer)||a.route!=b.route||!a.owner.equals(b.owner)||!a.member.equals(b.member)||a.offset!=b.offset||a.length!=b.length||!a.hash.equals(b.hash))throw invalid("Catalog source join");}
             }
         }
+        /** Read-only dimensions of these measured originals; coordinates grant no source authority. */
+        private void requireMeasuredOriginal(HistoryStorage.Budget originalBudget)throws IOException {
+            if(originalBudget!=budget||closed||failed||!measured||measuring||pending!=null)
+                throw invalid("Foreign/unavailable measured portable inputs");
+        }
+        long capsuleMetadataBytes(HistoryStorage.Budget originalBudget)throws IOException {
+            requireMeasuredOriginal(originalBudget);return capsuleMetadata;
+        }
+        int capsuleRowCount(HistoryStorage.Budget originalBudget)throws IOException {
+            requireMeasuredOriginal(originalBudget);return evidence.size();
+        }
+        PrivateSourceCatalog.Row sourceCoordinateAt(HistoryStorage.Budget originalBudget,int ordinal)throws IOException {
+            requireMeasuredOriginal(originalBudget);
+            if(ordinal<0||ordinal>=items.size())throw invalid("Portable source coordinate ordinal");
+            return items.get(ordinal).source;
+        }
         InputStream openInventory()throws IOException {if(!measured||closed||failed)throw invalid("Portable inventory unavailable");return inventoryBytes.open();}
         InputStream openCatalog()throws IOException {if(!measured||closed||failed)throw invalid("Portable catalog unavailable");return catalogBytes.open();}
         PrivateBundleInventory inventory(){return inventory;}

@@ -1,7 +1,10 @@
 # Funding estimator checkpoint
 
-Base48126b3a1fb3e737dea04000a3ea424ef76fd8a0. Test-only files; no production edits.
-JDK17.0.16, --release11, -Xmx64m:4 real B1 cases PASS. Diff check PASS.
+Original estimator base48126b3a1fb3e737dea04000a3ea424ef76fd8a0.
+Read-only input seam added at worktree base3649461; no production funding consumer.
+Existing JDK17.0.16, --release11, -Xmx64m: seam behavior and4 real B1 cases PASS.
+Diff check PASS. Table below preserves the earlier estimator checkpoint; current
+path/time-dependent counts are in latest-output.txt.
 
 | Real B1 fixture | Original spent | Original headroom | Candidate extra | Residual |
 | --- | ---: | ---: | ---: | ---: |
@@ -15,11 +18,19 @@ refund on input closure. Used totals are at actual post-plan checkpoint; unlike
 B1 assertion helpers, this probe does not reparse I/catalog with independent test
 codec budgets. Runtime path/time lengths explain further small byte variation.
 
-Actual private fields are observed via test-only reflection: capsuleMetadata,
-evidence rows and frozen item.source rows; existing B1 test helper observes Budget
-remaining. Minimum production access is three original-input-bound read methods:
-capsuleMetadataBytes(), capsuleRowCount(), sourceCoordinateAt(ordinal). No caller
-count DTO or reflected production state may confer funding/source authority.
+The estimator now reads actual frozen inputs through package-private production
+methods `capsuleMetadataBytes(originalBudget)`, `capsuleRowCount(originalBudget)`
+and `sourceCoordinateAt(originalBudget, ordinal)`. They require identity with the
+original Budget and measured/nonfailed/nonclosed/nonmeasuring inputs with no
+pending evidence cursor. Indexed immutable source coordinates confer no routing
+or writer authority. No whole mutable list, caller-count DTO, budget accessor or
+reflected capsule/evidence/item state is exposed. The B1 helper's remaining-budget
+test reflection is unchanged.
+
+Dedicated real-input fixtures check equal-limit/equal-spent foreign and null
+budgets, unmeasured/closed/failed/pending inputs, invalid ordinals, exact serialized
+source rows, actual capsule H/Q, and no debit by these reads. These extra cursor
+and test-codec checks run separately from the four estimator checkpoints.
 
 Five-control/two-ledger slots remain a current-call-graph upper-count proposal,
 not an executable consumer overlap proof. Native cursor256KiB and12B/8192 object

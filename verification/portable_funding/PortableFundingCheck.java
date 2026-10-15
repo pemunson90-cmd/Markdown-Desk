@@ -1,7 +1,6 @@
 package com.example.markdowndesk;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -17,7 +16,6 @@ public final class PortableFundingCheck {
     static void yes(boolean ok,String why){if(!ok)throw new AssertionError(why);}
     static long add(long... values){long n=0;for(long v:values){yes(v>=0,"negative accounting input");n=Math.addExact(n,v);}return n;}
     static long mul(long a,long b){yes(a>=0&&b>=0,"negative product");return Math.multiplyExact(a,b);}
-    static Object field(Object owner,String name)throws Exception {Field f=owner.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(owner);}
     static int units(Path path){String s=path.toString();yes(s.length()<=PATH_UNITS,"private path bound");return s.length();}
     static int name(String n){yes(n.getBytes(StandardCharsets.UTF_8).length<=NAME_BYTES,"private basename bound");return n.length();}
     static long observedIdentity(Path p)throws Exception {
@@ -58,14 +56,12 @@ public final class PortableFundingCheck {
         for(File role:Arrays.asList(f.store.storageRoot(),f.catalog.storageRoot(),f.identity.storageRoot(),f.index.storageRoot()))tn=add(tn,role.getPath().length());
         e.put("Tcontrol",tc);e.put("Tledger",tl);e.put("Tpaths",tp);e.put("Tnative_frozen",tn);e.put("observed_identity_units",observed);e.put("future_identity_cap_units",future);
         long transitionT=add(tc,tl,tp),ackT=add(tc,tp);e.put("Ttransition",transitionT);e.put("Tack",ackT);
-        long h=(Long)field(f.inputs,"capsuleMetadata");List<?> evidence=(List<?>)field(f.inputs,"evidence");long q=evidence.size(),independentH=56;
-        for(Object slot:evidence){PrivateOperationEvidence.Row row=(PrivateOperationEvidence.Row)field(slot,"row");independentH=add(independentH,138,row.name.getBytes(StandardCharsets.UTF_8).length,row.role==1||row.role==4?row.actualLength:0);}
-        yes(h==independentH,"actual capsule metadata independently counted");
+        long h=f.inputs.capsuleMetadataBytes(f.budget),q=f.inputs.capsuleRowCount(f.budget);
         long m=p.prepare.artifact(1).length,i=p.prepare.artifact(3).length,k=p.prepare.artifact(5).length,d=p.prepare.artifact(2).length;
         e.put("M",m);e.put("I",i);e.put("K",k);e.put("D",d);e.put("H",h);e.put("Q",q);e.put("private_payload_bytes",f.frames.stream().mapToLong(v->v.payloadBytes).sum());
         // Observe frozen ordinary rows, never manufacture source authority or parse a caller catalog.
-        List<?> items=(List<?>)field(f.inputs,"items");yes(items.size()==rows,"real complete ordinary rows");long sourcePathUnits=0;
-        for(Object item:items){PrivateSourceCatalog.Row row=(PrivateSourceCatalog.Row)field(item,"source");yes(row.route==PrivateSourceCatalog.OWN_FRAME||row.route==PrivateSourceCatalog.OWN_EVIDENCE,"initial scope has no native/retained route");PrivateOperationRecord.Artifact found=null;for(PrivateOperationRecord.Artifact art:p.prepare.artifacts)if(art.id.equals(row.member))found=art;yes(found!=null&&found.length==row.length&&found.hash.equals(row.hash),"real catalog artifact join");sourcePathUnits=add(sourcePathUnits,units(ownRoot.resolve(found.filename())));}
+        long sourcePathUnits=0;
+        for(int ordinal=0;ordinal<rows;ordinal++){PrivateSourceCatalog.Row row=f.inputs.sourceCoordinateAt(f.budget,ordinal);yes(row.route==PrivateSourceCatalog.OWN_FRAME||row.route==PrivateSourceCatalog.OWN_EVIDENCE,"initial scope has no native/retained route");PrivateOperationRecord.Artifact found=null;for(PrivateOperationRecord.Artifact art:p.prepare.artifacts)if(art.id.equals(row.member))found=art;yes(found!=null&&found.length==row.length&&found.hash.equals(row.hash),"real catalog artifact join");sourcePathUnits=add(sourcePathUnits,units(ownRoot.resolve(found.filename())));}
         sourcePathUnits=add(sourcePathUnits,units(ownRoot.resolve(p.prepare.artifact(3).filename())));e.put("source_path_units",sourcePathUnits);e.put("source_open_tickets",mul(2,add(rows,1)));
         long c=add(128*KIB,mul(12,b),mul(8192,controls),mul(1024,a),mul(4,tc));
         long l=add(128*KIB,mul(4096,nodes),mul(2048,preps),mul(1024,a),mul(2048,opControls),mul(4,tl));
@@ -95,8 +91,52 @@ public final class PortableFundingCheck {
             long funded=PortablePlanCheck.used(f.budget);f.inputs.close();f.graphInput.close();yes(PortablePlanCheck.used(f.budget)==funded,"closing B1 inputs refunded parent");cases++;
         }
     }
+    interface Checked {void run()throws Exception;}
+    static void reject(Checked action,String why)throws Exception {
+        try{action.run();throw new AssertionError("accepted "+why);}catch(IOException expected){}
+    }
+    static void unavailable(PortablePlanCheck.F f,HistoryStorage.Budget budget,String why)throws Exception {
+        reject(()->f.inputs.capsuleMetadataBytes(budget),why+" metadata");
+        reject(()->f.inputs.capsuleRowCount(budget),why+" row count");
+        reject(()->f.inputs.sourceCoordinateAt(budget,0),why+" coordinate");
+    }
+    static void inputSeam()throws Exception {
+        try(PortablePlanCheck.F f=new PortablePlanCheck.F()){
+            f.scan();f.selection(0,2);f.capture();unavailable(f,f.budget,"unmeasured");f.inputs.measure();
+            unavailable(f,null,"null budget");
+            HistoryStorage.Budget foreign=new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET);foreign.charge(PortablePlanCheck.used(f.budget));
+            unavailable(f,foreign,"equal-limit/equal-spent foreign budget");
+            reject(()->f.inputs.sourceCoordinateAt(f.budget,-1),"negative ordinal");
+            reject(()->f.inputs.sourceCoordinateAt(f.budget,f.inputs.inventory().entries().size()),"past-end ordinal");
+            long before=PortablePlanCheck.used(f.budget),h=f.inputs.capsuleMetadataBytes(f.budget);int q=f.inputs.capsuleRowCount(f.budget);
+            for(int n=0;n<f.inputs.inventory().entries().size();n++)yes(f.inputs.sourceCoordinateAt(f.budget,n)!=null,"actual coordinate");
+            yes(PortablePlanCheck.used(f.budget)==before,"read-only seam debited budget");
+            try(InputStream catalogInput=f.inputs.openCatalog();
+                    PrivateSourceCatalog parsed=PrivateSourceCatalog.read(catalogInput,new PrivateBundleInventory.MetadataBudget(16L<<20))){
+                yes(parsed.rows.size()==f.inputs.inventory().entries().size(),"real serialized row count");
+                for(int n=0;n<parsed.rows.size();n++){
+                    PrivateSourceCatalog.Row a=f.inputs.sourceCoordinateAt(f.budget,n),b=parsed.rows.get(n);
+                    yes(a.outer.equals(b.outer)&&a.route==b.route&&a.owner.equals(b.owner)&&a.member.equals(b.member)&&a.offset==b.offset&&a.length==b.length&&a.hash.equals(b.hash),"exact serialized coordinate "+n);
+                }
+            }
+            try(InputStream reopened=f.inputs.openCatalog()){yes(reopened.read()!=-1,"catalog reader closes and permits reopen");}
+            long actualH=56;int actualQ=0;
+            try(PrivateOperationEvidence.Cursor cursor=f.inputs.capsuleSource().open()){
+                unavailable(f,f.budget,"pending cursor");PrivateOperationEvidence.Row row;byte[] buffer=new byte[4096];
+                while((row=cursor.next())!=null){actualQ++;actualH=add(actualH,138,row.name.getBytes(StandardCharsets.UTF_8).length,row.role==1||row.role==4?row.actualLength:0);try(InputStream in=cursor.openRaw()){while(in.read(buffer)!=-1){}}}
+            }
+            yes(h==actualH&&q==actualQ,"actual capsule metadata and row count");
+            f.inputs.close();unavailable(f,f.budget,"closed");
+        }
+        try(PortablePlanCheck.F f=new PortablePlanCheck.F()){
+            f.scan();f.selection(0,0);f.capture();f.budget.charge(PARENT-PortablePlanCheck.used(f.budget));
+            reject(()->f.inputs.measure(),"measurement exhausted original budget");unavailable(f,f.budget,"failed measurement");
+        }
+        System.out.println("Portable original-input seam: provenance/state/coordinates PASS");
+    }
     public static void main(String[] args)throws Exception {
         try{add(Long.MAX_VALUE,1);throw new AssertionError("overflow accepted");}catch(ArithmeticException expected){}
+        inputSeam();
         runCase("minimum",0,0,false,false);runCase("two8MiB",2,PrivateStateCodec.MAX_PAYLOAD_BYTES,false,false);runCase("14frames",12,0,true,false);runCase("minimum-one-under",0,0,false,true);
         System.out.println("Portable funding estimator: "+cases+" real B1 cases PASS; candidate counts/debits only, NOT heap/authority/consumer acceptance");
         System.out.println("MISSING production proof: current-native cursor256KiB implementation bound;12B/8192 object multipliers;capacity nesting<=5C/2L;private-FS future representation enforcement;finite per-outer open enforcement;prepaid consumption replacing existing direct parent charges.");
