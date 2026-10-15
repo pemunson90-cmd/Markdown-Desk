@@ -55,9 +55,16 @@ and budget while retaining bounded D for historical CLOSE.
 The implementation requires authentic returned binding and the exact original Budget,
 uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
 Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
-Cold source is NOT implemented. The worker prepares a wire-preserving stale/partial
-cold-cancellation admission policy proposal only. Existing abandoned-capture block
-rules remain unchanged until a reviewed amendment. Cold recovery, runtime integration, full-heap and performance,
+[ADR-006](decisions/ADR-006-terminal-cancelled-capture-admission.md) is ACCEPTED
+engineering direction after independent review of exact `e8cb1532d514e1d2e0c46d93c8d5f20e52c44820`,
+ADR blob `b54b1629f72f213fb9bf735a6c3a76266ca70cdb`. The first source slice is active,
+NOT implemented or source-approved: typed historical-cancellation capture admission,
+with global pending/prune blocks and all bytes/credits retained, a physically present
+verified namespace, selected activation's own completeness and immutable old-stage anchors.
+ADR-006 supersedes only the old plan's new-capture-block clause for its fully typed
+eligible state; all other contracts remain. Existing capture-block policy remains
+actual source until the reviewed first slice. Actual cold cancellation/reversal is
+NOT implemented. Cold recovery, runtime integration, full-heap and performance,
 migration and device acceptance remain OPEN. Minimum affected memory bounds are
 required before downstream storage consumers; broad batteries remain for feature completion.
 Both writer and activation runners are registered in the aggregate host script; only
@@ -67,11 +74,11 @@ During implementation, run minimum affected tests and essential compile/build ch
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: prepare and review the wire-preserving stale/partial cold-cancellation admission
-policy proposal; existing abandoned-capture block rules remain unchanged until a
-reviewed amendment. Cold source is NOT implemented. After approval, implement and
-affected-test cold recovery, runtime integration and lifecycle/error closure before
-downstream features.
+Next: implement and independently review ADR-006's first typed historical-cancellation
+capture-admission slice; it is active but NOT implemented or approved. Preserve global
+pending/prune blocks, all bytes/credits, physical namespace eligibility, selected-own
+completeness and immutable old-stage anchors. Actual cold cancellation/reversal follows
+separately; runtime integration and lifecycle/error closure remain before downstream features.
 Prove minimum affected memory bounds before downstream storage consumers. Broad full-heap,
 performance, regression, migration and device batteries remain for feature completion.
 Continue M0–M7 directly; M1 is not complete. Source approvals remain exact-artifact scoped.
