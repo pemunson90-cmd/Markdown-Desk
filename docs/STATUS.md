@@ -81,8 +81,10 @@ proposes explicit v2 scoped inventory, inert policy provenance, additive read-on
 restored bundles and accessible drafts, with no user-document writes or tab eviction.
 Exact codec plan `c279dfaa` and operation-data/capture plan `7a6c72b3` passed
 independent architecture review and are integrated. Root authorized bounded pure
-codec and phased storage/capture source work in separate worktrees; no production
-implementation, runtime feature or new test pass is claimed yet.
+codec and phased storage/capture source work in separate worktrees. Pure codec
+checkpoint `cf3449a` has worker-reported4,622 focused checks and is undergoing
+independent source review; this is interim evidence, not an integrated gate or
+runtime feature. Storage/capture source remains in implementation.
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
 transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
@@ -90,6 +92,14 @@ failed/stale preparations permit ordinary quota-admitted saves; native changes
 invalidate capture freshness. Exact schema/golden and reservation choices are in
 the approved plans and ADR-005. The MDOP/portable bridge, verified provider output
 and import/adoption still require review.
+
+Outline audit/repair plan `ba86c17` also passed independent review and is integrated
+without production changes:21 cases/46 assertions reproduce15 genuine stale-effect
+failures;8 control cases/27 assertions pass. Bounded implementation is authorized
+in a separate worktree, including only required truthful AST fixture adaptations.
+It must preserve search ranges and valid delayed navigation while retiring mode-ABA
+contexts, old sync effects and unbounded retry chains. The raw audit is not a
+required-green runner until repaired; Android timing remains unverified.
 
 Next: complete the hosted PR #22 gate and merge; implement the reviewed
 operation-data/capture and scoped codec plans, then verified provider output,
