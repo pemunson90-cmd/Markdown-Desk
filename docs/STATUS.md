@@ -7,8 +7,9 @@ maps retained M0–M7 obligations and dependencies. Lead self-review is complete
 independent whole-campaign review remains NOT RUN. Main/origin main remains
 `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
 `codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
-last pushed head is `2b78efd`, and local HEAD `16280fc` includes normal merged,
-reviewed preflight and record assembly.
+last pushed head is `2b78efd`. Root active branch is committed at
+`1ee52fd164b08150e28cbf21cd9fe50603eca72d`; it includes normal merged, reviewed
+preflight and record assembly plus the current writer checkpoint.
 
 The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
 It ran the required host suite once and audited two fresh unsigned builds, both
@@ -28,24 +29,30 @@ original C0 control and L0 ledger hashes before P. A legacy PIN BEGIN→CANCELLE
 CLOSED can change C0/fullGraph while leaving L0 unchanged; this counterprobe
 reproduced and requires a guard. Plan authority alone does not authorize P.
 
-A new PrivateCaptureWriter remains root-local, uncommitted and unreviewed at this
-checkpoint. Its focused 81 assertions cover P/funded directories/native map/D,
+PrivateCaptureWriter is committed on the root active branch, but independent
+writer review remains pending. Its 81 focused assertions pass and cover P/funded
+directories/native map/D,
 including callbacks, target failpoints, same-bytes replacements, foreign operation
 data, legacy private-file metadata, stale-plan legacy PIN, and a callback claim
 while an FD is open. It does not yet copy private payloads, complete final BEGIN/LINK,
-hand off sources, cold-recover, or prove the whole heap. Do not call the latest
-writer guards reviewed or passing. The source worker owns existing root-dirty
-Writer/Sources/tests and two runner lines; root owns orchestration/integration.
-`accounting_repair_review` is the independent reviewer. Avoid duplicating full gates.
+hand off sources, cold-recover, or prove the whole heap. The 81 focused assertions pass, but the writer guard source has not received
+independent review. PreparationSources has 181 focused assertions passing. The
+source worker owns Writer/Sources/tests and two runner lines; root owns
+orchestration/integration. `accounting_repair_review` is the independent reviewer.
+During implementation, run minimum affected tests and essential compile/build checks;
+reserve broad regression/performance/migration coverage for the feature-complete
+candidate. Avoid duplicating full gates.
 
-Next: complete coherent producer, private-copy closure, exact typed transitions,
+Next: obtain independent review of the committed writer, then complete coherent
+producer, private-copy closure, exact typed transitions,
 final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
 proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
 plan review remains NOT RUN, and scoped source approvals do not satisfy it.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
-app-UID durability, signing and in-place upgrade remain NOT RUN. ADB has no connected
-devices; canonical signer inputs are unavailable. No replacement key or private-file
-publishing is allowed. Keep PR #24 as one draft; do not fragment helper PRs.
+app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
+owner will sign the unsigned APK with the original key and test the Fold7; no device
+work is needed before that candidate is ready. Never create a replacement key or
+publish private files. Keep PR #24 as one draft; do not fragment helper PRs.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 

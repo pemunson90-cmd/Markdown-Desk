@@ -52,9 +52,11 @@ historical evidence, not current gate state.
 Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
 preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` each
 have scoped approvals only. Their worker evidence and boundaries are point-in-time;
-these approvals do not cover current root-dirty writer/source guards or the whole
-campaign. Current writer remains uncommitted/unreviewed. Its 81 focused assertions
-cover P/funded directories/native map/D only. Private payload copy, final BEGIN/LINK,
+these approvals do not cover the committed writer/source guard changes or the whole
+campaign. The writer is committed at root active branch `1ee52fd164b08150e28cbf21cd9fe50603eca72d`;
+independent writer review remains pending. Its 81 focused assertions pass and cover
+P/funded directories/native map/D only. PreparationSources has 181 focused assertions
+passing. Private payload copy, final BEGIN/LINK,
 source handoff, cold recovery and whole-heap proof remain open. The current worker
 owns dirty Writer/Sources/tests and two runner lines; root owns orchestration and
 integration; `accounting_repair_review` owns independent review. Do not duplicate
@@ -102,20 +104,20 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 
 ## Dependency gates and smallest useful schedule
 
-**G0 engineering foundation:** exact baseline provenance, current required host recoverability, reviewed source and reproducible unsigned build. Existing M1/M2 work is authorized by standing decisions; open physical acceptance does not erase those decisions.
+**G0 engineering foundation:** exact baseline provenance, current required host recoverability, reviewed source and reproducible unsigned build. Existing M1/M2 work is authorized by standing decisions; physical acceptance belongs at the feature-complete candidate and does not block helper implementation.
 
-**G1 performance prerequisite:** matched fixture host results and bounded-work/memory evidence for the changed path. Add missing host journey measurements; no invented device threshold. Physical budgets remain open and cannot be called met by host timing.
+**G1 performance prerequisite:** matched fixture host results and bounded-work/memory evidence for the changed path. During implementation, run the minimum affected tests and essential compile/build checks. At a feature-complete candidate, run broad regression, performance and migration coverage; batch device acceptance then. Do not invent device thresholds or treat host timing as physical evidence.
 
 **G2 next workspace/reader implementation:** G0/G1 plus accepted M1 storage/capture/adoption interfaces and successful host lost-work/restore journey. Do not start multiple consumers against an unfinished authority. M3 enumeration and M4 typography/anchor work can then run independently behind accepted contracts; Activity integration stays serial. Their device exit gates remain open until actual tests.
 
 Critical path: C1 accounting repair → C2 native/private capture → portable binding/semantic validation → verified export/import/adoption journey → configurable retention/runtime recovery → G2 → workspace/reader → editor/interoperability → complete M7 acceptance. N1 outline repair is independently ready and joins the next source integration. Existing print capture is reused, not rebuilt.
 
-Normal supported team: lead/integrator + two independent implementers + shared critical reviewer when useful. Sensitive persistence reviews use capable reasoning; bounded fixture/UI work uses cheaper demonstrably capable contexts. Expand only for ready disjoint work, never to fill slots. Current team is lead plus the bounded native-fingerprint implementer and review capacity; earlier usage limits did not trigger paid workarounds or retry loops.
+Team policy: root owns orchestration, integration and critical review. Use cheaper demonstrably capable agents for bounded implementation, tests and documentation. Sensitive persistence review must remain independent and capable. Keep ownership disjoint and avoid duplicated gates.
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | local HEAD16280fc; draft PR24 | Own integration/accounting, STATUS and coherent boundary. Root-dirty writer guards await review; no new full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Root-dirty Writer/Sources/tests + two runner lines | Own existing source/tests through coherent producer; 81 focused assertions cover P/funded directories/native map/D only. Continue payload copy, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
+| Lead; orchestration/integration | root active HEAD1ee52fd; draft PR24 | Own integration/accounting, STATUS and coherent boundary. Writer review pending; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Writer/Sources/tests + two runner lines, integrated in root HEAD1ee52fd | Own source/tests through coherent producer; PreparationSources181 and writer81 focused assertions pass. Continue payload copy, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof; independent writer review pending. |
 | Independent reviewer; accounting_repair_review | Current writer/source diff pending | Review exact current guards and closure; prior helper/plan approvals do not carry forward. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | Not run | Independent campaign review remains outstanding; do not treat source approvals as satisfying it. |
@@ -162,14 +164,14 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 
 **C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
 preflight, and pure capture plan are integrated with scoped exact-artifact approvals.
-The current writer is uncommitted/unreviewed and still incomplete; see STATUS for
-current ownership and precise remaining closure. Require both original C0 control
+The current writer is committed but remains independently unreviewed and incomplete;
+see STATUS for current ownership and precise remaining closure. Require both original C0 control
 and L0 ledger hashes freshly matched before P, including the reproduced legacy PIN
 BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while L0 stays unchanged.
 Plan authority alone cannot publish P. Continue through private-copy closure, exact
 typed transitions, final BEGIN/LINK and handoff, cold recovery, and crash/ENOSPC/reopen/
-heap evidence, then review the coherent source boundary. No latest guard is yet
-reviewed/passing. Do not promote helper approvals into whole-campaign review.
+heap evidence, then review the coherent source boundary. The focused writer runner passes, but current guard source is not independently
+reviewed. Do not promote helper approvals into whole-campaign review.
 
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
@@ -179,10 +181,10 @@ reviewed/passing. Do not promote helper approvals into whole-campaign review.
 
 ## Verification, publication and completion
 
-- Focused tests during repair; full clean committed host/two-unsigned gate at meaningful integration boundaries. Reuse installed inputs. New Android APIs must remain min26-compatible, independent of compiler/platform age.
+- During implementation, run minimum affected tests plus essential compile/build checks. At feature-complete candidate, run broad regression, performance and migration coverage, then required clean committed-source host/two-unsigned gate and owner Fold7 acceptance. Reuse installed inputs. New Android APIs must remain min26-compatible, independent of compiler/platform age. Required merge/release gates remain intact.
 - Keep actual journeys: failed save→recover/new copy; checkpoint→diff→restore preserving newer text; private export→import→reopen; workspace search under revocation/partial results; annotate→edit→reflow; print intended document while switching tabs; signed in-place upgrade preserving sessions/settings/docs.
 - New UI gets accessible loading/empty/error/partial states, cancellation and recovery. Host AST fixtures must extract real dependencies; no stale copied bodies or always-true guards.
-- Physical target is owner-reported Galaxy Z Fold7/Android16/OneUI8.0, installed literal“2.25” unverified. Current ADB has zero devices; no emulator/device acceptance is claimed. Batch unavoidable owner checks in the existing M0_DEVICE_ACCEPTANCE checklist after a coherent candidate, not one phone task per helper.
+- Physical target is owner-reported Galaxy Z Fold7/Android16/OneUI8.0, installed literal“2.25” unverified. At feature completion, the owner will sign the unsigned APK with the original key and test on Fold7. Device acceptance is batched at that point; do not ask for device work during helper implementation. No replacement signer is allowed.
 - Canonical certificate remains `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Original private signing inputs/older Library provenance are unavailable. Never generate keys, publish private artifacts, recommend uninstalling or claim a source-only unsigned APK is an upgrade.
 - Self-review checked every ROADMAP milestone/exit and open issue2–8 against this map. Lead reviewed dependencies/ownership/current artifacts; **new independent campaign-plan review is NOT RUN because worker execution hit usage limits**. Existing architecture/source approvals are scoped above. Obtain available PM/independent review at its applicable gate; do not repeatedly ask Pat for routine plan confirmation.
 - Publish this plan on the continuation branch and link STATUS. Continue ready already-authorized execution inline; when capacity/runtime ends, preserve committed source or explicit patch and exact failing tests. Do not call planning, a PR, a codec or M1 completion the end of the Professional campaign.
