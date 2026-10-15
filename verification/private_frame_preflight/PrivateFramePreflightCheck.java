@@ -81,9 +81,24 @@ public final class PrivateFramePreflightCheck {
                 check(source.closeCalls==1&&source.maxRead<=65536,"actual close and bounded delegate reads");
                 if(i==0)check(r.payloadBytes=="\ufeff a\r\n雪😀\t ".getBytes(StandardCharsets.UTF_8).length&&r.utf16Units==" a\r\n雪😀\t ".length(),"dirty BOM CRLF Unicode frame validated");
                 if(i==2)check(r.payloadBytes==0&&r.utf16Units==0,"preferences have no payload");
+                check(i==0?r.sourceTabIdHash.equals(PrivateOperationRecord.sha("old/tab".getBytes(StandardCharsets.UTF_8))):r.sourceTabIdHash==null,"tab source ID digest only for tabs");
                 rejects(a::run,"successful attempt is single use");
             }
             f.owner.freeze();f.claim();scenarios+=3;
+        }
+    }
+    static void sourceIdentity()throws Exception {
+        try(F f=new F()){
+            PrivateFramePreflight.Workspace w=f.workspace();String[] ids={"historical/雪😀","historical/雪😀","another/雪😀"};String[] hashes=new String[3];
+            for(int i=0;i<ids.length;i++){
+                PrivateStateCodec.Tab original=tab(false,0);
+                PrivateStateCodec.Tab metadata=new PrivateStateCodec.Tab(ids[i],original.displayName,original.provenance,false,true,original.editorLocked,0,0,0,0,original.mode,original.findQuery,original.replaceQuery,true,false,true);
+                ByteArrayOutputStream bytes=new ByteArrayOutputStream();PrivateStateCodec.writeTab(metadata,0,new ByteArrayInputStream(new byte[0]),bytes);byte[] frame=bytes.toByteArray();
+                PrivateFramePreflight.ClosedFrame r=w.attempt(PrivateStateCodec.Kind.SESSION_TAB,i,UUID.randomUUID(),UUID.randomUUID(),()->new Source(frame)).run();
+                hashes[i]=r.sourceTabIdHash;check(r.envelopeHash.equals(PrivateOperationRecord.sha(frame)),"identity key leaves whole-frame digest unchanged");
+                check(hashes[i].equals(PrivateOperationRecord.sha(ids[i].getBytes(StandardCharsets.UTF_8))),"exact strict UTF8 decoded source ID hash");
+            }
+            check(hashes[0].equals(hashes[1])&&!hashes[0].equals(hashes[2]),"equal source IDs share key; distinct source IDs differ");f.owner.freeze();f.claim();scenarios++;
         }
     }
     static void malformed()throws Exception {
@@ -219,7 +234,7 @@ public final class PrivateFramePreflightCheck {
         }
     }
     public static void main(String[] args)throws Exception {
-        valid();malformed();closeFailures();sourceFailures();invalidReaders();budgetAndBounds();reentrancyAndThread();blockedOpenAndRead();blockedClose();largeSource();
+        valid();sourceIdentity();malformed();closeFailures();sourceFailures();invalidReaders();budgetAndBounds();reentrancyAndThread();blockedOpenAndRead();blockedClose();largeSource();
         System.out.println("Private frame preflight: "+scenarios+" scenarios PASS");
     }
 }
