@@ -37,22 +37,27 @@ with a narrow provenance getter and fresh identity/readiness checks after each
 callback. Approval remains scoped to this exact writer; the production sink,
 BEGIN/LINK, handoff, recovery and whole-heap proof are excluded.
 
-Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is independently APPROVED
-after 3 scenario groups: exact identity binding; retained handles, Error and ordered
-cleanup; and overlength rejection before forwarding. Preflight 30 and copy 16 cases pass.
-Next, the worker owns only Writer and its fixtures for the provisional sink, live-prefix
-and promotion implementation; root owns orchestration/integration. Production sink,
-BEGIN/LINK, handoff, recovery and heap proof remain OPEN. PreparationSources has 181
-focused assertions passing. No newer full gate/build/CI covers C2.
+Private sink commit `d71dae257f9003f522743de7b2da59e96a8155e0` is independently
+APPROVED after 4 groups: lazy I/O/normal credits, prefix tampering, final same-bytes
+replacement, and retained Error cleanup. The worker's 87 existing assertions plus
+7 new actual-copy cases pass. One 8 MiB / 1637 ms result is a functional observation,
+not performance acceptance.
+
+Existing approvals for writer `92e41bb` and copy helper `b4bd0c9` remain scoped to
+those exact artifacts. The active worker now owns final BEGIN/LINK and typed-source
+handoff, with Writer/narrowPins/Sources/Storage and its fixtures. Completion,
+activation, cold recovery, runtime integration, heap proof and performance acceptance
+remain OPEN. No newer full gate/build/CI covers C2. Root owns orchestration and integration.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: implement and review the Writer-owned provisional sink, live-prefix and
-promotion, then complete coherent producer, exact typed transitions,
-final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
-proofs. Continue M0–M7 directly; M1 is not complete. Source approvals remain limited to
-their exact artifacts.
+Next: complete and review final BEGIN/LINK and typed-source handoff in the
+Writer/narrowPins/Sources/Storage scope. Implement and affected-test activation, cold
+recovery, runtime integration, heap bounds, and crash/ENOSPC/reopen behavior before
+downstream features. Defer only the broad regression, performance, migration, and
+device battery to the feature-complete candidate. Continue M0–M7 directly; M1 is not
+complete. Source approvals remain limited to their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
 owner will sign the unsigned APK with the original key and test the Fold7; no device
