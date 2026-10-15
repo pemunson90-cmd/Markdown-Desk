@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryMaintenanceExecutor.Retirement retirement;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;HistoryMaintenanceExecutor.Retirement retirement;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static File canonicalRoot(File root)throws IOException {
@@ -29,6 +29,10 @@ final class HistoryStorage {
     }
     static HistoryCapacity capacity(File root)throws IOException{return ((State)monitorFor(root)).capacity;}
     static void capacity(File root,HistoryCapacity value)throws IOException{requireMutation(root);((State)monitorFor(root)).capacity=value;}
+    static HistoryOperations operations(File root)throws IOException{return ((State)monitorFor(root)).operations;}
+    static void operations(File root,HistoryOperations operations)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.operations!=null)throw new IOException("Operation coordinator already installed or unlocked");state.operations=operations;
+    }
     static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
     static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}
     static HistoryTombstoneView installedView(File root)throws IOException{return ((State)monitorFor(root)).tombstones;}

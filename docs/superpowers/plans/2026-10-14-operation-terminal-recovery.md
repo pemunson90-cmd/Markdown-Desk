@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use superpowers:executing-plans for these bounded tasks,
 > with independent persistence/concurrency review before implementation and exact
-> source review before integration. This checkpoint authorizes a plan only.
+> source review before integration. Implementation was assigned after the exact architecture approval recorded below.
 
 **Goal:** Enforce actual operation quiescence before releasing durable pins and
 recover canonical CLOSE prefixes without overwriting retained evidence.
@@ -407,7 +407,7 @@ registration and integration gates. No implementation is claimed by this plan.
 
 Files: create `apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.java`;
 narrow `HistoryStorage.java` shared state; create
-`verification/history_operation_recovery/{OperationQuiescenceCheck.java,run.sh,README.md}`.
+`verification/history_operations/{OperationQuiescenceCheck.java,run.sh,README.md}`.
 
 - [ ] Write latch-driven production RED fixtures for an opening reader, in-flight
       read/write, failed factory with uncertain resource ownership, blocked/throwing
@@ -440,7 +440,7 @@ narrow `HistoryStorage.java` shared state; create
       frozen-discovery notice dispatch only after its entire coordination exits.
 - [ ] Implement the exact interfaces/lifecycle above with private tracked resources.
       Use deterministic barriers, never sleeping tests or a caller-supplied zero count.
-- [ ] Run `bash verification/history_operation_recovery/run.sh coordinator`; require
+- [ ] Run `bash verification/history_operations/run.sh coordinator`; require
       all named behavioral assertions PASS, then independent concurrency review and
       a coherent canonical-author commit. A missing-class scaffold is not behavior RED.
 
@@ -480,7 +480,7 @@ Preserve HistoryPinRecord encoding and existing control allowance semantics.
       returns QUIESCENCE_PENDING and requires external preflight before reentry.
       Check lock order and fresh validation after reacquisition; a zero-work result
       found inside a lease must never inline-complete a future there.
-- [ ] Run `bash verification/history_operation_recovery/run.sh terminal` and affected
+- [ ] Run `bash verification/history_operations/run.sh terminal` and affected
       pin/executor runners; require all PASS before critical helper review/commit.
 
 ### Task3: Canonical append recovery and conservation
@@ -546,5 +546,25 @@ operation-consumer work and owned closure finish; it does not require wrapper re
 or a shared frame counter. Inline proof listeners remain guarded even though they
 can run arbitrary code. Independent reviewer `preview_review` approved exact plan
 revision `8fe3874d9b397ee26964c491bbc9409f3e483974` on 2026-10-15 after final diff
-inspection. This is architecture approval only; implementation and behavioral
-verification remain unperformed and require the separately assigned bounded work.
+inspection. This was architecture approval only; implementation and behavioral verification
+were unperformed at that review. Subsequent implementation status appears below.
+
+
+## Implementation checkpoint (2026-10-15)
+
+Root authorized backend implementation after architecture approval; normal merge of
+origin/main `d0b02d79057f546b6c9bc215cc5c948455f2bb88` preserves the approved UI factory.
+Implementation and scoped fixtures are in progress, pending exact-source review.
+`HistoryPins.forRecovery` is an explicit read-only handle factory needed to reach
+cold retained stages without ordinary open/promotion. It grants no acknowledgement.
+All acknowledgement paths also check exact closed-key lifetime authority centrally;
+retained closed pairs require their own claims even beside a different active BEGIN.
+This closes a production RED in mixed-journal reconciliation without requiring a
+pruning-complete graph or dereferencing historical sources.
+
+The existing executor's closed-audit helper uses the synchronous zero-work typed
+claim path under its existing lease; it creates/signals no future there. Nonzero
+participants reject with QUIESCENCE_PENDING, and a caller can request asynchronous
+closed-audit preflight outside coordination before retrying. No controller/Activity
+change is needed for the existing native/capacity-only factory. The remaining
+partial-BEGIN/provenance and bounded-journal availability limitations are unchanged.

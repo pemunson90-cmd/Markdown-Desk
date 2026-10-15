@@ -28,6 +28,16 @@ public final class HistoryPinsCheck {
         final HistoryCapacity capacity=HistoryCapacity.register(store,catalog,identity,index,new HistoryPolicy(64L*1024*1024,20),disk);
         Fixture()throws Exception{}
     }
+    static HistoryOperations.Quiescence quiescent(HistoryPins pins,String id)throws IOException {
+        HistoryOperations operations=pins.operations();HistoryOperations.Quiescence proof=operations.quiesce(operations.freezeForTerminal(id)).toCompletableFuture().getNow(null);
+        if(proof==null)throw new IOException("Fixture has live operation work");return proof;
+    }
+    static void close(HistoryPins pins,String id,HistoryPinRecord.Outcome outcome,InputStream manifest)throws IOException {
+        pins.close(quiescent(pins,id),outcome,manifest);
+    }
+    static void recover(HistoryPins pins,String id,InputStream manifest)throws IOException {
+        pins.recoverClose(quiescent(pins,id),HistoryPins.RecoveryChoice.RECOVER_BOUND,manifest);
+    }
     static void uuid(DataOutputStream out,UUID id)throws IOException{out.writeLong(id.getMostSignificantBits());out.writeLong(id.getLeastSignificantBits());}
     static byte[] hash(String value){byte[] result=new byte[32];for(int i=0;i<32;i++)result[i]=(byte)Integer.parseInt(value.substring(i*2,i*2+2),16);return result;}
     static void discovery()throws Exception {
