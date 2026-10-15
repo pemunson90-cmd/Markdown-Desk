@@ -27,6 +27,7 @@ bash verification/renderer_golden/run.sh
 bash verification/reader_typography/run.sh
 bash verification/mode_behavior/run.sh
 bash verification/editor_undo/run.sh
+bash verification/workspace_tree_reader/run.sh
 
 bash verification/contrast/run.sh --gate
 

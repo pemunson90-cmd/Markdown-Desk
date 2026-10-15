@@ -32,6 +32,12 @@ Appearance4963, line-index46,564 and8 memory checks PASS. Changed Android source
 compile against SDK37 using JDK17 (no APK). Native history is for the current editing
 visit; tab loading resets it. Android IME/native undo/selection acceptance is unrun.
 
+The read-only WorkspaceTreeReader helper is independently approved after exact-text
+budget and encoded-URI fixture repairs:47 focused assertions and actual SDK37
+source compile PASS. No persisted tree grants/navigation UI or recursive search is
+yet wired; M3 is not complete. The helper reports partial/cancelled/failed listings
+explicitly and makes no provider-pagination or whole-process heap guarantee.
+
 Next current-phone work: wire reader typography into Appearance/persistence and
 captured async previews; implement bounded SAF folder navigation and paged PDF
 improvements with serial Activity ownership and focused independent reviews.

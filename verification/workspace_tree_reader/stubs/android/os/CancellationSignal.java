@@ -1,0 +1,1 @@
+package android.os;public final class CancellationSignal {private boolean cancelled;public void cancel(){cancelled=true;}public void throwIfCanceled(){if(cancelled)throw new OperationCanceledException();}}
