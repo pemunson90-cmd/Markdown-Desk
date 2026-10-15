@@ -8,21 +8,23 @@ bash verification/outline_navigation/run.sh
 bash verification/outline_navigation/run.sh --controls
 ```
 
-The audit runner intentionally exits1: **17 cases / 32 assertions / 13 failures**.
-The separate controls pass: **6 cases / 17 assertions**. This RED audit must not
+The audit runner intentionally exits1: **21 cases / 46 assertions / 15 failures**.
+The separate controls pass: **8 cases / 27 assertions**. This RED audit must not
 be registered as a required passing host gate. Raw output is preserved in
 [baseline-2026-10-15.txt](baseline-2026-10-15.txt).
 
-The javac AST extractor copies37 exact production members, including the actual
+The javac AST extractor copies40 exact production members, including the actual
 `showOutline` row callback, `handlePreviewUri`, `jumpToSourceOffset`,
 `scrollPreviewToSourceOffset`, final editor scroll, preview scheduling/acceptance,
-full DOM identity predicates and scroll synchronization/retirement. It compiles
-actual `LatestPreview`, `MarkdownRenderer`, `MarkdownStructure` and `UiTheme`.
+full DOM identity predicates and scroll synchronization/retirement, `setMode` and both current-search scroll callers. It compiles
+actual `LatestPreview`, `MarkdownRenderer`, `MarkdownStructure`, `SearchEngine` and `UiTheme`.
 No production body is rewritten. Outline offsets come from the real heading
 parser, and readiness comes from the actual render/probe/acknowledgment path.
 
 Observed failures:
 
+- Same-source Read→Write→Read revives an old outline row; Write→Split→Write
+  revives an old deferred editor effect. Actual `setMode` leaves source unchanged.
 - A pending offset applies to a newly acknowledged other tab, edited same tab,
   or A→B→A document context.
 - Hidden Write mode retains an indefinite retry chain. A previously dequeued
@@ -40,7 +42,9 @@ Observed failures:
 Passing controls preserve current Read outline navigation, current Write/Split
 selection and viewport, one delayed same-document jump, actual `mdsrc:` Read→Write
 routing, existing nonce-guarded sync rejecting a replacement DOM, and the final
-position of successive ready Read jumps. Successive ready jumps are not labeled
+position of successive ready Read jumps. Actual find-next/match-list callbacks
+preserve the selected match range with `select=false`; ordinary same-source
+render/font/palette changes preserve the final explicit editor effect. Successive ready jumps are not labeled
 incorrect merely because both execute: ordered user actions finishing at the
 latest choice are legitimate.
 
@@ -52,9 +56,10 @@ ownership, not a claim about WebView internal Handler implementation. The shutdo
 case explicitly delivers an already dequeued callback, so no Android destroy/remove
 queue guarantee is assumed. The stale dialog case simulates an already open dialog
 followed by a context transition; ordinary modal touch reachability is not claimed.
-Full `restoreActiveTab`, `setMode`, layout and TextWatcher are not executed here:
-context transitions assign their source-observed state and run actual render/
-invalidation methods. A future source-generation implementation must extend the
+Full `restoreActiveTab`, layout and TextWatcher are not executed here:
+tab/text context transitions assign their source-observed state and run actual
+render/invalidation methods. Mode transitions execute actual `setMode`, with
+keyboard/preferences/chrome modeled; its source assignment/rebuild is not replaced. A future source-generation implementation must extend the
 fixture to extract the actual watcher before claiming that lifecycle coverage.
 
 The actual `mdsrc:` parser is exercised at invocation; URI callbacks contain only

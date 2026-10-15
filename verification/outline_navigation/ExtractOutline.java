@@ -13,7 +13,7 @@ public final class ExtractOutline {
             "lambda$buildInterface$7", "captureActiveTab", "schedulePreviewSyncFromEditor",
             "lambda$schedulePreviewSyncFromEditor$72", "scheduleEditorSyncFromPreview", "lambda$scheduleEditorSyncFromPreview$75",
             "parseJsInt", "scrollEditorToOffset", "lambda$scrollEditorToOffset$76"));
-        wanted.addAll(List.of("PreviewPage", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollIsCurrent", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "previewPageHtml", "isCurrentPreviewPage", "previewDomGuard", "acknowledgePreviewPage", "beginPreviewScroll", "releasePreviewScroll", "showOutline", "scrollPreviewToSourceOffset", "jumpToSourceOffset", "handlePreviewUri"));
+        wanted.addAll(List.of("PreviewPage", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollIsCurrent", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "previewPageHtml", "isCurrentPreviewPage", "previewDomGuard", "acknowledgePreviewPage", "beginPreviewScroll", "releasePreviewScroll", "showOutline", "scrollPreviewToSourceOffset", "jumpToSourceOffset", "handlePreviewUri", "setMode", "findNext", "lambda$showSearchMatches$88"));
         Map<String,String> found=new LinkedHashMap<>();
         JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
         try(StandardJavaFileManager fm=compiler.getStandardFileManager(null,null,null)) {

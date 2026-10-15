@@ -1,6 +1,7 @@
 package com.example.markdowndesk;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.PatternSyntaxException;
 
 /** Android boundary only. DOM actions and delayed delivery are modeled, not a browser engine. */
 final class MainActivity {
@@ -85,9 +86,9 @@ final class MainActivity {
     }
     static final class Layout {int getLineForOffset(int offset){return offset;}int getLineTop(int line){return line*10;}}
     static final class Editor {
-        String text="# Start\n\nbody\n\n## Target\nmore text\n";int scrollCalls,y,selection;final List<Runnable> posts=new ArrayList<>();
-        int getSelectionStart(){return 0;}int getSelectionEnd(){return 0;}int getScrollY(){return y;}
-        CharSequence getText(){return text;}int length(){return text.length();}void setSelection(int offset){selection=offset;}
+        String text="# Start\n\nbody\n\n## Target\nmore text\n";int scrollCalls,y,selection,selectionEnd;final List<Runnable> posts=new ArrayList<>();
+        int getSelectionStart(){return selection;}int getSelectionEnd(){return selectionEnd;}int getScrollY(){return y;}
+        CharSequence getText(){return text;}int length(){return text.length();}void setSelection(int offset){selection=selectionEnd=offset;}void setSelection(int start,int end){selection=start;selectionEnd=end;}void requestFocus(){}
         boolean post(Runnable r){posts.add(r);return true;}void removeCallbacks(Runnable r){posts.remove(r);}Layout getLayout(){return new Layout();}
         void scrollTo(int x,int y){this.y=y;scrollCalls++;}void drain(){List<Runnable> copy=new ArrayList<>(posts);posts.clear();for(Runnable r:copy)r.run();}
     }
@@ -108,8 +109,11 @@ final class MainActivity {
     void deliverRender(){worker().drain();main.advance(0);}
     void outline(){showOutline();}void previewJump(int offset){scrollPreviewToSourceOffset(offset);}void sourceJump(int offset){jumpToSourceOffset(offset);}
     Object matchWrap(){return new Object();}void styleDialog(AlertDialog d){}
-    // This models only setMode's source-observed mode assignment/rebuild. Full Android layout is not executed.
-    void setMode(int next,boolean keyboard){mode=next;rebuildBody();}
+    static final class Preferences {boolean splitHint;boolean getBoolean(String key,boolean fallback){return splitHint;}Preferences edit(){return this;}Preferences putBoolean(String key,boolean value){splitHint=value;return this;}void apply(){}}
+    final Preferences preferences=new Preferences();void updateStatus(){}void hideKeyboard(){}void showKeyboard(Editor e){}
+    void changeMode(int next){setMode(next,false);}void updateSearchCount(String query,SearchEngine.Options options,TextView label){}
+    boolean find(String query,SearchEngine.Options options){return findNext(query,options,new TextView(this));}
+
     void acknowledge(){preview.commit(preview.loads.size()-1);new AnonymousClass2().onPageFinished(preview,"https://markdown.local/");}
     void settle(){main.advance(300);viewMain.advance(300);}
     long scrollOperation(){return previewScrollOperation;}

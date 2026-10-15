@@ -1,13 +1,21 @@
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
-Extracted 37 exact production members (including WebViewClient)
+Extracted 40 exact production members (including WebViewClient)
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
 CASE current outline Read jump control
 CASE current outline Write and Split source controls
 CASE one pending request completes when same document becomes ready
 CASE source link jump Read to Write control
 CASE existing guarded sync rejects replacement DOM control
+CASE current search keeps selected match range control
+CASE same-source render and appearance preserve final editor intent control
+CASE old outline row rejects same-source mode ABA
+FAIL Read-Write-Read cannot revive old outline row expected=[] actual=[15]
+CASE deferred editor effect rejects same-source mode ABA
+FAIL Write-Split-Write cannot revive old editor effect expected=0 actual=84
 CASE pending outline cannot retarget another tab
 FAIL old A jump rejected on acknowledged B expected=[] actual=[13]
 CASE pending outline cannot retarget edited same tab
@@ -19,8 +27,8 @@ FAIL hidden preview does not retain retry indefinitely expected=0 actual=1
 CASE retired preview cannot keep retry chain alive
 FAIL dequeued stale callback adds no retry after shutdown expected=0 actual=1
 CASE repeated outline choices retain one latest pending intent
-FAIL forty actual row selections coalesce expected=1 actual=40
-FAIL retry chain count remains bounded expected=1 actual=40
+FAIL waiting choices require no polling callbacks expected=0 actual=40
+FAIL no polling chains recur expected=0 actual=40
 FAIL only latest choice applied expected=1 actual=40
 CASE stale outline row rejects changed source context
 FAIL captured A heading not applied to B expected=[] actual=[15]
@@ -33,6 +41,6 @@ FAIL old source offset cannot scroll edited document expected=0 actual=84
 CASE older preview response cannot override newer Split outline choice
 FAIL older preview synchronization cannot override newer explicit jump expected=114 actual=0
 CASE successive ready Read jumps preserve final choice control
-RED outline navigation: 17 cases, 32 assertions, 13 failures
-Exception in thread "main" java.lang.AssertionError: Actual source outline safety failures: 13
-	at com.example.markdowndesk.OutlineCheck.main(OutlineCheck.java:28)
+RED outline navigation: 21 cases, 46 assertions, 15 failures
+Exception in thread "main" java.lang.AssertionError: Actual source outline safety failures: 15
+	at com.example.markdowndesk.OutlineCheck.main(OutlineCheck.java:32)
