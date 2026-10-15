@@ -1,5 +1,7 @@
 # Existing preview queue and invalidation verification
 
+The outline-navigation adaptation also extracts the actual source context, state and retirement helpers used by preview invalidation. Context predicates remain production code; the existing 438 assertions pass unchanged.
+
 Run `verification/preview_behavior/run.sh` with JDK17 on PATH. This runs the
 production LatestPreview and AST-extracted MainActivity preview fields,
 watcher, schedule/render/accept/invalidate/document-key/stop methods and onDestroy.

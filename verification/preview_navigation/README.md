@@ -1,5 +1,7 @@
 # Preview DOM identity and scroll ownership
 
+The outline-navigation adaptation includes exact source context/state and retirement helpers needed by shared editor scrolling and preview acknowledgment. Current navigation extraction contains 45 members; existing 18 cases / 66 assertions pass unchanged, with no forced-true context boundary.
+
 Run with JDK17 on PATH:
 
 ```sh

@@ -1,11 +1,11 @@
-# Outline/source navigation — bounded audit and proposed repair
+# Outline/source navigation — bounded repair
 
-Status: audit only. Production remains byte-identical to root checkpoint
-`05e74ca2906695ebe6e7ae4e2d68b6b536a24a47`. Root owns authorization and independent
-review before a fix. Scope is the existing M0/M2 navigation correctness work;
+Status: implementation candidate following root authorization and independent
+approval of audit/plan `ba86c1763e385b2401681e57f7bb40afb77813a6`. Final source review
+and integration gates remain separate. Scope is existing M0/M2 navigation correctness;
 printing, storage/history, runtime backup and release/version changes are excluded.
 
-## Source and evidence
+## Historical source and RED evidence (before repair)
 
 - `MainActivity.scrollPreviewToSourceOffset` (3956) checks only `previewReady`.
   Its anonymous View callback recursively retries every180ms with only an offset;
@@ -24,7 +24,7 @@ printing, storage/history, runtime backup and release/version changes are exclud
   `renderPreview`, so it is not a stable text-revision identifier for a jump waiting
   through debounce→render without an edit.
 
-`verification/outline_navigation/run.sh`: **21 cases /46 assertions /15 RED**.
+`verification/outline_navigation/run.sh --baseline`: **21 cases /46 assertions /15 RED**.
 `--controls`: **8 cases /27 assertions PASS**. The fixture extracts40 exact source
 members and uses real preview worker, renderer and heading parser. Failures cover
 stale tab/revision/A→B→A, hidden/shutdown retry retention,40 independent retry chains,
@@ -32,7 +32,7 @@ stale dialog offsets, delayed old-DOM commands, stale final editor posts and an
 older Split sync response overriding a newer outline choice. No production change
 or Android/browser ordering guarantee is inferred from the controlled schedules.
 
-## Proposed minimal implementation
+## Approved implementation contract
 
 1. Add a main-owned source-navigation revision advanced unconditionally at the
    start of the actual editor TextWatcher, including suppressed tab/recovery loads.
@@ -81,7 +81,7 @@ or Android/browser ordering guarantee is inferred from the controlled schedules.
    rather than collapsing the range. Current-search controls extract both callers
    and use actual SearchEngine; stale-search-dialog expansion is out of scope.
    The actual old
-   held-response fixture must stay RED until this shared retirement is implemented.
+   held-response fixture was RED before shared retirement and now passes.
 5. Guard Read-outline JavaScript inside the DOM with the exact current page nonce
    and complete state, as existing sync does. Keep renderer HTML, baseURL, WebView
    settings, `mdsrc:` parsing and external link policy unchanged. This bounds pending
@@ -89,7 +89,7 @@ or Android/browser ordering guarantee is inferred from the controlled schedules.
    submitted ready jumps may both execute; do not invent a guarantee that a later
    tap retracts an earlier browser command.
 
-Before source edits, independent review must challenge the new source-revision
+The preimplementation review challenged the new source-revision
 lifecycle, debounce→render handoff, same-ID restoration, existing source-link
 Read→Write semantics, scheduled versus already-running sync retirement, and the
 last editor post. Extend exact extraction with the actual watcher before validating
@@ -120,7 +120,7 @@ Read-only search of current extractors identified these concrete dependencies:
   dependency graph after the change; make only required truthful boundary additions,
   preserve all existing assertions, and do not assume these suites need edits.
 
-Root must coordinate ownership of any existing fixture files before edits. New
+Root authorized these narrow existing fixture adaptations before edits. New
 outline implementation checks must assert **one replaceable pending intent and
 zero polling callbacks** (not one surviving180ms retry). Current audit assertions
 already expect zero polling; the legitimate delayed-jump control checks eventual
@@ -128,9 +128,21 @@ correct navigation without requiring the old retry mechanism.
 
 ## Verification and limits
 
-Keep the committed raw baseline as an intentional RED diagnostic. Once authorized,
-make current focused checks GREEN, run affected preview/outline/source fixtures
-and whole-Java SDK37 compile, then obtain exact-source independent approval. Root
-owns central runner registration and combined gates; no unchanged broad suites or
-benchmarks here. Physical Android/WebView timing, modal reachability, scroll/IME,
+The committed raw baseline remains an intentional RED diagnostic. Current checks
+pass **32 cases /74 assertions**, extracting53 production members plus the actual
+watcher. Four additional pre-fix overlap schedules were RED before repair; final
+application now re-retires intervening synchronization. A separately discovered
+missing-layout regression was reproduced and fixed before checkpointing.
+
+Affected checks: preview queue438, navigation18cases/66assertions, status57,
+mode126, labels43 and appearance4963 PASS. Syntax's production watcher/scheduler
+check PASS (90ms coalescing, suppressed switch and theme reset); unchanged syntax
+comparison/benchmark were not repeated. The watcher adapters extract the exact new
+revision field, the mode adapter extracts the actual route field, and preview
+adapters extract real context predicates/helpers. Save/history extractors have no
+new dependency and remain unchanged. Whole-Java SDK37/JDK17 --release11 compile PASS on the final source, with existing
+deprecation/unchecked notes; this is not an APK/device test.
+
+Root owns central runner registration and combined gates; no unchanged broad suites
+or benchmarks here. Physical Android/WebView timing, modal reachability, scroll/IME,
 Fold/Focus/Read/Write/Split and release acceptance remain NOT RUN candidate gates.
