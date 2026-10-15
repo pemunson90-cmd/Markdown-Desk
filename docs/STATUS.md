@@ -46,13 +46,18 @@ copy helper `b4bd0c9` and private sink `d71dae2` approvals remain point-in-time 
 scoped to those artifacts; none approves the complete current source.
 
 Same-process activation and tracked declared-source read/drain/CLOSE are implemented
-at exact `c71add45ba689fbe0626b6eb0d7e78ef89ebabf2`; independent review is PENDING.
-Worker evidence: 5 new groups PASS and unchanged coordinator 59 smoke checks PASS.
+at exact `4795c3cdaeacea5a7ef134284929cdecba1c269f`; scoped independent review is
+APPROVED. Worker evidence: 6 focused groups PASS after the retention RED repair.
+Previous coordinator 59 smoke checks remain recorded; they were not rerun.
+Independent groups prove identity, budget, hashed skip and resource closure, plus
+`terminalRetry` retaining `sourceTable` versus TERMINAL releasing the full table
+and budget while retaining bounded D for historical CLOSE.
 The implementation requires authentic returned binding and the exact original Budget,
 uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
 Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
-Activation is frozen for review; the worker only prepares the cold stale/partial
-cancellation packet. Cold recovery, runtime integration, full-heap and performance,
+Cold source is NOT implemented. The worker prepares a wire-preserving stale/partial
+cold-cancellation admission policy proposal only. Existing abandoned-capture block
+rules remain unchanged until a reviewed amendment. Cold recovery, runtime integration, full-heap and performance,
 migration and device acceptance remain OPEN. Minimum affected memory bounds are
 required before downstream storage consumers; broad batteries remain for feature completion.
 Both writer and activation runners are registered in the aggregate host script; only
@@ -62,9 +67,11 @@ During implementation, run minimum affected tests and essential compile/build ch
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: independently review frozen activation at exact `c71add4`; the worker prepares
-only the cold stale/partial cancellation packet. After review, implement and affected-test
-cold recovery, runtime integration and lifecycle/error closure before downstream features.
+Next: prepare and review the wire-preserving stale/partial cold-cancellation admission
+policy proposal; existing abandoned-capture block rules remain unchanged until a
+reviewed amendment. Cold source is NOT implemented. After approval, implement and
+affected-test cold recovery, runtime integration and lifecycle/error closure before
+downstream features.
 Prove minimum affected memory bounds before downstream storage consumers. Broad full-heap,
 performance, regression, migration and device batteries remain for feature completion.
 Continue M0–M7 directly; M1 is not complete. Source approvals remain exact-artifact scoped.
