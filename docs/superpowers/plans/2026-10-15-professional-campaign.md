@@ -50,19 +50,18 @@ hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 rem
 historical evidence, not current gate state.
 
 Native fingerprint `a4cb514`, source ownership/budget `e331477`, private-frame
-preflight `c3177b8`/integration `2f1d14b`, and private capture plan `a89b284` retain
-scoped approvals for those exact artifacts. Writer `92e41bb5827cf7d1d553bbe720744f20f239538e`
-is independently approved; its targeted 87 assertions and independent 4 scenarios pass. Review
-fixed cached installed-capacity/readiness using a narrow provenance getter and fresh
-identity/readiness after every callback. This approval excludes production sink,
-BEGIN/LINK, handoff, recovery and heap proof.
+preflight `c3177b8`/integration `2f1d14b`, capture plan `a89b284`, writer `92e41bb`
+and copy helper `b4bd0c9` retain approvals scoped to those exact artifacts.
+Private sink `d71dae257f9003f522743de7b2da59e96a8155e0` is independently approved
+after 4 groups: lazy I/O/normal credits, prefix tampering, final same-bytes replacement,
+and retained Error cleanup. The worker's 87 existing assertions plus 7 new actual-copy
+cases pass. One 8 MiB / 1637 ms result is a functional observation only, not performance
+acceptance.
 
-Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is independently approved
-after 3 scenario groups: exact identity binding; retained handles, Error and ordered
-cleanup; and overlength rejection before forwarding. Preflight 30 and copy 16 cases pass.
-The source worker owns Writer and its fixtures for provisional sink, live-prefix and
-promotion; root owns orchestration/integration. Production sink, final BEGIN/LINK,
-handoff, recovery and heap proof remain OPEN. No newer full gate/build/CI covers C2.
+The active worker now owns final BEGIN/LINK and typed-source handoff, with
+Writer/narrowPins/Sources/Storage and its fixtures; root owns orchestration and
+integration. Completion, activation, cold recovery, runtime integration, heap proof
+and performance acceptance remain OPEN. No newer full gate/build/CI covers C2.
 Independent substantive campaign plan review is approved at
 `73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
 `029269ba83b6897d4e0148c797db63311ddddda2` against ROADMAP and RELEASE_GATES; it
@@ -83,7 +82,7 @@ Paths below are relative to `apps/MarkdownDesk/src/com/example/markdowndesk/` un
 | M1/#5 protected save/conflict recovery | saveInternal,showProtectedSaves,launchProtectedCopy; SaveCoordinator/ProtectionStore | Wired+required host recoverability; original+attempted edit before provider open and explicit new-copy restore. Finish integrated lost-work/device durability rehearsal. | ADR001; always required |
 | M1/#5 real history/checkpoints/diff | showDocumentHistory; HistoryController,Catalog,Identity,Index,Diff | Wired+host named versions/paged history/comparison/new-copy restore. Verify cross-feature newer-edit/SaveAs/reopen journey. Evaluate issue5 content-hash reuse without conflating roles/identities or authorizing deletion by equality. | Protected save |
 | M1/#5 configurable policy/retention | HistoryPolicy,Capacity,Pruner,MaintenanceRecovery/Executor | Backend host-tested; SELECTED execution only, no automatic runtime retention. Finish reviewed startup replay, intelligible policy controls and configurable automatic scheduling through existing safety contracts. | Accounting/pins complete; deletion review |
-| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins and C1 accounting are integrated; C2 producer is incomplete. The worker owns Writer and its fixtures for provisional sink, live-prefix and promotion. Finish production sink, typed transitions, handoff, recovery and fault/reopen evidence before activation. | C2 producer gate |
+| M1/#5 captured private data | PrivateStateCodec,HistoryArchiveManifest,HistoryOperations; proposed PrivateOperationStore | Codecs/pins, C1 accounting and scoped C2 sink/copy helpers are approved; end-to-end producer remains incomplete. Worker owns Writer/narrowPins/Sources/Storage and fixtures for final BEGIN/LINK and typed-source handoff. Activation, cold recovery, runtime integration, heap and performance acceptance remain open. | C2 producer gate |
 | M1/#5 complete backup export | PrivateArchive/PrivateBundleInventory; no backup UI | V1+reviewed V2 framing foundations only. Persist full scoped inventory/active-tab selection; semantic validation, tracked provider output, actual close, fresh readback and durable truthful completion, then accessible app flow. | Capture; reviewed portable binding |
 | M1/#5 strict import/additive restore | No wired importer; codecs provisional | Durable bounded staging, typed graph checks, preview, deterministic remap, lossless projection, committed visibility and reopening retained history/drafts. Preserve live drafts/12tab capacity; imported policies/URI grants remain inert. | Semantic validation/shared quota; export fixtures |
 | M1 migration/rollback | Existing SessionStore/RecoveryStore; ADR005 additive direction | Old native/control bytes preserved; complete fixtures for old/new private-state adoption, failure/retry and reopening. No destructive migration/default cleanup. | Before enabling new storage/UI |
@@ -122,9 +121,9 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | draft PR24; writer92e41bb approved; copy helperb4bd0c9 committed | Own integration/accounting, STATUS and coherent boundary. Approved writer/copy checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Approved writer92e41bb; copy helperb4bd0c9 committed | Own source/tests through coherent producer; writer87 assertions and PreparationSources181 pass. Copy16 cases pass and independent copy review is approved. Worker owns Writer and its fixtures for provisional sink, live-prefix and promotion; continue actual production sink, typed transitions, final BEGIN/LINK, handoff, cold recovery and fault/heap proof. |
-| Independent reviewer; accounting_repair_review | Copy helperb4bd0c9 independently approved after 3 scenario groups | Writer92e41bb and copy helperb4bd0c9 approvals are scoped to those exact artifacts; production sink review remains outstanding. |
+| Lead; orchestration/integration | draft PR24; private sinkd71dae2 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Private sinkd71dae2 approved; 87 existing assertions + 7 actual-copy cases pass | Own Writer/narrowPins/Sources/Storage and fixtures; finish final BEGIN/LINK and typed-source handoff. Completion, activation, cold recovery, runtime integration, heap and performance acceptance remain open. |
+| Independent reviewer; accounting_repair_review | Private sinkd71dae2 approved after 4 groups | Approvals remain scoped to exact artifacts; integrated completion review remains open. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
 
@@ -169,16 +168,16 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 ## Next packet preparation, not speculative implementation
 
 **C2 capture producer:** Native fingerprint, source ownership/budget, private-frame
-preflight, and pure capture plan are integrated with scoped exact-artifact approvals.
-Writer `92e41bb` is independently approved (87 assertions; independent 4 scenarios).
-Copy helper `b4bd0c9` is independently approved after 3 scenario groups; its 16 cases pass. The worker now owns Writer and its fixtures for provisional sink, live-prefix and promotion.
-Require both original C0 control and L0 ledger hashes freshly matched before P, including
-the reproduced legacy PIN BEGIN→CANCELLED CLOSED case that changes C0/fullGraph while
-L0 stays unchanged. Plan authority alone cannot publish P. Continue through Writer-owned provisional
-sink, live-prefix and promotion, then production sink, exact typed transitions, final BEGIN/LINK and handoff, cold recovery,
-and crash/ENOSPC/reopen/heap evidence. Do not promote helper approvals into whole-campaign
-review.
-
+preflight, capture plan, writer and copy helper have approvals scoped to their exact
+artifacts. Private sink `d71dae257f9003f522743de7b2da59e96a8155e0` is independently
+approved after 4 groups (lazy I/O/normal credits, prefix tampering, final same-bytes
+replacement, retained Error cleanup); 87 existing assertions plus 7 actual-copy cases
+pass. One 8 MiB / 1637 ms result is functional evidence only. The worker owns
+Writer/narrowPins/Sources/Storage and fixtures for final BEGIN/LINK and typed-source
+handoff. Complete and review that boundary, then prove activation, cold recovery,
+runtime integration, heap bounds, crash/ENOSPC/reopen behavior and performance.
+End-to-end production completion remains OPEN; do not promote scoped approvals to whole-source
+or performance claims.
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
 **Policy/runtime:** complete startup recovery, understandable errors and configurable retention only once new operation evidence participates in all admission/pruning/retirement proofs. Preserve safe ordinary saves and optional-history/export failure isolation. Stop adding speculative protection layers once the approved boundary passes; finish its runtime consumer.
@@ -188,6 +187,7 @@ review.
 ## Verification, publication and completion
 
 - During implementation, run minimum affected tests plus essential compile/build checks. At feature-complete candidate, run broad regression, performance and migration coverage, then required clean committed-source host/two-unsigned gate and owner Fold7 acceptance. Reuse installed inputs. New Android APIs must remain min26-compatible, independent of compiler/platform age. Required merge/release gates remain intact.
+- Current C2 focused assertions/cases do not constitute a full gate. The 8 MiB / 1637 ms observation is functional only; performance acceptance remains open.
 - Keep actual journeys: failed save→recover/new copy; checkpoint→diff→restore preserving newer text; private export→import→reopen; workspace search under revocation/partial results; annotate→edit→reflow; print intended document while switching tabs; signed in-place upgrade preserving sessions/settings/docs.
 - New UI gets accessible loading/empty/error/partial states, cancellation and recovery. Host AST fixtures must extract real dependencies; no stale copied bodies or always-true guards.
 - Physical target is owner-reported Galaxy Z Fold7/Android16/OneUI8.0, installed literal“2.25” unverified. At feature completion, the owner will sign the unsigned APK with the original key and test on Fold7. Device acceptance is batched at that point; do not ask for device work during helper implementation. No replacement signer is allowed.
