@@ -46,6 +46,8 @@ Ruling: no durable pin is needed for the nonresumable comparison held under the
 common parent monitor and generation guard. Runtime export remains unavailable
 until enforced operation quiescence and terminal recovery are reviewed.
 
-Next: reconcile PR #19's backend integration, final whole-branch review, then one
-clean host/two-unsigned-build gate and required hosted validation. All physical
+PR #19 merged after required hosted success and is integrated normally. Final
+whole-branch review added 32 independent actual-method/native-backend checks.
+The clean required host suite and two audited unsigned builds passed at f6ea921.
+Next: required hosted validation for PR #20, then continue the campaign. All physical
 and canonical release gates remain separate and uncompleted.

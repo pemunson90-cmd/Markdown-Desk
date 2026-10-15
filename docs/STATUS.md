@@ -1,6 +1,6 @@
 # Current project status
 
-## Current checkpoint — selected retention and history workflow, 2026-10-14
+## Current checkpoint — guarded document history, 2026-10-15
 
 Main is `116b180c80d7395a7c23297979f0cdc90ae9c7e2`: [PR #19](https://github.com/pemunson90-cmd/Markdown-Desk/pull/19)
 merged at reviewed head `bd1d3e4` after required hosted run38656747429 passed.
@@ -33,7 +33,8 @@ Verified backend additions:
   promise, runtime consumer, operation quiescence, terminal repair, compaction
   or fresh-process arbitrary-evidence-loss anchor is implemented.
 
-Active integration: `codex/history-ui-integration`, with verified main merged normally.
+Active integration: `codex/history-ui-integration`, [PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20),
+with verified main merged normally.
 
 - Frozen native archive manifest `73655d5` is integrated byte-identically through
   `3d43a14`/`16ebb77`. Worker 871 functional and 16,392 metadata-boundary checks
@@ -71,14 +72,23 @@ Active integration: `codex/history-ui-integration`, with verified main merged no
   import runtime caller is enabled. Android rendering/provider/device gates remain
   NOT RUN.
 
-Next: finish final whole-branch review and run one coherent clean host/two-
-unsigned-build gate for the history actions and current backend source, then its
-required hosted check. Continue runtime quiescence/terminal repair, persisted
-export capture, strict import/adoption and the remaining M0–M7 campaign. No full
-M1 or release completion is claimed.
+Combined gate **PASS** at `f6ea92192f41039d0fe082f200ed477c871c42d9`:
+`python3 verification/check_clean_rebuild.py` completed normally, running the
+required host suite once in a clean checkout, including the new controller and
+actual history-action runners. Two fresh audited unsigned builds match SHA-256
+`934f816160a6e55fa5937fccfaa5acb39d4a4718c9703209337cc8d6254ea56f`.
+No downloads or signing inputs; exact package/version and all 25 assets preserved.
+Scoped credential-pattern scan: 401 tracked files, zero matches; not a whole-
+history proof. Final reviewed Activity blob remains unchanged.
 
-Latest merged production recoverability is GREEN; current integration gates
-remain pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
+Next: required hosted validation for PR #20, merge only after success, then
+continue reviewed operation quiescence/terminal repair, persisted export capture,
+strict import/adoption and the remaining M0–M7 campaign. A separate existing-
+preview/printing audit is reproducing callback/ready-state failures locally;
+no production fix is implemented or claimed. No full M1 or release completion.
+
+Required local production recoverability is GREEN; independent hosted validation
+for PR #20 remains pending. Raw-provider hazards remain unchanged separate RED diagnostics. Physical Fold7/Android16/OneUI8, SAF/IME/
 TalkBack, Android durability, canonical signing and upgrade acceptance are NOT RUN.
 Existing same-URL WebView completion/scroll ordering and fixed-delay printing
 remain separate Android gaps. Host queue observations are not typing latency,
