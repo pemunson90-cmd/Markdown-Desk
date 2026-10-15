@@ -187,3 +187,180 @@ projection can classify existing failed preparations? Which distinct descriptor/
 and funding dispatch will be reviewed, and how does combined serialized metadata count
 referenced I/maps? Which real activation/freeze/drain API will own all repeatable opens
 through quiescence? Until answered, design is reviewable but implementation is blocked.
+
+## Source-ready contract addendum — c3e5e7a baseline, 2026-10-15
+
+This addendum supersedes the unassigned wire/API questions above; it is a source
+contract proposal for independent review, not implementation or backup availability.
+Local writer/handoff `1fe3c464`, activation `4795c3cd`, and ADR-006 admission `af9eebf9`
+are present at base `c3e5e7a460ad4db923c0b3c420a683db977ae018`. Cold cancellation is
+owned separately. Rebase its accepted changes before touching Store/Pins/Operations.
+No existing A/B/domain1/domain2/archive-v1/archive-v2/schema1 bytes change.
+
+### Frozen version, field and size contract
+
+All new integers are big-endian, lengths/counts nonnegative signed-Java representable;
+UUID/hash encodings remain 16/32 raw bytes. Generated IDs are persisted UUIDv4.
+`B` means the EXISTING binding field sequence, with phase3 PORTABLE accepted only by
+MDOPv2; flags retain recovery bit0/preferences bit1, preferences required. Its length
+is `210 + sum(four strict-UTF8 role-basename lengths)`; each name remains <=64 bytes.
+`A` is existing77-byte artifact row `(kind:u8,id:UUID,item:UUID,ordinal:u32,length:u64,hash)`.
+
+| Surface | Exact new contract; existing versions remain explicit |
+| --- | --- |
+| MDOPv2 | Existing magic/header/checksum: `MDOP,u32(2),type:u8,bodyLength:u32,body,SHA256(prefix)`; overhead45; types P1/L2/D3. Existing filenames and stage suffix unchanged. |
+| Artifact kinds | map1, descriptor2, inventory3 (`inventory-ID.bundle`), evidence4 (`evidence-ID.capsule`), catalog5 (`sources-ID.catalog`), private6/7/8 unchanged. Kinds1–5 have ZERO item/ordinal0; private identity/order unchanged. |
+| Portable Dp | `B,inventoryOuterId:UUID,map:A,rowCount:u32,rows:A[]`; rows kinds3/4/5 then private6/7/8, no descriptor2/self row. `F<=14`, length `65+B+77*(4+F)`. |
+| Portable P | `B,directoryMask:u8,artifactCount:u32,rows:A[],exactBEGIN[204]`; sorted kinds1–8, <=19 rows; length `254+B+77*(5+F)`. Masks2/3 retain existing meaning. |
+| Portable L | Existing173-byte body/fields, MDOP version2: preparation,operation,P hash,BEGIN hash,Dp hash. No new receipt/control kind. |
+| Pin domain3 | `PORTABLE_CAPTURE_V1=3`; existing pin envelope v1, EXPORT/ALL_BUNDLE, empty sources; BEGIN204 and CLOSE126. Manifest count = complete inventory ordinary count INCLUDING evidence; length/hash = exact Dp, never I alone. |
+| Inventory | Schema2 uses EXACT schema1 field order and checksum; permits directory/lineage type11 only in addition to1–9. Type11 identity is generated evidence-item ID; zero coordinates in its lineage. Scope/order/active/policy rules unchanged. |
+| Archive | Explicit `writeV3` and version3 read dispatch; same inventory-first type10 frame,58-byte headers/45-byte terminal; schema2 mandatory. Type11 = OPERATION_EVIDENCE, bounded opaque bytes until capsule validation. V1/v2 reject11/schema2; existing write/writeV2 unchanged. |
+| Bounds | One1GiB archive;16,380 ordinary entries INCLUDING capsules;64 scopes;256 origins;65,536 lineage edges;12/1/1 private rows per scope;65,536 total operation namespace slots; existing native/private limits unchanged. |
+
+I is inventory artifact3; its archive outer ID is Dp.inventoryOuterId, distinct from
+all directory IDs. Native directory outer IDs reuse frozen native-map archiveIds;
+private directory identities equal preflight itemIds; catalog binds their generated
+outer IDs to artifactIds. Dp/map/I/catalog total SERIALIZED metadata <=16MiB,
+not16MiB each. Evidence's structural header/rows count toward the same bound;
+raw control bytes count as metadata too, raw document/data bytes do not. Dp/P remain
+<=16,384 bytes individually. Count/metadata exhaustion rejects before P/provider.
+
+Catalog grammar: `MDSRC01\n` (8 bytes),schema:u32(1),totalLength:u32,count:u32,
+then outer-UUID-sorted97-byte rows `(outer:UUID,route:u8,owner:UUID,member:UUID,
+offset:u64,length:u64,hash)`, then SHA256(prefix). Length `52+97*N`; N equals I's
+ordinary-entry count. Routes1=NATIVE,2=OWN_FRAME,3=OWN_EVIDENCE,4=RETAINED.
+NATIVE owner is local bundle/member is native embedded ID; I.type disambiguates
+transaction roles. OWN owner is preparation/member is artifactId; offset must0.
+RETAINED owner is trusted LOCAL adoption receipt ID/member is its scoped item ID;
+resolve through that receipt only. No path/URI, imported catalog or hash grants routing.
+Every row must join exactly one inventory row and exact local immutable source;
+length/hash/embedded identity and native map membership agree before BEGIN.
+
+### Lossless failed evidence, without pretending partial bytes are valid content
+
+Persist one aggregate capsule even when empty: `MDEVID1\n` (8),schema:u32(1),
+totalLength:u64,rowCount:u32,rows, SHA256(prefix); empty length56. Each row is
+`role:u8,ownerPreparation:UUID,nodeId:UUID,kind:u8,state:u8,nameLength:u16,
+name:UTF8,declaredLength:u64,declaredHash[32],actualLength:u64,actualHash[32],
+futureBytes:u64,futureSlots:u32,relation:u8,rawLength:u64,rawBytes`.
+Fixed row overhead is138 bytes plus name/raw bytes. Names are canonical single
+basenames <=255 strict-UTF8 bytes; never paths. Rows sort by role, unsigned owner
+UUID, name UTF8 bytes; duplicates fail. rowCount<=65,536+256; all count limits also
+charge the existing source ledger/control namespace, never a fresh allowance.
+Roles1=operation control,2=operation data,3=namespace directory. For role1 kind is
+P1/L2/BEGIN3/CLOSE4; role2 uses its declared artifact kind; directory kind0.
+States0=absent,1=directory,2=committed file,3=stage. ZERO owner/node only where the
+namespace root has no preparation/artifact identity; control node is persisted
+preparation/operation ID as appropriate. Unknown kinds/shapes remain blocking.
+Absent/directory rows have raw/actual length0 and SHA256(empty); absent declaration
+hash is32 zero bytes only for directories. File rawLength=actualLength and bytes/hash
+are exact physical observations. Future byte/slot counters reproduce the typed
+source-ledger reservations; actual plus future preserves each original commitment.
+Relation0=UNKNOWN,1=PROVEN_EXACT_PREFIX; relation1 requires actual comparison with
+available final bytes. ADR-006 bounded stages normally use0: final hash/length does
+not prove a prefix. Never pad, reconstruct, truncate or promote unavailable content.
+
+The frozen baseline covers EVERY preexisting operation control and operation-data
+node, including committed cancelled P/BEGIN/CLOSE, partial stages, missing artifacts,
+missing directories and unused credits. Include their raw metadata/content losslessly;
+only a complete field/byte/source-coordinate projection may replace duplicated copies.
+Current attempt's own P/Dp/I/catalog/capsule/copies/BEGIN/LINK are tagged
+ACTIVE_OWN_TRANSPORT by exact preparation/artifact commitments and omitted from the
+capsule to avoid recursive hashes. This affects export projection ONLY: full ledger,
+quota, C0/L0 checks and physical transition proofs still include every own entry.
+An older linked capture, equal bytes, newer draft or CANCELLED state is no omission
+proof. Unclassifiable evidence blocks the whole backup before destination access.
+Import retains capsules byte-exact in an admitted, inert quarantine with their source
+scope/origin and inventory item ID; no replay into local controls, pin creation,
+policy enrollment, URI authority, source-ID routing or deletion permission follows.
+Re-export includes quarantined capsules unchanged as distinct retained items.
+
+### Concrete producer, owner and consumer chain
+
+1. `MainActivity.capturePortableSelection()` is a NEW main-thread-only entry:
+   invoke existing `captureActiveTab()` once, then freeze ordered `DocumentTab.id`,
+   tab fields/text, `tabs[activeTab].id` (null iff empty), independent recovery and
+   eight allowlisted preferences in one immutable `PortableSelection`. Charge before
+   copies; do not retain mutable DocumentTabs/Editable or re-read UI after P.
+   Each frozen row retains the ORIGINAL exact sourceTabId, not an item/outer/remap ID.
+2. Add `PrivateCapturePlan.createPortable(File store, File catalog, File identity,
+   File index, HistoryArchiveManifest frozen, HistoryGraph.Graph graph,
+   HistoryControlStore.Inspection control, PrivateOperationStore.Ledger baseLedger,
+   PreparationSources owner, UUID preparation, UUID operation, UUID mapId,
+   UUID descriptorId, List<PrivateFramePreflight.ClosedFrame> frames,
+   long bootstrapQuotaBytes, PortableSelection selection, PortableInputs inputs,
+   HistoryStorage.Budget sharedBudget)`; existing create stays local. Inputs owns exact frozen I/catalog/capsule sources,
+   retained receipt membership and generated IDs; no provider callbacks. Preflight
+   existing PrivateStateCodec frames via existing PreparationSources/ClosedFrame;
+   compare original sourceTabId and its existing sourceTabIdHash, reject duplicate/
+   foreign selection, map active original ID to its one inventory tab entry BEFORE P.
+3. `PrivateCaptureWriter.prepare`/write/copy/`commitCapture(HistoryPins)` gain only
+   version-dispatched portable rows/sinks. Extend authentic CapturedBinding with
+   persisted version/domain; no public reconstruction from DTO/hash. Keep original
+   owner/Budget, freeze→claim→final proof→BEGIN→LINK→one-use handoff under same lease.
+   No second pin, later selection capture or reset of uncertain owners.
+4. Store/Pins validate v2 artifacts and Dp→I→catalog→typed per-scope graph joins;
+   source table includes inventory outer ID as a separately declared tracked input.
+   Existing `HistoryOperations.activateCaptured(binding,budget)` returns the handle;
+   existing `openCapturedSource(handle,item)` supplies every declared native/private/
+   evidence/I source. Retained route4 requires exact local receipt and operation-owned
+   protection through drain; if receipt namespace is absent, prove absence locked.
+5. NEW `PrivateBackupCoordinator` owns the above flow, builds ArchiveSource in I
+   order. After activation/semantic preflight, request SAF destination and call
+   writeV3 with tracked inventory/sources; own output flush/actual close, fresh
+   readback, summary comparison, freeze/drain and exact capturedManifest→CLOSE.
+   Failures retain evidence/lifetime; framing success alone never displays success.
+6. NEW `PrivateRestoreCoordinator` stages readPortable v1/v2/v3 provisionally, validates
+   PrivateStateCodec and strict native graph/reference/manifest joins, capsule grammar
+   and completeness, then persists a deterministic remap/adoption receipt before any
+   visibility. Persist remap by (source scope,native namespace,identity), with one
+   transaction namespace for prepare/completion; distinct outer IDs stay distinct.
+   Repeat adoptions get fresh scopes. `PrivateRestoreReceipt` owns trusted local routes;
+   imported source IDs/policy/URIs/catalog stay inert. Strict readers, admitted protective
+   copies and explicit restore-to-new-copy feed existing history picker. Additive
+   read-only retained drafts exceed12 without eviction; opening a draft needs a free
+   live slot. Apply preferences only by a separate explicit action; no user-file writes.
+
+### One metadata owner, affected proof and next file ownership
+
+The coordinator retains ONE original HistoryStorage.Budget(16MiB). Add a charging
+constructor/adapter to PrivateBundleInventory.MetadataBudget that debits that same original budget
+before reservations/allocations; close may release codec-local use but must not
+restore the parent monotonic debit. Internal prepaid child workspaces may spend only
+already charged amounts. Do not construct a second full-limit budget per helper.
+Simultaneous charge includes live UI snapshot/text copies, graph/control/ledger and
+physical anchors, native map/fingerprint, all record clones/encoding transients,
+I/capsule/catalog owners/indexes, typed validators/remap/provenance, source tables,
+preflight512KiB plus attempts, writer transitions/refresh work, readback overlap and
+tracked wrappers/FDs. Streams <=64KiB scratch; existing codec65540-byte carry remains
+explicit. Inventory/result owner survives all borrowed callbacks and quiescence;
+failed open/close retains uncertainty and its owner, never releases for early retry.
+
+Minimal affected proof before UI: measured conservative retained-object bounds for
+this simultaneous owner set, charged boundary refusal before P, one capsule streamed
+without payload arrays, source-table/open/readback peaks, borrowed rows across failure,
+and child-workspace/prepaid accounting. Serialized limits and logical close are not
+heap proof. Whole-heap/performance/migration/regression batteries remain feature gates.
+Next sequential ownership (class names denote exact `.java` basenames in the existing
+source package): A owns PrivateOperationRecord, HistoryPinRecord, PrivateBundleInventory,
+PrivateArchive, NEW PrivateOperationEvidence and wire fixtures. B owns NEW PortableSelection,
+PrivateCapturePlan, PrivateCaptureWriter, PrivateFramePreflight, PreparationSources,
+HistoryStorage budget adapter. C, after cold-worker integration, owns PrivateOperationStore,
+HistoryPins, HistoryOperations and retained-route protection. D owns NEW
+PrivateBackupCoordinator/PrivateRestoreCoordinator/PrivateRestoreReceipt, extracted
+strict native readers, then MainActivity capture/action/retained-draft picker only.
+Keep these within the existing draft integration chain; no generic framework layer.
+Minimum changed-path tests: independently encoded v1/v2/v3+MDOP goldens; tab A/B with
+B active after live switch and fresh retry; cancelled missing-final stage UNKNOWN
+roundtrip; exact metadata/quota/control/slot prefix boundaries; foreign catalog/graph
+and scoped-ID collisions; repeated additive restore→export preserving inert evidence.
+For each new artifact/control size n: absent `(actual0,future n,slots0+1)`, stage k
+`(k,n-k,1+0)`, exact final `(n,0,1+0)`; control P itself preadmitted, not self-funded.
+BEGIN/LINK/CLOSE sizes204/173/126 and ONE matching CLOSE credit remain unchanged;
+partial/conflicting controls reject, data stages retain UNKNOWN relation, duplicate
+stage+final rejects. Golden prefixes include k=0,1,n-1,n and pre/post-dir-mask states,
+ENOSPC/readback failure and two fresh reopens; no old credit funds new publication.
+No tests/build/source/UI/push/PR ran in this packet. Version3/schema2 and the evidence
+representation are explicit engineering review boundaries; ADR-005 additive defaults
+resolve product behavior. No further product decision or owner permission is needed.
