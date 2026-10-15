@@ -78,6 +78,8 @@ final class PrivateOperationStore {
         long actualBytes,reservedBytes,occupiedEntries,reservedEntries;
         boolean complete=true,present,pending;
         String fingerprint="";
+        private File originalRoot;
+        private BasicFileAttributes originalRootAttributes;
         private HistoryControlStore.Inspection originalControl;
         private HistoryStorage.Budget originalBudget;
         final List<String> diagnostics=new ArrayList<>();
@@ -93,7 +95,8 @@ final class PrivateOperationStore {
         // Deliberately bind the existing native monitor; monitorFor(private_operations/UUID) is a different authority.
         Object monitor=HistoryStorage.monitorFor(nativeRoot);if(!Thread.holdsLock(monitor))throw new IOException("Native parent monitor required");
         budget.charge(HistoryStorage.operationEvidenceBytes(nativeRoot));
-        Ledger ledger=new Ledger();ledger.originalControl=control;ledger.originalBudget=budget;ledger.pending=control.operations.pending;ledger.present=control.operations.present;
+        budget.charge(1024L+4L*nativeRoot.getPath().length()); // retained original-root provenance before allocation
+        Ledger ledger=new Ledger();ledger.originalRoot=HistoryStorage.canonicalRoot(nativeRoot);ledger.originalRootAttributes=attributes(ledger.originalRoot.toPath());ledger.originalControl=control;ledger.originalBudget=budget;ledger.pending=control.operations.pending;ledger.present=control.operations.present;
         if(!control.operations.valid)ledger.invalid("invalid commitments");
         Path root=HistoryStorage.canonicalRoot(nativeRoot).getParentFile().toPath().resolve(ROOT);
         Map<String,PrivateOperationRecord.Artifact> expected=new HashMap<>();Set<String> directories=new HashSet<>(),linkedArtifacts=new HashSet<>();boolean rootFunded=false;
@@ -474,4 +477,279 @@ final class PrivateOperationStore {
     static BasicFileAttributes attributesOrAbsent(Path p)throws IOException{try{return attributes(p);}catch(NoSuchFileException absent){return null;}}
     static void same(BasicFileAttributes before,BasicFileAttributes after)throws IOException{if(before.fileKey()==null||!Objects.equals(before.fileKey(),after.fileKey())||before.size()!=after.size()||before.isDirectory()!=after.isDirectory()||before.isRegularFile()!=after.isRegularFile()||!before.lastModifiedTime().equals(after.lastModifiedTime()))throw new IOException("Changed operation identity");}
     static long add(long a,long b)throws IOException{try{return Math.addExact(a,b);}catch(ArithmeticException invalid){throw new IOException("Operation accounting overflow",invalid);}}
+    /** Shared future receipt/quarantine root. First producer supports proved absence only. */
+    static final String RETAINED_ROOT="private_retained";
+    private static final UUID PORTABLE_ZERO=new UUID(0,0);
+    private static final String PORTABLE_EMPTY="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    private static final String PORTABLE_NIL=String.join("",Collections.nCopies(64,"0"));
+
+    /** Original physical source inventory only; no publication, pin or terminal capability. */
+    static PortableBaseline capturePortableBaselineLocked(File nativeRoot,HistoryControlStore.Inspection control,
+            Ledger ledger,PreparationSources owner,UUID preparation,HistoryStorage.Budget budget)throws IOException {
+        HistoryStorage.requireMutation(nativeRoot);PreparationSources.rejectParticipant();HistoryOperations.rejectParticipant();
+        File root=HistoryStorage.canonicalRoot(nativeRoot);
+        if(control==null||ledger==null||owner==null||budget==null||ledger.originalControl!=control
+                ||ledger.originalBudget!=budget||!root.equals(ledger.originalRoot))throw new IOException("Foreign original portable baseline");
+        owner.requireIdleBindingLocked(root,preparation,budget);
+        BasicFileAttributes originalRoot=ledger.originalRootAttributes,currentRoot=attributes(root.toPath());
+        if(originalRoot==null||!originalRoot.isDirectory()||!currentRoot.isDirectory()||currentRoot.isSymbolicLink()
+                ||originalRoot.fileKey()==null||!Objects.equals(originalRoot.fileKey(),currentRoot.fileKey())
+                ||!originalRoot.creationTime().equals(currentRoot.creationTime()))throw new IOException("Replaced original portable root");
+        if(control.state!=HistoryControlStore.State.VALIDATED||!control.chainComplete||!control.usageComplete
+                ||!control.diagnostics.isEmpty()||!control.stages.isEmpty()||control.hasMaintenance()
+                ||!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty()
+                ||!control.operations.valid||!control.operations.ready||!ledger.complete||!ledger.diagnostics.isEmpty()
+                ||control.registration==null||control.latest==null)throw new IOException("Incomplete original portable baseline");
+        if(ledger.pending) {
+            if(attributesOrAbsent(root.getParentFile().toPath().resolve(ROOT))!=null)
+                requireHistoricalCaptureOwnerLocked(root,control,ledger,owner,preparation,budget);
+            else if(hasHistoricalOwnerLocked(root,control))throw new IOException("Historical source owner remains live");
+            // An absent funded root is classified below from actual committed cancelled controls.
+            // This additive read inventory does not relax generic namespace/admission predicates.
+        }
+        budget.charge(256L<<10); // one reusable64KiB hash buffer, control/reference tables and scan temporaries
+        PortableBaseline result=new PortableBaseline(root,control,ledger,owner,preparation,budget);
+        result.capture();return result;
+    }
+
+    static final class PortableBaseline {
+        private final File root,parent;private final HistoryControlStore.Inspection control;private final Ledger ledger;
+        private final PreparationSources owner;private final UUID preparation;private final HistoryStorage.Budget budget;
+        private final List<BaselineNode> nodes=new ArrayList<>();
+        private final Map<String,BaselineNode> controls=new HashMap<>();
+        private final Map<String,String> operationEntries=new TreeMap<>(),controlIdentities=new TreeMap<>();
+        private final Map<Path,BasicFileAttributes> directories=new LinkedHashMap<>();
+        private List<PrivateOperationEvidence.Row> rows;private boolean originalOperationRootAbsent,sourceOnlyRootAbsence;
+        private final byte[] scratch=new byte[65536];
+        private String controlHash,ledgerHash;private volatile BaselineCursor active;private volatile boolean failed;
+        private PortableBaseline(File root,HistoryControlStore.Inspection c,Ledger l,PreparationSources owner,
+                UUID preparation,HistoryStorage.Budget budget) {
+            this.root=root;parent=root.getParentFile();control=c;ledger=l;this.owner=owner;this.preparation=preparation;this.budget=budget;
+        }
+        List<PrivateOperationEvidence.Row> rows(){return rows;}
+        /** Source evidence only; generic Graph/capture admission still refuses this prefix. */
+        boolean sourceOnlyMissingRoot(){return sourceOnlyRootAbsence;}
+        private void capture()throws IOException {
+            retainedAbsent();directory(root.toPath());directory(parent.toPath());directory(parent.toPath().resolve(HistoryControlStore.ROOT_NAME));
+            List<PrivateOperationRecord> prepares=new ArrayList<>();Map<UUID,UUID> pinOwners=new HashMap<>();
+            for(HistoryControlStore.Entry e:control.entries)if(e.operation!=null&&e.operation.type==PrivateOperationRecord.PREPARE){
+                if(e.operation.preparation.equals(preparation)||pinOwners.put(e.operation.operation,e.operation.preparation)!=null)throw new IOException("Conflicting portable baseline preparation");
+                prepares.add(e.operation);
+            }
+            Map<UUID,HistoryPinRecord> begins=new HashMap<>(),closes=new HashMap<>();
+            for(HistoryControlStore.Entry e:control.entries){
+                if(e.filename==null||e.stage||e.envelopeHash==null)throw new IOException("Unclassified portable control");
+                UUID own=PORTABLE_ZERO,node=PORTABLE_ZERO;int role,kind;
+                if(e.record!=null){role=4;kind=HistoryControlStore.ENROLLMENT_NAME.equals(e.filename)?1:e.record instanceof HistoryControlStore.Registration?2:3;}
+                else if(e.operation!=null){role=1;kind=e.operation.type;own=e.operation.preparation;node=own;}
+                else if(e.pin!=null){
+                    role=1;kind=e.pin.begin?3:4;node=e.pin.operation;own=pinOwners.getOrDefault(node,PORTABLE_ZERO);
+                    if((e.pin.begin?begins:closes).put(node,e.pin)!=null)throw new IOException("Duplicate original pin");
+                    if(PORTABLE_ZERO.equals(own)&&e.pin.begin&&e.pin.manifest.domain!=HistoryPinRecord.Domain.NATIVE_HISTORY_V1)throw new IOException("Unowned nonlegacy pin");
+                }else throw new IOException("Unknown portable control kind");
+                Path path=kind==1&&role==4?parent.toPath().resolve(e.filename):parent.toPath().resolve(HistoryControlStore.ROOT_NAME).resolve(e.filename);
+                BaselineNode n=file(role,own,node,kind,e.filename,e.length,e.envelopeHash,path,false,false);
+                if(controls.put(e.filename,n)!=null)throw new IOException("Duplicate control basename");
+                if(operationEntry(e)){BasicFileAttributes a=n.anchor;controlIdentities.put(e.filename,a.fileKey()+":"+a.creationTime()+":"+a.lastModifiedTime()+":"+a.size());}
+            }
+            if(begins.size()!=closes.size())throw new IOException("Unmatched original pin");
+            for(HistoryPinRecord begin:begins.values()){
+                HistoryPinRecord close=closes.get(begin.operation);
+                if(close==null||!HistoryPinRecord.matches(begin,close))throw new IOException("Unclosed original pin");
+            }
+            Path operationRoot=parent.toPath().resolve(ROOT);BasicFileAttributes rootAttributes=attributesOrAbsent(operationRoot);
+            originalOperationRootAbsent=rootAttributes==null;sourceOnlyRootAbsence=originalOperationRootAbsent&&!prepares.isEmpty();boolean rootFunded=false;
+            if(rootAttributes!=null||!prepares.isEmpty())addDirectory(operationRoot,PORTABLE_ZERO,ROOT,rootAttributes);
+            for(PrivateOperationRecord p:prepares){
+                HistoryPinRecord begin=begins.get(p.operation),close=closes.get(p.operation);
+                if(begin==null||close==null||!p.beginHash.equals(begin.envelopeHash))throw new IOException("Original preparation pin mismatch");
+                PrivateOperationRecord link=PrivateOperationRecord.link(p);BaselineNode presentLink=controls.get(link.name());
+                boolean cancelled=presentLink==null&&close.outcome==HistoryPinRecord.Outcome.CANCELLED;
+                rootFunded|=(p.directoryMask&1)!=0;
+                if(sourceOnlyRootAbsence&&!cancelled)throw new IOException("Absent funded root requires every original preparation cancelled");
+                if(presentLink==null){if(!cancelled)throw new IOException("Unlinked noncancelled preparation");missingControl(p.preparation,link);}
+                else if(!presentLink.row.actualHash.equals(link.envelopeHash))throw new IOException("Original LINK mismatch");
+                Path directory=operationRoot.resolve(p.preparation.toString());addDirectory(directory,p.preparation,p.preparation.toString(),attributesOrAbsent(directory));
+                for(PrivateOperationRecord.Artifact a:p.artifacts){
+                    Path finalPath=directory.resolve(a.filename()),stagePath=directory.resolve(a.filename()+".stage");
+                    BasicFileAttributes committed=attributesOrAbsent(finalPath),stage=attributesOrAbsent(stagePath);
+                    if(committed!=null&&stage!=null||stage!=null&&!cancelled)throw new IOException("Conflicting original artifact");
+                    file(2,p.preparation,a.id,a.kind,a.filename()+(stage==null?"":".stage"),a.length,a.hash,
+                        stage==null?finalPath:stagePath,stage!=null,cancelled);
+                }
+            }
+            if(sourceOnlyRootAbsence&&!rootFunded)throw new IOException("Absent original root has no typed slot funding");
+            enumerateControl();enumerateOperations(operationRoot,rootAttributes);
+            if(!operationEntries.equals(ledger.entries)||!controlIdentities.equals(ledger.controlIdentities))throw new IOException("Original physical ledger identities changed");
+            reconcile();controlHash=PrivateCapturePlan.initialControlHash(control);ledgerHash=PrivateCapturePlan.initialLedgerHash(ledger);
+            if(ledger.present&&!ledger.fingerprint.equals(fingerprint(ledger,control)))throw new IOException("Original ledger fingerprint changed");
+            nodes.sort((a,b)->{int c=Integer.compare(a.row.role,b.row.role);if(c==0)c=PrivateBundleInventory.compare(a.row.ownerPreparation,b.row.ownerPreparation);return c!=0?c:a.row.name.compareTo(b.row.name);});
+            budget.charge(256L+16L*nodes.size());List<PrivateOperationEvidence.Row> result=new ArrayList<>(nodes.size());
+            for(BaselineNode n:nodes)result.add(n.row);rows=Collections.unmodifiableList(result);
+        }
+        private void charge(String name)throws IOException {budget.charge(2048L+4L*(parent.getPath().length()+name.length()+128));}
+        private BaselineNode file(int role,UUID own,UUID node,int kind,String name,long declared,String expected,Path path,
+                boolean stage,boolean missingAllowed)throws IOException {
+            charge(name);BasicFileAttributes a=attributesOrAbsent(path);int state;
+            long actual=0,future;String actualHash=PORTABLE_EMPTY;
+            if(a==null){if(!missingAllowed)throw new IOException("Missing original file");state=0;}
+            else{
+                if(!a.isRegularFile()||a.isSymbolicLink()||a.fileKey()==null||a.size()>declared||!stage&&a.size()!=declared)throw new IOException("Original file shape/length");
+                actual=a.size();actualHash=hashFile(path,a,scratch);state=stage?3:2;
+                if(!stage&&!expected.equals(actualHash))throw new IOException("Original file commitment changed");
+            }
+            future=declared-actual;
+            PrivateOperationEvidence.Row row=new PrivateOperationEvidence.Row(role,own,node,kind,state,name,declared,expected,actual,actualHash,future,a==null?1:0,0);
+            BaselineNode n=new BaselineNode(row,path,a);nodes.add(n);
+            if(role==2&&a!=null)operationEntries.put(own+"/"+name,"file:"+a.size()+":"+a.fileKey()+":"+actualHash);
+            return n;
+        }
+        private void missingControl(UUID own,PrivateOperationRecord link)throws IOException {
+            charge(link.name());Path path=parent.toPath().resolve(HistoryControlStore.ROOT_NAME).resolve(link.name());
+            if(attributesOrAbsent(path)!=null||attributesOrAbsent(path.resolveSibling(link.name()+".stage"))!=null)throw new IOException("Conflicting original missing LINK");
+            nodes.add(new BaselineNode(new PrivateOperationEvidence.Row(1,own,own,2,0,link.name(),link.encoded().length,link.envelopeHash,0,PORTABLE_EMPTY,link.encoded().length,1,0),path,null));
+        }
+        private void addDirectory(Path path,UUID own,String name,BasicFileAttributes a)throws IOException {
+            charge(name);
+            if(a!=null){if(!a.isDirectory()||a.isSymbolicLink()||a.fileKey()==null)throw new IOException("Original operation directory shape");directories.put(path,a);operationEntries.put(name,"dir:"+a.fileKey());}
+            nodes.add(new BaselineNode(new PrivateOperationEvidence.Row(3,own,own,0,a==null?0:1,name,0,PORTABLE_NIL,0,PORTABLE_EMPTY,0,a==null?1:0,0),path,a));
+        }
+        private void directory(Path path)throws IOException {BasicFileAttributes a=attributes(path);if(!a.isDirectory()||a.isSymbolicLink()||a.fileKey()==null)throw new IOException("Invalid original parent directory");directories.put(path,a);}
+        private void retainedAbsent()throws IOException {if(attributesOrAbsent(parent.toPath().resolve(RETAINED_ROOT))!=null)throw new IOException("Retained namespace requires actual receipt admission");}
+        private void enumerateControl()throws IOException {
+            int count=0;
+            try(DirectoryStream<Path> files=Files.newDirectoryStream(parent.toPath().resolve(HistoryControlStore.ROOT_NAME))){
+                for(Path path:files){String name=path.getFileName().toString();BaselineNode n=controls.get(name);
+                    if(n==null||n.path.getParent().equals(parent.toPath()))throw new IOException("Unknown original control member");count++;}
+            }catch(DirectoryIteratorException e){throw new IOException("Original control enumeration failed",e);}
+            if(count!=controls.size()-1)throw new IOException("Original control membership changed");
+            if(attributesOrAbsent(parent.toPath().resolve(HistoryControlStore.ENROLLMENT_STAGE))!=null)throw new IOException("Staged original enrollment");
+        }
+        private void enumerateOperations(Path operationRoot,BasicFileAttributes rootAttributes)throws IOException {
+            if(rootAttributes==null)return;
+            Set<String> actual=new HashSet<>();
+            try(DirectoryStream<Path> dirs=Files.newDirectoryStream(operationRoot)){
+                for(Path dir:dirs){String name=dir.getFileName().toString();if(!operationEntries.containsKey(name)||!directories.containsKey(dir))throw new IOException("Unknown original operation directory");actual.add(name);
+                    try(DirectoryStream<Path> files=Files.newDirectoryStream(dir)){for(Path file:files){String key=name+"/"+file.getFileName();if(!operationEntries.containsKey(key))throw new IOException("Unknown original operation artifact");actual.add(key);}}
+                }
+            }catch(DirectoryIteratorException e){throw new IOException("Original operation enumeration failed",e);}
+            if(actual.size()!=operationEntries.size()-1)throw new IOException("Original operation membership changed");
+        }
+        private void reconcile()throws IOException {
+            long data=0,dataFuture=0,dataSlots=0,dataFutureSlots=0,controlBytes=0,controlFuture=0,controlSlots=0,controlFutureSlots=0;
+            for(BaselineNode n:nodes){PrivateOperationEvidence.Row r=n.row;
+                if(r.role==2||r.role==3){data=add(data,r.actualLength);dataFuture=add(dataFuture,r.futureBytes);dataSlots+=r.state==0?0:1;dataFutureSlots+=r.futureSlots;}
+                else{controlBytes=add(controlBytes,r.actualLength);controlFuture=add(controlFuture,r.futureBytes);controlSlots+=r.state==0?0:1;controlFutureSlots+=r.futureSlots;}}
+            if(data!=ledger.actualBytes||dataFuture!=ledger.reservedBytes||dataSlots!=ledger.occupiedEntries||dataFutureSlots!=ledger.reservedEntries
+                    ||controlBytes!=control.actualBytes||controlFuture!=control.controlReservedBytes||controlSlots!=control.actualEntries||controlFutureSlots!=control.controlReservedEntries)
+                throw new IOException("Original portable accounting does not reconcile");
+        }
+        synchronized void requireOriginalLocked(HistoryControlStore.Inspection expectedControl,Ledger expectedLedger,PreparationSources expectedOwner,
+                HistoryStorage.Budget expectedBudget)throws IOException {
+            HistoryStorage.requireMutation(root);
+            if(failed||expectedControl!=control||expectedLedger!=ledger||expectedOwner!=owner||expectedBudget!=budget||active!=null)throw new IOException("Foreign/busy original portable baseline");
+            owner.requireIdleBindingLocked(root,preparation,budget);retainedAbsent();
+            if(!controlHash.equals(PrivateCapturePlan.initialControlHash(control))||!ledgerHash.equals(PrivateCapturePlan.initialLedgerHash(ledger)))throw new IOException("Original portable bindings changed");
+            if(!operationEntries.equals(ledger.entries)||!controlIdentities.equals(ledger.controlIdentities)
+                    ||ledger.present&&!ledger.fingerprint.equals(fingerprint(ledger,control)))throw new IOException("Original ledger DTO changed");
+            reconcile();enumerateControl();enumerateOperations(parent.toPath().resolve(ROOT),attributesOrAbsent(parent.toPath().resolve(ROOT)));
+            for(BaselineNode n:nodes){n.verify();if(n.anchor!=null&&n.anchor.isRegularFile()
+                    &&!n.row.actualHash.equals(hashFile(n.path,n.anchor,scratch)))throw new IOException("Original raw bytes changed");}
+            verifyDirectories();
+        }
+        private void verifyDirectories()throws IOException {
+            retainedAbsent();
+            if(originalOperationRootAbsent&&attributesOrAbsent(parent.toPath().resolve(ROOT))!=null)throw new IOException("Originally absent operation root appeared");
+            for(Map.Entry<Path,BasicFileAttributes> e:directories.entrySet()){
+                BasicFileAttributes a=attributes(e.getKey());if(!a.isDirectory()||a.isSymbolicLink()||!Objects.equals(a.fileKey(),e.getValue().fileKey())
+                        ||!a.creationTime().equals(e.getValue().creationTime()))throw new IOException("Original source directory replaced");}
+        }
+        /** One normal Sources admission per complete iteration, including >64 baseline rows. */
+        synchronized BaselineCursor open()throws IOException {
+            if(failed||active!=null)throw new IOException("Original portable cursor busy/failed");
+            budget.charge(8192);BaselineCursor cursor=new BaselineCursor();active=cursor;
+            try{cursor.reader=owner.open(()->cursor.raw);return cursor;}
+            catch(IOException|RuntimeException|Error e){failed=true;throw e;}
+        }
+        final class BaselineCursor implements AutoCloseable {
+            private final Thread thread=Thread.currentThread();private final RawBaselineStream raw=new RawBaselineStream();
+            private PreparationSources.Reader reader;private int at=-1;private boolean rowOpened,closed;
+            private RowInput row;
+            private void ready()throws IOException {if(Thread.currentThread()!=thread||closed||failed)throw new IOException("Original portable cursor unavailable");}
+            PrivateOperationEvidence.Row next()throws IOException {
+                ready();if(row!=null||at>=0&&at<nodes.size()&&!rowOpened)throw new IOException("Original row must reach EOF and close before advance");
+                rowOpened=false;at++;return at<nodes.size()?nodes.get(at).row:null;
+            }
+            InputStream openRaw()throws IOException {return openRaw(at>=0&&at<nodes.size()?nodes.get(at).row:null);}
+            InputStream openRaw(PrivateOperationEvidence.Row expected)throws IOException {
+                ready();if(at<0||at>=nodes.size()||rowOpened||expected!=nodes.get(at).row)throw new IOException("Foreign or already opened original row");
+                budget.charge(512);raw.select(nodes.get(at));row=new RowInput(nodes.get(at).row.actualLength);rowOpened=true;return row;
+            }
+            public void close()throws IOException {
+                if(Thread.currentThread()!=thread)throw new IOException("Original cursor thread mismatch");if(closed)return;
+                // Do not drop a failed row/channel: Reader remains registered until actual closure succeeds.
+                reader.close();closed=true;synchronized(PortableBaseline.this){active=null;}
+            }
+            private final class RowInput extends InputStream {
+                long left;boolean done;private final byte[] one=new byte[1];
+                RowInput(long length){left=length;}
+                public int read()throws IOException {int n=read(one,0,1);return n<0?-1:one[0]&255;}
+                public int read(byte[] b,int off,int len)throws IOException {
+                    ready();if(done)throw new IOException("Original row closed");if(len==0)return 0;if(left==0)return -1;
+                    try{int n=reader.read(b,off,(int)Math.min(Math.min(left,len),65536));if(n<=0)throw new IOException("Truncated/stalled original raw source");left-=n;return n;}
+                    catch(IOException|RuntimeException|Error e){failed=true;throw e;}
+                }
+                public void close()throws IOException {
+                    if(done)return;if(Thread.currentThread()!=thread)throw new IOException("Original row thread mismatch");
+                    if(left!=0)throw new IOException("Original raw row not fully consumed");
+                    try{owner.consumerCallback(()->raw.finish());done=true;row=null;}
+                    catch(IOException|RuntimeException|Error e){failed=true;throw e;}
+                }
+            }
+            private final class RawBaselineStream extends InputStream {
+                private BaselineNode selected;private InputStream input;private MessageDigest hash;private long read;
+                void select(BaselineNode n)throws IOException {if(selected!=null)throw new IOException("Previous physical row remains open");selected=n;hash=HistoryStorage.digest();read=0;}
+                public int read()throws IOException {throw new IOException("Bounded original bulk source only");}
+                public int read(byte[] b,int off,int len)throws IOException {
+                    if(selected==null)throw new IOException("No original physical row");
+                    if(input==null){verifyDirectories();selected.verify();input=Files.newInputStream(selected.path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS);}
+                    int n=input.read(b,off,len);if(n>0){hash.update(b,off,n);read+=n;}return n;
+                }
+                void finish()throws IOException {
+                    if(selected==null)throw new IOException("No original raw row");
+                    if(read!=selected.row.actualLength)throw new IOException("Original raw row incomplete");
+                    if(input!=null){input.close();input=null;}
+                    selected.verify();verifyDirectories();
+                    if(!selected.row.actualHash.equals(HistoryStorage.hex(hash.digest())))throw new IOException("Original physical raw hash changed");
+                    selected=null;hash=null;
+                }
+                public void close()throws IOException {
+                    if(input!=null){input.close();input=null;}
+                    if(selected!=null){selected.verify();verifyDirectories();}
+                    // An incomplete row can be abandoned only by closing the entire owned cursor.
+                    selected=null;hash=null;
+                }
+            }
+        }
+    }
+    private static final class BaselineNode {
+        final PrivateOperationEvidence.Row row;final Path path;final BasicFileAttributes anchor;
+        BaselineNode(PrivateOperationEvidence.Row row,Path path,BasicFileAttributes anchor){this.row=row;this.path=path;this.anchor=anchor;}
+        void verify()throws IOException {
+            BasicFileAttributes now=attributesOrAbsent(path);
+            if(anchor==null){if(now!=null)throw new IOException("Originally absent portable source appeared");}
+            else{if(now==null||now.isSymbolicLink())throw new IOException("Original portable source disappeared");
+                if(anchor.isDirectory()){
+                    if(!now.isDirectory()||!Objects.equals(anchor.fileKey(),now.fileKey()))throw new IOException("Original portable directory replaced");
+                }else same(anchor,now);
+                if(!anchor.creationTime().equals(now.creationTime()))throw new IOException("Original portable source identity changed");}
+        }
+    }
+    private static String hashFile(Path path,BasicFileAttributes anchor,byte[] scratch)throws IOException {
+        MessageDigest hash=HistoryStorage.digest();long total=0;
+        try(InputStream input=Files.newInputStream(path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
+            int n;while((n=input.read(scratch))!=-1){if(n==0)throw new IOException("Original raw source stalled");total=add(total,n);if(total>anchor.size())throw new IOException("Original raw source grew");hash.update(scratch,0,n);}
+        }same(anchor,attributes(path));if(total!=anchor.size())throw new IOException("Original raw source truncated");return HistoryStorage.hex(hash.digest());
+    }
+
 }
