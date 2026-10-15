@@ -2,8 +2,8 @@
 
 Use configured JDK17 on PATH and run `bash verification/private_capture_writer/run.sh`.
 The fixtures use actual registered stores, immutable assembled MDOP records and the
-production writer. This is a local publisher test, not completed capture, activation,
-provider output, crash acceptance, Android or whole-heap proof.
+production writer, including final local BEGIN/LINK and typed process source handoff.
+Activation, provider output, crash acceptance, Android and whole-heap proof remain deferred.
 
 The first writer operation persists only exact PREPARE under one primary mutation
 lease. Its internal output FD is opened, written, synced and actually closed inside
@@ -27,7 +27,7 @@ funded namespace/preparation directories, and complete native-map/descriptor
 stages→committed metadata. Each owned byte and slot consumes exactly its prior
 future credit; baseline data stays unchanged. Partial metadata writes on failure
 are retained without a replacement writer or automatic repair. Private-frame
-live-prefix copying is described below; BEGIN/LINK remain unfinished. Never ignore an operation
+live-prefix copying and final BEGIN/LINK are described below. Never ignore an operation
 prefix or accept whichever state a callback leaves behind.
 
 The writer also guards the entire synchronous durability invocation with the
@@ -105,7 +105,8 @@ Only a successful CopiedFrame bound to this owner/original frame/sink plus actua
 FD closure permits finalization under one lease. It freshly checks full stage bytes/
 identity, source-close callback effects, control/data credits, installed policy and
 the retained native proof, then performs only expected stage→final move+directory
-sync with checks after every callback. No BEGIN or captured result is produced.
+sync with checks after every callback. This copy step alone produces no BEGIN or
+captured result; final publication requires the separate commit operation below.
 
 The runner includes7 new actual backend cases: exact preference copy/credit use,
 changed valid regeneration, same-byte stage/native replacement during source close,
@@ -115,5 +116,55 @@ host during functional verification; that is an observation, not a benchmark bud
 Original87 P/native assertions still pass. Initial private-copy tests failed for
 missing orchestration; the first zero-stage check caught truncating-open changing
 mtime, so its expected zero envelope is recorded after the known same-inode open.
-No broad suite/build/CI/device, crash reopen/full heap proof, final BEGIN/LINK,
-source handoff, cold recovery or activation is included in this packet.
+No broad suite/build/CI/device, crash fault matrix/full heap proof, cold recovery or
+activation is included in this packet.
+
+
+## Final BEGIN/LINK and source handoff
+
+`commitCapture(registeredPins)` runs outside history, freezes the original Sources
+owner, then claims its exact zero-resource/zero-running proof inside one primary
+lease. All declared artifacts must already be final, with exact bytes/hash/inode,
+and no live copy may remain. A fresh native physical proof stays open across BEGIN
+and LINK durability. Every synchronous durability invocation rechecks the original
+source claim, current installed capacity/policy and Pins identity, complete old/own
+control+data expectations, physical anchors and native source bytes. No exclusion is
+released between final proof and BEGIN. Any failure seals this writer and owner;
+there is no same-process repair/adoption or result revival.
+
+A privately constructed, creator-thread, lexically lease-bound one-use PreparedBegin
+capability lets only the registered Pins publish this plan's exact204-byte BEGIN.
+The Transition admits only that complete stage and its original-inode promotion.
+The single retained-pin-stage diagnostic is allowed only alongside the exact named,
+fully decoded204-byte/hash-bound owned BEGIN.stage; all other diagnostics or pins
+fail. Its complete stage transfers126-byte/one-slot CLOSE credit to the pin inventory
+exactly once; the remaining operation control credit is173-byte/one-slot LINK. LINK
+then follows its exact stage→promotion+directory-sync protocol. Any pre-LINK CLOSE,
+including a valid cancellation receipt introduced during a callback, prevents LINK
+and completion. Existing domain2 activation rejection is preserved.
+
+Before the first BEGIN write, the same original budget admits8 KiB for transient
+capabilities/control buffers/scalar result, plus the complete replacement retained
+operation-evidence maps:1024+2*Java-name-length bytes per committed operation-control
+name and final data key, matching existing HistoryStorage accounting. Old evidence
+remains live and unchanged during validation. After fresh durable LINK proof, the
+writer remembers all exact complete old+new operation evidence before handoff, so
+same-process deletion of the whole capture cannot revert to an older empty baseline.
+These are conservative logical admissions, not a measured whole simultaneous heap
+or GC bound.
+
+Only then is a privately constructed scalar CapturedBinding created. It holds the
+canonical root, preparation/operation IDs and P/BEGIN/D/LINK hashes; its transient
+original claim reference is consumed during handoff and cleared before return. It
+retains no writer, Graph, factories, payload or copy/codec buffers. Sources/Storage
+remove only the exact registered old owner with its original claim and this valid
+one-use binding, under the primary lease. Replaying the consumed binding cannot
+clear a newly registered preparation owner. No activation/resource handle is created.
+
+The11 completion cases cover native phase A and copied-private phase B success,
+exact complete-BEGIN.stage/CLOSE and LINK credit conversion, BEGIN/LINK file-sync and committed-LINK directory-sync failures,
+foreign Pins, missing artifacts, live source ownership, native/artifact same-byte
+replacement, pre-LINK CLOSE, consumed handoff replay against a new owner, and complete
+post-success capture disappearance against retained evidence. One child JVM freshly
+reopens durable control+data and verifies the exact LINK and future CLOSE credit;
+this is a durable inspection invariant, not cold recovery or crash-fault acceptance.

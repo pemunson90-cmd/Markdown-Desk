@@ -104,6 +104,13 @@ final class HistoryPins {
         if(operationBefore!=null)PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);
         if(terminal!=null)terminal.validate();for(HistoryOperations.Claim audit:audits)audit.validate();acknowledge(after);
     }
+    /** Sole domain2 producer entry: exact private one-use template, never ordinary begin. */
+    void publishPreparedBeginLocked(PrivateCaptureWriter.PreparedBegin publication)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());HistoryOperations.rejectParticipant();
+        if(publication==null||HistoryStorage.pins(store.storageRoot())!=this)throw new IOException("Registered Pins required for prepared BEGIN");
+        publication.publishLocked(this,store.storageRoot());
+        acknowledge(control());
+    }
     String begin(Purpose purpose,Scope scope,Collection<String> snapshotIds,ManifestIdentity manifest)throws IOException {
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
             requireReady();HistoryControlStore.Inspection before=control();

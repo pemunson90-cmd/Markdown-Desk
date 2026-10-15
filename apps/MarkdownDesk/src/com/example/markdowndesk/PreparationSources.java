@@ -144,6 +144,14 @@ final class PreparationSources {
     static final class Proof {
         private final PreparationSources owner;
         private Proof(PreparationSources owner) { this.owner = owner; }
+        void handoffLocked(PrivateCaptureWriter.CapturedBinding binding)throws IOException {
+            HistoryStorage.removePreparationSourcesLocked(owner.root,owner,this,binding);
+        }
+        void validateHandoffLocked(PreparationSources expected,PrivateCaptureWriter.CapturedBinding binding)throws IOException {
+            validateLocked();
+            if(expected!=owner||binding==null)throw new IOException("Foreign preparation handoff");
+            binding.validateHandoffLocked(this,owner.root,owner.preparation);
+        }
         void validateLocked() throws IOException {
             HistoryStorage.requireMutation(owner.root); HistoryOperations.rejectParticipant();
             synchronized (owner) {

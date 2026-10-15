@@ -58,6 +58,13 @@ final class HistoryStorage {
     static void preparationSources(File root,PreparationSources value)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.preparationSources!=null||value==null)throw new IOException("Preparation owner already installed or unlocked");state.preparationSources=value;
     }
+    /** No generic reset: only the still-registered old owner, exact claim and durable receipt. */
+    static void removePreparationSourcesLocked(File root,PreparationSources expected,PreparationSources.Proof claim,
+            PrivateCaptureWriter.CapturedBinding binding)throws IOException {
+        requireMutation(root);HistoryOperations.rejectParticipant();State state=(State)monitorFor(root);
+        if(expected==null||claim==null||binding==null||!canonicalRoot(root).equals(binding.root)||state.preparationSources!=expected)throw new IOException("Preparation handoff registration changed");
+        claim.validateHandoffLocked(expected,binding);binding.consumeHandoffLocked(claim);state.preparationSources=null;
+    }
     static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
     static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}
     static HistoryTombstoneView installedView(File root)throws IOException{return ((State)monitorFor(root)).tombstones;}
