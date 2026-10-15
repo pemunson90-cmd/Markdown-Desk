@@ -1,0 +1,34 @@
+import java.util.*;
+import java.util.regex.*;
+class android {static class R {static class id {static final int undo=16908338,redo=16908339;}}}
+class View {interface OnClickListener {void onClick(View view);}}
+class Toast {static Toast makeText(Object owner,String message,int length){return new Toast();}void show(){}}
+class KeyEvent {
+ static final int KEYCODE_Z=54,KEYCODE_Y=53,META_CTRL_ON=4096,META_SHIFT_ON=1,META_ALT_ON=2,META_META_ON=65536;
+ final int modifiers;KeyEvent(int modifiers){this.modifiers=modifiers;}
+ boolean isCtrlPressed(){return (modifiers&META_CTRL_ON)!=0;}boolean isShiftPressed(){return (modifiers&META_SHIFT_ON)!=0;}boolean hasModifiers(int expected){return modifiers==expected;}
+}
+class Editable implements CharSequence {
+ final StringBuilder text;Editable(String text){this.text=new StringBuilder(text);}
+ public char charAt(int i){return text.charAt(i);}public int length(){return text.length();}public CharSequence subSequence(int a,int b){return text.substring(a,b);}public String toString(){return text.toString();}
+ Editable insert(int at,String value){text.insert(at,value);return this;}
+}
+class NativeEditor {
+ int nativeCalls,lastId,selection=1,focusCalls;boolean fail;Runnable afterNative;Editable text=new Editable("\n");
+ public boolean onTextContextMenuItem(int id){nativeCalls++;lastId=id;if(fail)throw new IllegalStateException("native fixture");if(afterNative!=null)afterNative.run();return true;}
+ boolean requestFocus(){focusCalls++;return true;}int getSelectionStart(){return selection;}void setSelection(int at){selection=at;}Editable getText(){return text;}
+}
+class KineticEditText extends NativeEditor {
+ /* KINETIC_METHODS */
+}
+class BaseActivity {int delegated;public boolean onKeyShortcut(int code,KeyEvent event){delegated++;return false;}}
+class UndoHarness extends BaseActivity {
+ static final int MODE_EDIT=0,MODE_PREVIEW=1,MODE_SPLIT=2;
+ KineticEditText editor=new KineticEditText();List<Object> tabs=new ArrayList<>(Arrays.asList(new Object()));int activeTab=0,mode=0,keyboardCalls,commands;boolean editorLocked,smartEditing,suppressChanges,readOnly;
+ final Map<String,View.OnClickListener> buttons=new LinkedHashMap<>();final Map<String,String> descriptions=new LinkedHashMap<>();
+ void addFormat(String label,String description,View.OnClickListener callback){buttons.put(label,callback);descriptions.put(label,description);}
+ void showKeyboard(KineticEditText editor){keyboardCalls++;}void setMode(int mode,boolean keyboard){this.mode=mode;if(keyboard)keyboardCalls++;}
+ void showCommandPalette(){commands++;}void showFindReplace(){}void insertLink(){}void showNewDocumentMenu(){}void launchOpen(){}void saveDocument(){}void wrap(String a,String b){}
+ /* ACTIVITY_METHODS */
+ void setup(){configureEditorHistoryActions();}boolean action(int id){return runEditorHistoryAction(id);}
+}

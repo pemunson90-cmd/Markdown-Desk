@@ -293,6 +293,10 @@ public class MainActivity extends Activity {
         if (!keyEvent.isCtrlPressed()) {
             return super.onKeyShortcut(i, keyEvent);
         }
+        if(keyEvent.hasModifiers(KeyEvent.META_CTRL_ON)&&(i==KeyEvent.KEYCODE_Z||i==KeyEvent.KEYCODE_Y))
+            return runEditorHistoryAction(i==KeyEvent.KEYCODE_Z?android.R.id.undo:android.R.id.redo);
+        if(keyEvent.hasModifiers(KeyEvent.META_CTRL_ON|KeyEvent.META_SHIFT_ON)&&i==KeyEvent.KEYCODE_Z)
+            return runEditorHistoryAction(android.R.id.redo);
         if (keyEvent.isShiftPressed() && i == 44) {
             showCommandPalette();
             return true;
@@ -519,6 +523,7 @@ public class MainActivity extends Activity {
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        configureEditorHistoryActions();
         addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
@@ -1199,6 +1204,23 @@ public class MainActivity extends Activity {
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$addModeButton$22(int i, View view) {
         setMode(i, i == 0);
+    }
+
+    private void configureEditorHistoryActions() {
+        this.editor.setHistoryActionListener(this::runEditorHistoryAction);
+        addFormat("Undo", "Undo last edit", view -> runEditorHistoryAction(android.R.id.undo));
+        addFormat("Redo", "Redo last undone edit", view -> runEditorHistoryAction(android.R.id.redo));
+    }
+
+    private boolean runEditorHistoryAction(int actionId) {
+        if(actionId!=android.R.id.undo&&actionId!=android.R.id.redo)return false;
+        // Consume blocked native keyboard/context actions too: never fall through the lock.
+        if(this.editor==null||this.activeTab<0||this.activeTab>=this.tabs.size()||!canMutate())return true;
+        ensureEditor(false);
+        boolean previousSmartEditing=this.smartEditing;
+        this.smartEditing=true;
+        try {return this.editor.performNativeHistoryAction(actionId);}
+        finally {this.smartEditing=previousSmartEditing;}
     }
 
     private void addFormat(String str, String str2, View.OnClickListener onClickListener) {
@@ -2950,6 +2972,12 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDocumentHistory();
         }), matchWrap());
+        TextView historyLimit = new TextView(this);
+        historyLimit.setText("Current text files do not include private history. Uninstalling the app or clearing its storage can lose that history. Keep separate copies of text you need.");
+        historyLimit.setTextColor(this.palette.muted);
+        historyLimit.setTextSize(13.0f);
+        historyLimit.setPadding(dp(4), dp(8), dp(4), dp(12));
+        linearLayout.addView(historyLimit, matchWrap());
         List<RecentStore.Item> list = RecentStore.read(this);
         if (!list.isEmpty()) {
             TextView textView3 = new TextView(this);

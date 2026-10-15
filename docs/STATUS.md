@@ -9,7 +9,8 @@ future enhancement. Existing implemented work and all private/untracked files st
 preserved; PR #24 stays draft. Local safe save, revision history, restore-to-new-copy,
 draft/session recovery, M2–M7 and all final signing/Fold gates remain required.
 
-Current source is based on pushed `4f80b49`, including independently approved writer
+Current source includes pushed owner-scope docs `ba1c1f1` and reader rendering
+`463aab0`, built on `4f80b49`, including independently approved writer
 snapshot closure `9c2353c` (87 publication assertions,7 copy cases,11 completion
 cases,52 scope checks PASS). No newer full suite/APK/hosted/device gate is claimed.
 The existing Activity already wires protected saves, document history, comparison,
@@ -19,8 +20,21 @@ integration84 assertions, save lifecycle40 cases/323 assertions, and session/rec
 they do not establish device/provider/process-death acceptance.
 No new local data-loss defect is established by this scope change.
 
-Next current-phone work: make local-history storage limits visible; add explicit native editor
-Undo/Redo, then proceed with dependency-ready workspace/reader/performance work.
+Reader typography model/renderer `463aab0` is independently approved:80 focused
+assertions PASS; default HTML is byte-identical across nine captured themes. Existing
+renderer golden467, nested-list12 and table-divider14,020 assertions PASS in the
+worker’s affected run. Appearance controls/persistence and async preview wiring are
+not yet implemented; this is not a completed user-facing Reader Pro feature.
+
+Native Undo/Redo and the Workspace local-history limitation are implemented and
+independently approved. New routing32 checks PASS; affected mode126, labels43,
+Appearance4963, line-index46,564 and8 memory checks PASS. Changed Android sources
+compile against SDK37 using JDK17 (no APK). Native history is for the current editing
+visit; tab loading resets it. Android IME/native undo/selection acceptance is unrun.
+
+Next current-phone work: wire reader typography into Appearance/persistence and
+captured async previews; implement bounded SAF folder navigation and paged PDF
+improvements with serial Activity ownership and focused independent reviews.
 Use focused existing production-path tests, not another portable accounting proof.
 Physical process death/provider/Fold7/in-place signed-upgrade acceptance remains
 NOT RUN and is batched for the coherent candidate.
