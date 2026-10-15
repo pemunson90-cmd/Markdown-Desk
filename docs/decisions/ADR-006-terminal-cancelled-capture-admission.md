@@ -33,22 +33,31 @@ Each pending historical preparation must satisfy all of these conditions:
   Recognized bounded declared artifact stages and missing declared artifacts are
   allowed; unknown paths, duplicate stage/final entries, symlinks, nonregular files,
   oversized stages and invalid committed artifacts are not.
-- No old live/uncertain same-process preparation owner or consumer lifetime exists.
-  A newly registered owner is distinguished by its exact new preparation identity;
-  admission does not require the registration slot to be empty once it owns it.
+- The canonical `private_operations` namespace is physically present as a verified
+  nonsymlink directory and fully accounted. Absent namespace is ineligible, including
+  an old mask3 cancellation; cancellation may still finish but cannot enable retry.
+  This ADR creates no namespace and shares/converts no old namespace credit. Missing
+  old preparation directories remain separately charged reservations.
+- No old registered preparation owner or live/uncertain consumer lifetime is bypassed.
+  An uncertain/frozen old owner has no cancellation reset or removal path. The only
+  new-owner exception is the exact requesting new preparation and its original
+  registered producer/root/Budget/idle binding, not merely a different UUID.
 
 Existing fully closed linked captures may coexist. Any other unfinished preparation
 prevents a new capture. A released pre-LINK CLOSE does not satisfy this predicate.
-Classification requires typed records and complete funding; filenames or diagnostic
-strings alone cannot establish eligibility. Partial data is accounted evidence, not
+Structural control classification must be followed by full funded filesystem,
+namespace and owner eligibility before any admission; it alone grants no exception.
+Filenames or diagnostic strings alone cannot establish eligibility. Partial data is accounted evidence, not
 proof that it equals a prefix of unavailable final bytes.
 
 ## Accounting, graph and new-capture admission
 
 Keep `Control.pending` and `Ledger.pending` true for abandoned evidence. Introduce a
-separate count of unfinished nonterminal preparations. The existing `pending > 1`
-validity rule must count those unfinished preparations, so historical cancellations
-plus one new P do not become invalid commitments.
+separate unfinished count. Discount only the canonical terminal CANCELLED/no-LINK/
+no-control-stage class above, never arbitrary CLOSE evidence. The existing
+`pending > 1` validity rule must count unfinished preparations, so eligible historical
+cancellations plus one new P do not become invalid commitments. This structural count
+never substitutes for complete filesystem/namespace/owner admission.
 
 Derive a narrow historical-cancellation capture-eligibility classification from the
 actual control and ledger. `HistoryGraph` currently sets `pruneBlocked = !complete`;
@@ -73,6 +82,23 @@ credit and other control commitments remain charged. They cannot fund the new P,
 artifacts or receipts. New admission uses the same shared budget for simultaneously
 live metadata and existing aggregate data/control/namespace limits. Finite retained
 journals or credits may still exhaust quota and refuse another capture.
+
+## Selected activation and retained historical stages
+
+Activation currently requires global `Ledger.reservedBytes/Entries == 0`; that would
+reject the new completed capture because cancelled history keeps legitimate credits.
+Instead prove every artifact of the **selected new capture** final with exact rows,
+lengths/hashes and no selected stages/missing entries. Keep the global ledger complete
+and validate all remaining reservations as eligible historical cancellation credit.
+Do not debit, waive or redistribute those reservations. Existing P/D/map/BEGIN/LINK,
+native-envelope, authority and exact-original-Budget checks remain mandatory.
+
+`HistoryStorage.rememberOperationEvidence` currently omits every `.stage`. It must
+also retain immutable hash/physical-identity anchors for eligible terminal historical
+data stages after new handoff, alongside all old/new retained evidence. Selection is
+by the full typed historical eligibility proof, not a suffix rule. Mutable live-own
+prefixes remain excluded; publication cannot pin whichever bytes happen to exist.
+Changed/replaced/disappeared historical stages must subsequently invalidate evidence.
 
 ## Cold cancellation and completion are separate authorities
 
@@ -127,13 +153,17 @@ proposal. Operation data remains protected and outside native deletion membershi
 First implementation slice:
 
 - `PrivateOperationStore`: typed historical classification, separate unfinished count,
-  complete funding and retained pending state.
+  complete funding/pending, present namespace and selected-capture activation checks.
 - `HistoryGraph`: independently represented accounting completeness/pruning block and
   full baseline binding; no weakened native validation.
 - `HistoryArchiveManifest`, `NativeCaptureFingerprint`, `PrivateCapturePlan`: exact
   classified capture admission, matching full original evidence and shared budget.
 - `PrivateCaptureWriter`: accepted initial pending state, unchanged old-entry anchors
   and exact own-transition accounting.
+- `HistoryStorage`: selective immutable terminal data.stage retention at handoff,
+  preserving existing anchors without retaining mutable live-copy prefixes.
+- `HistoryOperations`/narrow Pins activation validation: selected new capture completeness
+  with globally retained historical reservations and original Budget identity.
 
 Second slice: narrow Store/Pins cancellation capability and HistoryOperations cold
 terminal claim hooks; only necessary PreparationSources identity inspection, never
@@ -142,10 +172,14 @@ and verification touchpoints; changing them is not authorized by this proposal.
 
 Minimal distinct checks must cover:
 
-1. Genuine cold cancellation with missing D/map and a bounded data.stage, then new
-   capture admission with all old bytes, identities and credits unchanged.
+1. Cold cancellation with missing D/map and bounded data.stage in a present namespace,
+   then new capture → activate → read with all old bytes/identities/credits unchanged.
+   Absent old mask3 namespace remains diagnosed/ineligible; present namespace with
+   a missing old preparation directory retains that directory's separate credit.
 2. Old cancelled P plus new P passes unfinished-count validation; two unfinished Ps
-   still fail, and every old-stage/control mutation invalidates new publication.
+   still fail. Old-stage/control mutation invalidates new publication; stage changes,
+   same-byte inode replacement and disappearance after handoff invalidate retained
+   evidence. Mutable live-own prefixes are not accidentally retained as immutable.
 3. All planner modes, stale intent/selected-plan execution and retirement paths remain
    blocked; ordinary funded saves still work.
 4. LINK.stage, partial P/BEGIN, conflicting controls, unaccounted/oversized/symlink
