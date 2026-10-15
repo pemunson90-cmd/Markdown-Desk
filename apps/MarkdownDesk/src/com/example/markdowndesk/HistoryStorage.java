@@ -171,7 +171,7 @@ final class HistoryStorage {
     static final class Budget {
         private long remaining;
         Budget(long maximum)throws IOException {if(maximum<0||maximum>METADATA_BUDGET)throw new IOException("Invalid history metadata budget");remaining=maximum;}
-        void charge(long amount)throws IOException {if(amount<0||amount>remaining)throw new BudgetExceeded();remaining-=amount;}
+        synchronized void charge(long amount)throws IOException {if(amount<0||amount>remaining)throw new BudgetExceeded();remaining-=amount;}
     }
     static final class FilesView {
         final List<ProtectionStore.StoredRecord> records=new ArrayList<>();

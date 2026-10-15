@@ -24,6 +24,7 @@ public final class CaptureOwnershipCheck {
     public static void main(String[] args)throws Exception {
         Fixture f=new Fixture();check(f.owner==PreparationSources.forPreparation(f.root,f.id,f.budget,f.producer),"same ID keeps same owner");
         rejects(()->PreparationSources.forPreparation(f.root,f.id,new HistoryStorage.Budget(1024),f.producer),"new budget cannot replace existing ownership");
+        rejects(()->f.owner.reserveMetadata(new HistoryStorage.Budget(1024),1),"workspace cannot use independent budget");
         AtomicInteger closes=new AtomicInteger();
         PreparationSources.Reader reader=f.owner.open(()->new ByteArrayInputStream(new byte[]{1,2,3}){public void close(){closes.incrementAndGet();}});
         byte[] bytes=new byte[4];check(reader.read(bytes,0,4)==3&&bytes[2]==3,"bounded read delegates");
@@ -49,7 +50,16 @@ public final class CaptureOwnershipCheck {
         PreparationSources.Reader crossed=cross.owner.open(()->{terminal.run();return new ByteArrayInputStream(bytes){public synchronized int read(byte[] b,int o,int n){terminal.run();return super.read(b,o,n);}public void close(){terminal.run();}};});crossed.read(bytes,0,1);crossed.close();check(crossGuards.get()==9,"actual operation freeze/drain reject preparation callback participants");cross.owner.freeze();cross.claim();
         for(int mode=0;mode<3;mode++)blocked(mode);
         Fixture runtime=new Fixture();try{runtime.owner.open(()->{throw new IllegalStateException("factory runtime");});throw new AssertionError("runtime swallowed");}catch(IllegalStateException expected){checks++;}runtime.owner.freeze();rejects(runtime::claim,"runtime failure permanently uncertain");
+        sharedBudget();
         System.out.println("PASS preparation source ownership: "+checks+" assertions; no producer/activation/device claim");
+    }
+    static void sharedBudget()throws Exception {
+        for(int round=0;round<12;round++){
+            HistoryStorage.Budget budget=new HistoryStorage.Budget(8192);AtomicInteger admitted=new AtomicInteger();AtomicReference<Throwable> error=new AtomicReference<>();CountDownLatch start=new CountDownLatch(1);Thread[] threads=new Thread[8];
+            for(int i=0;i<threads.length;i++){threads[i]=new Thread(()->{try{start.await();while(true){try{budget.charge(1);admitted.incrementAndGet();}catch(HistoryStorage.BudgetExceeded exhausted){break;}}}catch(Throwable failure){error.set(failure);}});threads[i].setDaemon(true);threads[i].start();}
+            start.countDown();for(Thread thread:threads)thread.join(5000);
+            for(Thread thread:threads)check(!thread.isAlive(),"budget admission thread finished");check(error.get()==null,"budget worker succeeded");check(admitted.get()==8192,"one shared budget cannot overspend under concurrent owners: "+admitted.get());
+        }
     }
     static void blocked(int mode)throws Exception {
         Fixture f=new Fixture();CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1),finished=new CountDownLatch(1);AtomicReference<Throwable> failure=new AtomicReference<>();

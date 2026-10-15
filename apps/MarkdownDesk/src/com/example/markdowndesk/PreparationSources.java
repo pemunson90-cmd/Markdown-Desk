@@ -61,6 +61,15 @@ final class PreparationSources {
     private void outsideHistory() throws IOException {
         if (Thread.holdsLock(history)) throw new IOException("Source callback work under history monitor");
     }
+    /** Metadata consumers cannot create a second independent budget for this owner. */
+    void reserveMetadata(HistoryStorage.Budget supplied, long bytes) throws IOException {
+        outsideHistory(); HistoryOperations.rejectParticipant();
+        synchronized (this) {
+            if (supplied != budget || frozen || uncertain || claim != null)
+                throw new IOException("Foreign budget or frozen preparation owner");
+            budget.charge(bytes);
+        }
+    }
     Reader open(Factory factory) throws IOException {
         outsideHistory(); HistoryOperations.rejectParticipant();
         if (factory == null) throw new IOException("Missing owned source factory");

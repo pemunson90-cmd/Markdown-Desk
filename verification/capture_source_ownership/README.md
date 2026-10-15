@@ -8,7 +8,7 @@ bash verification/capture_source_ownership/run.sh
 
 Uses production `PreparationSources`, the actual parent-scoped HistoryStorage state,
 and the existing operation backend for cross-protocol callback checks. Current
-focused result: 45 assertions. This is not an end-to-end capture or device gate.
+focused result: 166 assertions. This is not an end-to-end capture or device gate.
 
 The helper precedes durable PREPARE/BEGIN. A producer capability, canonical primary
 root, preparation UUID and the caller's single shared monotonic metadata budget bind
@@ -43,4 +43,11 @@ blocked open/read/close during concurrent freeze, budget rejection and lease-bou
 single claims. Existing operation callbacks retain their established ability to
 request a freeze while outstanding work still prevents terminal authority; only
 preparation participants are additionally rejected from those freeze/drain entries.
+Shared Budget.charge is synchronized because source admission runs outside the
+history monitor while other owners charge under it. The original implementation
+reproduced8459 accepted one-byte charges from an8192-byte budget. The fixed runner
+checks12 rounds with8 concurrent owners, exactly8192 accepted charges each. Workspace
+reservation also checks identity against the original owner's budget; supplying a
+new independent budget rejects. This proves admission serialization, not the entire
+capture's simultaneous heap bound.
 No source callback queue, future, provider, persistence or app UI is introduced.
