@@ -51,8 +51,8 @@ candidate. Avoid duplicating full gates.
 Next: implement and review the Writer-owned provisional sink, live-prefix and
 promotion, then complete coherent producer, exact typed transitions,
 final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
-proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
-scoped source approvals remain limited to their exact artifacts.
+proofs. Continue M0–M7 directly; M1 is not complete. Source approvals remain limited to
+their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
 owner will sign the unsigned APK with the original key and test the Fold7; no device
