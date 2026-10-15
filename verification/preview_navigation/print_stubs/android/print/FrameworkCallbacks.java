@@ -1,0 +1,1 @@
+package android.print; public final class FrameworkCallbacks {public static PrintDocumentAdapter.LayoutResultCallback layout(){return new PrintDocumentAdapter.LayoutResultCallback();}public static PrintDocumentAdapter.WriteResultCallback write(){return new PrintDocumentAdapter.WriteResultCallback();}}

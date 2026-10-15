@@ -78,3 +78,5 @@ Its previewScrollIsCurrent boundary now models explicit ready/acknowledged-tab
 ownership; it is not an unconditional true stub. Full document/revision/options/
 DOM ownership is tested by verification/preview_navigation. Existing84 action
 checks passed after this adapter update; no history action logic changed.
+
+The extracted `onDestroy` now calls `DocumentPrint.cancel(this)`. This suite models that unrelated print boundary with a no-op; actual print cancellation, Activity callback removal and process-owned render/adapter retirement run against `DocumentPrint` plus extracted Activity hooks in `verification/preview_navigation/run_print.sh`. This fixture does not claim to validate printing.

@@ -83,7 +83,7 @@ final class MainActivity {
     void rebuildBody(){bodyRebuilds++;invalidatePreview();if(mode!=MODE_EDIT)renderPreview();}
     QueueExecutor worker(){return (QueueExecutor)renderIo;}
     void deliverRender(){worker().drain();main.advance(0);}
-    void requestPrint(){printDocument();}
+    void requestPrint(){/* PRINT_ACTION */}
     void syncFromEditor(){lambda$schedulePreviewSyncFromEditor$72();}
     void syncFromPreview(){lambda$scheduleEditorSyncFromPreview$75();}
     void capture(){captureActiveTab();}

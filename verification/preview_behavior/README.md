@@ -95,3 +95,5 @@ Existing350ms print behavior remains a separate RED diagnostic and is not repair
 by navigation readiness. The outline preview polling helper also remains outside
 this slice. Historical measurements above still describe the original queue
 change; they are not remeasured or attributed to navigation wrapping.
+
+The extracted `onDestroy` now calls `DocumentPrint.cancel(this)`. This suite models that unrelated print boundary with a no-op; actual print cancellation, Activity callback removal and process-owned render/adapter retirement run against `DocumentPrint` plus extracted Activity hooks in `verification/preview_navigation/run_print.sh`. This fixture does not claim to validate printing.
