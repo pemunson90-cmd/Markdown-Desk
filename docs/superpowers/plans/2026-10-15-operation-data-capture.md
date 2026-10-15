@@ -1,7 +1,7 @@
 # Operation-data admission and durable capture → BEGIN
 
 > **For agentic workers:** Use superpowers:executing-plans after independent
-> architecture approval and source authorization. This is a proposed plan only.
+> architecture approval and source authorization. Plan 7a6c72b3 is approved and root authorizes implementation; behavior is unverified.
 
 **Goal:** Charge preparations to primary authority; atomically bind persisted captures to pins.
 **Architecture:** One ledger, immutable PREPARE funding, separate native-source proof

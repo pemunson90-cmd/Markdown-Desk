@@ -5,6 +5,10 @@ Independent review of `d839225` supports scoped v2 inventory, additive adoption 
 bounded completeness. Later independent review approved codec schema `c279dfaa`;
 root authorized that pure codec implementation. Reservation protocol, mutation/read
 factories, MDOP bridge, adoption, actual source and test evidence remain separate gates.
+The later operation-data/capture plan `7a6c72b3` also received independent
+architecture approval and root implementation authorization. It defines exact
+MDOP reservation/schema/credit transitions within the existing primary allowance;
+source correctness and runtime verification remain unestablished.
 Source examined: `620275b6cc0aae6d139c353d16fd1d3ec26200b9` and design `b2699bb`.
 Scope: the portable format missing from the
 [private backup/adoption design](../superpowers/plans/2026-10-15-private-backup-adoption.md).

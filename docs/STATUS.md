@@ -48,9 +48,10 @@ Verified merged behavior:
   deletion caller or automatic retention is enabled. Private-state and archive
   codecs/manifests remain foundations, not complete backup/import features.
 
-Active integration: `codex/printing-backup-integration`,
-[draft PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22). Verified
-main is merged normally. Printing `8739354` is integrated after independent exact
+Active integration: `codex/private-backup-integration`, based on review-ready
+[PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) head `44ee018` while
+its required hosted check runs. Verified main is merged normally. Printing
+`8739354` is integrated after independent exact
 source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
 independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
 captures source/title/options before queuing, uses an isolated DOM and one
@@ -73,12 +74,17 @@ Historical print failures remain reproducible against the baseline selector.
 Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
 proposes explicit v2 scoped inventory, inert policy provenance, additive read-only
 restored bundles and accessible drafts, with no user-document writes or tab eviction.
-Exact codec plan `195ca1f` and operation-data/capture plan `489c06a` remain under
-review outside this branch; no source authorization or runtime feature is claimed.
+Exact codec plan `c279dfaa` and operation-data/capture plan `7a6c72b3` passed
+independent architecture review and are integrated. Root authorized bounded pure
+codec and phased storage/capture source work in separate worktrees; no production
+implementation, runtime feature or new test pass is claimed yet.
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
-transfer CLOSE credit exactly once even for complete BEGIN.stage. Exact schema/
-golden bytes and the reservation protocol must be settled before coding.
+transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
+failed/stale preparations permit ordinary quota-admitted saves; native changes
+invalidate capture freshness. Exact schema/golden and reservation choices are in
+the approved plans and ADR-005. The MDOP/portable bridge, verified provider output
+and import/adoption still require review.
 
 Next: complete the hosted PR #22 gate and merge; implement the reviewed
 operation-data/capture and scoped codec plans, then verified provider output,
