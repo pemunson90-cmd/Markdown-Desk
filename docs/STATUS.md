@@ -143,6 +143,52 @@ Original parent used/remaining bytes: minimum 10,973,585/5,803,631; two 8MiB tab
 This is producer-only evidence: no P/provider/UI/activation and no whole-B2 overlap proof.
 The portable capture-plan runner is registered once; this update ran syntax/diff checks only.
 
+Funding-input observations at `aaa852b` have independent spec/quality approval.
+The estimator now uses three read-only methods bound to the actual measured inputs
+and exact original Budget instead of reflecting capsule/evidence/item fields.
+Focused provenance/state/coordinate checks and four real B1 estimator cases PASS
+with the installed JDK17/Java11/64MiB heap. The test-only catalog reader now actually
+closes before its reopen check. This is a prerequisite, not production funding,
+heap proof or portable Writer lifecycle implementation. No broad suite/APK/CI ran.
+
+The continuation environment lacked the prior worktree/private scratch. The exact
+pushed `3649461` branch was recovered from Git; remote main remains `fdb7bd6` and
+is already an ancestor. No original private files or untracked notes were changed.
+The missing local native-footprint investigation was reconstructed narrowly:
+current native membership needs actual per-member file-key anchors across callbacks;
+original capture cardinality and the estimator's256KiB candidate do not bound later
+native appends. The three scoped resource prerequisites implemented below preserve
+ordinary append semantics, actual fileKey equality and exact reservations.
+Whole-path consumer integration remains the next task.
+
+Three resource prerequisites now have scoped independent spec/quality approval:
+
+- `baf3348`: bounded control inspection enforces physical byte/entry caps before
+  record allocation, including parent enrollment, stages and unknown entries.
+  New30 checks and existing control14 cases/209 assertions PASS.
+- `574b1f6`: sequential current-store validation reuses real snapshot/transaction/
+  completion parsers and exact reservations with a prepaid512KiB reader workspace.
+  Review caught the second-stat allocation race and second-workspace reentry;
+  both reproduced RED and passed after repair. Focused79/74 checks, fresh8MiB
+  snapshot and allocation-race child probes under8MiB heap, plus affected protection
+  31 cases/272 assertions, completion7/86 and its restart/write-failure probes PASS.
+- `32a00b4`: one reusable current-native identity table, separately prepaid on the
+  supplied parent, preserves actual key equality and current-record validation.
+  Owner lease expiry now clears retained evidence after a reviewed RED→GREEN fix;
+  final189 focused checks PASS. Original capture count is not its capacity bound.
+
+These APIs are not yet wired into portable publication or HistoryPins. The table's
+supported-provider accounting convention is explicit; it is not a provider-independent
+heap proof or a256KiB whole-native envelope. Over-capacity terminal evidence must
+refuse before terminal writes and preserve retry authority; ordinary appends remain
+allowed. All three runners are registered once in the required aggregate; only shell
+syntax/diff checks ran for registration. No aggregate, APK or hosted run is claimed.
+Next, bind actual-snapshot-sized whole-path funding to the original measured inputs
+before P; consume prepaid allowances in the real writer/activation/terminal paths
+without later direct double debits, and keep bounded inspection snapshots scoped.
+Then finish authentic post-P baseline transition, outer-ID routing and actual-close/
+verified-readback coordination. Actual portable Writer lifecycle is still unimplemented.
+
 B2/C preimplementation audit found fixed Writer~7MiB plus Pins6MiB cannot fit
 remaining headroom. Test-only funding estimator `ad9cab4c` has independent APPROVAL;
 four real B1 fixture cases passed with JDK17/Java11 under `-Xmx64m`. Candidate extra

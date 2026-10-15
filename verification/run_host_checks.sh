@@ -62,8 +62,11 @@ bash verification/history_archive_manifest/run.sh
 bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
 bash verification/history_capacity/run.sh all
+bash verification/control_inspection_bounds/run.sh
 
 bash verification/history_pins/run.sh
+bash verification/native_terminal_validation/run.sh
+bash verification/native_terminal_workspace/run.sh
 bash verification/history_operations/run.sh
 bash verification/history_operation_data/run.sh
 bash verification/capture_native_sources/run.sh
