@@ -3,193 +3,55 @@
 ## Current checkpoint — protected capture and scoped private backup, 2026-10-15
 
 The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
-maps retained M0–M7 obligations to source, evidence, dependencies and next packets.
-Lead self-review is complete; independent whole-campaign review remains NOT RUN.
-Earlier worker execution reached a usage limit; bounded execution is now available
-again. Lead owns integration/accounting and source ownership; the native fingerprint
-helper is integrated after independent review. Private-frame preflight design and
-source-ownership review continue in bounded workers. No spending/account limits changed.
+maps retained M0–M7 obligations and dependencies. Lead self-review is complete;
+independent whole-campaign review remains NOT RUN. Main/origin main remains
+`fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
+`codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
+last pushed head is `2b78efd`. Root active branch is committed at
+`1ee52fd164b08150e28cbf21cd9fe50603eca72d`; it includes normal merged, reviewed
+preflight and record assembly plus the current writer checkpoint.
 
-Main is `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3`: [PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23)
-merged exact head53e8f44 after required hosted run38759593422/job116507027915
-passed all steps. Draft38759559333 was skipped, not passing evidence. It integrates
-reviewed outline/source-navigation repair, scoped archive framing and the campaign
-plan. PR #22 printing and earlier protected-save/history foundations remain merged.
+The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
+It ran the required host suite once and audited two fresh unsigned builds, both
+SHA-256 `eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8`.
+Evidence includes 3434 operation-data assertions, operation48 fault fixtures/96
+reopens, pins20 kill fixtures/42 reopens and executor44/88. Identity/assets,
+alignment and unsigned audits passed. This gate predates the later C2 sources and
+does not cover them. No newer full suite, build or hosted run is claimed.
 
-Latest clean integration gate **PASS** at `ed4cba7051891114b1088ad8d115040b86f8e0f0`:
-`python3 verification/check_clean_rebuild.py` completed the required host suite
-once from a fresh committed checkout, then audited two fresh unsigned builds.
-Both match SHA-256
-`7c5132f285ecfe2c1b950819edf52f82e58f7dc6d508a111549f77a2a3702545`.
-The gate includes reviewed outline/codec source, actual production recoverability,
-capacity, pins, operation48 fault fixtures/96 reopens and executor44/88.
-No dependency downloads or signing credentials; package2.2.5/code18/min26/target35,
-exact25 owner-cleared assets and unsigned/alignment audits pass. Scoped477 tracked
-files: zero credential-pattern matches/signing-container paths (not exhaustive/history).
-PR #23 passed final hosted validation and merged. The separate accounting/capture
-branch is not covered by that gate and remains outside main.
+Native fingerprint `a4cb514` and source ownership/budget `e331477` have scoped
+independent approvals and are integrated. Private-frame preflight `c3177b8` has
+independent approval (8 groups; worker30 scenarios), is integrated at `2f1d14b`,
+and its runner passed30 cases. These approvals apply to those exact artifacts.
+Private capture plan `a89b284` also has scoped independent approval (9 groups;
+worker29 groups) and normal merge `16280fc`. It requires fresh matches for both
+original C0 control and L0 ledger hashes before P. A legacy PIN BEGIN→CANCELLED
+CLOSED can change C0/fullGraph while leaving L0 unchanged; this counterprobe
+reproduced and requires a guard. Plan authority alone does not authorize P.
 
-Historical printing clean gate05e74ca produced identical unsigned SHA-256
-`7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
-Its subsequent launcher correction7a13ac5 passed final hosted run38664300293.
-Earlier run38663648484 failed for unavailable `rg`; core `find` fixed the launcher
-and clean no-rg checks passed. That portability issue is resolved, not a current
-product failure. No signed release is claimed.
+PrivateCaptureWriter is committed on the root active branch, but independent
+writer review remains pending. Its 81 focused assertions pass and cover P/funded
+directories/native map/D,
+including callbacks, target failpoints, same-bytes replacements, foreign operation
+data, legacy private-file metadata, stale-plan legacy PIN, and a callback claim
+while an FD is open. It does not yet copy private payloads, complete final BEGIN/LINK,
+hand off sources, cold-recover, or prove the whole heap. PreparationSources has
+181 focused assertions passing. The source worker owns Writer/Sources/tests and two runner lines; root owns
+orchestration/integration. `accounting_repair_review` is the independent reviewer.
+During implementation, run minimum affected tests and essential compile/build checks;
+reserve broad regression/performance/migration coverage for the feature-complete
+candidate. Avoid duplicating full gates.
 
-Verified merged behavior:
-
-- Guarded per-document history has paged lists, captured named revisions, bounded
-  exact comparison and restore-to-new-copy. Mandatory saves and recovery protection
-  require acknowledged shared startup; independent recovery reads remain available.
-  Captured Save As provenance survives conflict consent, while optional history
-  failure preserves actual verified provider success and newer dirty edits.
-- Operation source `cf0bf818` enforces shared tracked consumer ownership, freeze/drain
-  capabilities and append-only canonical CLOSE recovery. Prefix1658, coordinator59,
-  terminal5 and 48 fault fixtures/96 fresh-JVM reopens passed in the clean gate;
-  24 independent backend probes approved the final source. Whole bulk transfer and
-  in-flight callback scheduling stay counted. Fresh RELEASED needs the original
-  manifest; historical committed CLOSED audits remain source-independent.
-- Operation identity binds canonical role paths, bundle/registration/BEGIN and
-  process epoch, with fresh terminal-entry inode stability. No cross-discovery
-  inode-preservation or fresh-process arbitrary-evidence-loss anchor is promised.
-  Partial BEGIN, conflicting evidence and uncertain ownership remain blocked.
-- Preview `6ebe563` binds DOM readiness, deferred scroll and viewport capture to the
-  current page/document/options. One physical readiness probe spans replacements;
-  a lost response stalls acknowledgment until return or Activity replacement.
-  Existing scroll JavaScript is not all globally bounded. Navigation18/66,
-  preview438, save40/323 and history actions84 passed in the clean gate;
-  20 independent navigation checks approved the source.
-- SELECTED-only retention has durable intent, per-victim proofs and shared retirement
-  recovery. Existing capacity, pin, maintenance and executor suites all passed the
-  gate, including executor44 crash/write-limit fixtures/88 reopens. No runtime
-  deletion caller or automatic retention is enabled. Private-state and archive
-  codecs/manifests remain foundations, not complete backup/import features.
-
-Active continuation: `codex/operation-data-capture`, synchronized normally with
-merged main `fdb7bd6`. Previous `codex/private-backup-integration` is merged. Printing
-`8739354` is integrated after independent exact
-source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
-independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
-captures source/title/options before queuing, uses an isolated DOM and one
-process-wide physical ownership slot, and preserves editor mode/Focus/View.
-Strict8MiB UTF-8/BOM validation and a fixed30s pre-submission deadline are new
-printing guards, not measured device budgets. Queued/running work survives Activity
-teardown through process-owned handoff. Exposed adapter resources release only
-after successful delegated onFinish and view disposal. Missing/throwing finish or
-disposal retains the one owner; cancellation does not prove quiescence. Independent
-review repaired normal synchronous finish incorrectly canceling its returned job.
-The required print runner is registered and passed in the combined clean gate.
-The first clean attempt at `fe048d2` stopped at status-fixture compilation: its
-extracted teardown lacked the new DocumentPrint boundary. Production code is
-unchanged; adding that isolated fixture boundary passed57 status assertions.
-The corrected clean gate passed at `05e74ca`, including all required recoverability
-and retention fixtures plus both unsigned audits. PR #22 evidence-only updates after that
-commit left its tested production and fixture inputs unchanged; newer backup
-source below awaits its own combined gate.
-Historical print failures remain reproducible against the baseline selector.
-
-Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
-proposes explicit v2 scoped inventory, inert policy provenance, additive read-only
-restored bundles and accessible drafts, with no user-document writes or tab eviction.
-Exact codec plan `c279dfaa` and operation-data/capture plan `7a6c72b3` passed
-independent architecture review and are integrated. Root authorized bounded pure
-codec and phased storage/capture source work in separate worktrees. Pure codec
-source/contracts `f357fe1` passed independent exact-source review; integrated
-`4ed9fbb` adds only the approval record. Worker4,732 functional+7 constrained-memory
-checks and unchanged archive/state/manifest suites passed; reviewer16 independent
-probes passed. The new required runner is registered and passed the combined clean gate above. Typed payload validity, durable spool/adoption and runtime backup
-authority are excluded. Borrowed rows require cooperative ownership through
-quiescence or separately reserved copies; closing does not revoke escaped Java
-references or prove GC. Accounting source46d8bd8 received scoped independent
-approval after39 actual backend scenarios, including12 native writer callback
-bypasses repaired by e23825d. Initial repair4a29200 was insufficient and is not
-approved: future admission blocking did not prevent current native writes from
-acknowledging callback-introduced uncertainty. Guards now cover native publication,
-post-commit source reads, no-op returns, policy/pins and fresh PREPARE inode identity.
-Corrected clean gate **PASS** on exact accounting checkpoint
-`8dcbea538e67e5bfb588f81d895457aa3a85a472`: required host checks ran once,
-including3434 operation-data assertions, operation48 fault fixtures/96 fresh reopens,
-pins20 kill fixtures/42 reopens, executor44/88 and production recoverability.
-Both fresh unsigned builds match SHA-256
-`eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8`;
-identity/assets/alignment/no-signature audits pass with no dependency downloads.
-This checkpoint is pushed on `codex/operation-data-capture`; no PR/hosted run yet.
-No capture producer/activation or backup UI is implemented.
-
-First clean attempt46d8bd8 failed in unchanged printing fixture: PrintCheck inspected
-Handler.tasks ArrayList while the worker could append, causing ConcurrentModificationException.
-Fixture-only4321957 takes the existing Handler queue lock; printing126+controlled18
-checks pass. The passing8dcbea5 production source is byte-identical to approved46d8bd8;
-original failure log is retained locally. Subsequent C2 source below is outside
-that clean gate and requires its own applicable integration checks.
-
-NativeCaptureFingerprint exacta4cb514 is integrated normally at01ae1b2:
-worker22 scenarios and independent12 actual-backend probes pass. The integrated
-focused runner also passes22. It binds typed initial native map/Graph, roles,
-bootstrap and exact policy, and rechecks streamed bytes and physical identities
-through one active proof. It deliberately excludes own operation publications;
-the producer must separately prove the full ledger/exact own transition, fresh
-control/installed policy after each callback, and final proof-to-BEGIN in one lease.
-No producer or entire simultaneous metadata budget approval is implied.
-
-PreparationSources20c36e9 with fix e331477 implements a process-shared pre-BEGIN source owner,
-not publication/handoff. Focused166 assertions and existing operation coordinator59/
-terminal5 pass. Factory uncertainty cannot be cleared by a new handle, UUID,
-producer or budget; live readers remain counted until actual successful close,
-with retry after throwing close. Blocked delegate and actual cross-protocol callback
-checks pass. Independent exact-source review approved e331477 with11 scenario
-groups. Review found an actual concurrent shared-budget race: the new regression
-accepted8459 one-byte charges from an8192-byte budget before the fix. Synchronized
-Budget.charge now conserves exactly8192 in each of12 eight-thread rounds; independent
-mixed-owner checks pass four rounds. Workspace admission also enforces the original
-budget identity. There is no generic
-reset or handoff route; the actual durable producer must supply it later. These
-helpers are not wired to app behavior or enabled for consumer activation.
-
-Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
-through graph/pruner/retirement proofs, preserve uncertain source ownership, and
-transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
-failed/stale preparations permit ordinary quota-admitted saves; native changes
-invalidate capture freshness. Exact schema/golden and reservation choices are in
-the approved plans and ADR-005. The MDOP/portable bridge, verified provider output
-and import/adoption still require source-ready review. Portable binding direction
-plan a4b9d36 passed independent architecture review: a separate opt-in preparation
-before first BEGIN must persist inventory/active selection; no new schema/domain,
-source implementation, output/adoption or cleanup authority is granted.
-
-Outline audit/repair plan `ba86c17` also passed independent review and is integrated
-without production changes:21 cases/46 assertions reproduce15 genuine stale-effect
-failures;8 control cases/27 assertions pass. Bounded implementation is authorized
-and committed at `93a5cc5` in `outline-navigation`; worker32 cases/74 assertions
-and affected fixtures/whole-Java compilation passed. Independent review found no
-blocker on Activity blob13c27c32b0b387e4a45dccf80b5ee06add06f531 with20 probes;
-canonical Activity blob matches the reviewed artifact exactly and source is now
-integrated. The only merge conflict was README evidence; both printing-portability
-and outline notes are retained. Current outline runner is registered GREEN; frozen
-baseline15RED stays separate. Combined clean gate passed above; no Android timing acceptance.
-
-Next: complete the already approved native/private capture producer and its
-resource/fault/metadata-budget proofs, consuming the reviewed native predicate and
-source ownership. Root retains all existing shared source ownership; a worker
-implements the accepted bounded private-frame preflight API in an isolated worktree.
-Both reviewed helper runners are registered in the required host suite. No new full
-suite or hosted run is claimed after their registration; integration gating will
-cover the coherent producer rather than repeat broad tests after each helper.
-Then
-continue the source-ready portable bridge, verified provider output,
-strict import/adoption and eligible M0–M7 work. Internal native-only capture and
-private-frame capture belong to one meaningful change boundary, not separate
-product claims. Continue directly after each checkpoint; M1 is not complete.
-
-Required production recoverability remains GREEN; unchanged raw-provider
-truncation hazards remain separate RED diagnostics. Physical Galaxy Z Fold7 /
-Android16 / One UI8, actual WebView/PDF/SAF/IME/TalkBack, app-UID durability,
-canonical signing and upgrade acceptance remain NOT RUN. Installed literal“2.25”
-remains unverified. Current ADB check found zero connected devices. Device steps
-and the unrun matrix live in
-[device acceptance](M0_DEVICE_ACCEPTANCE.md). No replacement signer is allowed;
-private signing/recovery files stay out of Git/logs/CI. Older Library/provenance
-inputs remain unavailable. No installable release or full campaign completion.
+Next: obtain independent review of the committed writer, then complete coherent
+producer, private-copy closure, exact typed transitions,
+final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
+proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
+plan review remains NOT RUN, and scoped source approvals do not satisfy it.
+Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
+app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
+owner will sign the unsigned APK with the original key and test the Fold7; no device
+work is needed before that candidate is ready. Never create a replacement key or
+publish private files. Keep PR #24 as one draft; do not fragment helper PRs.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
