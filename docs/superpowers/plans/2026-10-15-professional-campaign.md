@@ -44,8 +44,10 @@ Status meanings: **planned** = retained scope; **implemented** = source exists; 
 Subsequent checkpoint: PR23 merged atfdb7bd6 after clean gateed4cba7 and required
 hosted38759593422 passed. Current accounting continuation46d8bd8 is independently
 approved for C1 only (39 scenarios); its initial clean run failed a printing-fixture
-queue race, corrected fixture-only at4321957. Final clean gate and C2 producer
-remain pending. Portable direction a4b9d36 is independently reviewed, with no new
+queue race, corrected fixture-only at4321957. Final clean8dcbea5 passed required host and both unsigned builds
+(SHA256eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8).
+C2 producer remains pending; native predicate a4cb514 has independent12-scenario
+approval and is integrated, while source-owner20c36e9 is under review. Portable direction a4b9d36 is independently reviewed, with no new
 schema/source authority. STATUS is authoritative for current heads/evidence.
 
 ## Whole-roadmap coverage and dependency map
@@ -139,16 +141,18 @@ Old worktrees/branches/untracked historical notes remain untouched. No push--all
 **Allowed:** HistoryCapacity,HistoryPins,PrivateOperationStore and necessary existing HistoryControlStore/Storage helpers; `verification/history_operation_data`; direct regression probes. **Forbidden:** MainActivity, PrivateArchive/Inventory, new format/domain/allowance, runtime capture/export/adoption or historical evidence deletion.
 **Interfaces:** existing `HistoryCapacity.setPolicy(HistoryPolicy)`, `reconcile()`, `inspect()`; package-private pin begin/resume/terminal/reconcile paths and `PrivateOperationStore.inspect(...)` as implemented in this worktree. No new public producer API is frozen by this packet.
 
-- [ ] Preserve tracked diff/known failing probes locally; inspect incomplete dirty changes rather than overwrite them. Convert reviewer AdmissionProbe observations into production-path assertions in the existing runner.
-- [ ] Reproduce unknown namespace before/after startup across policy publication, policy-stage promotion, domain1 BEGIN/resume, quiesced CANCELLED CLOSE and registration. For preexisting uncertainty, assert rejection before new policy generation/stage promotion/BEGIN/CLOSE publication. If a callback introduces uncertainty after physical publication, refuse acknowledgment and preserve evidence; do not promise rollback of already-published bytes. Cold registration rejection is an existing passing control.
-- [ ] Reproduce same-byte PREPARE inode replacement at final directory callback; require fresh within-operation identity stability. Keep missing/partial map/descriptor after LINK (active and CLOSED) invalid instead of future credit.
-- [ ] Repair pre-publication and final-callback barriers under the same primary monitor/lease. Preserve ordinary quota-admitted saves for fully accounted stale/failed preparations and source-independent historical CLOSED audit. No blanket freezing or second authority.
-- [ ] Run `bash verification/history_operation_data/run.sh`, then affected capacity/pins/operations/maintenance/executor scopes according to actual edits. Record genuine failures, tests and fresh-process results; do not treat old3349 pass count as proof against new probes.
-- [ ] Commit a coherent repair; independent critical review must clear exact source before integration. If review capacity remains unavailable, retain tested source/precise next steps without promoting it or repeatedly retrying workers.
+- [x] Preserve tracked diff/known failing probes locally; inspect incomplete dirty changes rather than overwrite them. Convert reviewer AdmissionProbe observations into production-path assertions in the existing runner.
+- [x] Reproduce unknown namespace before/after startup across policy publication, policy-stage promotion, domain1 BEGIN/resume, quiesced CANCELLED CLOSE and registration. For preexisting uncertainty, assert rejection before new policy generation/stage promotion/BEGIN/CLOSE publication. If a callback introduces uncertainty after physical publication, refuse acknowledgment and preserve evidence; do not promise rollback of already-published bytes. Cold registration rejection is an existing passing control.
+- [x] Reproduce same-byte PREPARE inode replacement at final directory callback; require fresh within-operation identity stability. Keep missing/partial map/descriptor after LINK (active and CLOSED) invalid instead of future credit.
+- [x] Repair pre-publication and final-callback barriers under the same primary monitor/lease. Preserve ordinary quota-admitted saves for fully accounted stale/failed preparations and source-independent historical CLOSED audit. No blanket freezing or second authority.
+- [x] Run `bash verification/history_operation_data/run.sh`, then affected capacity/pins/operations/maintenance/executor scopes according to actual edits. Record genuine failures, tests and fresh-process results; do not treat old3349 pass count as proof against new probes.
+- [x] Commit a coherent repair; independent critical review must clear exact source before integration. If review capacity remains unavailable, retain tested source/precise next steps without promoting it or repeatedly retrying workers.
 
 ## Next packet preparation, not speculative implementation
 
-**C2 capture producer:** finish both approved native and private phases as one feature boundary after C1. Use exact persisted PREPARE/descriptor/BEGIN/LINK IDs; all prefix/credit conversions and producer source ownership must pass fault/reopen/memory tests. Failed close/factory uncertainty persists across handles; final proof→BEGIN is one lease. Publish immutable production contracts and entry-source ownership before downstream code. Selected active-tab identity is not in existing local v1 capture; do not invent it from later live state or retrofit new bytes silently.
+**C2 capture producer:** C1 is verified at8dcbea5. Native predicate a4cb514 is
+integrated and independently approved; PreparationSources20c36e9 awaits its
+scoped review. Finish both approved native and private phases as one feature boundary after C1. Use exact persisted PREPARE/descriptor/BEGIN/LINK IDs; all prefix/credit conversions and producer source ownership must pass fault/reopen/memory tests. Failed close/factory uncertainty persists across handles; final proof→BEGIN is one lease. Publish immutable production contracts and entry-source ownership before downstream code. Selected active-tab identity is not in existing local v1 capture; do not invent it from later live state or retrofit new bytes silently.
 
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 

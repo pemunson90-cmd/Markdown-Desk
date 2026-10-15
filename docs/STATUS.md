@@ -6,8 +6,9 @@ The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-camp
 maps retained M0–M7 obligations to source, evidence, dependencies and next packets.
 Lead self-review is complete; independent whole-campaign review remains NOT RUN.
 Earlier worker execution reached a usage limit; bounded execution is now available
-again. Lead owns integration/accounting; a worker owns only the new native capture
-fingerprint helper, with independent review capacity. No spending/account limits changed.
+again. Lead owns integration/accounting and source ownership; the native fingerprint
+helper is integrated after independent review. Private-frame preflight design and
+source-ownership review continue in bounded workers. No spending/account limits changed.
 
 Main is `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3`: [PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23)
 merged exact head53e8f44 after required hosted run38759593422/job116507027915
@@ -105,15 +106,40 @@ bypasses repaired by e23825d. Initial repair4a29200 was insufficient and is not
 approved: future admission blocking did not prevent current native writes from
 acknowledging callback-introduced uncertainty. Guards now cover native publication,
 post-commit source reads, no-op returns, policy/pins and fresh PREPARE inode identity.
-Worker3374 focused checks and native15 schedules/60 assertions passed separately;
-affected backend suites passed on the earlier repair. Final combined evidence is
-pending; no capture producer/activation or backup UI is implemented.
+Corrected clean gate **PASS** on exact accounting checkpoint
+`8dcbea538e67e5bfb588f81d895457aa3a85a472`: required host checks ran once,
+including3434 operation-data assertions, operation48 fault fixtures/96 fresh reopens,
+pins20 kill fixtures/42 reopens, executor44/88 and production recoverability.
+Both fresh unsigned builds match SHA-256
+`eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8`;
+identity/assets/alignment/no-signature audits pass with no dependency downloads.
+This checkpoint is pushed on `codex/operation-data-capture`; no PR/hosted run yet.
+No capture producer/activation or backup UI is implemented.
 
 First clean attempt46d8bd8 failed in unchanged printing fixture: PrintCheck inspected
 Handler.tasks ArrayList while the worker could append, causing ConcurrentModificationException.
 Fixture-only4321957 takes the existing Handler queue lock; printing126+controlled18
-checks pass. Production source is byte-identical to approved46d8bd8. Corrected clean
-host/two-unsigned gate is next; original failure log is retained locally.
+checks pass. The passing8dcbea5 production source is byte-identical to approved46d8bd8;
+original failure log is retained locally. Subsequent C2 source below is outside
+that clean gate and requires its own applicable integration checks.
+
+NativeCaptureFingerprint exacta4cb514 is integrated normally at01ae1b2:
+worker22 scenarios and independent12 actual-backend probes pass. The integrated
+focused runner also passes22. It binds typed initial native map/Graph, roles,
+bootstrap and exact policy, and rechecks streamed bytes and physical identities
+through one active proof. It deliberately excludes own operation publications;
+the producer must separately prove the full ledger/exact own transition, fresh
+control/installed policy after each callback, and final proof-to-BEGIN in one lease.
+No producer or entire simultaneous metadata budget approval is implied.
+
+PreparationSources20c36e9 implements a process-shared pre-BEGIN source owner,
+not publication/handoff. Focused45 assertions and existing operation coordinator59/
+terminal5 pass. Factory uncertainty cannot be cleared by a new handle, UUID,
+producer or budget; live readers remain counted until actual successful close,
+with retry after throwing close. Blocked delegate and actual cross-protocol callback
+checks pass. Independent exact-source review is in progress. There is no generic
+reset or handoff route; the actual durable producer must supply it later. These
+helpers are not wired to app behavior or enabled for consumer activation.
 
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
@@ -137,10 +163,11 @@ integrated. The only merge conflict was README evidence; both printing-portabili
 and outline notes are retained. Current outline runner is registered GREEN; frozen
 baseline15RED stays separate. Combined clean gate passed above; no Android timing acceptance.
 
-Next: finish the corrected accounting clean gate, then complete the already
-approved native/private capture producer and its resource/fault/metadata-budget
-proofs. NativeCaptureFingerprint API is accepted for bounded implementation in
-its isolated worktree; root retains all existing shared source ownership. Then
+Next: complete the already approved native/private capture producer and its
+resource/fault/metadata-budget proofs, consuming the reviewed native predicate and
+source ownership only after its exact-source review. Root retains all existing
+shared source ownership; a worker prepares the bounded private-frame preflight API.
+Then
 continue the source-ready portable bridge, verified provider output,
 strict import/adoption and eligible M0–M7 work. Internal native-only capture and
 private-frame capture belong to one meaningful change boundary, not separate
