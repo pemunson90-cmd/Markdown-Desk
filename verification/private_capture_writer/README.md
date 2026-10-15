@@ -27,7 +27,7 @@ funded namespace/preparation directories, and complete native-map/descriptor
 stages→committed metadata. Each owned byte and slot consumes exactly its prior
 future credit; baseline data stays unchanged. Partial metadata writes on failure
 are retained without a replacement writer or automatic repair. Private-frame
-live-prefix copying and BEGIN/LINK remain unfinished. Never ignore an operation
+live-prefix copying is described below; BEGIN/LINK remain unfinished. Never ignore an operation
 prefix or accept whichever state a callback leaves behind.
 
 The writer also guards the entire synchronous durability invocation with the
@@ -62,3 +62,58 @@ Actual callback regressions cover a failed nested open installing an unacknowled
 replacement and a caught ordinary writer check revoking the same object's readiness.
 Both refuse before PREPARE promotion and retain failure evidence; public policy()
 semantics remain unchanged.
+
+## Actual private-frame sink
+
+`copyPrivate(expectedClosedFrame, immutableFactory, copyWorkspace)` is the package
+orchestration entry outside the history monitor. It retains an exact private task,
+sink and CopyAttempt before invoking any source factory/read/close or sink callback;
+all failures seal the writer and original source owner AFTER leaving the consumer
+participant marker. No caller can forget that sealing by manually choreographing
+sink/close/promotion. `retryPrivateClose()` retries retained actual handles only and
+never resets failure, resumes append or creates a result.
+
+One active writer token binds the exact original plan row and expected frame,
+canonical stage/final paths and creator thread. Its allocation charges8 KiB from
+the same budget before allocation, separately from copy helper reservations. Sink
+construction performs no IO. The first bounded write creates only its funded new
+stage, retains the actual output object/descriptor and captures its nofollow inode.
+Opening failure with an unknown handle remains uncertain, not fabricated closure.
+The private token acquires the primary monitor/administration lease internally;
+it does not call public participant-rejecting entries. Complete full-ledger,
+installed-authority and native-source proofs still apply.
+
+Each <=65,536-byte append verifies the old explicit prefix/physical identity and
+all old/own entries. The expected new SHA-256 comes from rereading only that verified
+old prefix then hashing the known incoming append BEFORE writing. It never adopts
+a hash from whichever ledger appears afterward, depends on MessageDigest.clone or
+accepts a partial-stage resume. The one64 KiB scratch buffer is included in the
+writer's prepaid refresh workspace and child accounting. Direct output writes use
+no extra payload buffer. Typed own-stage bytes consume exact future byte credit;
+the stage slot consumes its pre-reserved slot. Final-stage promotion additionally
+requires full prepared length/hash. Prefix rereads/full transition checks can have
+quadratic IO cost; no latency guarantee is inferred.
+
+The sink syncs only a matching complete stage, retaining its native physical proof
+through source close. It actually closes its own output before the helper may close
+the Reader. If sync/verification fails, physical output closure is still attempted;
+throwing/uncertain closure keeps the original handle state for retry. Cleanup after
+failure/freeze/authority loss uses the exact token and may close the FD without
+ordinary admission. Source ownership stays live while sink closure is unresolved.
+
+Only a successful CopiedFrame bound to this owner/original frame/sink plus actual
+FD closure permits finalization under one lease. It freshly checks full stage bytes/
+identity, source-close callback effects, control/data credits, installed policy and
+the retained native proof, then performs only expected stage→final move+directory
+sync with checks after every callback. No BEGIN or captured result is produced.
+
+The runner includes7 new actual backend cases: exact preference copy/credit use,
+changed valid regeneration, same-byte stage/native replacement during source close,
+sink durability failure and authority loss with retained source/cleanup, and one
+streamed8 MiB tab plus preferences. One representative8 MiB copy took1590ms on this
+host during functional verification; that is an observation, not a benchmark budget.
+Original87 P/native assertions still pass. Initial private-copy tests failed for
+missing orchestration; the first zero-stage check caught truncating-open changing
+mtime, so its expected zero envelope is recorded after the known same-inode open.
+No broad suite/build/CI/device, crash reopen/full heap proof, final BEGIN/LINK,
+source handoff, cold recovery or activation is included in this packet.

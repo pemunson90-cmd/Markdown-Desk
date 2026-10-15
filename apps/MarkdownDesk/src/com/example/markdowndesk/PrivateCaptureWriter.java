@@ -17,12 +17,16 @@ final class PrivateCaptureWriter {
     private final HistoryStorage.Budget budget;
     private boolean nativeWritten;
     private boolean failed;
+    private final Object history;
+    private final byte[] copyScratch;
+    private PrivateSink activeCopy;
 
     private PrivateCaptureWriter(PrivateCapturePlan plan, File root,
             ProtectionStore.Durability durability, HistoryStorage.Budget budget) throws IOException {
         this.root = HistoryStorage.canonicalRoot(root);
         this.controlRoot = new File(root.getParentFile(), HistoryControlStore.ROOT_NAME);
         this.plan = plan; this.durability = durability; this.budget=budget;
+        history=HistoryStorage.monitorFor(root);
         plan.sourceOwner.requireIdleBindingLocked(root, plan.prepare.preparation, budget);
         authority=HistoryStorage.capacity(root);
         if(authority==null)throw new IOException("Capture requires acknowledged shared capacity");
@@ -34,6 +38,7 @@ final class PrivateCaptureWriter {
                 HistoryStorage.operationEvidenceBytes(root));
         refreshBytes = PrivateOperationStore.add(6L << 20, tables);
         budget.charge(refreshBytes);
+        copyScratch=new byte[65536]; // one retained scratch inside the prepaid refresh workspace
         budget.charge(8192L + 4096L * HistoryControlStore.MAX_ENTRIES);
         Fresh first = refresh();
         if (!first.ledger.complete || first.ledger.pending || !first.control.operations.valid
@@ -154,6 +159,131 @@ final class PrivateCaptureWriter {
         plan.sourceOwner.publicationCallbackLocked(()->durability.move(stage,target));verify(source,capacity);
         plan.sourceOwner.publicationCallbackLocked(()->durability.syncDirectory(preparation));verify(source,capacity);
     }
+    /** Full outside-history orchestration: retain task/attempt before any source or sink callback. */
+    void copyPrivate(PrivateFramePreflight.ClosedFrame expected,PreparationSources.Factory factory,
+            PrivateFramePreflight.Workspace workspace)throws IOException {
+        outsideCopy();
+        try {
+            PrivateSink sink;
+            synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){sink=privateSinkLocked(expected);}}
+            if(workspace==null)throw new IOException("Missing private copy workspace");
+            sink.attempt=workspace.copyAttempt(expected,factory,sink);
+            PrivateFramePreflight.CopiedFrame copied=sink.attempt.run();sink.copySucceeded=true;
+            synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){finishPrivateLocked(sink,copied);}}
+        }catch(IOException|RuntimeException|Error problem){
+            failed=true;
+            try{synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
+                if(activeCopy!=null){activeCopy.bad=true;activeCopy.closeProof();}
+                plan.sourceOwner.invalidateLocked();
+            }}}catch(IOException|RuntimeException|Error sealing){if(problem!=sealing)problem.addSuppressed(sealing);}
+            throw problem;
+        }
+    }
+    /** Retry actual retained handles only; never resume data or turn failure into a result. */
+    void retryPrivateClose()throws IOException {
+        outsideCopy();PrivateSink sink=activeCopy;
+        if(!failed||sink==null)throw new IOException("No failed private copy to clean up");
+        sink.thread();
+        if(sink.attempt!=null&&!sink.copySucceeded)sink.attempt.retryClose();
+        synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){sink.closeProof();}}
+    }
+    private void outsideCopy()throws IOException {
+        if(Thread.holdsLock(history))throw new IOException("Private source copy under history monitor");
+        HistoryOperations.rejectParticipant();
+    }
+    private PrivateSink privateSinkLocked(PrivateFramePreflight.ClosedFrame expected)throws IOException {
+        HistoryStorage.requireMutation(root);
+        if(failed||!nativeWritten||activeCopy!=null)throw new IOException("Private writer is not ready for one new copy");
+        plan.sourceOwner.requireIdleBindingLocked(root,plan.prepare.preparation,budget);
+        boolean found=false;for(PrivateFramePreflight.ClosedFrame frame:plan.privateFrames)if(frame==expected)found=true;
+        if(!found||expected==null)throw new IOException("Private frame is not an original plan member");
+        PrivateOperationRecord.Artifact artifact=null;
+        for(PrivateOperationRecord.Artifact row:plan.prepare.artifacts)if(row.id.equals(expected.artifactId))artifact=row;
+        if(artifact==null||artifact.kind!=expected.kind.wireId||artifact.ordinal!=expected.ordinal||!artifact.item.equals(expected.itemId)
+                ||artifact.length!=expected.envelopeBytes||!artifact.hash.equals(expected.envelopeHash))throw new IOException("Private row differs from prepared funding");
+        currentCapturePolicy(authority);checked();transition.requirePrivateAbsent(artifact);
+        budget.charge(8192); // token, expected-prefix/physical state and retained attempt references, no payload buffer
+        activeCopy=new PrivateSink(expected,artifact);return activeCopy;
+    }
+    private void finishPrivateLocked(PrivateSink sink,PrivateFramePreflight.CopiedFrame copied)throws IOException {
+        HistoryStorage.requireMutation(root);sink.thread();
+        if(activeCopy!=sink||failed||sink.bad||!sink.closed||!sink.synced||!sink.copySucceeded)throw new IOException("Private copy lacks validated actual closure");
+        copied.validate(plan.sourceOwner,sink.expected,sink);
+        plan.sourceOwner.requireIdleBindingLocked(root,plan.prepare.preparation,budget);
+        verify(sink.source,authority);
+        if(sink.count!=sink.artifact.length||!sink.hash.equals(sink.artifact.hash))throw new IOException("Private artifact differs from immutable frame");
+        transition.recordArtifactPromotion(sink.artifact);
+        plan.sourceOwner.publicationCallbackLocked(()->durability.move(sink.stage,sink.target));verify(sink.source,authority);
+        plan.sourceOwner.publicationCallbackLocked(()->durability.syncDirectory(sink.target.getParentFile()));verify(sink.source,authority);
+        sink.closeProof();activeCopy=null;
+    }
+    /** Exact private token; no caller paths, raw FD, resume or accept-current-ledger API. */
+    private final class PrivateSink implements PrivateFramePreflight.ProvisionalSink {
+        final PrivateFramePreflight.ClosedFrame expected;final PrivateOperationRecord.Artifact artifact;
+        final Thread ownerThread=Thread.currentThread();final File stage,target;
+        PrivateFramePreflight.CopyAttempt attempt;NativeCaptureFingerprint.PhysicalProof source;
+        FileOutputStream output;FileDescriptor descriptor;BasicFileAttributes accepted;
+        boolean initialized,opening,closed,synced,bad,copySucceeded;long count;String hash;
+        PrivateSink(PrivateFramePreflight.ClosedFrame expected,PrivateOperationRecord.Artifact artifact){
+            this.expected=expected;this.artifact=artifact;File directory=new File(new File(root.getParentFile(),PrivateOperationStore.ROOT),plan.prepare.preparation.toString());
+            stage=new File(directory,artifact.filename()+".stage");target=new File(directory,artifact.filename());
+        }
+        void thread()throws IOException{if(Thread.currentThread()!=ownerThread)throw new IOException("Private copy token thread mismatch");}
+        private void initialize()throws IOException {
+            source=sourceProof(authority);
+            if(PrivateOperationStore.attributesOrAbsent(stage.toPath())!=null||PrivateOperationStore.attributesOrAbsent(target.toPath())!=null)throw new IOException("Private destination already exists");
+            HistoryStorage.changed(root);Files.createFile(stage.toPath());accepted=PrivateOperationStore.attributes(stage.toPath());
+            hash=HistoryStorage.hex(HistoryStorage.digest().digest());initialized=true;
+            opening=true;output=new FileOutputStream(stage);descriptor=output.getFD();opening=false;
+            BasicFileAttributes opened=PrivateOperationStore.attributes(stage.toPath());Physical.sameIdentity(accepted,opened);accepted=opened;
+            transition.recordPrivatePrefix(this,accepted,0,hash);verify(source,authority);
+        }
+        public void write(byte[] bytes,int offset,int length)throws IOException {
+            thread();if(length<1||length>65536||offset<0||offset>bytes.length-length)throw new IOException("Invalid private write chunk");
+            synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
+                try{
+                    if(activeCopy!=this||failed||bad||closed)throw new IOException("Inactive private append token");
+                    if(!initialized)initialize();verify(source,authority);
+                    long next=PrivateOperationStore.add(count,length);if(next>artifact.length)throw new IOException("Private copy exceeds exact prepared credit");
+                    String expectedHash=appendHash(bytes,offset,length);
+                    HistoryStorage.changed(root);output.write(bytes,offset,length);
+                    BasicFileAttributes written=PrivateOperationStore.attributes(stage.toPath());Physical.sameIdentity(accepted,written);
+                    if(written.size()!=next)throw new IOException("Private append length uncertain");
+                    transition.recordPrivatePrefix(this,written,next,expectedHash);
+                    accepted=written;count=next;hash=expectedHash;verify(source,authority);
+                }catch(IOException|RuntimeException|Error failure){bad=true;throw failure;}
+            }}
+        }
+        private String appendHash(byte[] bytes,int offset,int length)throws IOException {
+            // Re-read only the previously verified prefix, then hash the known
+            // incoming append. No MessageDigest.clone dependency or ledger adoption.
+            new Physical(accepted).verify(PrivateOperationStore.attributes(stage.toPath()));
+            MessageDigest digest=HistoryStorage.digest();long read=0;
+            try(InputStream in=Files.newInputStream(stage.toPath(),StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
+                for(int n;(n=in.read(copyScratch))!=-1;){if(n==0)throw new IOException("Private prefix read stalled");read=PrivateOperationStore.add(read,n);if(read>count)throw new IOException("Private prefix grew");digest.update(copyScratch,0,n);}
+            }
+            new Physical(accepted).verify(PrivateOperationStore.attributes(stage.toPath()));
+            if(read!=count)throw new IOException("Private prefix changed length");digest.update(bytes,offset,length);return HistoryStorage.hex(digest.digest());
+        }
+        public void close()throws IOException {
+            thread();synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
+                if(activeCopy!=this)throw new IOException("Foreign private close token");
+                Throwable failure=null;
+                try{if(!failed&&!bad&&!synced&&initialized&&count==artifact.length&&hash.equals(artifact.hash)){
+                    verify(source,authority);plan.sourceOwner.publicationCallbackLocked(()->durability.syncFile(descriptor));verify(source,authority);synced=true;
+                }}catch(IOException|RuntimeException|Error problem){bad=true;failure=problem;}
+                try{
+                    if(output!=null){output.close();if(descriptor!=null&&descriptor.valid())throw new IOException("Private output descriptor still live");output=null;descriptor=null;opening=false;}
+                    if(opening)throw new IOException("Private output acquisition is uncertain");
+                    closed=true;
+                }catch(IOException|RuntimeException|Error problem){bad=true;failure=combine(failure,problem);}
+                if(failure!=null)raise(failure);
+            }}
+        }
+        void closeProof()throws IOException{if(source!=null){source.close();source=null;}}
+    }
+    private static Throwable combine(Throwable first,Throwable next){if(first==null)return next;if(first!=next)first.addSuppressed(next);return first;}
+    private static void raise(Throwable problem)throws IOException{if(problem instanceof IOException)throw (IOException)problem;if(problem instanceof RuntimeException)throw (RuntimeException)problem;throw (Error)problem;}
     private NativeCaptureFingerprint.PhysicalProof sourceProof(HistoryCapacity capacity) throws IOException {
         Fresh fresh = checked(); return plan.nativeSources.prove(fresh.control, currentCapturePolicy(capacity));
     }
@@ -174,7 +304,7 @@ final class PrivateCaptureWriter {
     private Fresh refresh() throws IOException {
         HistoryStorage.requireMutation(root);
         HistoryStorage.Budget prepaid = new HistoryStorage.Budget(refreshBytes);
-        prepaid.charge(4L << 20); // prepaid control decode/DTO/clone workspace
+        prepaid.charge((4L << 20)+65536); // prepaid control decode/DTO/clone workspace
         HistoryControlStore.Inspection control = new HistoryControlStore(root.getParentFile()).inspect();
         PrivateOperationStore.Ledger ledger = PrivateOperationStore.inspect(root, control, prepaid);
         return new Fresh(control, ledger);
@@ -218,10 +348,11 @@ final class PrivateCaptureWriter {
         private long ownBytes;
         private final class OwnedData {
             final BasicFileAttributes attributes;final String value;final PrivateOperationRecord.Artifact artifact;
-            OwnedData(BasicFileAttributes attributes,PrivateOperationRecord.Artifact artifact)throws IOException {
+            OwnedData(BasicFileAttributes attributes,PrivateOperationRecord.Artifact artifact)throws IOException {this(attributes,artifact,artifact==null?0:artifact.length,artifact==null?null:artifact.hash);}
+            OwnedData(BasicFileAttributes attributes,PrivateOperationRecord.Artifact artifact,long bytes,String hash)throws IOException {
                 this.attributes=attributes;this.artifact=artifact;
                 if(artifact==null) {directory(attributes,attributes);value="dir:"+attributes.fileKey();}
-                else {new Physical(attributes);if(attributes.size()!=artifact.length)throw new IOException("Incomplete owned metadata stage");value="file:"+artifact.length+":"+attributes.fileKey()+":"+artifact.hash;}
+                else {new Physical(attributes);if(bytes<0||bytes>artifact.length||attributes.size()!=bytes||hash==null)throw new IOException("Invalid owned artifact prefix");value="file:"+bytes+":"+attributes.fileKey()+":"+hash;}
             }
         }
         private final long actual, reserved, occupied, slots, controlActual, controlReserved;
@@ -278,10 +409,22 @@ final class PrivateCaptureWriter {
                 throw new IOException("Invalid owned metadata stage transition");
             ownData.put(key,new OwnedData(written,artifact));ownBytes=PrivateOperationStore.add(ownBytes,artifact.length);
         }
+        void requirePrivateAbsent(PrivateOperationRecord.Artifact artifact)throws IOException {
+            String key=plan.prepare.preparation+"/"+artifact.filename();
+            if(artifact.kind<6||data.containsKey(key)||ownData.containsKey(key)||ownData.containsKey(key+".stage"))throw new IOException("Private artifact was already admitted");
+        }
+        void recordPrivatePrefix(PrivateSink token,BasicFileAttributes attrs,long bytes,String hash)throws IOException {
+            String key=plan.prepare.preparation+"/"+token.artifact.filename()+".stage";OwnedData old=ownData.get(key);
+            if(activeCopy!=token||phase!=2||token.artifact.kind<6||!plan.prepare.artifacts.contains(token.artifact)
+                    ||!ownData.containsKey(plan.prepare.preparation.toString())||data.containsKey(key)||ownData.containsKey(key.substring(0,key.length()-6))
+                    ||old==null&&bytes!=0||old!=null&&(old.artifact!=token.artifact||old.attributes.size()!=token.count||bytes<=token.count||bytes-token.count>65536))throw new IOException("Unfunded private append transition");
+            if(old!=null)Physical.sameIdentity(old.attributes,attrs);
+            ownData.put(key,new OwnedData(attrs,token.artifact,bytes,hash));ownBytes=PrivateOperationStore.add(ownBytes,bytes-(old==null?0:old.attributes.size()));
+        }
         void recordArtifactPromotion(PrivateOperationRecord.Artifact artifact)throws IOException {
             String key=plan.prepare.preparation+"/"+artifact.filename()+".stage";
             OwnedData old=ownData.get(key);
-            if(old==null||old.artifact!=artifact)throw new IOException("Foreign metadata stage promotion");
+            if(old==null||old.artifact!=artifact||old.attributes.size()!=artifact.length||!old.value.endsWith(":"+artifact.hash))throw new IOException("Foreign/incomplete artifact stage promotion");
             ownData.remove(key);ownData.put(key.substring(0,key.length()-6),old);
         }
         void verify(Fresh fresh) throws IOException {
