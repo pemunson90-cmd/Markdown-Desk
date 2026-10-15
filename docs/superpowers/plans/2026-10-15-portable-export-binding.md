@@ -268,7 +268,7 @@ BEGIN purpose/scope/source shape valid under HistoryPinRecord, CLOSE binds that
 BEGIN envelopeHash and manifestHash with valid RELEASED/CANCELLED outcome, no P
 association, unmatched member or conflicting/staged control. Their registration and
 BEGIN generation/policy hash must resolve through the included full raw context chain;
-C0 and ledger witnesses retain both rows exactly. An unavailable old native manifest
+C0 witness retains both legacy rows; ledger witness preserves its unchanged operation-only hash-input sequence; capsule rows preserve raw legacy bytes. An unavailable old native manifest
 is a preserved historical hash commitment, never activation proof. Every other
 unowned/unclassifiable pair refuses whole backup. Unknown kinds/shapes remain blocking.
 Absent/directory rows have raw/actual length0 and SHA256(empty); absent declaration
