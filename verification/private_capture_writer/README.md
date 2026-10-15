@@ -46,9 +46,19 @@ internal to the call chain and are discarded before reuse; no borrowed rows esca
 Compact physical baseline tables receive separate admission. These logical bounds
 are not the pending full simultaneous heap/resource proof for the producer.
 
-Current focused result:81 assertions. Tests cover actual PREPARE bytes, exact native
+Current focused result:87 assertions. Tests cover actual PREPARE bytes, exact native
 map/descriptor bytes and credit conversion, no accidental BEGIN, pending credits,
 existing CLOSED capture, six durability failure points, same-byte PREPARE/native
 replacement, old private-file metadata changes, foreign operation evidence, and the
 completed legacy-pin change that leaves an absent operation-ledger hash unchanged.
 Raw-provider destructive hazard diagnostics are separate and unmodified.
+
+Every native-source proof/recheck now looks up the installed capacity identity and
+requires the originally accepted instance, its ready flag and acknowledged policy
+through `capturePolicyLocked`. The accessor requires the primary mutation lease;
+it returns policy provenance only, without ordinary writer admission, reconciliation
+or state mutation. Exact typed transitions still validate intentional PREPARE.stage.
+Actual callback regressions cover a failed nested open installing an unacknowledged
+replacement and a caught ordinary writer check revoking the same object's readiness.
+Both refuse before PREPARE promotion and retain failure evidence; public policy()
+semantics remain unchanged.

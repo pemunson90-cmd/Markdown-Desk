@@ -99,6 +99,13 @@ public final class HistoryCapacity {
                 ||acknowledged.quotaBytes!=policy.quotaBytes||acknowledged.automaticCount!=policy.automaticCount)throw new IOException("Foreign terminal capacity candidate");
     }
     public EffectivePolicy policy()throws IOException{synchronized(monitor){if(acknowledged==null)throw new IOException("No acknowledged policy");return acknowledged;}}
+    /** Policy provenance only for an exact capture transition, not ordinary writer admission. */
+    EffectivePolicy capturePolicyLocked()throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());
+        if(HistoryStorage.capacity(store.storageRoot())!=this||!ready||acknowledged==null)
+            throw new IOException("Capture capacity authority changed or requires reconciliation");
+        return acknowledged;
+    }
     public Usage inspect()throws IOException{synchronized(monitor){HistoryControlStore.Inspection inspection=control.inspect();Usage usage=ledger(inspection);
         return new Usage(usage.dataActualBytes,usage.completionReservedBytes,usage.completionReservedSlots,inspection,usage.usageComplete,
             usage.mutationBlocked||!authorityMatches(inspection),acknowledged==null?Long.MAX_VALUE:acknowledged.quotaBytes,usage.diagnostics,usage.operationActualBytes,usage.operationReservedBytes,usage.operationOccupiedEntries,usage.operationReservedEntries);}}

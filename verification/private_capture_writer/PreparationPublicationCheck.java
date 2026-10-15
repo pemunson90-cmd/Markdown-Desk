@@ -108,6 +108,20 @@ public final class PreparationPublicationCheck {
             PrivateOperationRecord.Artifact artifact=fault.plan.prepare.artifact(selected);Path directory=fault.f.parent.resolve("private_operations/"+fault.preparation);
             Path stage=directory.resolve(artifact.filename()+".stage"),target=directory.resolve(artifact.filename());yes(Files.exists(stage)||Files.exists(target),"artifact bytes preserved "+selected+" "+point);
         }
+        Capture superseded=new Capture();Disk supersedingDisk=new Disk();HistoryCapacity originalAuthority=HistoryStorage.capacity(superseded.f.store.storageRoot());final boolean[] replacementAttempted={false},replacementFailed={false};
+        supersedingDisk.hook=(event,file)->{if(event.equals("file-after")&&!replacementAttempted[0]){
+            replacementAttempted[0]=true;try{HistoryCapacity.openLocked(superseded.f.store,superseded.f.catalog,superseded.f.identity,superseded.f.index,superseded.f.disk);}catch(IOException expected){replacementFailed[0]=true;}
+        }};
+        refuses(()->superseded.publish(supersedingDisk),"callback superseded accepted capacity with unacknowledged candidate");
+        yes(replacementAttempted[0]&&replacementFailed[0]&&HistoryStorage.capacity(superseded.f.store.storageRoot())!=originalAuthority,"real nested reopen installed replacement before refusing reconciliation");
+        yes(!Files.exists(superseded.f.parent.resolve("history_control/"+superseded.plan.prepare.name()))&&Files.exists(superseded.f.parent.resolve("history_control/"+superseded.plan.prepare.name()+".stage")),"authority replacement leaves stage without committed PREPARE");
+        Capture revoked=new Capture();Disk revokingDisk=new Disk();HistoryCapacity sameAuthority=HistoryStorage.capacity(revoked.f.store.storageRoot());final boolean[] readinessRevoked={false};
+        revokingDisk.hook=(event,file)->{if(event.equals("file-after")&&!readinessRevoked[0]){
+            try{sameAuthority.requireWriter(revoked.f.store.storageRoot());throw new AssertionError("ordinary writer unexpectedly admitted PREPARE.stage");}catch(IOException expected){readinessRevoked[0]=true;}
+        }};
+        refuses(()->revoked.publish(revokingDisk),"same installed authority lost readiness during intentional PREPARE.stage");
+        yes(readinessRevoked[0]&&HistoryStorage.capacity(revoked.f.store.storageRoot())==sameAuthority,"actual failed ordinary writer check revoked same-object readiness");
+        yes(!Files.exists(revoked.f.parent.resolve("history_control/"+revoked.plan.prepare.name()))&&Files.exists(revoked.f.parent.resolve("history_control/"+revoked.plan.prepare.name()+".stage")),"same-object readiness loss leaves stage without committed PREPARE");
         Capture guarded=new Capture();Disk guardDisk=new Disk();guardDisk.hook=(event,file)->{if(event.equals("file-after")){
             Thread freeze=new Thread(()->{try{guarded.owner.freeze();}catch(IOException failure){throw new AssertionError(failure);}});freeze.start();try{freeze.join(5000);}catch(InterruptedException failure){Thread.currentThread().interrupt();throw new IOException(failure);}if(freeze.isAlive())throw new IOException("freeze blocked");
             try{refuses(guarded.owner::claimLocked,"durability callback cannot claim while internal FD open");}catch(IOException failure){throw failure;}catch(Exception failure){throw new IOException(failure);}

@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 final class PrivateCaptureWriter {
     private final File root, controlRoot;
     private final PrivateCapturePlan plan;
+    private final HistoryCapacity authority;
     private final ProtectionStore.Durability durability;
     private final Transition transition;
     private final long refreshBytes;
@@ -23,6 +24,9 @@ final class PrivateCaptureWriter {
         this.controlRoot = new File(root.getParentFile(), HistoryControlStore.ROOT_NAME);
         this.plan = plan; this.durability = durability; this.budget=budget;
         plan.sourceOwner.requireIdleBindingLocked(root, plan.prepare.preparation, budget);
+        authority=HistoryStorage.capacity(root);
+        if(authority==null)throw new IOException("Capture requires acknowledged shared capacity");
+        authority.capturePolicyLocked();
         // This is a prepaid scratch owner, never another independent16MiB allowance.
         // Control decoding retains <=1MiB physical envelopes with bounded clones/DTOs;
         // reserve6MiB plus per-ledger tables before obtaining any refresh snapshot.
@@ -59,7 +63,7 @@ final class PrivateCaptureWriter {
         }
     }
     private void publishPrepareLocked() throws IOException {
-        HistoryCapacity capacity = HistoryStorage.capacity(root);
+        HistoryCapacity capacity = authority;
         if (capacity == null) throw new IOException("Capture requires acknowledged shared capacity");
         capacity.requireWriter(root);
         File stage = new File(controlRoot, plan.prepare.name() + ".stage");
@@ -96,7 +100,7 @@ final class PrivateCaptureWriter {
         HistoryStorage.requireMutation(root); HistoryOperations.rejectParticipant();
         if(failed||nativeWritten)throw new IOException("Native capture metadata already written or attempt failed");
         plan.sourceOwner.requireIdleBindingLocked(root,plan.prepare.preparation,budget);
-        HistoryCapacity capacity=HistoryStorage.capacity(root);
+        HistoryCapacity capacity=authority;
         if(capacity==null)throw new IOException("Capture requires acknowledged shared capacity");
         capacity.requireWriter(root);
         try(NativeCaptureFingerprint.PhysicalProof source=sourceProof(capacity)) {
@@ -151,10 +155,15 @@ final class PrivateCaptureWriter {
         plan.sourceOwner.publicationCallbackLocked(()->durability.syncDirectory(preparation));verify(source,capacity);
     }
     private NativeCaptureFingerprint.PhysicalProof sourceProof(HistoryCapacity capacity) throws IOException {
-        Fresh fresh = checked(); return plan.nativeSources.prove(fresh.control, capacity.policy());
+        Fresh fresh = checked(); return plan.nativeSources.prove(fresh.control, currentCapturePolicy(capacity));
     }
     private void verify(NativeCaptureFingerprint.PhysicalProof source, HistoryCapacity capacity) throws IOException {
-        Fresh fresh = checked(); source.recheck(fresh.control, capacity.policy());
+        Fresh fresh = checked(); source.recheck(fresh.control, currentCapturePolicy(capacity));
+    }
+    private HistoryCapacity.EffectivePolicy currentCapturePolicy(HistoryCapacity accepted)throws IOException {
+        HistoryCapacity installed=HistoryStorage.capacity(root);
+        if(installed!=authority||accepted!=authority)throw new IOException("Capture accepted capacity was superseded");
+        return installed.capturePolicyLocked();
     }
     private Fresh checked() throws IOException {
         HistoryStorage.requireMutation(root);
