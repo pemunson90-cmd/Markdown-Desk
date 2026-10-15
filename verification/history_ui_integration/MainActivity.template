@@ -1,0 +1,36 @@
+package com.example.markdowndesk;
+import java.io.*;import java.nio.*;import java.nio.charset.*;import java.util.*;import java.text.SimpleDateFormat;import android.view.*;import android.widget.*;
+class HostActivity {protected void onPause(){}protected void onDestroy(){}}
+public final class MainActivity extends HostActivity {
+ static final int MODE_EDIT=0,MODE_PREVIEW=1;
+ static final class Build {static final class VERSION {static int SDK_INT=28;}}
+ static final class Typeface {static final Object MONOSPACE=new Object();}
+ static final class Uri {final String value;Uri(String s){value=s;}static Uri parse(String s){return new Uri(s);}public String toString(){return value;}}
+ static final class Queue {final List<Runnable> tasks=new ArrayList<>();boolean closed;void execute(Runnable r){if(closed)throw new java.util.concurrent.RejectedExecutionException();tasks.add(r);}boolean post(Runnable r){tasks.add(r);return true;}void shutdown(){closed=true;}void removeCallbacksAndMessages(Object token){tasks.clear();}void drain(){while(!tasks.isEmpty())tasks.remove(0).run();}void last(){tasks.remove(tasks.size()-1).run();}}
+ interface Click {void call(AlertDialog d,int i);}interface Event {void call(AlertDialog d);}
+ static final class AlertDialog {
+  TextView title,message;View content;ArrayAdapter<String> rows;Click positive,negative,neutral,items;Event cancel,show;boolean visible;
+  void setOnCancelListener(Event e){cancel=e;}void setOnShowListener(Event e){show=e;}void show(){visible=true;if(show!=null)show.call(this);}void dismiss(){visible=false;}void cancel(){if(cancel!=null)cancel.call(this);dismiss();}
+  TextView findViewById(int id){return message;}
+  void positive(){positive.call(this,-1);dismiss();}void negative(){negative.call(this,-2);dismiss();}void neutral(){neutral.call(this,-3);dismiss();}void item(int i){items.call(this,i);dismiss();}
+  static final class Builder {final AlertDialog d=new AlertDialog();Builder(MainActivity a){}Builder setCustomTitle(TextView t){d.title=t;return this;}Builder setMessage(String s){d.message=new TextView(null);d.message.setText(s);return this;}Builder setView(View v){d.content=v;return this;}Builder setAdapter(ArrayAdapter<String> a,Click c){d.rows=a;d.items=c;return this;}Builder setPositiveButton(String s,Click c){d.positive=c;return this;}Builder setNegativeButton(String s,Click c){d.negative=c;return this;}Builder setNeutralButton(String s,Click c){d.neutral=c;return this;}AlertDialog create(){return d;}}
+ }
+ static final class Preview {int scroll;int getScrollY(){return scroll;}void destroy(){}}
+ static final class DocumentIO {/* EXTRACTED_STRICT_ENCODING */}
+ final HistoryController controller;final ProtectionStore store;
+ MainActivity(HistoryController c,ProtectionStore s){controller=c;store=s;}
+ HistoryController getHistoryController(){return controller;}ProtectionStore getProtectionStore(){return store;}
+ long historyRequest,capturedSaveRevision;AlertDialog historyDialog;boolean finishing,destroyed;
+ final List<DocumentTab> tabs=new ArrayList<>();int activeTab=-1;final EditText editor=new EditText(this);final Preview preview=new Preview();
+ Uri currentUri;String displayName,baselineHash;long baselineModified;boolean utf8Bom,readOnly,editorLocked,dirty,suppressChanges,previewReady;int mode,previewRestoreY;
+ final Queue io=new Queue(),main=new Queue();UiTheme.Palette palette=UiTheme.palette(0,false);final List<String> errors=new ArrayList<>();String pickerId;int sessions,recoveries;
+ boolean isFinishing(){return finishing;}boolean isDestroyed(){return destroyed;}int dp(int n){return n;}void styleDialog(AlertDialog d){}void showError(String s){errors.add(s);}String message(Exception e){return e.getMessage();}
+ void launchProtectedCopy(String id,String title){pickerId=id;}
+ void updateTabsUi(){}void scheduleSession(){sessions++;}void applyEditorLockState(boolean b){}void rebuildBody(){}void applyColors(){}void updateStatus(){}void hideKeyboard(){}void showKeyboard(EditText e){}void stopStatistics(){}void stopPreview(){}void writeRecoveryNow(){recoveries++;}void writeSessionNow(){sessions++;}
+ int clamp(int n,int min,int max){return Math.max(min,Math.min(max,n));}
+ void open(){showDocumentHistory();}void switchTab(int i){switchToTab(i,false);}void destroy(){onDestroy();destroyed=true;}void pause(){onPause();}void flush(){io.drain();main.drain();}
+ void select(String left,String right,String history){compareHistory(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,left,right);}
+ void restore(String id,String history){restoreHistoryVersion(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,id);}
+ void page(List<HistoryIndex.Version> v,String history){showHistoryPage(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,v,0,null);}
+ /* METHODS */
+}

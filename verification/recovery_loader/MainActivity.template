@@ -35,6 +35,9 @@ static byte[] encode(String s,boolean bom){return ((bom?"\uFEFF":"")+s).getBytes
     final List<String> errors=new ArrayList<>();
     void showError(String message){errors.add(message);}
     ProtectionStore store;
+    HistoryController historyController;
+    HistoryController controller()throws IOException{return getHistoryController();}
+    static final class AndroidDurability extends HostDurability {}
     ProtectionStore getProtectionStore()throws java.io.IOException{if(store==null)store=new ProtectionStore(new File(getFilesDir(),"protected_saves"),new HostDurability(),64L*1024*1024);return store;}
     static class HostDurability implements ProtectionStore.Durability {
      public void syncFile(java.io.FileDescriptor d)throws java.io.IOException{d.sync();}
