@@ -2,6 +2,13 @@
 
 ## Current checkpoint — protected capture and scoped private backup, 2026-10-15
 
+The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
+maps retained M0–M7 obligations to source, evidence, dependencies and next packets.
+Lead self-review is complete; new independent plan review is NOT RUN. Worker
+execution reached an account usage limit and no child remains active; lead
+continues supported ready work inline, without changing spending or waiving review.
+
+
 Main is `b5796ba9061c365538d3192acdea8f69bb204029`: [PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) merged reviewed head `7a13ac5` after required hosted
 run38664300293/job116192539275 passed. Draft38664276730 was skipped, not passing
 evidence. Previous main `50f3a75` came from [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
@@ -91,7 +98,12 @@ probes passed. The new required runner is registered; combined clean verificatio
 remains pending. Typed payload validity, durable spool/adoption and runtime backup
 authority are excluded. Borrowed rows require cooperative ownership through
 quiescence or separately reserved copies; closing does not revoke escaped Java
-references or prove GC. Storage/capture source remains in implementation.
+references or prove GC. Storage/accounting checkpoint `a92a999` remains unapproved
+in `operation-data-capture`, with four tracked dirty repairs preserved. Independent
+probes found policy/stage/pin/resume/CLOSE writer-admission gaps and same-byte
+PREPARE inode replacement at a final callback. These are source integration
+blockers; no producer/activation or backup UI is implemented. Lead takes the
+interrupted repair inline; new risky source still requires independent review.
 Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
 through graph/pruner/retirement proofs, preserve uncertain source ownership, and
 transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
@@ -103,10 +115,11 @@ and import/adoption still require review.
 Outline audit/repair plan `ba86c17` also passed independent review and is integrated
 without production changes:21 cases/46 assertions reproduce15 genuine stale-effect
 failures;8 control cases/27 assertions pass. Bounded implementation is authorized
-in a separate worktree, including only required truthful AST fixture adaptations.
-It must preserve search ranges and valid delayed navigation while retiring mode-ABA
-contexts, old sync effects and unbounded retry chains. The raw audit is not a
-required-green runner until repaired; Android timing remains unverified.
+and committed at `93a5cc5` in `outline-navigation`; worker32 cases/74 assertions
+and affected fixtures/whole-Java compilation passed. Independent review found no
+blocker on Activity blob13c27c32b0b387e4a45dccf80b5ee06add06f531 with20 probes;
+canonical artifact carry-forward/integration remains pending. Current runner is
+GREEN; frozen baseline15RED stays separate. No Android timing acceptance.
 
 Next: complete and independently review operation-data/capture and outline source,
 combine with the reviewed scoped codec and run the clean integration gate; then
