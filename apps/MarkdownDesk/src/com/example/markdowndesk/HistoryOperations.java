@@ -3,6 +3,8 @@ package com.example.markdowndesk;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.nio.file.*;
+import java.security.MessageDigest;
 
 /** Single-process operation lifetime. No consumer, scheduler or provider is installed here. */
 final class HistoryOperations {
@@ -24,7 +26,7 @@ final class HistoryOperations {
     interface WriterFactory {OutputStream open()throws IOException;}
     interface CallbackQueue {void post(Runnable task);}
     private static final class Gate {
-        final HistoryPinRecord begin;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
+        final HistoryPinRecord begin;PrivateOperationStore.CapturedData capture;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
         final Set<CallbackTicket> pending=new HashSet<>();final List<CompletableFuture<Quiescence>> waiters=new ArrayList<>();
         Gate(HistoryPinRecord begin){this.begin=begin;}
     }
@@ -61,6 +63,60 @@ final class HistoryOperations {
             probe.operationResumeLocked(operation,manifest);
             synchronized(gateLock){if(gate.epoch!=epoch)throw new IOException("Operation epoch changed");activation(gate);if(gate.epoch==Long.MAX_VALUE)throw new IOException("Operation epoch exhausted");gate.epoch++;gate.phase=Phase.OPEN;return new OperationHandle(this,gate);}
         }}
+    }
+    OperationHandle activateCaptured(PrivateCaptureWriter.CapturedBinding captured,HistoryStorage.Budget budget)throws IOException {
+        outsideHistory();rejectParticipant();if(captured==null)throw new IOException("Missing authentic captured binding");captured.requireBudget(budget);
+        synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
+            if(!root.equals(captured.root))throw new IOException("Foreign captured bundle");
+            synchronized(gateLock){Gate old=gates.get(captured.operation.toString());if(old!=null)activation(old);}
+            PrivateOperationStore.CapturedData data=probe.operationCapturedLocked(captured,budget);
+            synchronized(gateLock){Gate gate=bind(data.begin);activation(gate);if(gate.epoch==Long.MAX_VALUE)throw new IOException("Operation epoch exhausted");
+                gate.capture=data;gate.epoch++;gate.phase=Phase.OPEN;return new OperationHandle(this,gate);}
+        }}
+    }
+    TrackedInput openCapturedSource(OperationHandle operation,UUID item)throws IOException {
+        outsideHistory();Gate gate;PrivateOperationStore.CapturedSource source;
+        synchronized(gateLock){gate=handle(operation,true);if(gate.capture==null||item==null||(source=gate.capture.sources.get(item))==null)throw new IOException("Undeclared captured source");
+            gate.capture.budget.charge(16384); // resource/digest/stream wrappers plus bounded skip/transfer scratch
+            gate.resources++;
+        }
+        enter();
+        try{
+            CapturedInput input=new CapturedInput(gate,source);
+            TrackedInput tracked=new TrackedInput(new Resource(gate),input);
+            input.open();return tracked; // all wrappers retained before actual FD acquisition
+        }
+        catch(IOException|RuntimeException|Error failure){uncertain(gate);throw failure;}finally{leave();}
+    }
+    /** In-memory bounded descriptor only, for existing exact-manifest CLOSE after drain. */
+    InputStream capturedManifest(Quiescence proof)throws IOException {
+        outsideHistory();rejectParticipant();synchronized(gateLock){
+            if(proof==null||proof.owner!=this||proof.epoch!=proof.gate.epoch||proof.gate.capture==null
+                    ||(proof.gate.phase!=Phase.QUIESCENT&&proof.gate.phase!=Phase.TERMINAL_RETRY&&proof.gate.phase!=Phase.TERMINAL)||proof.gate.resources!=0||proof.gate.running!=0||proof.gate.posting!=0||!proof.gate.pending.isEmpty())throw new IOException("Capture manifest requires exact drain proof");
+            return new ByteArrayInputStream(proof.gate.capture.descriptor);
+        }
+    }
+    /** Immutable local source; all skip/transfer routes consume checked reads, reset unsupported. */
+    private final class CapturedInput extends InputStream {
+        private final Gate gate;private final PrivateOperationStore.CapturedSource source;private InputStream input;
+        private final MessageDigest digest=HistoryStorage.digest();private final byte[] single=new byte[1];
+        private long count;private boolean eof,bad;
+        CapturedInput(Gate gate,PrivateOperationStore.CapturedSource source)throws IOException {
+            this.gate=gate;this.source=source;
+        }
+        void open()throws IOException {source.verify();input=Files.newInputStream(source.path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS);}
+        public int read()throws IOException{int n=read(single,0,1);return n<0?-1:single[0]&255;}
+        public int read(byte[] bytes,int offset,int length)throws IOException {
+            if(bytes==null)throw new NullPointerException();if(offset<0||length<0||offset>bytes.length-length)throw new IndexOutOfBoundsException();if(length==0)return 0;
+            try{
+                if(bad)throw new IOException("Captured source validation already failed");source.verify();if(eof)return -1;
+                int n=input.read(bytes,offset,Math.min(length,65536));
+                if(n<0){if(count!=source.length||!source.hash.equals(HistoryStorage.hex(digest.digest())))throw new IOException("Captured source EOF/hash mismatch");source.verify();eof=true;return -1;}
+                if(n==0)throw new IOException("Captured source read stalled");count=PrivateOperationStore.add(count,n);
+                if(count>source.length)throw new IOException("Captured source grew");digest.update(bytes,offset,n);return n;
+            }catch(IOException|RuntimeException|Error failure){bad=true;uncertain(gate);throw failure;}
+        }
+        public void close()throws IOException{input.close();}
     }
     private static void activation(Gate gate)throws IOException {if(gate.phase!=Phase.COLD_FROZEN&&gate.phase!=Phase.QUIESCENT)throw new IOException("Operation cannot activate");}
     DrainRequest freezeForTerminal(String operation)throws IOException {
@@ -101,7 +157,7 @@ final class HistoryOperations {
     static void rejectParticipant()throws IOException {if(PARTICIPANT.get()!=null)throw new IOException("Terminal entry from operation participant");PreparationSources.rejectParticipant();}
     private static void enter(){Integer n=PARTICIPANT.get();PARTICIPANT.set(n==null?1:n+1);}
     private static void leave(){int n=PARTICIPANT.get();if(n==1)PARTICIPANT.remove();else PARTICIPANT.set(n-1);}
-    private Gate opening(OperationHandle handle)throws IOException {outsideHistory();synchronized(gateLock){Gate gate=handle(handle,true);gate.resources++;return gate;}}
+    private Gate opening(OperationHandle handle)throws IOException {outsideHistory();synchronized(gateLock){Gate gate=handle(handle,true);if(gate.capture!=null)throw new IOException("Captured operation requires declared local sources");gate.resources++;return gate;}}
     private void uncertain(Gate gate){List<Runnable> signals=new ArrayList<>();synchronized(gateLock){try{freezeGate(gate);}catch(IOException impossible){throw new IllegalStateException(impossible);}collect(gate,signals);}signal(signals);}
     TrackedInput openReader(OperationHandle handle,ReaderFactory factory)throws IOException {
         if(factory==null)throw new IOException("Missing reader factory");Gate gate=opening(handle);enter();

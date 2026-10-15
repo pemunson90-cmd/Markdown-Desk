@@ -187,7 +187,7 @@ final class PrivateCaptureWriter {
                     claim.validateLocked();verify(source,authority);
                     Fresh complete=checked();source.recheck(complete.control,currentCapturePolicy(authority));
                     HistoryStorage.rememberOperationEvidence(root,complete.control,complete.ledger);
-                    CapturedBinding binding=new CapturedBinding(root,plan.prepare,plan.link,claim);
+                    CapturedBinding binding=new CapturedBinding(root,plan.prepare,plan.link,claim,budget);
                     claim.handoffLocked(binding);completed=true;return binding;
                 }
             }}
@@ -219,7 +219,10 @@ final class PrivateCaptureWriter {
     static final class CapturedBinding {
         final File root;final UUID preparation,operation;final String prepareHash,beginHash,descriptorHash,linkHash;
         private PreparationSources.Proof claim;
-        private CapturedBinding(File root,PrivateOperationRecord prepare,PrivateOperationRecord link,PreparationSources.Proof claim){
+        private final HistoryStorage.Budget producerBudget;
+        void requireBudget(HistoryStorage.Budget supplied)throws IOException {if(supplied==null||supplied!=producerBudget)throw new IOException("Capture requires its original shared metadata budget");}
+        private CapturedBinding(File root,PrivateOperationRecord prepare,PrivateOperationRecord link,PreparationSources.Proof claim,HistoryStorage.Budget budget){
+            producerBudget=budget;
             this.root=root;preparation=prepare.preparation;operation=prepare.operation;prepareHash=prepare.envelopeHash;
             beginHash=prepare.beginHash;descriptorHash=prepare.descriptorHash;linkHash=link.envelopeHash;this.claim=claim;
         }

@@ -49,6 +49,17 @@ final class HistoryPins {
         if(!terminal){PrivateOperationStore.completeDataLocked(store.storageRoot());active(c,operation);requireAcknowledged(c);}
         return begin;
     }
+    /** Same-process provenance only; cold discovery cannot fabricate a CapturedBinding. */
+    PrivateOperationStore.CapturedData operationCapturedLocked(PrivateCaptureWriter.CapturedBinding captured,
+            HistoryStorage.Budget budget)throws IOException {
+        HistoryStorage.requireMutation(store.storageRoot());captured.requireBudget(budget);
+        if(!store.storageRoot().equals(captured.root))throw new IOException("Foreign capture bundle");
+        budget.charge(6L<<20); // control DTO/clones, bounded descriptor metadata and reusable hash scratch
+        HistoryControlStore.Inspection c=control();requireAcknowledged(c);
+        HistoryCapacity capacity=HistoryStorage.capacity(store.storageRoot());
+        if(capacity==null||capacity.graphPolicy(c,roots.toArray(new File[0]))==null)throw new IOException("Capture activation requires current acknowledged bundle");
+        return PrivateOperationStore.capturedLocked(store.storageRoot(),captured,budget,c);
+    }
     HistoryPinRecord operationResumeLocked(String operation,InputStream originalManifest)throws IOException {
         HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
         HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operation);requireAcknowledged(before);

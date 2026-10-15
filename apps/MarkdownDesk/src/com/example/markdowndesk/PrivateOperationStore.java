@@ -133,6 +133,75 @@ final class PrivateOperationStore {
         }ledger.fingerprint=HistoryStorage.hex(digest.digest());}
         return ledger;
     }
+    /** Immutable declared sources for an authentic same-process completed capture. No cold adoption. */
+    static final class CapturedData {
+        final HistoryPinRecord begin;final HistoryStorage.Budget budget;
+        final Map<UUID,CapturedSource> sources;final byte[] descriptor;
+        CapturedData(HistoryPinRecord begin,HistoryStorage.Budget budget,Map<UUID,CapturedSource> sources,byte[] descriptor){
+            this.begin=begin;this.budget=budget;this.sources=Collections.unmodifiableMap(sources);this.descriptor=descriptor;
+        }
+    }
+    static final class CapturedSource {
+        final Path path;final long length;final String hash;private final BasicFileAttributes anchor;
+        CapturedSource(Path path,long length,String hash)throws IOException {
+            HistoryStorage.canonicalRoot(path.getParent().toFile());this.path=path;this.length=length;this.hash=hash;
+            anchor=attributes(path);verify();
+            if(!hash.equals(fileHash(path,anchor)))throw new IOException("Changed captured envelope");verify();
+        }
+        void verify()throws IOException {
+            HistoryStorage.canonicalRoot(path.getParent().toFile());BasicFileAttributes now=attributes(path);
+            if(!now.isRegularFile()||now.isSymbolicLink()||now.size()!=length||now.fileKey()==null
+                    ||!anchor.creationTime().equals(now.creationTime()))throw new IOException("Changed captured source identity");
+            same(anchor,now);
+        }
+    }
+    static CapturedData capturedLocked(File root,PrivateCaptureWriter.CapturedBinding captured,
+            HistoryStorage.Budget budget,HistoryControlStore.Inspection c)throws IOException {
+        HistoryStorage.requireMutation(root);captured.requireBudget(budget);
+        if(!root.equals(captured.root)||c.pins.active==null||!captured.beginHash.equals(c.pins.active.envelopeHash)
+                ||!c.pins.stages.isEmpty()||!c.operations.valid||!c.operations.ready)throw new IOException("Capture is not an active committed binding");
+        PrivateOperationRecord p=null;
+        for(PrivateOperationRecord candidate:c.operations.preparations)if(candidate.preparation.equals(captured.preparation))p=candidate;
+        HistoryControlStore.Entry link=c.operations.links.get(captured.preparation);
+        if(p==null||!captured.operation.equals(p.operation)||!captured.prepareHash.equals(p.envelopeHash)
+                ||!captured.beginHash.equals(p.beginHash)||!captured.descriptorHash.equals(p.descriptorHash)
+                ||link==null||link.stage||!captured.linkHash.equals(link.envelopeHash))throw new IOException("Missing exact completed capture records");
+        for(HistoryControlStore.Entry e:c.entries)if(e.stage||e.pin!=null&&!e.pin.begin&&captured.operation.equals(e.pin.operation))throw new IOException("Capture has staged/terminal evidence");
+        Ledger ledger=inspect(root,c,budget);
+        if(!ledger.complete||ledger.reservedBytes!=0||ledger.reservedEntries!=0)throw new IOException("Capture data not complete");
+        PrivateOperationRecord.Artifact mapRow=p.artifact(1),descriptorRow=p.artifact(2);
+        long upper=Math.min(HistoryArchiveManifest.MAX_ENTRIES,mapRow.length/74);
+        long rowBytes=2048L+4L*(root.getParentFile().getPath().length()+160);
+        budget.charge(add(4096L,Math.multiplyExact(rowBytes,upper+p.artifacts.size())));
+        Path directory=root.getParentFile().toPath().resolve(ROOT).resolve(p.preparation.toString());
+        Path descriptorPath=directory.resolve(descriptorRow.filename());BasicFileAttributes before=attributes(descriptorPath);
+        if(!before.isRegularFile()||before.isSymbolicLink()||before.fileKey()==null||before.size()!=descriptorRow.length||before.size()>PrivateOperationRecord.MAX_CONTROL)throw new IOException("Descriptor bounds changed");
+        byte[] descriptor=new byte[(int)before.size()];
+        try(InputStream input=Files.newInputStream(descriptorPath,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
+            new DataInputStream(input).readFully(descriptor);if(input.read()!=-1)throw new IOException("Descriptor grew");
+        }same(before,attributes(descriptorPath));
+        if(!descriptorRow.hash.equals(PrivateOperationRecord.sha(descriptor)))throw new IOException("Descriptor bytes changed");
+        PrivateOperationRecord d=PrivateOperationRecord.decode(descriptor);
+        if(d.type!=PrivateOperationRecord.DESCRIPTOR||!Arrays.equals(PrivateOperationRecord.bindingBytes(p.binding),PrivateOperationRecord.bindingBytes(d.binding))
+                ||d.artifacts.size()!=p.artifacts.size()-1)throw new IOException("Descriptor table changed");
+        for(PrivateOperationRecord.Artifact a:d.artifacts){PrivateOperationRecord.Artifact match=null;for(PrivateOperationRecord.Artifact b:p.artifacts)if(a.id.equals(b.id))match=b;
+            if(match==null||a.kind!=match.kind||a.ordinal!=match.ordinal||!a.item.equals(match.item)||a.length!=match.length||!a.hash.equals(match.hash))throw new IOException("Descriptor row changed");}
+        HistoryArchiveManifest map;Path mapPath=directory.resolve(mapRow.filename());before=attributes(mapPath);
+        try(InputStream input=Files.newInputStream(mapPath,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){map=HistoryArchiveManifest.read(input);}
+        same(before,attributes(mapPath));
+        if(!mapRow.hash.equals(fileHash(mapPath,before))||map.serializedBytes!=mapRow.length||!map.bundleId.equals(p.binding.bundle)
+                ||map.policyGeneration!=p.binding.generation||map.quotaBytes!=p.binding.quota||map.automaticCount!=p.binding.automaticCount
+                ||!HistoryStorage.hex(map.registrationHashBytes()).equals(p.binding.registrationHash)
+                ||!HistoryStorage.hex(map.policyHashBytes()).equals(p.binding.policyHash)
+                ||p.begin.manifest.count!=map.entries.size()+p.artifacts.size()-2)throw new IOException("Native map binding changed");
+        Map<UUID,CapturedSource> sources=new HashMap<>();
+        for(HistoryArchiveManifest.Entry e:map.entries){String basename=map.registeredRoles.get(e.role);
+            if(!basename.equals(p.binding.roles.get(e.role.wireId-1).basename))throw new IOException("Captured native role changed");
+            Path path=root.getParentFile().toPath().resolve(basename).resolve(e.nativeId+"."+e.kind.nativeName);
+            if(sources.put(e.archiveId,new CapturedSource(path,e.envelopeBytes,e.envelopeHash()))!=null)throw new IOException("Duplicate source item");}
+        for(PrivateOperationRecord.Artifact a:p.artifacts)if(a.kind>=6&&sources.put(a.item,new CapturedSource(directory.resolve(a.filename()),a.length,a.hash))!=null)throw new IOException("Duplicate source item");
+        return new CapturedData(p.begin,budget,sources,descriptor);
+    }
     /** Fresh operation-data proof for control writers; no native-source dereference. */
     static Ledger completeDataLocked(File nativeRoot)throws IOException {
         Ledger ledger=inspect(nativeRoot,new HistoryControlStore(nativeRoot.getParentFile()).inspect(),new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
