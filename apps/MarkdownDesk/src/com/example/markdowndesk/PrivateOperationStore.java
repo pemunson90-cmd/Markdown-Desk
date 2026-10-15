@@ -74,6 +74,7 @@ final class PrivateOperationStore {
         String fingerprint="";
         final List<String> diagnostics=new ArrayList<>();
         final Map<String,String> entries=new TreeMap<>();
+        final Map<String,String> controlIdentities=new TreeMap<>();
         void invalid(String reason){complete=false;diagnostics.add("operation: "+reason);}
     }
     static Ledger inspect(File nativeRoot,HistoryControlStore.Inspection control,HistoryStorage.Budget budget)throws IOException {
@@ -118,12 +119,29 @@ final class PrivateOperationStore {
         }
         for(Map.Entry<String,PrivateOperationRecord.Artifact> missing:expected.entrySet()){ledger.reservedBytes=add(ledger.reservedBytes,missing.getValue().length);ledger.reservedEntries=add(ledger.reservedEntries,1);if(linkedArtifacts.contains(missing.getKey()))ledger.invalid("linked artifact disappeared");}
         if(add(ledger.occupiedEntries,ledger.reservedEntries)>MAX_ENTRIES)ledger.invalid("namespace slot limit");
+        for(HistoryControlStore.Entry entry:control.entries)if(operationEntry(entry)){
+            budget.charge(512L+entry.filename.length()*2L);
+            Path path=nativeRoot.getParentFile().toPath().resolve(HistoryControlStore.ROOT_NAME).resolve(entry.filename);
+            BasicFileAttributes a=attributes(path);
+            if(!a.isRegularFile()||a.isSymbolicLink()||a.fileKey()==null||a.size()!=entry.length)throw new IOException("Changed operation control identity");
+            ledger.controlIdentities.put(entry.filename,a.fileKey()+":"+a.creationTime()+":"+a.lastModifiedTime()+":"+a.size());
+        }
         HistoryStorage.requireOperationEvidence(nativeRoot,control,ledger);
         if(ledger.present){MessageDigest digest=HistoryStorage.digest();try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(new OutputStream(){public void write(int b){}public void write(byte[] b,int o,int n){}},digest))){
-            out.writeUTF("private-operation-ledger-v1");for(Map.Entry<String,String> e:ledger.entries.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
+            out.writeUTF("private-operation-ledger-v1");for(Map.Entry<String,String> e:ledger.controlIdentities.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}for(Map.Entry<String,String> e:ledger.entries.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
             for(HistoryControlStore.Entry e:control.entries)if(operationEntry(e)){out.writeUTF(e.filename);out.writeLong(e.length);out.writeUTF(e.envelopeHash==null?"":e.envelopeHash);out.writeBoolean(e.stage);}out.writeLong(ledger.actualBytes);out.writeLong(ledger.reservedBytes);out.writeLong(ledger.occupiedEntries);out.writeLong(ledger.reservedEntries);out.writeLong(control.controlReservedBytes);out.writeInt(control.controlReservedEntries);out.writeBoolean(ledger.complete);
         }ledger.fingerprint=HistoryStorage.hex(digest.digest());}
         return ledger;
+    }
+    /** Fresh operation-data proof for control writers; no native-source dereference. */
+    static Ledger completeDataLocked(File nativeRoot)throws IOException {
+        Ledger ledger=inspect(nativeRoot,new HistoryControlStore(nativeRoot.getParentFile()).inspect(),new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET));
+        if(!ledger.complete)throw new IOException("Incomplete operation data accounting");return ledger;
+    }
+    static void unchangedDataLocked(File nativeRoot,Ledger before)throws IOException {
+        Ledger after=completeDataLocked(nativeRoot);
+        if(before.actualBytes!=after.actualBytes||before.reservedBytes!=after.reservedBytes||before.occupiedEntries!=after.occupiedEntries
+                ||before.reservedEntries!=after.reservedEntries||!before.entries.equals(after.entries)||!before.controlIdentities.equals(after.controlIdentities))throw new IOException("Operation data changed during control publication");
     }
     private static void count(Ledger ledger,HistoryStorage.Budget budget,String key,BasicFileAttributes a,Path path,boolean verifiedLength)throws IOException {
         if(ledger.occupiedEntries>=MAX_ENTRIES)throw new IOException("Operation namespace entry bound");budget.charge(1024L+key.length()*2L);ledger.occupiedEntries++;

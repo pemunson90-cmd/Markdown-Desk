@@ -150,6 +150,74 @@ public final class OperationDataCheck {
             rejects(()->f.store.putSnapshot("t","u","n",3,new byte[]{9},"attempted"),"lost linked data blocks admission");
         }
     }
+    static void admissionBarriers()throws Exception {
+        for(boolean pin:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
+            HistoryPins.ManifestIdentity manifest=HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0]));
+            long generation=inspect(f).latest.generation;Path namespace=Files.createDirectory(f.parent.resolve("private_operations"));Files.write(namespace.resolve("foreign"),new byte[]{1});
+            rejects(()->{if(pin)pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);else f.capacity.setPolicy(new HistoryPolicy(128L<<20,10));},"unknown operation data blocks control publication");
+            check(inspect(f).latest.generation==generation&&inspect(f).pins.begins.isEmpty(),"admission must reject before any control publication");
+        }
+        for(boolean pin:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
+            HistoryPins.ManifestIdentity manifest=HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0]));
+            long generation=inspect(f).latest.generation;
+            f.disk.hook=(event,file)->{if(event.equals("file-after")){Path namespace=f.parent.resolve("private_operations");if(!Files.exists(namespace)){Files.createDirectory(namespace);Files.write(namespace.resolve("foreign"),new byte[]{1});}}};
+            rejects(()->{if(pin)pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);else f.capacity.setPolicy(new HistoryPolicy(128L<<20,10));},"publication callback must revalidate operation data");
+            check(inspect(f).latest.generation==generation&&inspect(f).pins.begins.isEmpty(),"file-sync callback mutation cannot promote stage");
+        }
+    }
+    static void activeBarriers()throws Exception {
+        for(boolean terminal:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
+            HistoryPins.ManifestIdentity manifest=HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0]));
+            String id=pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);
+            HistoryOperations.Quiescence proof=quiescent(pins,id);Path namespace=Files.createDirectory(f.parent.resolve("private_operations"));Files.write(namespace.resolve("foreign"),new byte[]{1});
+            rejects(()->{if(terminal)pins.close(proof,HistoryPinRecord.Outcome.CANCELLED,null);else pins.resume(id,new ByteArrayInputStream(new byte[0]));},"active operation cannot escape unknown operation data");
+            check(inspect(f).pins.closes.isEmpty(),"unknown operation data cannot release active protection");
+        }
+    }
+    static void controlReplacement()throws Exception {
+        Fixture f=new Fixture();Wire wire=new Wire(f);wire.persist(f);
+        f.disk.hook=(event,file)->{if(event.equals("dir-after")&&file.getName().equals("history_control")){Path victim=file.toPath().resolve(wire.reserve()),replacement=file.toPath().resolve("replacement");Files.write(replacement,Files.readAllBytes(victim));Files.move(replacement,victim,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}};
+        rejects(()->f.capacity.reconcile(),"same-byte PREPARE replacement after last callback cannot acknowledge authority");
+    }
+    static void recoveryAndReadBarriers()throws Exception {
+        for(boolean duringCallback:new boolean[]{false,true}){
+            Fixture f=new Fixture();HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
+            HistoryPins.ManifestIdentity manifest=HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0]));
+            String id=pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);
+            HistoryOperations.Quiescence proof=quiescent(pins,id);
+            byte[] prefix=Arrays.copyOf(HistoryPinRecord.close(inspect(f).pins.active,HistoryPinRecord.Outcome.CANCELLED),60);
+            Path stage=f.parent.resolve("history_control/pin-"+id+".close.stage");Files.write(stage,prefix);
+            if(duringCallback)f.disk.hook=(event,file)->{if(event.equals("dir-after")&&file.getName().equals("history_control"))foreign(f);};else foreign(f);
+            rejects(()->pins.recoverClose(proof,HistoryPins.RecoveryChoice.CANCEL_UNBOUND,null),"unknown accounting blocks terminal recovery before append");
+            f.disk.hook=null;check(Arrays.equals(prefix,Files.readAllBytes(stage)),"refused recovery preserves original CLOSE prefix");
+            check(inspect(f).pins.closes.isEmpty(),"refused recovery cannot publish CLOSE");
+        }
+        Fixture f=new Fixture();HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
+        HistoryPins.ManifestIdentity manifest=HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0]));
+        String id=pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);
+        InputStream callback=new InputStream(){public int read()throws IOException {try{foreign(f);}catch(Exception failure){throw new IOException(failure);}return -1;}};
+        rejects(()->pins.resume(id,callback),"manifest callback cannot introduce unknown data before resume acknowledgment");
+        Fixture historical=new Fixture();HistoryPins old=HistoryPins.open(historical.store,historical.catalog,historical.identity,historical.index,historical.disk);
+        String closed=old.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.ALL_BUNDLE,Collections.emptyList(),manifest);
+        old.close(quiescent(old,closed),HistoryPinRecord.Outcome.CANCELLED,null);foreign(historical);
+        old.reconcile();check(inspect(historical).pins.closes.size()==1,"historical CLOSED audit remains source independent beside unknown data");
+        rejects(()->historical.capacity.setPolicy(new HistoryPolicy(128L<<20,10)),"historical audit grants no new writer authority");
+    }
+    static void foreign(Fixture f)throws IOException {
+        Path namespace=f.parent.resolve("private_operations");if(!Files.exists(namespace))Files.createDirectory(namespace);
+        Files.write(namespace.resolve("foreign"),new byte[]{1});
+    }
+    static void policyStageBarrier()throws Exception {
+        Fixture f=new Fixture();HistoryControlStore.Inspection before=inspect(f);
+        Path stage=f.parent.resolve("history_control/"+HistoryControlStore.policyFilename(1)+".stage");
+        Files.write(stage,HistoryControlStore.encodePolicy(before.registration.bundleId,1,before.latest.envelopeHash,128L<<20,10));
+        Path namespace=Files.createDirectory(f.parent.resolve("private_operations"));Files.write(namespace.resolve("foreign"),new byte[]{1});
+        rejects(()->f.capacity.reconcile(),"unknown operation data rejects retained policy-stage promotion");
+        check(Files.exists(stage)&&inspect(f).latest.generation==0,"policy-stage refusal precedes promotion");
+    }
     public static void main(String[] args)throws Exception {
         if(args.length==0||args[0].equals("unknown"))unknownNamespace();
         if(args.length==0||args[0].equals("prepare"))preparation();
@@ -159,6 +227,11 @@ public final class OperationDataCheck {
         if(args.length==0||args[0].equals("slots"))slotBoundary();
         if(args.length==0||args[0].equals("retained"))retainedAndCallbacks();
         if(args.length==0||args[0].equals("loss"))linkedLoss();
+        if(args.length==0||args[0].equals("admission"))admissionBarriers();
+        if(args.length==0||args[0].equals("active"))activeBarriers();
+        if(args.length==0||args[0].equals("replacement"))controlReplacement();
+        if(args.length==0||args[0].equals("policy-stage"))policyStageBarrier();
+        if(args.length==0||args[0].equals("recovery-accounting"))recoveryAndReadBarriers();
         System.out.println("Operation data checks PASS "+checks);
     }
 }

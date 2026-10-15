@@ -106,7 +106,7 @@ public final class HistoryCapacity {
         synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return setPolicyLocked(requested);}}
     }
     private EffectivePolicy setPolicyLocked(HistoryPolicy requested)throws IOException{
-        requireReady();if(requested==null)throw new IOException("Missing requested policy");
+        requireReady();Usage usage=inspect();if(usage.mutationBlocked||!usage.usageComplete)throw new IOException("Incomplete policy accounting");if(requested==null)throw new IOException("Missing requested policy");
         HistoryControlStore.Inspection inspection=control.inspect();long generation=HistoryControlStore.nextGeneration(inspection.latest.generation);
         byte[] bytes=HistoryControlStore.encodePolicy(inspection.latest.bundleId,generation,inspection.latest.envelopeHash,requested.quotaBytes,requested.automaticCount);
         admitControl(inspection,bytes.length,1);ready=false;
@@ -207,14 +207,16 @@ public final class HistoryCapacity {
         publishAt(controlRoot,name,expected,reuse);
     }
     private void publishAt(File directory,String name,byte[] expected,boolean reuse)throws IOException{
-        HistoryStorage.requireMutation(store.storageRoot());File stage=new File(directory,name+".stage"),destination=new File(directory,name);
+        HistoryStorage.requireMutation(store.storageRoot());PrivateOperationStore.Ledger operationBefore=PrivateOperationStore.completeDataLocked(store.storageRoot());File stage=new File(directory,name+".stage"),destination=new File(directory,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable control destination exists");
         HistoryStorage.changed(store.storageRoot());
         if(reuse)syncExisting(stage,expected);
         else{Files.createFile(stage.toPath());try(FileOutputStream stream=new FileOutputStream(stage)){stream.write(expected);stream.flush();BasicFileAttributes before=attributes(stage);durability.syncFile(stream.getFD());same(stage,before);}}
         if(!Arrays.equals(expected,read(stage)))throw new IOException("Control stage changed before move");
+        PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);
         durability.move(stage,destination);if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Control move retained stage");durability.syncDirectory(directory);
         if(!Arrays.equals(expected,read(destination)))throw new IOException("Committed control validation failed");
+        PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);
     }
     private void syncExisting(File file,byte[] expected)throws IOException{
         BasicFileAttributes before=attributes(file);if(!Arrays.equals(expected,read(file)))throw new IOException("Control bytes changed");

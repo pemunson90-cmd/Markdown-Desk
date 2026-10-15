@@ -1,7 +1,7 @@
 # Operation-data admission and durable capture → BEGIN
 
 > **For agentic workers:** Use superpowers:executing-plans after independent
-> architecture approval and source authorization. Plan 7a6c72b3 is approved; source implementation authorized. Accounting checkpoint tested; capture lifecycle remains pending.
+> architecture approval and source authorization. Plan 7a6c72b3 is approved; source implementation authorized. C1 repair host-tested (3,374 focused checks plus affected backend suites); independent source review and capture lifecycle remain pending.
 
 **Goal:** Charge preparations to primary authority; atomically bind persisted captures to pins.
 **Architecture:** One ledger, immutable PREPARE funding, separate native-source proof

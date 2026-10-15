@@ -46,15 +46,16 @@ final class HistoryPins {
     HistoryPinRecord operationBeginLocked(String operation,boolean terminal)throws IOException {
         HistoryStorage.requireMutation(store.storageRoot());HistoryMetadataIO.id(operation);HistoryControlStore.Inspection c=control();
         HistoryPinRecord begin=find(c.pins.begins,UUID.fromString(operation));if(begin==null)throw new IOException("Missing committed operation BEGIN");
-        if(!terminal){active(c,operation);requireAcknowledged(c);}
+        if(!terminal){PrivateOperationStore.completeDataLocked(store.storageRoot());active(c,operation);requireAcknowledged(c);}
         return begin;
     }
     HistoryPinRecord operationResumeLocked(String operation,InputStream originalManifest)throws IOException {
         HistoryStorage.requireMutation(store.storageRoot());HistoryStorage.requireOperational(store.storageRoot());
         HistoryControlStore.Inspection before=control();HistoryPinRecord active=active(before,operation);requireAcknowledged(before);
+        PrivateOperationStore.Ledger operationBefore=PrivateOperationStore.completeDataLocked(store.storageRoot());
         if(active.manifest.domain==Domain.LOCAL_CAPTURE_V1)throw new IOException("Local capture requires durable capture activation");
         Map<File,BasicFileAttributes> stable=capture(before),directories=captureDirectories(),protectedFiles=captureSources(active);
-        manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);return active;
+        manifest(active,originalManifest);HistoryControlStore.Inspection after=control();unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(active);PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);return active;
     }
     HistoryOperations operations()throws IOException{return HistoryOperations.forBundle(store,catalog,identity,index);}
     static HistoryPins open(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
@@ -83,6 +84,7 @@ final class HistoryPins {
     }
     private void reconcileLocked(HistoryOperations.Claim terminal,List<HistoryOperations.Claim> audits)throws IOException {
         HistoryControlStore.Inspection before=control(true);HistoryPinRecord newlyClosed=null;
+        PrivateOperationStore.Ledger operationBefore=before.pins.active!=null||!before.pins.stages.isEmpty()?PrivateOperationStore.completeDataLocked(store.storageRoot()):null;
         if(!before.pins.stages.isEmpty()){
             if(before.pins.stages.size()!=1)throw new IOException("Conflicting pin stages");HistoryControlStore.Entry stage=before.pins.stages.get(0);
             if(stage.pin==null)throw new IOException("Partial pin stage retained; terminal repair required");
@@ -99,6 +101,7 @@ final class HistoryPins {
         durability.syncDirectory(parent);for(File root:roots)durability.syncDirectory(root);durability.syncDirectory(controlRoot);
         HistoryControlStore.Inspection after=control(true);unchanged(before,after,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);
         checkCaptured(protectedFiles);if(protectedSource!=null)validateSources(protectedSource);checkNative(nativeBefore);
+        if(operationBefore!=null)PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);
         if(terminal!=null)terminal.validate();for(HistoryOperations.Claim audit:audits)audit.validate();acknowledge(after);
     }
     String begin(Purpose purpose,Scope scope,Collection<String> snapshotIds,ManifestIdentity manifest)throws IOException {
@@ -149,6 +152,7 @@ final class HistoryPins {
         HistoryOperations.rejectParticipant();if(capability==null||choice==null||boundary==null)throw new IOException("Missing terminal recovery authority");
         synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
             HistoryStorage.requireOperational(store.storageRoot());HistoryControlStore.Inspection before=control();HistoryPinRecord begin=find(before.pins.begins,UUID.fromString(capability.operation()));
+            PrivateOperationStore.Ledger operationBefore=PrivateOperationStore.completeDataLocked(store.storageRoot());
             if(begin==null)throw new IOException("Missing committed BEGIN");
             try(HistoryOperations.Claim claim=operations().claimLocked(capability,begin)){
                 if(before.pins.stages.size()!=1)throw new IOException("Exactly one retained CLOSE stage required");HistoryControlStore.Entry entry=before.pins.stages.get(0);
@@ -167,6 +171,7 @@ final class HistoryPins {
                 for(HistoryControlStore.Entry control:before.entries){File file=file(control.filename);sync(file,read(file),attributes(file));}
                 durability.syncDirectory(parent);for(File role:roots)durability.syncDirectory(role);durability.syncDirectory(controlRoot);
                 HistoryPinTerminalRecovery.Validation validation=()->{
+                    PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);
                     HistoryControlStore.Inspection current=control();unchanged(before,current,Collections.emptySet());checkCaptured(stable);checkDirectories(directories);checkCaptured(protectedFiles);validateSources(begin);checkNative(nativeBefore);claim.validate();
                 };
                 validation.check();
@@ -192,6 +197,7 @@ final class HistoryPins {
     private void requireReady()throws IOException {
         HistoryCapacity capacity=HistoryStorage.capacity(store.storageRoot());if(capacity==null)throw new IOException("Explicit ready capacity required");
         for(int i=0;i<roots.size();i++)capacity.requireRole(roots.get(i),i+1);
+        PrivateOperationStore.completeDataLocked(store.storageRoot());
     }
     private HistoryControlStore.Inspection control()throws IOException {return control(false);}
     /** Existing closed audits can acknowledge durability beside a committed maintenance intent.
@@ -242,18 +248,19 @@ final class HistoryPins {
             if(source.length!=current.serializedBytes||!source.hash.equals(current.envelopeHash))throw new IOException("Changed pinned snapshot");}
     }
     private void publish(HistoryControlStore.Inspection before,String name,byte[] expected,boolean reuse,HistoryPinRecord sources)throws IOException {
+        PrivateOperationStore.Ledger operationBefore=PrivateOperationStore.completeDataLocked(store.storageRoot());
         Map<File,BasicFileAttributes> stable=capture(before);Map<File,BasicFileAttributes> directories=captureDirectories();File stage=file(name+".stage"),destination=file(name);Map<File,BasicFileAttributes> protectedFiles=captureSources(sources);
         NativeEvidence nativeBefore=sources.scope==Scope.ALL_BUNDLE&&name.endsWith(".close")?nativeEvidence():null;
         try{attributes(destination);throw new IOException("Immutable pin destination exists");}catch(NoSuchFileException absent){/* genuine absence */}
         HistoryStorage.changed(store.storageRoot());BasicFileAttributes staged;
         if(reuse){staged=attributes(stage);sync(stage,expected,staged);}
         else{Files.createFile(stage.toPath());try(FileOutputStream out=new FileOutputStream(stage)){out.write(expected);out.flush();staged=attributes(stage);durability.syncFile(out.getFD());same(staged,attributes(stage));}}
-        if(!Arrays.equals(expected,read(stage)))throw new IOException("Pin stage changed");checkCaptured(protectedFiles);validateSources(sources);checkNative(nativeBefore);
+        if(!Arrays.equals(expected,read(stage)))throw new IOException("Pin stage changed");PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);checkCaptured(protectedFiles);validateSources(sources);checkNative(nativeBefore);
         durability.move(stage,destination);try{attributes(stage);throw new IOException("Pin move retained stage");}catch(NoSuchFileException absent){/* consumed */}
         same(staged,attributes(destination));durability.syncDirectory(controlRoot);
         HistoryControlStore.Inspection after=control();unchanged(before,after,new HashSet<>(Arrays.asList(name,name+".stage")));
         stable.remove(stage);checkCaptured(stable);checkDirectories(directories);same(staged,attributes(destination));
-        if(!Arrays.equals(expected,read(destination)))throw new IOException("Committed pin bytes changed");checkCaptured(protectedFiles);validateSources(sources);checkNative(nativeBefore);
+        if(!Arrays.equals(expected,read(destination)))throw new IOException("Committed pin bytes changed");PrivateOperationStore.unchangedDataLocked(store.storageRoot(),operationBefore);checkCaptured(protectedFiles);validateSources(sources);checkNative(nativeBefore);
     }
     private void acknowledge(HistoryControlStore.Inspection control)throws IOException {
         if(!control.pins.stages.isEmpty())throw new IOException("Unreconciled pin stage");
