@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;PreparationSources preparationSources;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
+    private static final class State {long generation;Thread mutator;MutationScope mutationScope;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;PreparationSources preparationSources;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static void requireOperationControl(File root,HistoryControlStore.Inspection control)throws IOException {
@@ -118,12 +118,12 @@ final class HistoryStorage {
     static final class MutationScope implements AutoCloseable {
         private State state;
         MutationScope(State state){this.state=state;}
-        public void close(){if(state!=null){state.mutator=null;state=null;}}
+        public void close(){if(state!=null){state.mutator=null;state.mutationScope=null;state=null;}}
     }
     static MutationScope administration(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
         if(state.mutator!=null)throw new IOException("Nested history mutation rejected");
-        state.mutator=Thread.currentThread();return new MutationScope(state);
+        MutationScope scope=new MutationScope(state);state.mutator=Thread.currentThread();state.mutationScope=scope;return scope;
     }
     static MutationScope mutation(File root)throws IOException {
         MutationScope scope=administration(root);
@@ -140,6 +140,10 @@ final class HistoryStorage {
     }
     static void requireMutation(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.mutator!=Thread.currentThread())throw new IOException("History mutation scope required");
+    }
+    /** Passive opaque identity for evidence confined to the current mutation lease. */
+    static Object mutationIdentityLocked(File root)throws IOException {
+        requireMutation(root);return ((State)monitorFor(root)).mutationScope;
     }
     /** Native writers keep operation evidence stable across their external durability callbacks. */
     static PrivateOperationStore.Ledger operationWriteProof(File root)throws IOException {
