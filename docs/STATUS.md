@@ -1,22 +1,24 @@
 # Current project status
 
-## Current checkpoint — operation recovery and backup/export, 2026-10-15
+## Current checkpoint — operation recovery and DOM readiness, 2026-10-15
 
-Main is `d0b02d79057f546b6c9bc215cc5c948455f2bb88`:
+Merged baseline before PR #21 is `d0b02d79057f546b6c9bc215cc5c948455f2bb88`:
 [PR #20](https://github.com/pemunson90-cmd/Markdown-Desk/pull/20) merged after
 required hosted run38657841514 passed at reviewed head `3bc070a`.
 Draft run38657830265 was skipped, not passing evidence. PR #19 selected retention
 and portable manifests merged at `116b180` after hosted run38656747429 passed;
 earlier exact-source and protected-save foundations remain preserved.
 
-Latest combined gate **PASS** at `f6ea92192f41039d0fe082f200ed477c871c42d9`:
+Latest combined gate **PASS** at `b0adcf7458b1e788b2416303d2828a980b01a045`:
 `python3 verification/check_clean_rebuild.py` completed normally, running the
 required host suite once from clean committed source and auditing two fresh
 unsigned builds. Both match SHA-256
-`934f816160a6e55fa5937fccfaa5acb39d4a4718c9703209337cc8d6254ea56f`.
+`8524e6e91c6ea996debdae10bc73340dd0bd68424687de4a0b870f1b61c56351`.
 No signing inputs/downloads; package 2.2.5/code 18/min 26/target 35 and all 25
-owner-approved assets preserved. Scoped credential-pattern scan: 401 tracked
-files, zero matches; not a whole-history proof. No installable release is claimed.
+owner-approved assets preserved. Scoped credential-pattern scan: 427 tracked
+files, zero matches or signing-container paths; not a whole-history proof. No
+installable release is claimed. Source review and local gates are complete for
+PR #21; required hosted validation remains pending before merge.
 
 Verified current source:
 
@@ -58,7 +60,8 @@ with 96 fresh-JVM reopens. Existing pin and selected-executor suites passed in t
 worker checkout. Independent review reproduced an inherited `InputStream.transferTo`
 lifetime escape; the fix guards the entire transfer, and callback scheduling stays
 counted until its delegate returns. The final source passed 24 independent backend
-checks. The combined clean gate remains pending. Partial BEGIN remains blocked:
+checks. The clean integration gate also passed all 48 recovery scenarios/96 fresh
+reopens and the complete required host suite on the final source. Partial BEGIN remains blocked:
 absence cannot prove never acknowledged. Identity binds canonical role paths and
 bundle/registration/BEGIN/process epoch; fresh terminal-entry inode stability is
 required, without promising cross-discovery inode preservation.
@@ -77,7 +80,8 @@ all scroll JavaScript. Printing remains unchanged and separately RED (five cases
 after exact plan `1f96dbd` approval, using Android's documented adapter onFinish
 contract. Host callback/DOM
 models do not prove physical Android behavior. Both new default runners are
-registered for the next clean integration gate; that gate has not run yet.
+registered and passed in the clean integration gate. Final evidence-only docs
+`ea289cb` leave reviewed production source unchanged.
 
 Backup/adoption design `d839225` proposes additive read-only restored bundles,
 accessible private drafts and shared operation-data admission. It is not approved
@@ -87,7 +91,7 @@ defines a v2 scoped inventory; v1 has no bundle discriminator or embedded manife
 Shared accounting must also reach graph/pruner/retirement proofs. Both the format
 and operation-data admission still need review; no backup/import is complete.
 
-Next: run the clean PR #21 integration gate, then complete persisted export capture
+Next: complete the required hosted PR #21 gate and merge, then persisted export capture
 and verified backup/export; continue strict import/adoption and eligible M0–M7
 work. Integrate preview/printing repairs after their source and behavioral gates.
 Do not stop at a PR or milestone checkpoint; no full M1 completion is claimed.
