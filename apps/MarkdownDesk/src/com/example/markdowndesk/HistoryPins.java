@@ -77,6 +77,10 @@ final class HistoryPins {
         HistoryPins pins=new HistoryPins(store,catalog,identity,index,durability);
         synchronized(pins.monitor){pins.control();}return pins;
     }
+    /** Recovery-only construction for typed PREPARE.stage evidence; cancellation validates all authority. */
+    static HistoryPins forColdCancellation(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability)throws IOException {
+        return new HistoryPins(store,catalog,identity,index,durability);
+    }
     void reconcile()throws IOException {synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){HistoryStorage.requireOperational(store.storageRoot());reconcileLocked();}}}
     /** Closed audit durability only, under the executor's existing lease and exact intent/capability. */
     static void reconcileMaintenanceAuditsLocked(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index,ProtectionStore.Durability durability,HistoryPruneIntent intent,HistoryMaintenanceExecutor.Retirement retirement)throws IOException {
@@ -161,6 +165,55 @@ final class HistoryPins {
                 publish(after,"pin-"+begin.operation+".close",HistoryPinRecord.close(begin,outcome),false,begin);claim.validate();acknowledge(control());claim.finish();
             }
         }}
+    }
+    enum ColdStages {REJECT,PROMOTE_COMPLETE}
+    /** Cancellation only: no capture result, LINK, source match or activation authority escapes. */
+    void cancelColdPreparation(UUID preparation,HistoryStorage.Budget budget,ColdStages stages)throws IOException {
+        HistoryOperations.rejectParticipant();if(stages==null)throw new IOException("Explicit cold stage policy required");
+        synchronized(monitor){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(store.storageRoot())){
+            HistoryStorage.requireOperational(store.storageRoot());HistoryStorage.siblings(roots.toArray(new File[0]));
+            PrivateOperationStore.ColdCancellation cancellation=PrivateOperationStore.coldCancellationLocked(
+                    store.storageRoot(),preparation,budget,stages==ColdStages.PROMOTE_COMPLETE,roots,store.constructorQuotaBytes());
+            cancellation.consumeLocked();HistoryStorage.changed(store.storageRoot());
+            try{
+                // Promotion requires the explicit option and the proof's exact complete typed bytes.
+                coldPublish(cancellation,cancellation.preparation.name(),cancellation.preparation.encoded(),false);
+                coldPublish(cancellation,cancellation.preparation.begin.name(),cancellation.begin,true);
+                cancellation.claimLocked(operations());
+                coldPublish(cancellation,"pin-"+cancellation.preparation.operation+".close",cancellation.close,true);
+                cancellation.checkLocked();
+                acknowledge(control());cancellation.finishLocked();
+            }finally{cancellation.releaseLocked();}
+        }}
+    }
+    private void coldPublish(PrivateOperationStore.ColdCancellation proof,String name,byte[] expected,boolean create)throws IOException {
+        proof.checkLocked();File destination=file(name),stage=file(name+".stage");
+        if(proof.present(name)){
+            if(!Arrays.equals(expected,proof.bytes(name)))throw new IOException("Conflicting immutable cancellation record");
+            try(FileInputStream in=new FileInputStream(destination)){proof.callbackLocked(()->durability.syncFile(in.getFD()));}
+            proof.callbackLocked(()->durability.syncDirectory(controlRoot));return;
+        }
+        if(proof.present(name+".stage")){
+            byte[] prefix=proof.bytes(name+".stage");
+            if(prefix.length!=expected.length){
+                if(expected.length!=CLOSE_BYTES||!name.endsWith(".close"))throw new IOException("Partial PREPARE/BEGIN remains untouched");
+                // Existing reviewed helper appends only the exact canonical bound record, no rewrite.
+                HistoryPinTerminalRecovery.append(stage,expected,proof::checkLocked,event->{});
+                proof.appendedLocked(name+".stage",expected);
+            }
+            try(FileInputStream in=new FileInputStream(stage)){proof.callbackLocked(()->durability.syncFile(in.getFD()));}
+        }else{
+            if(!create)throw new IOException("Cold cancellation cannot invent PREPARE");
+            HistoryStorage.changed(store.storageRoot());Files.createFile(stage.toPath());BasicFileAttributes created=attributes(stage);
+            try(FileOutputStream out=new FileOutputStream(stage)){
+                out.write(expected);out.flush();BasicFileAttributes written=attributes(stage);
+                if(created.fileKey()==null||!Objects.equals(created.fileKey(),written.fileKey())||!created.creationTime().equals(written.creationTime()))throw new IOException("Cold publication stage replaced");
+                proof.stageLocked(name+".stage",expected,written);
+                proof.callbackLocked(()->durability.syncFile(out.getFD()));
+            }
+        }
+        proof.promoteLocked(name,()->durability.move(stage,destination));
+        proof.callbackLocked(()->durability.syncDirectory(controlRoot));
     }
     enum RecoveryChoice {CANCEL_UNBOUND,RECOVER_BOUND}
     void recoverClose(HistoryOperations.Quiescence capability,RecoveryChoice choice,InputStream originalManifest)throws IOException {

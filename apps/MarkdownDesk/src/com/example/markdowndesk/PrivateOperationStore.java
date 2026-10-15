@@ -84,6 +84,10 @@ final class PrivateOperationStore {
         void invalid(String reason){complete=false;diagnostics.add("operation: "+reason);}
     }
     static Ledger inspect(File nativeRoot,HistoryControlStore.Inspection control,HistoryStorage.Budget budget)throws IOException {
+        return inspect(nativeRoot,control,budget,null);
+    }
+    /** Only the private cancellation proof may account selected stale bounded bytes as retained evidence. */
+    private static Ledger inspect(File nativeRoot,HistoryControlStore.Inspection control,HistoryStorage.Budget budget,UUID cancellation)throws IOException {
         // Deliberately bind the existing native monitor; monitorFor(private_operations/UUID) is a different authority.
         Object monitor=HistoryStorage.monitorFor(nativeRoot);if(!Thread.holdsLock(monitor))throw new IOException("Native parent monitor required");
         budget.charge(HistoryStorage.operationEvidenceBytes(nativeRoot));
@@ -113,7 +117,11 @@ final class PrivateOperationStore {
                                 count(ledger,budget,key,f,file,wanted!=null&&f.isRegularFile()&&f.size()<=wanted.length);
                                 if(wanted==null||!f.isRegularFile()||f.isSymbolicLink()||f.size()>wanted.length){ledger.invalid("unknown/conflicting artifact");continue;}
                                 if(stage){ledger.reservedBytes=add(ledger.reservedBytes,wanted.length-f.size());ledger.pending=true;if(linkedArtifacts.contains(canonical))ledger.invalid("linked artifact replaced by stage");}
-                                else if(f.size()!=wanted.length||!ledger.entries.get(key).endsWith(":"+wanted.hash))ledger.invalid("changed artifact");
+                                else if(f.size()!=wanted.length||!ledger.entries.get(key).endsWith(":"+wanted.hash)){
+                                    if(cancellation!=null&&name.equals(cancellation.toString())&&!linkedArtifacts.contains(canonical)){
+                                        ledger.reservedBytes=add(ledger.reservedBytes,wanted.length-f.size());ledger.pending=true;
+                                    }else ledger.invalid("changed artifact");
+                                }
                             }
                         }catch(DirectoryIteratorException invalid){ledger.invalid("unreadable preparation");}
                         same(a,attributes(child));
@@ -177,6 +185,161 @@ final class PrivateOperationStore {
         for(PrivateOperationRecord p:c.operations.preparations)if(c.operations.terminalCancelled.contains(p.preparation))
             for(PrivateOperationRecord.Artifact a:p.artifacts)if(key.equals(p.preparation+"/"+a.filename()+".stage"))return true;
         return false;
+    }
+    /** Lease-local, one-use cancellation authority. It never proves source/artifact completeness. */
+    static final class ColdCancellation {
+        final File root;final PrivateOperationRecord preparation;final byte[] begin,close;
+        private final long refreshBytes,controlBytes,controlEntries;
+        private final Ledger original;
+        private final Map<String,String> controls=new TreeMap<>();
+        private final Map<Path,BasicFileAttributes> physical=new LinkedHashMap<>();
+        private final Map<String,byte[]> own=new TreeMap<>();
+        private final Map<String,BasicFileAttributes> ownPhysical=new TreeMap<>();
+        private final Set<String> mutable=new HashSet<>();
+        private HistoryOperations.Claim claim;private List<HistoryOperations.Claim> audits=Collections.emptyList();private boolean used;
+        private ColdCancellation(File root,UUID id,HistoryStorage.Budget budget,boolean promote,List<File> roles,long bootstrap)throws IOException {
+            HistoryStorage.requireMutation(root);HistoryOperations.rejectParticipant();
+            if(id==null||budget==null)throw new IOException("Missing cold cancellation binding");
+            this.root=HistoryStorage.canonicalRoot(root);
+            budget.charge((4L<<20)+65536); // one bounded control decode and retained DTO workspace
+            HistoryControlStore.Inspection c=new HistoryControlStore(root.getParentFile()).inspect();
+            PrivateOperationRecord selected=null;
+            for(PrivateOperationRecord p:c.operations.preparations)if(p.preparation.equals(id))selected=p;
+            if(selected==null)throw new IOException("Missing exact typed PREPARE; partial evidence retained");
+            preparation=selected;begin=HistoryPinRecord.encode(selected.begin);close=HistoryPinRecord.close(selected.begin,HistoryPinRecord.Outcome.CANCELLED);
+            if(begin.length!=204||close.length!=126)throw new IOException("Noncanonical cancellation template");
+            HistoryOperations.requireColdCancellationLocked(root,selected.begin,null);
+            HistoryStorage.siblings(roles.toArray(new File[0]));
+            if(c.registration==null||c.registration.bootstrapQuotaBytes!=bootstrap||roles.size()!=4)throw new IOException("Foreign cold cancellation bundle");
+            boolean marker=false;
+            for(HistoryControlStore.Entry e:c.entries)if(HistoryControlStore.ENROLLMENT_NAME.equals(e.filename)&&c.registration.envelopeHash.equals(e.envelopeHash))marker=true;
+            if(!marker)throw new IOException("Cold cancellation enrollment missing");
+            for(int i=0;i<roles.size();i++){
+                if(!c.registration.roles.get(i).basename.equals(roles.get(i).getName()))throw new IOException("Cold cancellation role mismatch");
+                physical.put(roles.get(i).toPath(),attributes(roles.get(i).toPath()));
+            }
+            HistoryPins.requireRetained(root,c);
+            original=inspect(root,c,budget,selected.preparation);
+            if(!original.complete)throw new IOException("Incomplete cancellation accounting: "+original.diagnostics);
+            // Admit all retained anchors and the reusable refresh BEFORE retaining baseline maps.
+            controlBytes=add(c.actualBytes,c.controlReservedBytes);controlEntries=add(c.actualEntries,c.controlReservedEntries);
+            budget.charge(4096L+2048L*(original.entries.size()+c.entries.size()+roles.size()+2L)+2048L*6);
+            long artifactCount=0;for(PrivateOperationRecord p:c.operations.preparations)artifactCount=add(artifactCount,p.artifacts.size());
+            refreshBytes=add((4L<<20)+65536,add(HistoryStorage.operationEvidenceBytes(root),
+                    add(4096L+4096L*original.entries.size(),4096L*c.entries.size()+4096L*c.operations.preparations.size()+512L*artifactCount)));
+            budget.charge(refreshBytes);
+            String reserve=selected.name(),bn=selected.begin.name(),cn="pin-"+selected.operation+".close";
+            mutable.add(reserve);mutable.add(reserve+".stage");mutable.add(bn);mutable.add(bn+".stage");mutable.add(cn);mutable.add(cn+".stage");
+            for(HistoryControlStore.Entry e:c.entries){
+                if(e.filename==null)throw new IOException("Unknown control evidence retained");
+                Path path=root.getParentFile().toPath().resolve(HistoryControlStore.ENROLLMENT_NAME.equals(e.filename)?"":HistoryControlStore.ROOT_NAME).resolve(e.filename);
+                if(mutable.contains(e.filename)){
+                    byte[] expected=e.filename.startsWith(reserve)?selected.encoded():e.filename.startsWith(bn)?begin:close;
+                    byte[] bytes=controlBytes(path,expected.length);
+                    if(bytes.length>expected.length||!Arrays.equals(bytes,Arrays.copyOf(expected,bytes.length))
+                            ||!e.stage&&bytes.length!=expected.length)throw new IOException("Conflicting cancellation control retained");
+                    if(e.stage&&!e.filename.startsWith(cn)&&(!promote||bytes.length!=expected.length))throw new IOException("PREPARE/BEGIN stage requires explicit complete typed promotion");
+                    own.put(e.filename,bytes);ownPhysical.put(e.filename,attributes(path));
+                }else{
+                    if(e.stage)throw new IOException("Foreign staged control excludes cold cancellation");
+                    controls.put(e.filename,e.length+":"+e.envelopeHash);physical.put(path,attributes(path));
+                }
+            }
+            if(!own.containsKey(reserve)&&!own.containsKey(reserve+".stage"))throw new IOException("Missing persisted PREPARE");
+            for(String key:original.entries.keySet()){
+                Path path=root.getParentFile().toPath().resolve(ROOT);
+                if(!key.equals(ROOT))path=path.resolve(key);
+                physical.put(path,attributes(path));
+            }
+            for(File directory:Arrays.asList(root.getParentFile(),new File(root.getParentFile(),HistoryControlStore.ROOT_NAME)))physical.put(directory.toPath(),attributes(directory.toPath()));
+            validate();
+        }
+        private HistoryControlStore.Inspection validate()throws IOException {
+            HistoryStorage.requireMutation(root);HistoryOperations.requireColdCancellationLocked(root,preparation.begin,claim);
+            for(HistoryOperations.Claim audit:audits)audit.validate();
+            HistoryStorage.Budget scratch=new HistoryStorage.Budget(refreshBytes);scratch.charge((4L<<20)+65536);
+            HistoryControlStore.Inspection c=new HistoryControlStore(root.getParentFile()).inspect();
+            HistoryPins.requireRetained(root,c);
+            if(!c.chainComplete||!c.usageComplete||c.registration==null||c.latest==null||!c.operations.valid||!c.pins.valid||c.hasMaintenance()
+                    ||!c.stages.isEmpty()||c.operations.links.containsKey(preparation.preparation)
+                    ||c.pins.active!=null&&!c.pins.active.operation.equals(preparation.operation)
+                    ||c.diagnostics.stream().anyMatch(d->!d.equals("control: retained pin stage"))
+                    ||c.actualBytes>HistoryControlStore.MAX_BYTES-c.controlReservedBytes||c.actualEntries>HistoryControlStore.MAX_ENTRIES-c.controlReservedEntries
+                    ||add(c.actualBytes,c.controlReservedBytes)!=controlBytes||add(c.actualEntries,c.controlReservedEntries)!=controlEntries)
+                throw new IOException("Cold cancellation authority/funding changed");
+            Map<String,String> old=new TreeMap<>();Set<String> found=new HashSet<>();
+            for(HistoryControlStore.Entry e:c.entries){
+                if(mutable.contains(e.filename)){
+                    byte[] expected=own.get(e.filename);Path path=controlPath(e.filename);
+                    if(expected==null||!Arrays.equals(expected,controlBytes(path,expected.length)))throw new IOException("Unexpected own cancellation transition");
+                    physicalSame(ownPhysical.get(e.filename),attributes(path));found.add(e.filename);
+                }else old.put(e.filename,e.length+":"+e.envelopeHash);
+            }
+            if(!found.equals(own.keySet())||!old.equals(controls))throw new IOException("Cold cancellation immutable control changed");
+            for(Map.Entry<Path,BasicFileAttributes> e:physical.entrySet()){
+                BasicFileAttributes now=attributes(e.getKey()),before=e.getValue();
+                if(before.isDirectory()){
+                    if(!now.isDirectory()||now.isSymbolicLink()||before.fileKey()==null||!Objects.equals(before.fileKey(),now.fileKey())||!before.creationTime().equals(now.creationTime()))throw new IOException("Cold cancellation role/namespace changed");
+                }else physicalSame(before,now);
+            }
+            Ledger l=inspect(root,c,scratch,preparation.preparation);
+            if(!l.complete||original.actualBytes!=l.actualBytes||original.reservedBytes!=l.reservedBytes
+                    ||original.occupiedEntries!=l.occupiedEntries||original.reservedEntries!=l.reservedEntries||!original.entries.equals(l.entries))
+                throw new IOException("Cold cancellation old data changed");
+            // PREPARE promotion changes its name, never its exact envelope or identity.
+            Map<String,String> a=new TreeMap<>(original.controlIdentities),b=new TreeMap<>(l.controlIdentities);
+            a.remove(preparation.name());a.remove(preparation.name()+".stage");b.remove(preparation.name());b.remove(preparation.name()+".stage");
+            if(!a.equals(b))throw new IOException("Cold cancellation old operation identity changed");
+            return c;
+        }
+        private static byte[] controlBytes(Path path,int maximum)throws IOException {
+            BasicFileAttributes before=attributes(path);
+            if(!before.isRegularFile()||before.isSymbolicLink()||before.size()<0||before.size()>maximum)throw new IOException("Cold control read bounds/type changed");
+            ByteBuffer bytes=ByteBuffer.allocate((int)before.size());
+            try(SeekableByteChannel input=Files.newByteChannel(path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
+                while(bytes.hasRemaining())if(input.read(bytes)<=0)throw new IOException("Cold control truncated");
+                if(input.read(ByteBuffer.allocate(1))!=-1)throw new IOException("Cold control grew");
+            }
+            physicalSame(before,attributes(path));return bytes.array();
+        }
+        private static void physicalSame(BasicFileAttributes before,BasicFileAttributes after)throws IOException {
+            same(before,after);if(!before.creationTime().equals(after.creationTime()))throw new IOException("Cold cancellation physical evidence replaced");
+        }
+        private Path controlPath(String name){return root.getParentFile().toPath().resolve(HistoryControlStore.ROOT_NAME).resolve(name);}
+        void consumeLocked()throws IOException {if(used)throw new IOException("Cold cancellation capability consumed");used=true;validate();}
+        void claimLocked(HistoryOperations operations)throws IOException {
+            validate();audits=operations.claimCancellationAuditsLocked(preparation.begin);
+            claim=operations.claimColdCancellationLocked(preparation.begin);validate();
+        }
+        void finishLocked()throws IOException {validate();if(claim==null)throw new IOException("Missing cold terminal claim");claim.finish();for(HistoryOperations.Claim audit:audits)audit.finish();}
+        void releaseLocked(){if(claim!=null)claim.close();for(HistoryOperations.Claim audit:audits)audit.close();}
+        boolean present(String name){return own.containsKey(name);}
+        byte[] bytes(String name){return own.get(name);}
+        void stageLocked(String name,byte[] bytes,BasicFileAttributes anchor)throws IOException {
+            if(own.containsKey(name))throw new IOException("Existing cancellation stage cannot be rewritten");
+            own.put(name,bytes);ownPhysical.put(name,anchor);validate();
+        }
+        void appendedLocked(String name,byte[] bytes)throws IOException {
+            BasicFileAttributes before=ownPhysical.get(name),now=attributes(controlPath(name));
+            if(before.fileKey()==null||!Objects.equals(before.fileKey(),now.fileKey())||!before.creationTime().equals(now.creationTime()))throw new IOException("Cancellation CLOSE prefix inode changed");
+            own.put(name,bytes);ownPhysical.put(name,now);validate();
+        }
+        void promoteLocked(String name,PreparationSources.Publication move)throws IOException {
+            validate();String stage=name+".stage";byte[] bytes=own.remove(stage);BasicFileAttributes anchor=ownPhysical.remove(stage);
+            if(bytes==null||own.containsKey(name))throw new IOException("Invalid cancellation promotion");
+            own.put(name,bytes);ownPhysical.put(name,anchor);callbackLocked(move);
+        }
+        void callbackLocked(PreparationSources.Publication callback)throws IOException {
+            try{HistoryOperations.cancellationCallbackLocked(callback);}
+            catch(IOException|RuntimeException|Error failure){
+                try{validate();}catch(IOException|RuntimeException|Error changed){failure.addSuppressed(changed);}throw failure;
+            }
+            validate();
+        }
+        void checkLocked()throws IOException {validate();}
+    }
+    static ColdCancellation coldCancellationLocked(File root,UUID preparation,HistoryStorage.Budget budget,boolean promote,List<File> roles,long bootstrap)throws IOException {
+        return new ColdCancellation(root,preparation,budget,promote,roles,bootstrap);
     }
     /** Immutable declared sources for an authentic same-process completed capture. No cold adoption. */
     static final class CapturedData {

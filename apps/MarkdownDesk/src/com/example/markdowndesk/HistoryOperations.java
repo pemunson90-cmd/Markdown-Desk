@@ -26,7 +26,7 @@ final class HistoryOperations {
     interface WriterFactory {OutputStream open()throws IOException;}
     interface CallbackQueue {void post(Runnable task);}
     private static final class Gate {
-        final HistoryPinRecord begin;PrivateOperationStore.CapturedData capture;byte[] captureDescriptor;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
+        final HistoryPinRecord begin;boolean coldCancellation;PrivateOperationStore.CapturedData capture;byte[] captureDescriptor;long epoch;Phase phase=Phase.COLD_FROZEN;int resources,running,posting;
         final Set<CallbackTicket> pending=new HashSet<>();final List<CompletableFuture<Quiescence>> waiters=new ArrayList<>();
         Gate(HistoryPinRecord begin){this.begin=begin;}
     }
@@ -120,14 +120,14 @@ final class HistoryOperations {
     }
     private static void activation(Gate gate)throws IOException {if(gate.phase!=Phase.COLD_FROZEN&&gate.phase!=Phase.QUIESCENT)throw new IOException("Operation cannot activate");}
     DrainRequest freezeForTerminal(String operation)throws IOException {
-        outsideHistory();PreparationSources.rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
+        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
         synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
             HistoryPinRecord begin=probe.operationBeginLocked(operation,true);
             synchronized(gateLock){Gate gate=bind(begin);if(gate.phase!=Phase.TERMINAL)freezeGate(gate);request=new DrainRequest(this,gate);collect(gate,signals);}
         }}signal(signals);return request;
     }
     DrainRequest freeze(OperationHandle handle)throws IOException {
-        outsideHistory();PreparationSources.rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
+        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
         synchronized(gateLock){Gate gate=handle(handle,false);freezeGate(gate);request=new DrainRequest(this,gate);collect(gate,signals);}signal(signals);return request;
     }
     private void freezeGate(Gate gate)throws IOException {
@@ -137,7 +137,7 @@ final class HistoryOperations {
         for(CallbackTicket ticket:gate.pending){ticket.done=true;ticket.callback=null;}gate.pending.clear();
     }
     CompletionStage<Quiescence> quiesce(DrainRequest request)throws IOException {
-        outsideHistory();PreparationSources.rejectParticipant();List<Runnable> signals=new ArrayList<>();CompletableFuture<Quiescence> future=new CompletableFuture<>();
+        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();CompletableFuture<Quiescence> future=new CompletableFuture<>();
         synchronized(gateLock){if(request==null||request.owner!=this||request.epoch!=request.gate.epoch)throw new IOException("Foreign drain request");Gate gate=request.gate;
             if(gate.phase!=Phase.FREEZING&&gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.TERMINAL)throw new IOException("Operation is not frozen");gate.waiters.add(future);collect(gate,signals);}
         signal(signals);return future.thenApply(value->value);
@@ -229,6 +229,40 @@ final class HistoryOperations {
             try{callback.run();}finally{List<Runnable> signals=new ArrayList<>();synchronized(gateLock){ticket.running=false;ticket.done=true;ticket.gate.running--;collect(ticket.gate,signals);}signal(signals);}
         }finally{leave();}
     }
+    /** Cold cancellation never freezes, drains or resets a process-owned lifetime. */
+    static void requireColdCancellationLocked(File root,HistoryPinRecord begin,Claim claim)throws IOException {
+        rejectParticipant();HistoryStorage.requireMutation(root);
+        if(HistoryStorage.preparationSources(root)!=null)throw new IOException("Registered preparation owner excludes cold cancellation");
+        HistoryOperations owner=HistoryStorage.operations(root);
+        if(owner==null){if(claim!=null)throw new IOException("Cold operation owner changed");return;}
+        synchronized(owner.gateLock){
+            Gate gate=owner.gates.get(begin.operation.toString());
+            if(gate!=null&&(!gate.begin.envelopeHash.equals(begin.envelopeHash)||gate.epoch!=0
+                    ||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty()
+                    ||(claim==null?gate.phase!=Phase.COLD_FROZEN&&!(gate.phase==Phase.TERMINAL_RETRY&&gate.coldCancellation)
+                        :claim.owner!=owner||claim.gate!=gate)))throw new IOException("Same-process operation lifetime excludes cold cancellation");
+            if(claim!=null){if(gate==null)throw new IOException("Cold cancellation gate disappeared");claim.validate();}
+        }
+    }
+    /** Preserve existing closed-audit rules while this lease claims its separate cold operation. */
+    List<Claim> claimCancellationAuditsLocked(HistoryPinRecord own)throws IOException {
+        rejectParticipant();HistoryStorage.requireMutation(root);List<Claim> claims=new ArrayList<>();
+        HistoryControlStore.Inspection control=probe.operationControlLocked();Set<UUID> closed=new HashSet<>();
+        for(HistoryPinRecord receipt:control.pins.closes)closed.add(receipt.operation);
+        try{synchronized(gateLock){for(HistoryPinRecord begin:control.pins.begins){
+            if(begin.operation.equals(own.operation)||!closed.contains(begin.operation))continue;Gate gate=bind(begin);
+            if(gate.phase==Phase.OPEN||gate.phase==Phase.TERMINATING||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("QUIESCENCE_PENDING");
+            if(gate.phase!=Phase.TERMINAL){gate.phase=Phase.TERMINAL_RETRY;claims.add(claimLocked(new Quiescence(this,gate),begin));}
+        }}return claims;}catch(IOException|RuntimeException|Error failure){for(Claim claim:claims)claim.close();throw failure;}
+    }
+    Claim claimColdCancellationLocked(HistoryPinRecord begin)throws IOException {
+        requireColdCancellationLocked(root,begin,null);
+        synchronized(gateLock){Gate gate=bind(begin);gate.coldCancellation=true;gate.phase=Phase.TERMINATING;return new Claim(this,gate);}
+    }
+    /** Synchronous durability participants cannot fabricate quiescence or publish another terminal. */
+    static void cancellationCallbackLocked(PreparationSources.Publication callback)throws IOException {
+        rejectParticipant();enter();try{callback.run();}finally{leave();}
+    }
     static final class Claim implements AutoCloseable {
         private final HistoryOperations owner;private final Gate gate;private final long epoch;private boolean done;
         private Claim(HistoryOperations owner,Gate gate){this.owner=owner;this.gate=gate;epoch=gate.epoch;}
@@ -240,7 +274,7 @@ final class HistoryOperations {
         rejectParticipant();HistoryStorage.requireMutation(root);synchronized(gateLock){
             if(proof==null||proof.owner!=this||proof.gate!=bind(begin)||proof.epoch!=proof.gate.epoch)throw new IOException("Foreign terminal capability");Gate gate=proof.gate;
             if((gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY)||gate.resources!=0||gate.running!=0||gate.posting!=0||!gate.pending.isEmpty())throw new IOException("Operation is not quiescent");
-            gate.phase=Phase.TERMINATING;return new Claim(this,gate);
+            gate.coldCancellation=false;gate.phase=Phase.TERMINATING;return new Claim(this,gate);
         }
     }
     void validateCommittedLocked(Quiescence proof,HistoryPinRecord begin)throws IOException {
