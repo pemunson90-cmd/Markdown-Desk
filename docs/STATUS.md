@@ -186,6 +186,26 @@ heap proof or a256KiB whole-native envelope. Over-capacity terminal evidence mus
 refuse before terminal writes and preserve retry authority; ordinary appends remain
 allowed. All three runners are registered once in the required aggregate; only shell
 syntax/diff checks ran for registration. No aggregate, APK or hosted run is claimed.
+Writer snapshot lifetime closure at `9c2353c` has scoped independent spec/quality
+approval. Fresh control/ledger DTOs now stay inside private synchronous checked
+scopes, bind the exact thread/lease and clear both references in finally. No
+Inspection/Ledger is returned; Transition keeps its existing admitted maps/anchors.
+Original fixed debit amounts and all source/policy predicates remain unchanged.
+The affected runner passed87 publication assertions,7 copy cases,11 completion
+cases and52 new lifetime checks. Its existing aggregate entry includes the new
+checks; no aggregate run or additional build/hosted validation occurred.
+
+The bounded consumer review established writer1C/1L and successful terminal5C/2L
+additional lexical snapshots above the original B1 C0/L0 already charged to its
+parent. Retry/audit overlap and numerical representation/consumer credit bounds
+are not yet closed. In particular, partial/active portable control deliberately
+remains generic-not-ready; generic Capacity/Pins routes cannot be used after P.
+An authentic private same-policy accounting route must preserve mandatory saves
+without weakening generic readiness or introducing a second quota authority.
+Original native membership stays exact through BEGIN; only post-BEGIN appends
+may be admitted by the current-native terminal table. These contracts must be
+resolved before enabling portable publication, not after it.
+
 Next, bind actual-snapshot-sized whole-path funding to the original measured inputs
 before P; consume prepaid allowances in the real writer/activation/terminal paths
 without later direct double debits, and keep bounded inspection snapshots scoped.
