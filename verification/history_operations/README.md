@@ -43,3 +43,11 @@ factory/close ownership and damaged bound sources can remain blocked indefinitel
 There is no quarantine, journal compaction, extra control allowance, provider caller,
 export-success claim or general scheduler-deadlock guarantee. Runtime adapters must
 independently enforce raw delegate ownership and avoid blocking shared executors.
+
+
+Reviewed source checkpoint: `cf0bf818ef551e97ca6bc6a98120475fd343296f`.
+Independent reviewer:24 production probes PASS. Focused coordinator59, terminal5,
+prefix1658 assertions PASS. The full earlier operation run passed48 actual
+SIGKILL/OS-limit/manifest fixtures with96 fresh reopens; subsequent changes were the
+whole-transfer and in-flight scheduling guards, each reproduced RED then GREEN.
+The integration owner runs the combined full host and unsigned-build gate once.

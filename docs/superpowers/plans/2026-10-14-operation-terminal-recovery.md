@@ -398,7 +398,8 @@ It needs separate wire/admission/crash review; no placeholder repair file here.
 
 ## Review focus and proposed implementation tasks
 
-Unimplemented tasks below require independent approval of this plan first.
+The tasks below preserve the approved implementation contract. Final execution
+evidence and source review are recorded in the checkpoint at the end.
 Backend owner owns the coordinator, terminal backend, narrow helper wiring and
 scoped fixtures. Root owns Activity/runtime adapters, STATUS, central runner
 registration and integration gates. No implementation is claimed by this plan.
@@ -409,38 +410,38 @@ Files: create `apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.
 narrow `HistoryStorage.java` shared state; create
 `verification/history_operations/{OperationQuiescenceCheck.java,run.sh,README.md}`.
 
-- [ ] Write latch-driven production RED fixtures for an opening reader, in-flight
+- Write latch-driven production RED fixtures for an opening reader, in-flight
       read/write, failed factory with uncertain resource ownership, blocked/throwing
       close, running callback, queued callback after freeze,
       queue-post exception after enqueue, and delayed old-epoch delivery. Assert
       no terminal capability until actual completion, and no late callback runs.
-- [ ] Add two-handle shared-gate tests, fresh frozen startup, wrong key/root/BEGIN/
+- Add two-handle shared-gate tests, fresh frozen startup, wrong key/root/BEGIN/
       epoch/nonce rejection, nonblocking completion while owner work remains,
       observer interrupt/timeout preserving freeze and native worker completion
       needing the released history monitor. Exercise a single-thread callback queue
       with independent terminal continuation: requesting freeze must return promptly
       so pending work can finish; no get/join on that queue.
-- [ ] Exercise every delegate-touching wrapper method and owner-close after freeze;
+- Exercise every delegate-touching wrapper method and owner-close after freeze;
       no count drops merely because admission closed. Test callbacks spawned by
       delegated close and queue-post failures through the documented trusted adapters.
-- [ ] Register hostile nonasync thenApply listeners before final proof signaling:
+- Register hostile nonasync thenApply listeners before final proof signaling:
       terminal entry must reject without changing evidence while ParticipantContext
       remains active. Cover factory, I/O, close, callback, exception and scheduler
       rejection paths; nested wrappers preserve depth and finally clears it only
       after signaling, with no context leak. Every coordinator-triggered completion
       listener must observe Thread.holdsLock false for both locks.
-- [ ] Prove no registered consumer/delegate/source cleanup occurs after proof mint.
+- Prove no registered consumer/delegate/source cleanup occurs after proof mint.
       Test same-queue async continuation after wrapper return as one schedule, and
       independent async terminal work overlapping only metadata signaling as another;
       neither may start before actual work and owned closure finish. Async dispatch
       rejection leaves the operation frozen and produces no terminal receipt.
-- [ ] With a future already registered, attempt final close, cancelPending and
+- With a future already registered, attempt final close, cancelPending and
       freeze from a caller-owned history monitor/lease: reject before delegate/count
       change and never invoke listeners under the outer lock. Exercise internal
       frozen-discovery notice dispatch only after its entire coordination exits.
-- [ ] Implement the exact interfaces/lifecycle above with private tracked resources.
+- Implement the exact interfaces/lifecycle above with private tracked resources.
       Use deterministic barriers, never sleeping tests or a caller-supplied zero count.
-- [ ] Run `bash verification/history_operations/run.sh coordinator`; require
+- Run `bash verification/history_operations/run.sh coordinator`; require
       all named behavioral assertions PASS, then independent concurrency review and
       a coherent canonical-author commit. A missing-class scaffold is not behavior RED.
 
@@ -450,37 +451,37 @@ Files: narrow `HistoryPins.java`, `HistoryMaintenanceExecutor.java` and existing
 lease-aware audit helper; `OperationTerminalCheck.java` in the new fixture folder.
 Preserve HistoryPinRecord encoding and existing control allowance semantics.
 
-- [ ] Write production REDs proving old close, full CLOSE.stage promotion,
+- Write production REDs proving old close, full CLOSE.stage promotion,
       committed-close reconciliation and maintenance audit entry cannot release
       protection while any registered participant remains. Exercise every entry
       with a second handle; no caller-omitted capability path is allowed.
-- [ ] Test frozen cold discovery for partial/full CLOSE.stage without any consumer
+- Test frozen cold discovery for partial/full CLOSE.stage without any consumer
       activation. CANCELLED with missing manifest must obtain DrainRequest and recover;
       RELEASED still rejects without its original manifest. Partial BEGIN stays blocked.
-- [ ] Test activation racing a held terminal manifest callback and final proof, plus
+- Test activation racing a held terminal manifest callback and final proof, plus
       nested activation from manifest/file/move/directory callbacks. No OPEN transition
       is possible after TERMINATING claim, including a failure before stage creation;
       terminal retry succeeds while consumer activation remains blocked. Also race an
       activation that wins first: old Quiescence must fail before publication.
-- [ ] Implement close/recovery capability consumption and audit preflight outside
+- Implement close/recovery capability consumption and audit preflight outside
       locks, with fresh callback-free checks under the existing lease. Keep active
       pin graph/planner freeze mandatory throughout terminal uncertainty.
-- [ ] Test same-byte source/control/root replacement and nested writes at manifest,
+- Test same-byte source/control/root replacement and nested writes at manifest,
       file/move/directory callbacks; test pre-enrollment alternate bootstrap handles.
       Exact subset CANCELLED and RELEASED both validate current sources; ALL_BUNDLE
       cancellation admits legitimate PREPARED with incomplete optional pruning data.
-- [ ] Test cold committed CLOSED audits with missing retired sources and no external
+- Test cold committed CLOSED audits with missing retired sources and no external
       manifest beside a committed prune.intent; execute/replay twice, preserving
       exact audit bytes. Repeat during same-process Retirement after intent removal;
       audit preflight must use the exact retirement path without ordinary readiness.
       Attempted operation/read/callback resume must always reject.
-- [ ] Exercise the caller-owned monitor shape of HistoryController.open: unchanged
+- Exercise the caller-owned monitor shape of HistoryController.open: unchanged
       native/capacity paths require no drain; exact closed-only zero-work audit uses
       tryClosedAuditsNowLocked without future/listener creation. Nonzero recovery
       returns QUIESCENCE_PENDING and requires external preflight before reentry.
       Check lock order and fresh validation after reacquisition; a zero-work result
       found inside a lease must never inline-complete a future there.
-- [ ] Run `bash verification/history_operations/run.sh terminal` and affected
+- Run `bash verification/history_operations/run.sh terminal` and affected
       pin/executor runners; require all PASS before critical helper review/commit.
 
 ### Task3: Canonical append recovery and conservation
@@ -488,24 +489,24 @@ Preserve HistoryPinRecord encoding and existing control allowance semantics.
 Files: create `HistoryPinTerminalRecovery.java`; narrow `HistoryPins.java`;
 `ClosePrefixCheck.java`, `OperationRestartProbe.java`, `run_restart.py`, README.
 
-- [ ] Write actual-file RED fixtures for every prefix length0..125 of both canonical
+- Write actual-file RED fixtures for every prefix length0..125 of both canonical
       outcomes. For n<=93 require explicit CANCEL_UNBOUND; for n>=94 preserve the
       outcome. Assert RELEASED without/wrong manifest leaves every byte unchanged.
-- [ ] Implement existing-inode append/readback/force/promotion with explicit recovery
+- Implement existing-inode append/readback/force/promotion with explicit recovery
       choice and exact capability, preserving126 total bytes and one slot throughout.
-- [ ] Test full126 read-only promotion; >126/nonprefix/bad checksum/symlink/directory/
+- Test full126 read-only promotion; >126/nonprefix/bad checksum/symlink/directory/
       duplicate/conflicting stages; partial BEGIN of every representative shape.
       All rejected evidence remains byte/inode-identical and fully charged.
-- [ ] Test stage disappears between validation/open: no file recreated. Inject
+- Test stage disappears between validation/open: no file recreated. Inject
       same-byte replacement, callback mutation, partial append, file/move/directory
       sync failure, full shared byte/slot allowance and ordinary control writers
       attempting to consume reserved suffix credit. No extra files or unlinks.
-- [ ] Real child JVM SIGKILL before/after append, outcome-byte persistence, suffix
+- Real child JVM SIGKILL before/after append, outcome-byte persistence, suffix
       force, move, directory sync and acknowledgement; actual OS write-size failure
       at multiple suffix lengths. Reopen twice per fixture with consumers initially
       frozen. Check exact original prefix/inode, final outcome, all native bytes,
       reservations, audit bytes and refusal to resume retired operation keys.
-- [ ] Run scoped runner `all`, affected pins/capacity/maintenance/executor regressions
+- Run scoped runner `all`, affected pins/capacity/maintenance/executor regressions
       once on final source, and constrained-heap manifest checks. Independent exact
       source review precedes canonical commits; parent owns the clean full host/two
       unsigned-build gate. Host SIGKILL is not sudden-power-loss or Android proof.
@@ -554,7 +555,9 @@ were unperformed at that review. Subsequent implementation status appears below.
 
 Root authorized backend implementation after architecture approval; normal merge of
 origin/main `d0b02d79057f546b6c9bc215cc5c948455f2bb88` preserves the approved UI factory.
-Implementation and scoped fixtures are in progress, pending exact-source review.
+Backend implementation and scoped fixture migration are committed in `5983413`,
+with source corrections in `cf0bf818ef551e97ca6bc6a98120475fd343296f`. Independent
+reviewer `preview_review` approved that exact source after 24 production probes.
 `HistoryPins.forRecovery` is an explicit read-only handle factory needed to reach
 cold retained stages without ordinary open/promotion. It grants no acknowledgement.
 All acknowledgement paths also check exact closed-key lifetime authority centrally;
@@ -568,3 +571,35 @@ participants reject with QUIESCENCE_PENDING, and a caller can request asynchrono
 closed-audit preflight outside coordination before retrying. No controller/Activity
 change is needed for the existing native/capacity-only factory. The remaining
 partial-BEGIN/provenance and bounded-journal availability limitations are unchanged.
+
+
+The reviewer reproduced a whole-operation escape in inherited transferTo: an output
+callback could close the tracked input after a guarded read returned. The final
+TrackedInput defines its own bounded copy loop, retaining busy/ParticipantContext
+through delegate reads, external writes and proof signaling. It never invokes the
+platform transferTo API, preserving minSdk26 compatibility. Self-review reproduced
+a separate scheduler-call gap: freeze could revoke a queued ticket while the
+CallbackQueue.post delegate was still running. The final coordinator counts this
+actual in-flight scheduling work through return/throw, independently of pending
+callback delivery. Both findings have observed production RED-to-GREEN fixtures.
+
+Final focused evidence: coordinator59, terminal5 and prefix1658 assertions PASS.
+Prefix fixtures include exact shared byte/slot allowance, every append/force
+identity barrier, and corruption after the last directory callback. The earlier
+full operation run passed 48 SIGKILL/OS-limit/lost-manifest fixtures with 96 fresh
+JVM reopens; only transfer/scheduling guards changed afterward and their focused
+fixtures were rerun. Existing migrated pin checks passed909 codec/discovery,
+332 lifecycle,4 bounded-manifest assertions with16MiB heap,20 crash boundaries and
+42 fresh reopens. Executor regressions passed747 behavior,22 memory assertions,
+44 crash/limit fixtures and88 fresh reopens. Maintenance passed578 assertions,
+its8MiB streaming/headroom fixture and14 fresh reopens; controller passed123 checks
+plus startup and capture-race fixtures. Capacity codec passed209 assertions; the
+remaining capacity modes and full host/two-unsigned-build gate belong to root's
+integration run and are not claimed passed here.
+
+The settled key boundary is canonical parent/role paths, bundle/registration/BEGIN
+hashes, coordinator identity and process epoch. Physical identities are freshly
+captured at explicit terminal entry and must remain stable through publication.
+This does not claim persistent private-filesystem tamper detection between discovery
+and a later entry. No extra inode seal, metadata-signaling-frame counter, repair
+record, runtime consumer or root-level integration edit was added.
