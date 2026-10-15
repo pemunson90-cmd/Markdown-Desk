@@ -174,10 +174,14 @@ approved after 4 groups (lazy I/O/normal credits, prefix tampering, final same-b
 replacement, retained Error cleanup); 87 existing assertions plus 7 actual-copy cases
 pass. One 8 MiB / 1637 ms result is functional evidence only. The worker owns
 Writer/narrowPins/Sources/Storage and fixtures for final BEGIN/LINK and typed-source
-handoff. Complete and review that boundary, then prove activation, cold recovery,
-runtime integration, heap bounds, crash/ENOSPC/reopen behavior and performance.
-End-to-end production completion remains OPEN; do not promote scoped approvals to whole-source
-or performance claims.
+handoff. Require fresh matches for both original C0 control and L0 ledger hashes
+before P. A legacy PIN BEGIN→CANCELLED CLOSED changes C0/fullGraph while L0 stays
+unchanged; plan authority alone cannot publish P. Complete and review the handoff,
+then implement and affected-test activation, cold recovery, runtime integration, heap
+bounds and crash/ENOSPC/reopen behavior before downstream features. Defer broad
+regression, performance, migration and device batteries to the feature-complete
+candidate. End-to-end production completion remains OPEN; do not promote scoped
+approvals to whole-source or performance claims.
 **Portable binding/export/import:** review the next opt-in preparation before its first BEGIN; preserve authorized local A/B formats. Existing single-active-pin rule makes a post-LINK second pin a new handoff protocol, not a shortcut. Persist inventory and active-tab selection at capture, prove complete retained-item coverage, validate typed graphs, and share logical metadata ownership. Freeze exact new schema/credits/goldens only in that ready packet. Then implement tracked fresh destination readback/completion evidence and strict additive import/reopening with actual app entry points. Unknown failed staging is not silently omitted; cancellation/time/newer text is not a redundancy proof.
 
 **Policy/runtime:** complete startup recovery, understandable errors and configurable retention only once new operation evidence participates in all admission/pruning/retirement proofs. Preserve safe ordinary saves and optional-history/export failure isolation. Stop adding speculative protection layers once the approved boundary passes; finish its runtime consumer.

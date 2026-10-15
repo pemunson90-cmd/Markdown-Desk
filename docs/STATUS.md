@@ -53,10 +53,11 @@ reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
 Next: complete and review final BEGIN/LINK and typed-source handoff in the
-Writer/narrowPins/Sources/Storage scope. Then prove activation, cold recovery, runtime
-integration, heap bounds, crash/ENOSPC/reopen behavior and performance at the
-feature-complete gate. Continue M0–M7 directly; M1 is not complete. Source approvals remain limited to
-their exact artifacts.
+Writer/narrowPins/Sources/Storage scope. Implement and affected-test activation, cold
+recovery, runtime integration, heap bounds, and crash/ENOSPC/reopen behavior before
+downstream features. Defer only the broad regression, performance, migration, and
+device battery to the feature-complete candidate. Continue M0–M7 directly; M1 is not
+complete. Source approvals remain limited to their exact artifacts.
 Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
 app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
 owner will sign the unsigned APK with the original key and test the Fold7; no device
