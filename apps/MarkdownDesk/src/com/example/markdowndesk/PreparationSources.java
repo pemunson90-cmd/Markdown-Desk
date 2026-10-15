@@ -85,6 +85,10 @@ final class PreparationSources {
         HistoryStorage.requireMutation(root); HistoryOperations.rejectParticipant();
         synchronized (this) { frozen = true; uncertain = true; }
     }
+    /** Identity inspection only; no resource/claim/reset authority. */
+    boolean isPreparationLocked(UUID expected)throws IOException {
+        HistoryStorage.requireMutation(root);return preparation.equals(expected);
+    }
     /** Assembly admission only: OPEN/idle is not a terminal quiescence proof. */
     void requireIdleBindingLocked(File expectedRoot, UUID expectedPreparation,
                                   HistoryStorage.Budget expectedBudget) throws IOException {

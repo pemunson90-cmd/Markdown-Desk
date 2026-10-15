@@ -15,6 +15,8 @@ final class PrivateOperationStore {
     static final class Control {
         final List<PrivateOperationRecord> preparations=new ArrayList<>();
         final Map<UUID,HistoryControlStore.Entry> links=new HashMap<>();
+        final Set<UUID> terminalCancelled=new HashSet<>();
+        int unfinished;
         boolean valid=true,ready=true,present,pending;
         long reservedBytes;int reservedEntries;
     }
@@ -53,7 +55,11 @@ final class PrivateOperationStore {
                 result.links.put(p.preparation,entry);result.reservedBytes=add(result.reservedBytes,PrivateOperationRecord.LINK_BYTES-entry.length);
             }else{result.reservedBytes=add(result.reservedBytes,PrivateOperationRecord.LINK_BYTES);result.reservedEntries++;}
             if(reserveStage!=null&&(begin!=null||beginStage!=null||link!=null||stage!=null||close!=null||closeStage!=null))result.valid=false;
-            if(link==null||close==null)pending++;
+            boolean cancelled=reserve!=null&&reserveStage==null&&begin!=null&&beginStage==null&&close!=null&&closeStage==null
+                    &&link==null&&stage==null&&close.pin!=null&&close.pin.outcome==HistoryPinRecord.Outcome.CANCELLED
+                    &&HistoryPinRecord.matches(p.begin,close.pin);
+            if(cancelled)result.terminalCancelled.add(p.preparation);
+            if(link==null||close==null){pending++;if(!cancelled)result.unfinished++;}
         }
         for(HistoryControlStore.Entry e:entries){
             if(operationEntry(e)&&committed(e).endsWith(".link")){
@@ -62,7 +68,7 @@ final class PrivateOperationStore {
             }
             if(e.pin!=null&&e.pin.begin&&e.pin.manifest.domain==HistoryPinRecord.Domain.LOCAL_CAPTURE_V1&&!operations.contains(e.pin.operation))result.valid=false;
         }
-        if(pending>1)result.valid=false;result.pending=pending!=0;result.ready&=result.valid;
+        if(result.unfinished>1)result.valid=false;result.pending=pending!=0;result.ready&=result.valid;
         result.preparations.sort(Comparator.comparing(p->p.preparation.toString()));return result;
     }
     static boolean operationEntry(HistoryControlStore.Entry e){return e.filename!=null&&PrivateOperationRecord.knownName(committed(e));}
@@ -133,6 +139,45 @@ final class PrivateOperationStore {
         }ledger.fingerprint=HistoryStorage.hex(digest.digest());}
         return ledger;
     }
+    /** Typed accounting classification only. Actual new-owner admission is separate. */
+    static boolean historicalCancelledOnly(HistoryControlStore.Inspection c,Ledger l) {
+        return historicalRemainder(c,l,null);
+    }
+    private static boolean historicalRemainder(HistoryControlStore.Inspection c,Ledger l,UUID selected) {
+        if(!l.complete||!l.pending||!l.diagnostics.isEmpty()||!c.chainComplete||!c.usageComplete||!c.diagnostics.isEmpty()
+                ||!c.operations.valid||!c.operations.ready||!c.pins.valid||!c.pins.stages.isEmpty()||!c.stages.isEmpty()||c.hasMaintenance()
+                ||c.operations.terminalCancelled.isEmpty()||!namespacePresent(l)
+                ||(selected==null?c.pins.active!=null:c.pins.active==null||!selected.equals(c.pins.active.operation)))return false;
+        for(PrivateOperationRecord p:c.operations.preparations){
+            if(p.operation.equals(selected))continue;
+            if(c.operations.terminalCancelled.contains(p.preparation))continue;
+            HistoryControlStore.Entry link=c.operations.links.get(p.preparation);boolean closed=false;
+            for(HistoryPinRecord close:c.pins.closes)if(HistoryPinRecord.matches(p.begin,close))closed=true;
+            if(link==null||link.stage||!closed)return false;
+        }
+        return true;
+    }
+    private static boolean namespacePresent(Ledger l){String root=l.entries.get(ROOT);return root!=null&&root.startsWith("dir:")&&!root.equals("dir:null");}
+    static void requireHistoricalCaptureOwnerLocked(File root,HistoryControlStore.Inspection c,Ledger l,
+            PreparationSources requesting,UUID preparation,HistoryStorage.Budget budget)throws IOException {
+        HistoryStorage.requireMutation(root);
+        if(!historicalCancelledOnly(c,l)||requesting==null||c.operations.terminalCancelled.contains(preparation))throw new IOException("Historical cancellation is not eligible for this capture");
+        requesting.requireIdleBindingLocked(root,preparation,budget);
+        if(hasHistoricalOwnerLocked(root,c))throw new IOException("Historical preparation owner is still registered");
+    }
+    private static boolean hasHistoricalOwnerLocked(File root,HistoryControlStore.Inspection c)throws IOException {
+        PreparationSources owner=HistoryStorage.preparationSources(root);if(owner==null)return false;
+        for(UUID id:c.operations.terminalCancelled)if(owner.isPreparationLocked(id))return true;return false;
+    }
+    /** A terminal historical stage is immutable; current unfinished prefixes are not. */
+    static boolean retainHistoricalStageLocked(File root,HistoryControlStore.Inspection c,Ledger l,String key)throws IOException {
+        HistoryStorage.requireMutation(root);
+        if(!l.complete||!l.diagnostics.isEmpty()||!namespacePresent(l)||!c.chainComplete||!c.usageComplete||!c.diagnostics.isEmpty()
+                ||!c.operations.valid||!c.pins.valid||hasHistoricalOwnerLocked(root,c))return false;
+        for(PrivateOperationRecord p:c.operations.preparations)if(c.operations.terminalCancelled.contains(p.preparation))
+            for(PrivateOperationRecord.Artifact a:p.artifacts)if(key.equals(p.preparation+"/"+a.filename()+".stage"))return true;
+        return false;
+    }
     /** Immutable declared sources for an authentic same-process completed capture. No cold adoption. */
     static final class CapturedData {
         final HistoryPinRecord begin;final HistoryStorage.Budget budget;
@@ -168,7 +213,12 @@ final class PrivateOperationStore {
                 ||link==null||link.stage||!captured.linkHash.equals(link.envelopeHash))throw new IOException("Missing exact completed capture records");
         for(HistoryControlStore.Entry e:c.entries)if(e.stage||e.pin!=null&&!e.pin.begin&&captured.operation.equals(e.pin.operation))throw new IOException("Capture has staged/terminal evidence");
         Ledger ledger=inspect(root,c,budget);
-        if(!ledger.complete||ledger.reservedBytes!=0||ledger.reservedEntries!=0)throw new IOException("Capture data not complete");
+        if(!ledger.complete)throw new IOException("Capture data not complete");
+        for(PrivateOperationRecord.Artifact a:p.artifacts){String key=p.preparation+"/"+a.filename(),value=ledger.entries.get(key);
+            if(value==null||!value.startsWith("file:"+a.length+":")||!value.endsWith(":"+a.hash)||ledger.entries.containsKey(key+".stage"))throw new IOException("Selected capture artifact is not final");}
+        if(ledger.reservedBytes!=0||ledger.reservedEntries!=0){
+            if(!historicalRemainder(c,ledger,p.operation)||HistoryStorage.preparationSources(root)!=null)throw new IOException("Remaining reservations lack eligible historical cancellation");
+        }
         PrivateOperationRecord.Artifact mapRow=p.artifact(1),descriptorRow=p.artifact(2);
         long upper=Math.min(HistoryArchiveManifest.MAX_ENTRIES,mapRow.length/74);
         long rowBytes=2048L+4L*(root.getParentFile().getPath().length()+160);

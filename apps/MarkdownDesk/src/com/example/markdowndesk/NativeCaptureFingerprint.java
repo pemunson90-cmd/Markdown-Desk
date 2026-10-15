@@ -61,13 +61,18 @@ final class NativeCaptureFingerprint {
     static NativeCaptureFingerprint capture(HistoryArchiveManifest frozen,HistoryGraph.Graph graph,
             HistoryControlStore.Inspection control,File store,File catalog,File identity,File index,
             long bootstrapQuotaBytes,HistoryStorage.Budget budget)throws IOException {
+        return capture(frozen,graph,control,store,catalog,identity,index,bootstrapQuotaBytes,budget,null,null);
+    }
+    static NativeCaptureFingerprint capture(HistoryArchiveManifest frozen,HistoryGraph.Graph graph,
+            HistoryControlStore.Inspection control,File store,File catalog,File identity,File index,
+            long bootstrapQuotaBytes,HistoryStorage.Budget budget,PreparationSources owner,UUID preparation)throws IOException {
         HistoryStorage.requireMutation(store);
         if(frozen==null||graph==null||control==null||budget==null||catalog==null||identity==null||index==null)
             throw invalid("Missing initial native evidence/budget");
         // Reserve bounded preflight temporaries before hash clones/path tables.
         budget.charge(BASE_CHARGE);
         if(!store.isAbsolute()||!catalog.isAbsolute()||!identity.isAbsolute()||!index.isAbsolute()
-                ||graph.registeredRoleNames.size()!=4||!graph.complete||!graph.usageComplete||graph.pruneBlocked||!graph.diagnostics.isEmpty()
+                ||graph.registeredRoleNames.size()!=4||!graph.complete||!graph.usageComplete||(graph.pruneBlocked&&!graph.historicalCancelledOnly)||!graph.diagnostics.isEmpty()
                 ||graph.effectivePolicy==null||control.state!=HistoryControlStore.State.VALIDATED
                 ||!control.chainComplete||!control.usageComplete||!control.diagnostics.isEmpty()
                 ||!control.stages.isEmpty()||control.hasMaintenance()||control.registration==null||control.latest==null
@@ -76,6 +81,12 @@ final class NativeCaptureFingerprint {
                 ||graph.actualBytes-graph.operationActualBytes!=frozen.nativeEnvelopeBytes
                 ||graph.reservedCompletionBytes<0||graph.reservedCompletionSlots<0)
             throw invalid("Incomplete initial frozen native graph");
+        if(graph.pruneBlocked){
+            if(owner==null||preparation==null||control.operations.terminalCancelled.contains(preparation))throw invalid("Historical source capture needs exact new owner");
+            owner.requireIdleBindingLocked(store,preparation,budget);
+            PreparationSources registered=HistoryStorage.preparationSources(store);
+            for(UUID old:control.operations.terminalCancelled)if(registered!=null&&registered.isPreparationLocked(old))throw invalid("Historical owner still registered");
+        }
         int authority=0;long charge=0;
         for(File root:Arrays.asList(store,catalog,identity,index)){
             charge=add(charge,2048L+4L*utf8Length(root.getPath()));

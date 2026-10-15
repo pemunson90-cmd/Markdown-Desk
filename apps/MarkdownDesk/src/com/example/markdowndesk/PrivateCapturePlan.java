@@ -36,14 +36,15 @@ final class PrivateCapturePlan {
         if(owner==null||sharedBudget==null||frames==null||frames.size()>14)throw invalid("Missing/bounded assembly inputs");
         owner.requireIdleBindingLocked(store,preparation,sharedBudget);
         sharedBudget.charge(FIXED_METADATA_BYTES+FRAME_METADATA_BYTES*frames.size());
-        if(frozen==null||graph==null||control==null||baseLedger==null||!graph.complete||!graph.usageComplete||graph.pruneBlocked
+        if(frozen==null||graph==null||control==null||baseLedger==null||!graph.complete||!graph.usageComplete||(graph.pruneBlocked&&!graph.historicalCancelledOnly)
                 ||!graph.diagnostics.isEmpty()||graph.effectivePolicy==null||control.state!=HistoryControlStore.State.VALIDATED
                 ||!control.chainComplete||!control.usageComplete||!control.diagnostics.isEmpty()||!control.stages.isEmpty()
                 ||control.hasMaintenance()||!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty()
-                ||!control.operations.valid||!control.operations.ready||control.operations.pending||control.registration==null||control.latest==null
+                ||!control.operations.valid||!control.operations.ready||control.registration==null||control.latest==null
                 ||graph.controlActualBytes!=control.actualBytes||graph.controlActualEntries!=control.actualEntries)
             throw invalid("Incomplete initial graph/control authority");
         validateLedger(baseLedger,graph,control);
+        if(baseLedger.pending)PrivateOperationStore.requireHistoricalCaptureOwnerLocked(store,control,baseLedger,owner,preparation,sharedBudget);
         String controlHash=initialControlHash(control);
         List<PrivateFramePreflight.ClosedFrame> retained=Collections.unmodifiableList(new ArrayList<>(frames));
         Set<UUID> generated=new HashSet<>();generated.add(frozen.bundleId);
@@ -74,7 +75,7 @@ final class PrivateCapturePlan {
             if(generated.contains(existing.preparation))throw invalid("Existing preparation ID collision");
         }
         if(baseLedger.entries.containsKey(preparation.toString()))throw invalid("Preparation directory already exists");
-        NativeCaptureFingerprint nativeProof=NativeCaptureFingerprint.capture(frozen,graph,control,store,catalog,identity,index,bootstrapQuotaBytes,sharedBudget);
+        NativeCaptureFingerprint nativeProof=NativeCaptureFingerprint.capture(frozen,graph,control,store,catalog,identity,index,bootstrapQuotaBytes,sharedBudget,owner,preparation);
         String ledgerHash=initialLedgerHash(baseLedger);
         HashSink map=new HashSink();frozen.write(map);
         if(map.length!=frozen.serializedBytes)throw invalid("Frozen map serialized length mismatch");
@@ -100,7 +101,7 @@ final class PrivateCapturePlan {
         nativeMap=map;nativeSources=proof;sourceOwner=owner;privateFrames=frames;this.prepare=prepare;this.descriptor=descriptor;this.link=link;initialLedgerHash=ledger;initialControlHash=control;artifactBytes=bytes;
     }
     private static void validateLedger(PrivateOperationStore.Ledger ledger,HistoryGraph.Graph graph,HistoryControlStore.Inspection control)throws IOException {
-        if(!ledger.complete||ledger.pending||!ledger.diagnostics.isEmpty()||ledger.actualBytes<0||ledger.reservedBytes<0||ledger.occupiedEntries<0||ledger.reservedEntries<0
+        if(!ledger.complete||(ledger.pending&&!PrivateOperationStore.historicalCancelledOnly(control,ledger))||!ledger.diagnostics.isEmpty()||ledger.actualBytes<0||ledger.reservedBytes<0||ledger.occupiedEntries<0||ledger.reservedEntries<0
                 ||ledger.occupiedEntries!=ledger.entries.size()||add(ledger.occupiedEntries,ledger.reservedEntries)>PrivateOperationStore.MAX_ENTRIES
                 ||graph.operationActualBytes!=ledger.actualBytes||graph.operationReservedBytes!=ledger.reservedBytes
                 ||graph.operationOccupiedEntries!=ledger.occupiedEntries||graph.operationReservedEntries!=ledger.reservedEntries

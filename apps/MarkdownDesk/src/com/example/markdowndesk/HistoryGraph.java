@@ -28,6 +28,8 @@ public final class HistoryGraph {
         public final List<String> diagnostics;
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots, chargedBytes;
         public final boolean complete, pruneBlocked, usageComplete;
+        /** Full typed historical accounting, not a source-owner/publication capability. */
+        final boolean historicalCancelledOnly;
         public final String fingerprint;
         public final String operationFingerprint;
         public final long operationActualBytes,operationReservedBytes,operationOccupiedEntries,operationReservedEntries;
@@ -45,11 +47,13 @@ public final class HistoryGraph {
             unindexedTransactionIds=freezeSet(builder.unindexed);protectedSnapshotIds=freezeSet(builder.protectedSources);
             diagnostics=freeze(builder.diagnostics);actualBytes=builder.actual;reservedCompletionBytes=builder.reserved;
             reservedCompletionSlots=builder.slots;chargedBytes=builder.charged;usageComplete=builder.usageComplete;
-            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;this.fingerprint=fingerprint;this.policy=policy;desiredProfile=policy;
+            historicalCancelledOnly=builder.historicalCancelledOnly;
+            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete||op!=null&&op.pending;this.fingerprint=fingerprint;this.policy=policy;desiredProfile=policy;
             effectivePolicy=builder.effective;controlActualBytes=builder.control==null?0:builder.control.actualBytes;controlActualEntries=builder.control==null?0:builder.control.actualEntries;
         }
     }
     private static final class Builder {
+        boolean historicalCancelledOnly;
         final List<ProtectionStore.StoredRecord> records=new ArrayList<>();
         final List<ProtectionStore.Snapshot> snapshots=new ArrayList<>();
         final List<ProtectionStore.Transaction> transactions=new ArrayList<>();
@@ -134,7 +138,8 @@ public final class HistoryGraph {
                 try{HistoryControlStore.Inspection control=builder.control==null?new HistoryControlStore(store.storageRoot().getParentFile()).inspect():builder.control;
                     builder.operations=PrivateOperationStore.inspect(store.storageRoot(),control,budget);builder.actual=Math.addExact(builder.actual,builder.operations.actualBytes);
                     builder.usageComplete&=builder.operations.complete;builder.diagnostics.addAll(builder.operations.diagnostics);
-                    if(builder.operations.pending)builder.diagnostics.add("graph: incomplete operation preparation");
+                    builder.historicalCancelledOnly=PrivateOperationStore.historicalCancelledOnly(control,builder.operations);
+                    if(builder.operations.pending&&!builder.historicalCancelledOnly)builder.diagnostics.add("graph: incomplete operation preparation");
                 }catch(IOException|ArithmeticException invalid){builder.usageComplete=false;builder.diagnostics.add("graph: operation accounting unavailable");}
                 try{builder.charged=Math.addExact(Math.addExact(builder.actual,builder.reserved),builder.operations==null?0:builder.operations.reservedBytes);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
                 builder.records.sort(Comparator.comparing((ProtectionStore.StoredRecord record)->record.rootRole).thenComparing(record->record.filename));

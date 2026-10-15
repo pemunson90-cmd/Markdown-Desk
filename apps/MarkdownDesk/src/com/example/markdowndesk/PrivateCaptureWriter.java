@@ -42,14 +42,15 @@ final class PrivateCaptureWriter {
         copyScratch=new byte[65536]; // one retained scratch inside the prepaid refresh workspace
         budget.charge(8192L + 4096L * HistoryControlStore.MAX_ENTRIES);
         Fresh first = refresh();
-        if (!first.ledger.complete || first.ledger.pending || !first.control.operations.valid
-                || !first.control.operations.ready || first.control.operations.pending
+        if (!first.ledger.complete || (first.ledger.pending&&!PrivateOperationStore.historicalCancelledOnly(first.control,first.ledger)) || !first.control.operations.valid
+                || !first.control.operations.ready
                 || first.control.state != HistoryControlStore.State.VALIDATED
                 || first.control.pins.active != null || !first.control.stages.isEmpty()
                 || !PrivateCapturePlan.initialLedgerHash(first.ledger).equals(plan.initialLedgerHash)
                 || !PrivateCapturePlan.initialControlHash(first.control).equals(plan.initialControlHash))
             throw new IOException("Capture initial ledger no longer matches its preparation");
         budget.charge(4096L * first.ledger.entries.size() + 2048L * first.ledger.controlIdentities.size());
+        if(first.ledger.pending)PrivateOperationStore.requireHistoricalCaptureOwnerLocked(root,first.control,first.ledger,plan.sourceOwner,plan.prepare.preparation,budget);
         transition = new Transition(first);
     }
     /** The complete internal output lifetime stays under this caller's primary lease. */
@@ -453,7 +454,7 @@ final class PrivateCaptureWriter {
         }
         private final long actual, reserved, occupied, slots, controlActual, controlReserved;
         private final int controlCount, controlSlots;
-        private final boolean initialPresent;
+        private final boolean initialPresent,initialPending;
         private final BasicFileAttributes controlDirectory, parentDirectory;
         private int phase; //0 baseline,1 exact full PREPARE.stage,2 committed PREPARE
         private Physical preparationIdentity,beginIdentity,linkIdentity;
@@ -473,7 +474,7 @@ final class PrivateCaptureWriter {
             data=Collections.unmodifiableMap(new TreeMap<>(l.entries));
             operationControls=Collections.unmodifiableMap(new TreeMap<>(l.controlIdentities));
             for(String key:data.keySet())dataIdentities.put(key,PrivateOperationStore.attributes(dataFile(key).toPath()));
-            initialPresent=l.present;actual=l.actualBytes;reserved=l.reservedBytes;occupied=l.occupiedEntries;slots=l.reservedEntries;
+            initialPresent=l.present;initialPending=l.pending;actual=l.actualBytes;reserved=l.reservedBytes;occupied=l.occupiedEntries;slots=l.reservedEntries;
             controlActual=c.actualBytes;controlReserved=c.controlReservedBytes;controlCount=c.actualEntries;controlSlots=c.controlReservedEntries;
             verify(initial);
         }
@@ -584,7 +585,7 @@ final class PrivateCaptureWriter {
                     ||l.actualBytes!=PrivateOperationStore.add(actual,ownBytes)||l.occupiedEntries!=PrivateOperationStore.add(occupied,ownData.size())
                     ||l.reservedBytes!=PrivateOperationStore.add(reserved,(phase==0?0:plan.artifactBytes)-ownBytes)
                     ||l.reservedEntries!=PrivateOperationStore.add(slots,futureEntries-ownData.size())
-                    ||l.present!=(phase!=0||initialPresent)||l.pending!=(phase!=0))
+                    ||l.present!=(phase!=0||initialPresent)||l.pending!=(initialPending||phase!=0))
                 throw new IOException("Capture data or credit ownership changed");
             for(Map.Entry<String,String> e:data.entrySet())if(!e.getValue().equals(l.entries.get(e.getKey())))throw new IOException("Existing capture data changed");
             for(Map.Entry<String,OwnedData> e:ownData.entrySet()) {

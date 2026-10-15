@@ -29,10 +29,11 @@ final class HistoryStorage {
     }
     static void rememberOperationEvidence(File root,HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger)throws IOException {
         requireMutation(root);requireOperationEvidence(root,control,ledger);if(!ledger.complete||!control.operations.valid)throw new IOException("Incomplete operation evidence");
+        State state=(State)monitorFor(root);
         Map<String,String> records=new TreeMap<>(),files=new TreeMap<>();long bytes=0;
         for(HistoryControlStore.Entry e:control.entries)if(!e.stage&&PrivateOperationStore.operationEntry(e)){records.put(e.filename,e.envelopeHash);bytes=PrivateOperationStore.add(bytes,1024L+e.filename.length()*2L);}
-        for(Map.Entry<String,String> e:ledger.entries.entrySet())if(!e.getKey().endsWith(".stage")){files.put(e.getKey(),e.getValue());bytes=PrivateOperationStore.add(bytes,1024L+e.getKey().length()*2L);}
-        State state=(State)monitorFor(root);state.operationControl=Collections.unmodifiableMap(records);state.operationData=Collections.unmodifiableMap(files);state.operationEvidenceBytes=bytes;
+        for(Map.Entry<String,String> e:ledger.entries.entrySet())if(!e.getKey().endsWith(".stage")||state.operationData.containsKey(e.getKey())||PrivateOperationStore.retainHistoricalStageLocked(root,control,ledger,e.getKey())){files.put(e.getKey(),e.getValue());bytes=PrivateOperationStore.add(bytes,1024L+e.getKey().length()*2L);}
+        state.operationControl=Collections.unmodifiableMap(records);state.operationData=Collections.unmodifiableMap(files);state.operationEvidenceBytes=bytes;
     }
     static File canonicalRoot(File root)throws IOException {
         if(root==null)throw new IOException("Missing history root");
