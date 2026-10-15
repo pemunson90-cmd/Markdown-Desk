@@ -8,7 +8,7 @@ python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
 python3 verification/check_layout.py
 python3 verification/check_live_appearance.py
 java verification/ParseJava.java apps/MarkdownDesk/src shared apps/MarkdownDesk/test
-javac --release 11 -d "$OUT/renderer" verification/stubs/android/graphics/drawable/GradientDrawable.java apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java verification/RendererCheck.java
+javac --release 11 -d "$OUT/renderer" verification/stubs/android/graphics/drawable/GradientDrawable.java apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java verification/RendererCheck.java
 java -cp "$OUT/renderer" com.example.markdowndesk.RendererCheck "$OUT/rendered"
 javac --release 11 -d "$OUT/renderer" apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java apps/MarkdownDesk/src/com/example/markdowndesk/AtomicCommit.java verification/BaselineBehaviorCheck.java
 java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/renderer" com.example.markdowndesk.BaselineBehaviorCheck
@@ -24,6 +24,7 @@ java -Djava.io.tmpdir="$OUT/tmp" -cp "$OUT/splash:$JSON_JAR" SplashStoreTest
 bash verification/document_io/run.sh
 bash verification/session_recovery/run.sh
 bash verification/renderer_golden/run.sh
+bash verification/reader_typography/run.sh
 bash verification/mode_behavior/run.sh
 
 bash verification/contrast/run.sh --gate
