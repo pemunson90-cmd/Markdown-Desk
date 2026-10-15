@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
+    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;PreparationSources preparationSources;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
     static void requireOperationControl(File root,HistoryControlStore.Inspection control)throws IOException {
@@ -51,6 +51,12 @@ final class HistoryStorage {
     static HistoryOperations operations(File root)throws IOException{return ((State)monitorFor(root)).operations;}
     static void operations(File root,HistoryOperations operations)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.operations!=null)throw new IOException("Operation coordinator already installed or unlocked");state.operations=operations;
+    }
+    static PreparationSources preparationSources(File root)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");return state.preparationSources;
+    }
+    static void preparationSources(File root,PreparationSources value)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.preparationSources!=null||value==null)throw new IOException("Preparation owner already installed or unlocked");state.preparationSources=value;
     }
     static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
     static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}

@@ -248,3 +248,26 @@ reversible own transitions and all terminal ledger paths before source authoriza
 Portable v2, retained-import/remap/receipts, UI, output/adoption and compaction are
 separate work. Failed/retained staging needs a future bounded lossless-projection
 proof before omission from backup; no such proof or complete-backup claim here.
+
+### C2 source-lifetime implementation packet, 2026-10-15
+
+Lead owns `PreparationSources`, its focused fixture and the narrow shared
+HistoryStorage/HistoryOperations hooks. This implements only the pre-BEGIN resource
+owner required by tasks3–4, not publication, copying, recoverCapture or activation.
+Register one canonical primary/preparation/producer-capability/shared-budget owner
+in the existing parent State; a new UUID cannot bypass unresolved preflight work.
+Do not provide reset/handoff until the actual producer proves durable transfer.
+Count live sources and executing delegates independently; factory uncertainty seals
+the owner, while failed close retains the original reader for actual close retry.
+Factories and delegate I/O stay outside history monitor/lease. Preparation callback
+participants cannot enter either protocol's terminal/freeze/drain routes. Preserve
+existing operation callbacks' tested freeze requests: outstanding work still blocks
+terminal claims, and operation participants cannot claim C2 quiescence.
+
+The focused tests must cover real cross-protocol entries and blocked open/read/close,
+new-UUID bypass, runtime/null factory uncertainty, EOF/idle/read failure, retry close,
+reentrant/thread violations, same-budget/producer ownership and lease-bound claims.
+Independent exact-source review precedes use by the producer. No complete capture,
+whole simultaneous metadata heap bound, runtime behavior or device acceptance is
+inferred from this helper's test pass. Native fingerprint helper sourcea4cb514 has
+separate independent12-scenario approval and retains its integration obligations.
