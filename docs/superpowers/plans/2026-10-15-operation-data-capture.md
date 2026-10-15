@@ -271,3 +271,39 @@ Independent exact-source review precedes use by the producer. No complete captur
 whole simultaneous metadata heap bound, runtime behavior or device acceptance is
 inferred from this helper's test pass. Native fingerprint helper sourcea4cb514 has
 separate independent12-scenario approval and retains its integration obligations.
+
+### C2 fixed-record assembly and writer transition contract
+
+Root accepts canonical initial ledger binding:
+`SHA256(ASCII("MDOP-initial-ledger-v1\n") || u8(present) || raw32(fingerprint) if present)`.
+Absent golden is `d85d1350026fd0c27784a3126cd3adff553265dc45b173b353b13c049645825e`.
+This supplies an explicit64-hex Binding.ledgerHash without changing MDOPv1 bytes
+or the legacy empty operation-graph fingerprint. Complete initial accounting and
+no pending capture remain prerequisites; zeroes/empty-string hash are not substitutes.
+
+Bounded pure `PrivateCapturePlan` assembly will consume the exact initial frozen
+native map/typed Graph/control/ledger, canonical four roots/bootstrap, original
+source owner/shared budget and fixed generated preparation/operation/map/descriptor
+UUIDs plus successful private ClosedFrames belonging to that owner. It must validate
+all global generated-ID uniqueness, canonical tab/recovery/preferences order and
+presence; build exact D,204-byte BEGIN,P and173-byte LINK without cycles or callbacks;
+stream-hash the map without retaining a serialized map array; and reject insufficient
+shared data/control/namespace funding before persistence. Caller metadata owners
+must already be charged to the same budget; assembly charges its own records/copies.
+Its source-owner check requires original OPEN/idle binding under the primary lease;
+this is not final quiescence, full heap approval or publication/activation authority.
+
+The actual writer owns a private typed PreparationTransition, never a public
+accept-current-ledger method. Bind the compact complete baseline and old physical
+control/operation identities. Validate old expectation, perform only the writer's
+specific filesystem action, independently record verified bytes/identity, then call
+durability callbacks and recheck. Each own P/directory/artifact/BEGIN/LINK transition
+must reverse to the initial ledger with exact typed future-credit ownership. A live
+copy token is bound to one producer/artifact/stage inode and accepted prefix hash;
+it cannot adopt a partial stage, cross artifacts or resume after failure. Final
+native+artifact+source closure proof and BEGIN publication share one primary lease.
+Pre-LINK CLOSE permanently abandons activation. Future source handoff/reset needs
+the actual durable operation binding; generic finally-clear remains forbidden.
+Fresh proof workspace is prepaid once in the same budget, not a new16MiB allowance
+or repeated permanent charge on every refresh. Whole simultaneous heap/fault/reopen
+acceptance still requires actual producer tests and independent integration review.

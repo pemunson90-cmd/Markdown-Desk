@@ -8,7 +8,7 @@ bash verification/capture_source_ownership/run.sh
 
 Uses production `PreparationSources`, the actual parent-scoped HistoryStorage state,
 and the existing operation backend for cross-protocol callback checks. Current
-focused result: 166 assertions. This is not an end-to-end capture or device gate.
+focused result: 172 assertions. This is not an end-to-end capture or device gate.
 
 The helper precedes durable PREPARE/BEGIN. A producer capability, canonical primary
 root, preparation UUID and the caller's single shared monotonic metadata budget bind
@@ -51,3 +51,9 @@ reservation also checks identity against the original owner's budget; supplying 
 new independent budget rejects. This proves admission serialization, not the entire
 capture's simultaneous heap bound.
 No source callback queue, future, provider, persistence or app UI is introduced.
+
+`requireIdleBindingLocked(primary,preparation,budget)` is a narrow immutable-record
+assembly check: the exact registered owner must be OPEN with no live sources or
+running delegates, under its primary mutation lease. It rejects another role,
+preparation, budget or frozen state. OPEN/idle is not terminal quiescence and cannot
+replace the later freeze/claim or artifact/source validation.

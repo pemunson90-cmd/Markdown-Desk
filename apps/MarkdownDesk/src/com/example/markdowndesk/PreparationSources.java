@@ -61,6 +61,18 @@ final class PreparationSources {
     private void outsideHistory() throws IOException {
         if (Thread.holdsLock(history)) throw new IOException("Source callback work under history monitor");
     }
+    /** Assembly admission only: OPEN/idle is not a terminal quiescence proof. */
+    void requireIdleBindingLocked(File expectedRoot, UUID expectedPreparation,
+                                  HistoryStorage.Budget expectedBudget) throws IOException {
+        HistoryStorage.requireMutation(root); HistoryOperations.rejectParticipant();
+        synchronized (this) {
+            if (!root.equals(HistoryStorage.canonicalRoot(expectedRoot))
+                    || !preparation.equals(expectedPreparation) || budget != expectedBudget
+                    || HistoryStorage.preparationSources(root) != this
+                    || frozen || uncertain || claim != null || resources != 0 || running != 0)
+                throw new IOException("Preparation assembly requires its original idle source owner");
+        }
+    }
     /** Metadata consumers cannot create a second independent budget for this owner. */
     void reserveMetadata(HistoryStorage.Budget supplied, long bytes) throws IOException {
         outsideHistory(); HistoryOperations.rejectParticipant();

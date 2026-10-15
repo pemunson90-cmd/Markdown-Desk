@@ -50,6 +50,14 @@ public final class CaptureOwnershipCheck {
         PreparationSources.Reader crossed=cross.owner.open(()->{terminal.run();return new ByteArrayInputStream(bytes){public synchronized int read(byte[] b,int o,int n){terminal.run();return super.read(b,o,n);}public void close(){terminal.run();}};});crossed.read(bytes,0,1);crossed.close();check(crossGuards.get()==9,"actual operation freeze/drain reject preparation callback participants");cross.owner.freeze();cross.claim();
         for(int mode=0;mode<3;mode++)blocked(mode);
         Fixture runtime=new Fixture();try{runtime.owner.open(()->{throw new IllegalStateException("factory runtime");});throw new AssertionError("runtime swallowed");}catch(IllegalStateException expected){checks++;}runtime.owner.freeze();rejects(runtime::claim,"runtime failure permanently uncertain");
+        Fixture assembly=new Fixture();rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,assembly.budget),"assembly requires mutation lease");
+        synchronized(HistoryStorage.monitorFor(assembly.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(assembly.root)){
+            assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,assembly.budget);checks++;
+            rejects(()->assembly.owner.requireIdleBindingLocked(new File(assembly.root.getParentFile(),"catalog"),assembly.id,assembly.budget),"assembly wrong role rejected");
+            rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,UUID.randomUUID(),assembly.budget),"assembly wrong preparation rejected");
+            rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,new HistoryStorage.Budget(8192)),"assembly foreign budget rejected");
+        }}
+        assembly.owner.freeze();synchronized(HistoryStorage.monitorFor(assembly.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(assembly.root)){rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,assembly.budget),"frozen source owner cannot restart assembly");}}
         sharedBudget();
         System.out.println("PASS preparation source ownership: "+checks+" assertions; no producer/activation/device claim");
     }
