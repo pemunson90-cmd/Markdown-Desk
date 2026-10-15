@@ -61,6 +61,30 @@ final class PreparationSources {
     private void outsideHistory() throws IOException {
         if (Thread.holdsLock(history)) throw new IOException("Source callback work under history monitor");
     }
+    interface Publication { void run() throws IOException; }
+    /** Only synchronous durability callbacks, never source/provider stream I/O. */
+    void publicationCallbackLocked(Publication callback) throws IOException {
+        HistoryStorage.requireMutation(root);
+        if (callback == null) throw new IOException("Missing publication callback");
+        enter(); try { callback.run(); } finally { leave(); }
+    }
+    /** Trusted consumer IO outside history remains counted through closure/signals. */
+    void consumerCallback(Publication callback) throws IOException {
+        outsideHistory(); HistoryOperations.rejectParticipant();
+        if (callback == null) throw new IOException("Missing consumer callback");
+        synchronized (this) {
+            if (resources == 0) throw new IOException("Consumer work requires a live owned source");
+            running++;
+        }
+        enter();
+        try { callback.run(); }
+        finally { try { synchronized (this) { running--; } } finally { leave(); } }
+    }
+    /** A failed internal publication cannot invent same-process closure/recovery. */
+    void invalidateLocked() throws IOException {
+        HistoryStorage.requireMutation(root); HistoryOperations.rejectParticipant();
+        synchronized (this) { frozen = true; uncertain = true; }
+    }
     /** Assembly admission only: OPEN/idle is not a terminal quiescence proof. */
     void requireIdleBindingLocked(File expectedRoot, UUID expectedPreparation,
                                   HistoryStorage.Budget expectedBudget) throws IOException {

@@ -8,7 +8,7 @@ bash verification/capture_source_ownership/run.sh
 
 Uses production `PreparationSources`, the actual parent-scoped HistoryStorage state,
 and the existing operation backend for cross-protocol callback checks. Current
-focused result: 172 assertions. This is not an end-to-end capture or device gate.
+focused result: 181 assertions. This is not an end-to-end capture or device gate.
 
 The helper precedes durable PREPARE/BEGIN. A producer capability, canonical primary
 root, preparation UUID and the caller's single shared monotonic metadata budget bind
@@ -57,3 +57,19 @@ assembly check: the exact registered owner must be OPEN with no live sources or
 running delegates, under its primary mutation lease. It rejects another role,
 preparation, budget or frozen state. OPEN/idle is not terminal quiescence and cannot
 replace the later freeze/claim or artifact/source validation.
+
+Internal publication failure uses `invalidateLocked` to seal the process owner; it
+never guesses actual FD closure or resets admission. Synchronous durability
+callbacks alone use `publicationCallbackLocked` under the existing primary lease,
+with participant context but without holding the owner lock. This rejects inline
+claims even if another thread freezes admission while an internal FD is open.
+It does not allow source/provider open/read/close under the history monitor.
+
+Trusted internal sink IO uses `consumerCallback` outside the history monitor while
+an actual owned Reader is live. It retains a running participant through the whole
+callback, including source closure/signals, so a concurrent freeze/claim cannot
+succeed after the last Reader closes but before consumer work returns. The owner
+lock is never held across consumer callbacks. A token-authorized internal sink may
+enter nested `publicationCallbackLocked` durability under its existing mutation
+lease; that wrapper adds participant context, not authority. General source/provider
+I/O and public terminal/mutation entries remain prohibited under those guards.

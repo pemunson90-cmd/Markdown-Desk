@@ -58,6 +58,22 @@ public final class CaptureOwnershipCheck {
             rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,new HistoryStorage.Budget(8192)),"assembly foreign budget rejected");
         }}
         assembly.owner.freeze();synchronized(HistoryStorage.monitorFor(assembly.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(assembly.root)){rejects(()->assembly.owner.requireIdleBindingLocked(assembly.root,assembly.id,assembly.budget),"frozen source owner cannot restart assembly");}}
+        Fixture invalidated=new Fixture();rejects(invalidated.owner::invalidateLocked,"publication invalidation requires mutation lease");
+        synchronized(HistoryStorage.monitorFor(invalidated.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(invalidated.root)){invalidated.owner.invalidateLocked();}}
+        rejects(invalidated::claim,"failed internal publication cannot prove closure");rejects(()->PreparationSources.forPreparation(invalidated.root,UUID.randomUUID(),invalidated.budget,invalidated.producer),"invalidated publication cannot replace owner");
+        Fixture callback=new Fixture();callback.owner.freeze();
+        synchronized(HistoryStorage.monitorFor(callback.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(callback.root)){
+            callback.owner.publicationCallbackLocked(()->rejectIO(callback.owner::claimLocked,new AtomicInteger()));checks++;
+        }}
+        callback.claim();checks++;
+        Fixture consumer=new Fixture();rejects(()->consumer.owner.consumerCallback(()->{}),"consumer work needs a live owned source");
+        PreparationSources.Reader consuming=consumer.owner.open(()->new ByteArrayInputStream(bytes));
+        consumer.owner.consumerCallback(()->{
+            consuming.close();
+            AtomicReference<Throwable> outcome=new AtomicReference<>();Thread claimant=new Thread(()->{try{consumer.owner.freeze();consumer.claim();outcome.set(new AssertionError("running consumer hid behind source close"));}catch(Throwable expected){outcome.set(expected);}});claimant.start();try{claimant.join(5000);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IOException(interrupted);}
+            if(claimant.isAlive()||!(outcome.get() instanceof IOException))throw new AssertionError("consumer running work not counted",outcome.get());
+            synchronized(HistoryStorage.monitorFor(consumer.root)){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(consumer.root)){consumer.owner.publicationCallbackLocked(()->rejectIO(consumer.owner::claimLocked,new AtomicInteger()));}}
+        });checks+=2;consumer.claim();checks++;
         sharedBudget();
         System.out.println("PASS preparation source ownership: "+checks+" assertions; no producer/activation/device claim");
     }
