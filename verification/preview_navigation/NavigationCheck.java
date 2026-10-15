@@ -41,7 +41,7 @@ public final class NavigationCheck {
             eq(777,a.preview.y,"duplicate current finish cannot reset user scroll");eq(scrolls,a.preview.scrollCalls,"current page acknowledged only once");
         });
         run("same-page older scroll reset cannot release newer operation",()->{
-            MainActivity a=ready();a.mode=MainActivity.MODE_SPLIT;a.syncFromEditor();a.main.advance(60);a.syncFromEditor();a.main.advance(60);
+            MainActivity a=new MainActivity();a.mode=MainActivity.MODE_SPLIT;a.renderPreview();a.deliverRender();a.preview.commit(0);a.new AnonymousClass2().onPageFinished(a.preview,a.preview.loads.get(0).url);a.main.advance(300);a.syncFromEditor();a.main.advance(60);a.syncFromEditor();a.main.advance(60);
             eq(true,a.syncingFromEditor,"first same-page120ms reset cannot clear newer scroll operation");
         });
         run("late finish after shutdown cannot revive readiness",()->{
