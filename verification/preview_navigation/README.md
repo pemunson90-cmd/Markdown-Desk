@@ -1,5 +1,13 @@
 # Preview DOM identity and scroll ownership
 
+The print launcher enumerates its Android boundary stubs with core `find` and
+fails immediately if none are present. It requires no `rg`; all21 stub sources
+must be compiled. Hosted run38663648484 exposed the former launcher dependency.
+Its correction passed126 actual-helper and18 controlled-renderer checks in an
+environment without `rg`; production code and behavioral assertions are unchanged.
+
+The outline-navigation adaptation includes exact source context/state and retirement helpers needed by shared editor scrolling and preview acknowledgment. Current navigation extraction contains 45 members; existing 18 cases / 66 assertions pass unchanged, with no forced-true context boundary.
+
 Run with JDK17 on PATH:
 
 ```sh

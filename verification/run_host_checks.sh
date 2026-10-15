@@ -33,6 +33,7 @@ bash verification/status_behavior/run.sh test
 bash verification/statistics/run.sh
 bash verification/preview_behavior/run.sh
 bash verification/preview_navigation/run.sh
+bash verification/outline_navigation/run.sh
 bash verification/preview_navigation/run_print.sh
 bash verification/line_index/run.sh
 bash verification/syntax/run.sh
@@ -52,6 +53,7 @@ bash verification/history_diff/run.sh
 bash verification/history_ui/run.sh
 bash verification/history_ui_integration/run.sh
 bash verification/private_archive/run.sh all
+bash verification/scoped_private_archive/run.sh
 bash verification/private_state/run.sh
 bash verification/history_archive_manifest/run.sh
 bash verification/history_retention/run.sh

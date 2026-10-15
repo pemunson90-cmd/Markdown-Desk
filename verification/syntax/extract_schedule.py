@@ -13,6 +13,7 @@ def method(signature):
         end += 1
     return source[start:end].replace('MainActivity.this', 'SchedulingHarness.this')
 
+source_revision = re.search(r'private long sourceNavigationRevision;', source).group()
 field = re.search(r'private final MarkdownSyntaxHighlighter.State syntaxHighlight[^;]*;', source).group()
 methods = [method(signature) for signature in (
     'public void onTextChanged(CharSequence charSequence, int i, int i2, int i3)',
@@ -34,4 +35,4 @@ final class SchedulingHarness {
  boolean suppressChanges,dirty,dark;Runnable highlightRunnable;
  void invalidateStatistics(){}void invalidatePreview(){}void updateStatus(){}void updateTabsUi(){}
  void scheduleRecovery(){}void schedulePreview(){}void scheduleSession(){}
-''' + field + '\n' + '\n'.join(methods) + '\n}\n')
+''' + source_revision + '\n' + field + '\n' + '\n'.join(methods) + '\n}\n')

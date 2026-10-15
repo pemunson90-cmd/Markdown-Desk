@@ -1,5 +1,7 @@
 # Host execution of extracted mode/lock methods
 
+The outline-navigation adaptation additionally extracts the actual source-route generation field referenced by `setMode`; its increment remains in the real method. Existing 126 mode assertions, 43 label assertions and 4963 appearance assertions pass unchanged.
+
 Run `PATH="$JAVA_HOME/bin:$PATH" bash verification/mode_behavior/run.sh`.
 `ExtractMethods.java` uses javac's AST and source positions to extract five
 actual current MainActivity methods into a generated host harness. Assertions
