@@ -347,9 +347,10 @@ unavailable inputs must stop before any promotion/publication.
 
 1. Proposed package-private `HistoryPins.recoverCapture(UUID, Budget)` returns
    `PrivateCaptureWriter.CapturedBinding`; take no P/map/Graph/hash/profile DTOs.
-   Under the canonical primary monitor and one administration lease, re-inspect
-   installed ready authority, exact four roots/bootstrap, full control/ledger and
-   all source-lifetime exclusions. Reserve metadata before decoding/retaining it.
+   Under the canonical primary monitor and one administration lease, validate raw
+   typed enrollment/registration/policy chain, exact four roots/bootstrap, full
+   control/ledger funding and source-lifetime exclusions read-only; no fallback policy
+   or assumed installed readiness. Reserve metadata before decoding/retaining it.
    Require exactly the selected typed P, its embedded BEGIN and derived LINK IDs.
 2. Require complete map, D and every declared private frame, each final or exact
    complete stage, with real codecs, declared length/hash and bounded EOF. Check
@@ -401,7 +402,8 @@ unavailable inputs must stop before any promotion/publication.
    and compare P.binding.ledgerHash. Absent retains the exact legacy absent domain.
 8. Feed the private typed projection into the existing Graph builder/hasher while
    scanning all native files normally; do not manufacture a Graph or clear current
-   diagnostics. Exact full hash input order is: `read-only-history-graph-v1`; four basenames;
+   diagnostics. Before installation, policy inputs require authentic witness/raw-chain
+   agreement, not graphPolicy fallback. Exact full hash input order is: `read-only-history-graph-v1`; four basenames;
    constructor bootstrap quota; original nullable compatibility profile; control
    presence, actualBytes/Entries, usageComplete, state, ordered control tuples
    (filename,length,hash,stage); effective-policy presence/bundle/generation/hash/
@@ -415,7 +417,7 @@ unavailable inputs must stop before any promotion/publication.
    The omitted original compatibility profile stops current v1 here (before writes).
 9. With every input independently available, recompute `native-capture-sources-v1`
    through NativeCaptureFingerprint's real typed path: bundle/registration/bootstrap/
-   acknowledged generation/hash/quota/count; canonical role IDs/absolute root paths;
+   witness/raw-chain-proven generation/hash/quota/count; canonical role IDs/absolute root paths;
    native envelope total/native reserved bytes/slots; native row count and sorted
    role/name/length/hash tuples. Require P.binding.sourceHash equality. Do not replace
    the full graph/initial-ledger checks with this separate native predicate.
@@ -428,6 +430,13 @@ or hash-based factory. It must first reject the missing legacy graph input above
 HistoryControlStore owns shared typed classification; HistoryGraph owns only its
 private capability-checked projection/hash seam; NativeCaptureFingerprint owns its
 typed cold entry without pretending that a PreparationSources owner exists.
+HistoryCapacity needs a future private recovery-capability seam, analogous to its
+terminal candidate: existing open/reconcile rejects pin/prepared stages and cannot
+supply initial readiness for full BEGIN.stage. Only after authentic witness, typed
+reversal, native/artifact and resource proofs may that seam establish/retain exact
+installed ready provenance before publication; no existing API supplies this today.
+V1 refuses missing profile before this seam or any promotion. Revalidate installed
+authority identity/readiness after every callback; ordinary reconciliation stays strict.
 HistoryOperations owns `claimColdCompletionLocked` and all gate/resource exclusions;
 HistoryPins owns exact prepared-BEGIN/LINK publication. PrivateCaptureWriter alone
 may construct its existing private CapturedBinding using an added private overload
@@ -441,7 +450,7 @@ remove or reset owners. A separate cold claim is not cancellation's terminal cla
 Keep one lease from final native/artifact/reversed-graph proof through exact BEGIN,
 LINK acknowledgement and consumption into the captured-binding handoff. Recheck
 all current hashes, selected/old file inode/type/length/mtime/ctime anchors, directory keys,
-authority, exclusions and aggregate credits after each durability callback. No
+installed authority identity/readiness, exclusions and aggregate credits after each callback. No
 provider/source callback runs locked; callbacks cannot request quiescence/activation.
 The new process cannot reuse the dead producer Budget: the one caller Budget becomes
 the recovery producer Budget; authentic binding/activation must require that exact
