@@ -9,8 +9,8 @@ ROADMAP and RELEASE_GATES; reviewed plan blob `029269ba83b6897d4e0148c797db63311
 Main/origin main remains
 `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
 `codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
-The approved writer `92e41bb` and copy helper `b4bd0c9` are being batch-published
-on active draft PR #24.
+Reviewed A1 portable wire codecs are integrated at `88fb149` on the active draft
+PR #24; earlier writer/copy approvals retain their exact-artifact scope.
 
 The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
 It ran the required host suite once and audited two fresh unsigned builds, both
@@ -86,16 +86,32 @@ the aggregate host script; only shell syntax was checked for this registration r
 suite, APK or CI is claimed. Root owns orchestration and integration.
 Portable source contract `d43dbb17e110edb73eaf68d4597f208b4186d5d0` (plan blob
 `dab01bedacdafb650120a5d6339e3bde94694f01`) is accepted after independent e7 review
-and root's mechanical fix. A1 codec work is active in isolated `portable-wire-codecs`,
-owning Archive/Inventory/Evidence and its fixtures only; version3/schema2 source is
-NOT implemented or approved until committed and reviewed. No other source writer is active.
+and root's mechanical fix. A1 archive3/schema2 inventory/evidence wire codecs at exact
+`f98ca2913ebc40cbcef0520fba7c91a0a3f4ffe2` have scoped independent APPROVAL and
+are integrated at `88fb149`. Worker affected evidence: Wire51, archive memory3,
+legacy selector1403 and Evidence53 final checks (39 before repair plus 14).
+Review exposed duplicate owner/stage aliases; reader and writer are corrected,
+and 8 independent budget/control checks passed. Archive462 plus INDEX68 remain
+previous affected proof, not new runs. See the [affected codec notes](../verification/portable_wire_codecs/README.md).
+A2 record codec work is in progress in an isolated branch; runtime backup completion,
+semantic source routing/adoption and coordinated export/import remain OPEN.
+The portable wire runner is now registered once in the required host aggregate;
+only `bash -n verification/run_host_checks.sh` ran for this registration change.
+No aggregate or codec tests were rerun for this documentation/runner update.
 
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
-candidate. Avoid duplicating full gates.
+candidate. Avoid duplicating full gates; mandatory integration/release gates remain required.
 
-Next: prepare the separate cold completion/reversed-original-graph recovery slice;
-source and runtime integration remain OPEN. Preserve global
+Next: continue A2 record codec work, then bounded portable producer/runtime
+integration. Cold completion implementation remains blocked on an authentic persisted
+original profile. Contract `28147af8`
+(plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
+APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:
+the contract requires refusing cold completion without writes; no completion API is
+implemented. Eligible cancellation remains implemented.
+A future portable witness must retain that exact profile. Source/runtime implementation
+remains OPEN. Preserve global
 pending/prune blocks, all bytes/credits, physical namespace eligibility, selected-own
 completeness and immutable old-stage anchors. Runtime integration and lifecycle/error
 closure remain before downstream features.

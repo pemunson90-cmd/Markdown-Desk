@@ -53,6 +53,7 @@ bash verification/history_diff/run.sh
 bash verification/history_ui/run.sh
 bash verification/history_ui_integration/run.sh
 bash verification/private_archive/run.sh all
+bash verification/portable_wire_codecs/run.sh
 bash verification/scoped_private_archive/run.sh
 bash verification/private_state/run.sh
 bash verification/history_archive_manifest/run.sh

@@ -42,8 +42,8 @@ Worker execution stopped at an account usage limit during initial reconciliation
 Status meanings: **planned** = retained scope; **implemented** = source exists; **wired** = actual app entry point; **host** = scoped host evidence; **Android/device/release** = separate actual acceptance. No current feature is claimed release-accepted. Device/API/WebView behavior remains NOT RUN unless a later evidence record says otherwise.
 
 Current checkpoint: main/origin main remains `fdb7bd6` (PR23 merged). Active
-`codex/operation-data-capture` has draft PR24. Approved writer `92e41bb` and copy
-helper `b4bd0c9` are being batch-published on that active draft PR. The
+`codex/operation-data-capture` has draft PR24. Reviewed A1 portable wire codecs
+are integrated at `88fb149`; earlier writer/copy approvals remain scoped. The
 full clean gate at `8dcbea5` passed before subsequent C2 source additions; no newer
 full suite/build/hosted run is claimed. STATUS records exact gate evidence and
 hashes. Earlier failed printing fixture attempt46d8bd8 and correction4321957 remain
@@ -99,6 +99,25 @@ required before downstream storage consumers; broad batteries remain for feature
 Writer, activation, terminal-admission and cold-cancellation runners are registered in
 the aggregate host script; only shell syntax was checked for this registration revision. No 48-fault matrix, new full
 suite, APK or CI is claimed. Root owns orchestration and integration.
+Accepted portable contract `d43dbb17` now has A1 archive3/schema2 wire codecs:
+exact `f98ca2913ebc40cbcef0520fba7c91a0a3f4ffe2` has scoped independent APPROVAL,
+integrated at `88fb149`. Duplicate owner/stage aliases were corrected in reader and
+writer; 8 independent budget/control checks passed. [STATUS](../../STATUS.md) records
+the affected worker evidence and prior proofs. The required aggregate registers the
+portable runner once; only shell syntax was checked for this update, with no test rerun.
+A2 record codec work is in progress in an isolated branch. Runtime backup completion,
+semantic routing/adoption and coordinated export/import remain OPEN.
+
+Cold completion contract `28147af8` (plan blob
+`9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality APPROVAL
+and is integrated. V1 lacks the original nullable compatibility graph profile; the
+contract requires refusing cold completion without writes. No completion API is
+implemented; eligible cancellation remains implemented.
+Future portable witnesses must retain that exact profile. Source/runtime implementation
+remains OPEN. During development use minimum affected
+tests; broad regression/performance/migration batteries belong at the feature-complete
+candidate. The owner signs with the original key and tests Fold7 then; mandatory
+integration/release gates remain required.
 Independent substantive campaign plan review is approved at
 `73372f50db109c378235406a75ca7abbf4cd85a6`, reviewing plan blob
 `029269ba83b6897d4e0148c797db63311ddddda2` against ROADMAP and RELEASE_GATES; it
@@ -158,8 +177,9 @@ Team policy: root owns orchestration, integration and critical review. Use cheap
 
 | Ownership / worktree | Exact checkpoint | Disposition / next consumer |
 | --- | --- | --- |
-| Lead; orchestration/integration | draft PR24; completion/handoff1fe3c46 approved | Own integration/accounting, STATUS and coherent boundary. Approved checkpoints batch-published on active draft PR24; no C2 full gate after8dcbea5. |
-| Capture worker; operation-data-capture | Admission exact af9eebf97174e02c4ab64794a3e80e606179f443 implemented; scoped independent APPROVAL after 4 actual probe groups. Activation4795c3c retains scoped APPROVAL; earlier coordinator59 evidence historical; later cold results scoped separately | ADR006 direction accepted; first typed historical-cancellation admission slice implemented at af9eebf97174e02c4ab64794a3e80e606179f443; scoped independent APPROVAL after 4 actual probe groups; worker evidence: 12 groups and 871 HistoryManifestCheck checks PASS. Prepare cold completion/reversed-original-graph recovery next. Retain global pending/prune blocks, all bytes/credits, physically present namespace, selected-own completeness and immutable old-stage anchors. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold/runtime/full-heap/performance/migration/device remain open; minimum affected memory bounds precede downstream consumers. |
+| Lead; orchestration/integration | draft PR24; completion/handoff1fe3c46 approved | Own integration/accounting, STATUS and coherent boundary. A1 exact f98ca291 approved and integrated at88fb149 on draft PR24; no C2 full gate after8dcbea5. |
+| Capture worker; operation-data-capture | Admission exact af9eebf97174e02c4ab64794a3e80e606179f443 implemented; scoped independent APPROVAL after 4 actual probe groups. Activation4795c3c retains scoped APPROVAL; earlier coordinator59 evidence historical; later cold results scoped separately | ADR006 direction accepted; first typed historical-cancellation admission slice implemented at af9eebf97174e02c4ab64794a3e80e606179f443; scoped independent APPROVAL after 4 actual probe groups; worker evidence: 12 groups and 871 HistoryManifestCheck checks PASS. Cold completion contract28147af8 independently approved and integrated: contract requires refusing cold completion without writes when the original nullable profile is absent; no completion API is implemented. Eligible cancellation remains implemented. Cold completion implementation is blocked on an authentic persisted original profile; continue A2 then bounded portable producer/runtime integration. Retain global pending/prune blocks, all bytes/credits, physically present namespace, selected-own completeness and immutable old-stage anchors. Cold cancellation2078e8e2ceb401ffad4277d6428fac62f3a2e9db has scoped independent APPROVAL: 2 new foreign-audit probes plus 3 earlier scoped groups. Latest worker12 cold groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice; coordinator59 RED there→GREENa793960, not rerun2078e8e. Cold completion/reversed-original-graph recovery remains OPEN. Cold/runtime/full-heap/performance/migration/device remain open; minimum affected memory bounds precede downstream consumers. |
+| Portable codecs; isolated A2 branch | A1 exact f98ca291 scoped independent APPROVAL; integrated88fb149 | A2 record codec work in progress; no runtime backup completion. A1 affected proof and independent budget/control checks recorded in STATUS; no duplicated gate. |
 | Independent reviewer; accounting_repair_review | Completion/handoff1fe3c46 approved after 4 groups | Activation/source read/drain/CLOSE exact4795c3cdaeacea5a7ef134284929cdecba1c269f has scoped APPROVAL, including identity/budget/hashed-skip/resource closure and terminal retention/release checks. This does not approve cold source or runtime integration. |
 | Native fingerprint/source ownership/preflight/plan | a4cb514, e331477, c3177b8/2f1d14b, a89b284 | Integrated with scoped exact-artifact approvals. Historical evidence only for changed artifacts. |
 | Whole-campaign plan reviewer | `73372f50db109c378235406a75ca7abbf4cd85a6`; reviewed blob `029269ba83b6897d4e0148c797db63311ddddda2` | Substantive plan approved against ROADMAP/RELEASE_GATES; no cycles or missing clauses. Source review remains separately scoped. |
