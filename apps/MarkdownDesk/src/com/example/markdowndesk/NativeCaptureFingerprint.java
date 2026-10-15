@@ -35,8 +35,9 @@ final class NativeCaptureFingerprint {
     private final UUID bundle;
     private final String registrationHash,policyHash;
     private final long policyGeneration,bootstrapQuota,quota;
-    private final int automaticCount;
+    private final int automaticCount,nativeCount;
     private PhysicalProof active;
+    private final HistoryStorage.Budget originalBudget;
 
     private static final class Expected {
         final int directory;final String name,hash;final long length;
@@ -133,29 +134,38 @@ final class NativeCaptureFingerprint {
             if(kind.role.wireId-1!=role||record.id==null||!e.name.equals(record.id+"."+kind.nativeName)
                     ||e.length!=record.serializedBytes||!e.hash.equals(record.envelopeHash))throw invalid("Frozen native descriptor changed");
         }
-        NativeCaptureFingerprint result=new NativeCaptureFingerprint(frozen,graph,control,roots,entries,bootstrapQuotaBytes);
+        NativeCaptureFingerprint result=new NativeCaptureFingerprint(frozen,graph,control,roots,entries,bootstrapQuotaBytes,budget);
         result.validate(control,graph.effectivePolicy,false);
         Arrays.fill(result.anchors,null);
         return result;
     }
     private NativeCaptureFingerprint(HistoryArchiveManifest map,HistoryGraph.Graph graph,HistoryControlStore.Inspection control,
-            File[] roots,Expected[] entries,long bootstrap)throws IOException {
+            File[] roots,Expected[] entries,long bootstrap,HistoryStorage.Budget budget)throws IOException {
+        originalBudget=budget;nativeCount=map.entries.size();
         directories=roots;expected=entries;anchors=new BasicFileAttributes[entries.length+DIRECTORY_COUNT];seen=new boolean[entries.length];
         scratch=ByteBuffer.allocate(SCRATCH_BYTES);bundle=map.bundleId;
         registrationHash=HistoryStorage.hex(map.registrationHashBytes());policyHash=HistoryStorage.hex(map.policyHashBytes());
         policyGeneration=map.policyGeneration;quota=map.quotaBytes;automaticCount=map.automaticCount;bootstrapQuota=bootstrap;
         nativeEnvelopeBytes=map.nativeEnvelopeBytes;nativeReservedCompletionBytes=graph.reservedCompletionBytes;nativeReservedCompletionSlots=graph.reservedCompletionSlots;
         MessageDigest digest=HistoryStorage.digest();
-        try(DataOutputStream out=new DataOutputStream(new DigestOutputStream(new OutputStream(){public void write(int b){}public void write(byte[] b,int o,int n){}},digest))){
-            text(out,"native-capture-sources-v1");text(out,bundle.toString());text(out,registrationHash);
-            out.writeLong(bootstrapQuota);out.writeLong(policyGeneration);text(out,policyHash);out.writeLong(quota);out.writeInt(automaticCount);
-            for(int i=0;i<4;i++){out.writeInt(i+1);text(out,roots[i].getPath());}
-            out.writeLong(nativeEnvelopeBytes);out.writeLong(nativeReservedCompletionBytes);out.writeLong(nativeReservedCompletionSlots);
-            out.writeInt(map.entries.size());
-            // Full typed envelopes bind edges, history identities and reservation owners.
-            for(Expected e:entries)if(e.directory<4){out.writeInt(e.directory+1);text(out,e.name);out.writeLong(e.length);text(out,e.hash);}
-        }
+        try(DataOutputStream out=new DataOutputStream(new DigestOutputStream(new OutputStream(){public void write(int b){}public void write(byte[] b,int o,int n){}},digest))){writeOriginalInput(out);}
         fingerprint=HistoryStorage.hex(digest.digest());
+    }
+    void writeOriginalInput(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+        try {
+            requireLease();DataOutputStream out=input.writer(budget);
+            if(originalBudget!=budget)throw invalid("Native witness needs original metadata budget");
+            writeOriginalInput(out);input.seal(fingerprint);
+        }catch(IOException|RuntimeException|Error failure){if(input!=null)input.invalidate();throw failure;}
+    }
+    private void writeOriginalInput(DataOutputStream out)throws IOException {
+        text(out,"native-capture-sources-v1");text(out,bundle.toString());text(out,registrationHash);
+        out.writeLong(bootstrapQuota);out.writeLong(policyGeneration);text(out,policyHash);out.writeLong(quota);out.writeInt(automaticCount);
+        for(int i=0;i<4;i++){out.writeInt(i+1);text(out,directories[i].getPath());}
+        out.writeLong(nativeEnvelopeBytes);out.writeLong(nativeReservedCompletionBytes);out.writeLong(nativeReservedCompletionSlots);
+        out.writeInt(nativeCount);
+        // Full typed envelopes bind edges, history identities and reservation owners.
+        for(Expected e:expected)if(e.directory<4){out.writeInt(e.directory+1);text(out,e.name);out.writeLong(e.length);text(out,e.hash);}
     }
     /** One outstanding token. Fresh discovery deliberately has no old inode anchor. */
     PhysicalProof prove(HistoryControlStore.Inspection fresh,HistoryCapacity.EffectivePolicy acknowledged)throws IOException {

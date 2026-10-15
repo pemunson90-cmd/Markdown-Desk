@@ -117,18 +117,8 @@ final class PrivateCapturePlan {
         if(!canonicalHash(ledger.fingerprint)||rootIdentity==null||!rootIdentity.startsWith("dir:"))throw invalid("Noncanonical present ledger");
         for(Map.Entry<String,String> e:ledger.entries.entrySet())if(e.getKey()==null||e.getValue()==null||e.getKey().isEmpty()||e.getValue().isEmpty())throw invalid("Noncanonical operation entry");
         for(Map.Entry<String,String> e:ledger.controlIdentities.entrySet())if(e.getKey()==null||e.getValue()==null||e.getKey().isEmpty()||e.getValue().isEmpty())throw invalid("Noncanonical control identity");
-        // Recompute the existing ledger domain exactly; reject mutated DTO tables
-        // carrying a stale fingerprint/counter tuple. No new namespace traversal.
-        MessageDigest digest=HistoryStorage.digest();
-        try(DataOutputStream out=new DataOutputStream(new DigestOutputStream(discard(),digest))){
-            out.writeUTF("private-operation-ledger-v1");
-            for(Map.Entry<String,String> e:ledger.controlIdentities.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
-            for(Map.Entry<String,String> e:ledger.entries.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
-            for(HistoryControlStore.Entry e:control.entries)if(PrivateOperationStore.operationEntry(e)){out.writeUTF(e.filename);out.writeLong(e.length);out.writeUTF(e.envelopeHash==null?"":e.envelopeHash);out.writeBoolean(e.stage);}
-            out.writeLong(ledger.actualBytes);out.writeLong(ledger.reservedBytes);out.writeLong(ledger.occupiedEntries);out.writeLong(ledger.reservedEntries);
-            out.writeLong(control.controlReservedBytes);out.writeInt(control.controlReservedEntries);out.writeBoolean(ledger.complete);
-        }
-        if(!ledger.fingerprint.equals(HistoryStorage.hex(digest.digest())))throw invalid("Initial operation ledger fingerprint changed");
+        if(!ledger.fingerprint.equals(PrivateOperationStore.fingerprint(ledger,control)))
+            throw invalid("Initial operation ledger fingerprint changed");
     }
     /**
      * Transient original-C0 binding. The writer must compare freshly inspected
@@ -147,19 +137,32 @@ final class PrivateCapturePlan {
         Arrays.sort(entries,Comparator.comparing(e->e.filename));
         MessageDigest hash=HistoryStorage.digest();
         try(DataOutputStream out=new DataOutputStream(new DigestOutputStream(discard(),hash))){
-            out.write("MDOP-initial-control-v1\n".getBytes(StandardCharsets.US_ASCII));out.writeInt(entries.length);
-            String previous=null;
-            for(HistoryControlStore.Entry e:entries){
-                if(e.filename.equals(previous))throw invalid("Duplicate original control name");previous=e.filename;
-                ByteBuffer name=StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(e.filename));
-                if(name.remaining()>255)throw invalid("Original control name exceeds bound");
-                out.writeInt(name.remaining());out.write(name.array(),name.arrayOffset()+name.position(),name.remaining());out.writeLong(e.length);
-                for(int i=0;i<32;i++)out.writeByte((Character.digit(e.envelopeHash.charAt(2*i),16)<<4)|Character.digit(e.envelopeHash.charAt(2*i+1),16));
-                out.writeByte(e.stage?1:0);
-            }
+            writeInitialControlInput(entries,out);
         }
         return HistoryStorage.hex(hash.digest());
+    }
+    static void writeInitialControlInput(HistoryControlStore.Inspection control,HistoryStorage.Budget budget,HashInput input)throws IOException {
+        try {
+            DataOutputStream out=input.writer(budget);
+            // Validate before allocating the bounded sort table; same serializer as the digest.
+            String expected=initialControlHash(control);
+            HistoryControlStore.Entry[] entries=control.entries.toArray(new HistoryControlStore.Entry[control.entries.size()]);
+            Arrays.sort(entries,Comparator.comparing(e->e.filename));
+            writeInitialControlInput(entries,out);input.seal(expected);
+        }catch(IOException|RuntimeException|Error failure){if(input!=null)input.invalidate();throw failure;}
+    }
+    private static void writeInitialControlInput(HistoryControlStore.Entry[] entries,DataOutputStream out)throws IOException {
+        out.write("MDOP-initial-control-v1\n".getBytes(StandardCharsets.US_ASCII));out.writeInt(entries.length);
+        String previous=null;
+        for(HistoryControlStore.Entry e:entries){
+            if(e.filename.equals(previous))throw invalid("Duplicate original control name");previous=e.filename;
+            ByteBuffer name=StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(e.filename));
+            if(name.remaining()>255)throw invalid("Original control name exceeds bound");
+            out.writeInt(name.remaining());out.write(name.array(),name.arrayOffset()+name.position(),name.remaining());out.writeLong(e.length);
+            for(int i=0;i<32;i++)out.writeByte((Character.digit(e.envelopeHash.charAt(2*i),16)<<4)|Character.digit(e.envelopeHash.charAt(2*i+1),16));
+            out.writeByte(e.stage?1:0);
+        }
     }
     /** Canonical domain conversion; caller first validates complete canonical ledger evidence. */
     static String initialLedgerHash(PrivateOperationStore.Ledger ledger)throws IOException {
@@ -174,6 +177,86 @@ final class PrivateCapturePlan {
         if(add(data,artifacts)>quota||add(add(control,controlCredit),add(prepareBytes,PrivateOperationRecord.BEGIN_BYTES+HistoryPinRecord.CLOSE_BYTES+PrivateOperationRecord.LINK_BYTES))>HistoryControlStore.MAX_BYTES
                 ||add(controlSlots,4)>HistoryControlStore.MAX_ENTRIES||add(add(operationUsed,operationReserved),directories+artifactSlots)>PrivateOperationStore.MAX_ENTRIES)
             throw invalid("Insufficient capture funding");
+    }
+    /** Prepaid internal metadata source only. No filesystem, callbacks or protocol authority. */
+    static final class HashInput implements AutoCloseable {
+        private static final int PAGE=65536;
+        // Covers digest/UTF encoders, writeUTF's <=65535B carry, tables and stream wrappers.
+        private static final long WORKSPACE=256L<<10;
+        private final HistoryStorage.Budget budget;
+        private final Thread thread=Thread.currentThread();
+        private final int maximum;
+        private byte[][] pages;
+        private final MessageDigest digest;
+        private int state,count; // 0 empty,1 writing,2 sealed,3 invalid/closed
+        private String hash;
+        private boolean reader;
+        private HashInput(HistoryStorage.Budget budget,int maximum,int pageCount)throws IOException {
+            this.budget=budget;this.maximum=maximum;
+            pages=new byte[pageCount][];digest=HistoryStorage.digest();
+        }
+        static HashInput create(HistoryStorage.Budget budget,int maximum)throws IOException {
+            if(budget==null||maximum<0||maximum>HistoryStorage.METADATA_BUDGET)throw invalid("Invalid witness bound/budget");
+            int n=(int)((maximum+(long)PAGE-1)/PAGE);
+            budget.charge(WORKSPACE+maximum+64L*n); // before owner, table, digest or any page
+            return new HashInput(budget,maximum,n);
+        }
+        synchronized void requireEmpty(HistoryStorage.Budget supplied)throws IOException {
+            if(state!=0||thread!=Thread.currentThread()||budget!=supplied)throw invalid("Foreign or consumed witness writer");
+        }
+        synchronized DataOutputStream writer(HistoryStorage.Budget supplied)throws IOException {
+            requireEmpty(supplied);state=1;
+            return new DataOutputStream(new OutputStream(){
+                public void write(int b)throws IOException {
+                    try{append(b);}catch(IOException|RuntimeException|Error failure){invalidate();throw failure;}
+                }
+                public void write(byte[] b,int off,int len)throws IOException {
+                    try{append(b,off,len);}catch(IOException|RuntimeException|Error failure){invalidate();throw failure;}
+                }
+            });
+        }
+        private void writing(int n)throws IOException {
+            if(state!=1||thread!=Thread.currentThread()||n<0||n>maximum-count)throw invalid("Witness output exceeds its prepaid bound");
+        }
+        private synchronized void append(int b)throws IOException {
+            writing(1);int at=count/PAGE;if(pages[at]==null)pages[at]=new byte[Math.min(PAGE,maximum-at*PAGE)];
+            pages[at][count%PAGE]=(byte)b;count++;digest.update((byte)b);
+        }
+        private synchronized void append(byte[] b,int off,int len)throws IOException {
+            if(b==null||off<0||len<0||off>b.length-len)throw new IOException("Invalid witness write");
+            writing(len);int remaining=len;
+            while(remaining>0){int at=count/PAGE,offset=count%PAGE;
+                if(pages[at]==null)pages[at]=new byte[Math.min(PAGE,maximum-at*PAGE)];
+                int n=Math.min(remaining,pages[at].length-offset);System.arraycopy(b,off,pages[at],offset,n);
+                digest.update(b,off,n);count+=n;off+=n;remaining-=n;
+            }
+        }
+        synchronized void seal(String expected)throws IOException {
+            writing(0);hash=HistoryStorage.hex(digest.digest());
+            if(!hash.equals(expected)){invalidate();throw invalid("Canonical witness fingerprint mismatch");}state=2;
+        }
+        synchronized void invalidate(){state=3;pages=null;hash=null;}
+        private void sealed()throws IOException {if(state!=2)throw invalid("Witness is not sealed");}
+        synchronized long length()throws IOException {sealed();return count;}
+        synchronized String hash()throws IOException {sealed();return hash;}
+        synchronized InputStream open()throws IOException {
+            sealed();if(reader)throw invalid("Witness reader already open");
+            budget.charge(256); // each reader is charged before allocation; never refunded
+            InputStream result=new InputStream(){
+                private int position;private boolean closed;
+                private void ready()throws IOException {sealed();if(closed)throw invalid("Witness reader closed");}
+                public int read()throws IOException {synchronized(HashInput.this){ready();if(position==count)return -1;int n=pages[position/PAGE][position%PAGE]&255;position++;return n;}}
+                public int read(byte[] b,int off,int len)throws IOException {synchronized(HashInput.this){
+                    ready();if(b==null)throw new NullPointerException();if(off<0||len<0||off>b.length-len)throw new IndexOutOfBoundsException();
+                    if(len==0)return 0;if(position==count)return -1;
+                    int n=Math.min(Math.min(len,count-position),PAGE-position%PAGE);
+                    System.arraycopy(pages[position/PAGE],position%PAGE,b,off,n);position+=n;return n;
+                }}
+                public void close(){synchronized(HashInput.this){if(!closed){closed=true;reader=false;}}}
+            };
+            reader=true;return result;
+        }
+        public synchronized void close(){invalidate();} // metadata ownership ends; budget stays debited
     }
     private static final class HashSink extends OutputStream {
         final MessageDigest digest=HistoryStorage.digest();long length;
