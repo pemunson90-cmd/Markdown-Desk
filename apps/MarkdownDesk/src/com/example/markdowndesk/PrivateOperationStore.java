@@ -78,6 +78,8 @@ final class PrivateOperationStore {
         long actualBytes,reservedBytes,occupiedEntries,reservedEntries;
         boolean complete=true,present,pending;
         String fingerprint="";
+        private HistoryControlStore.Inspection originalControl;
+        private HistoryStorage.Budget originalBudget;
         final List<String> diagnostics=new ArrayList<>();
         final Map<String,String> entries=new TreeMap<>();
         final Map<String,String> controlIdentities=new TreeMap<>();
@@ -91,7 +93,7 @@ final class PrivateOperationStore {
         // Deliberately bind the existing native monitor; monitorFor(private_operations/UUID) is a different authority.
         Object monitor=HistoryStorage.monitorFor(nativeRoot);if(!Thread.holdsLock(monitor))throw new IOException("Native parent monitor required");
         budget.charge(HistoryStorage.operationEvidenceBytes(nativeRoot));
-        Ledger ledger=new Ledger();ledger.pending=control.operations.pending;ledger.present=control.operations.present;
+        Ledger ledger=new Ledger();ledger.originalControl=control;ledger.originalBudget=budget;ledger.pending=control.operations.pending;ledger.present=control.operations.present;
         if(!control.operations.valid)ledger.invalid("invalid commitments");
         Path root=HistoryStorage.canonicalRoot(nativeRoot).getParentFile().toPath().resolve(ROOT);
         Map<String,PrivateOperationRecord.Artifact> expected=new HashMap<>();Set<String> directories=new HashSet<>(),linkedArtifacts=new HashSet<>();boolean rootFunded=false;
@@ -141,11 +143,40 @@ final class PrivateOperationStore {
             ledger.controlIdentities.put(entry.filename,a.fileKey()+":"+a.creationTime()+":"+a.lastModifiedTime()+":"+a.size());
         }
         HistoryStorage.requireOperationEvidence(nativeRoot,control,ledger);
-        if(ledger.present){MessageDigest digest=HistoryStorage.digest();try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(new OutputStream(){public void write(int b){}public void write(byte[] b,int o,int n){}},digest))){
-            out.writeUTF("private-operation-ledger-v1");for(Map.Entry<String,String> e:ledger.controlIdentities.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}for(Map.Entry<String,String> e:ledger.entries.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
-            for(HistoryControlStore.Entry e:control.entries)if(operationEntry(e)){out.writeUTF(e.filename);out.writeLong(e.length);out.writeUTF(e.envelopeHash==null?"":e.envelopeHash);out.writeBoolean(e.stage);}out.writeLong(ledger.actualBytes);out.writeLong(ledger.reservedBytes);out.writeLong(ledger.occupiedEntries);out.writeLong(ledger.reservedEntries);out.writeLong(control.controlReservedBytes);out.writeInt(control.controlReservedEntries);out.writeBoolean(ledger.complete);
-        }ledger.fingerprint=HistoryStorage.hex(digest.digest());}
+        if(ledger.present)ledger.fingerprint=fingerprint(ledger,control);
         return ledger;
+    }
+    private static boolean canonicalAbsent(Ledger l,HistoryControlStore.Inspection c) {
+        return !l.present&&l.complete&&!l.pending&&l.diagnostics.isEmpty()&&l.fingerprint.isEmpty()
+            &&l.actualBytes==0&&l.reservedBytes==0&&l.occupiedEntries==0&&l.reservedEntries==0
+            &&l.entries.isEmpty()&&l.controlIdentities.isEmpty()&&c.chainComplete&&c.usageComplete
+            &&c.diagnostics.isEmpty()&&c.operations.valid&&!c.operations.present&&!c.operations.pending;
+    }
+    /** One canonical present-ledger serialization, shared with Plan validation and witness output. */
+    static void writeFingerprintInput(Ledger l,HistoryControlStore.Inspection c,DataOutputStream out)throws IOException {
+        if(!l.present)throw new IOException("Absent ledger has no fingerprint stream");
+        out.writeUTF("private-operation-ledger-v1");
+        for(Map.Entry<String,String> e:l.controlIdentities.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
+        for(Map.Entry<String,String> e:l.entries.entrySet()){out.writeUTF(e.getKey());out.writeUTF(e.getValue());}
+        for(HistoryControlStore.Entry e:c.entries)if(operationEntry(e)){out.writeUTF(e.filename);out.writeLong(e.length);out.writeUTF(e.envelopeHash==null?"":e.envelopeHash);out.writeBoolean(e.stage);}
+        out.writeLong(l.actualBytes);out.writeLong(l.reservedBytes);out.writeLong(l.occupiedEntries);out.writeLong(l.reservedEntries);
+        out.writeLong(c.controlReservedBytes);out.writeInt(c.controlReservedEntries);out.writeBoolean(l.complete);
+    }
+    static String fingerprint(Ledger l,HistoryControlStore.Inspection c)throws IOException {
+        MessageDigest digest=HistoryStorage.digest();
+        try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(new OutputStream(){public void write(int b){}public void write(byte[] b,int off,int len){}},digest))){writeFingerprintInput(l,c,out);}
+        return HistoryStorage.hex(digest.digest());
+    }
+    static void writeOriginalInput(Ledger l,HistoryControlStore.Inspection c,HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+        try {
+            DataOutputStream out=input.writer(budget);
+            if(l==null||c==null||l.originalControl!=c||l.originalBudget!=budget)throw new IOException("Missing original ledger/control/budget binding");
+            if(l.present){writeFingerprintInput(l,c,out);input.seal(l.fingerprint);}
+            else {
+                if(!canonicalAbsent(l,c))throw new IOException("Unproven canonical ledger absence");
+                input.seal(HistoryStorage.hex(HistoryStorage.digest().digest()));
+            }
+        }catch(IOException|RuntimeException|Error failure){if(input!=null)input.invalidate();throw failure;}
     }
     /** Typed accounting classification only. Actual new-owner admission is separate. */
     static boolean historicalCancelledOnly(HistoryControlStore.Inspection c,Ledger l) {
