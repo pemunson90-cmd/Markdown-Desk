@@ -84,12 +84,12 @@ final class MainActivity {
             if(callback!=null){final String reply=value;Runnable r=()->callback.onReceiveValue(reply);if(holdReplies)replies.add(r);else r.run();}
         }
     }
-    static final class Layout {int getLineForOffset(int offset){return offset;}int getLineTop(int line){return line*10;}}
+    static final class Layout {final int length;Layout(int length){this.length=length;}int getLineForOffset(int offset){return Math.min(length,offset);}int getLineTop(int line){return line*10;}int getLineStart(int line){return line;}int getLineForVertical(int y){return Math.max(0,y/10);}int getLineCount(){return length+1;}}
     static final class Editor {
-        String text="# Start\n\nbody\n\n## Target\nmore text\n";int scrollCalls,y,selection,selectionEnd;final List<Runnable> posts=new ArrayList<>();
+        String text="# Start\n\nbody\n\n## Target\nmore text\n";int scrollCalls,y,selection,selectionEnd;boolean layoutAvailable=true;final List<Runnable> posts=new ArrayList<>();
         int getSelectionStart(){return selection;}int getSelectionEnd(){return selectionEnd;}int getScrollY(){return y;}
         CharSequence getText(){return text;}int length(){return text.length();}void setSelection(int offset){selection=selectionEnd=offset;}void setSelection(int start,int end){selection=start;selectionEnd=end;}void requestFocus(){}
-        boolean post(Runnable r){posts.add(r);return true;}void removeCallbacks(Runnable r){posts.remove(r);}Layout getLayout(){return new Layout();}
+        boolean post(Runnable r){posts.add(r);return true;}void removeCallbacks(Runnable r){posts.remove(r);}Layout getLayout(){return layoutAvailable?new Layout(text.length()):null;}
         void scrollTo(int x,int y){this.y=y;scrollCalls++;}void drain(){List<Runnable> copy=new ArrayList<>(posts);posts.clear();for(Runnable r:copy)r.run();}
     }
     static final class DocumentTab {int previewScrollY,editorScrollY,selectionStart,selectionEnd,mode;String uri,displayName,text,baselineHash;long baselineModified;boolean utf8Bom,readOnly,editorLocked,dirty;final String id;DocumentTab(String id){this.id=id;}}
@@ -102,7 +102,7 @@ final class MainActivity {
     long previewRevision;float previewFontSp=18;String displayName="A.md";
     UiTheme.Palette palette=UiTheme.palette(0,false);Runnable previewRunnable,editorSyncRunnable,previewSyncRunnable;
     boolean isFinishing(){return finishing;}boolean isDestroyed(){return preview.destroyed;}int dp(int value){return value;}int clamp(int value,int low,int high){return Math.max(low,Math.min(high,value));}void showError(String error){errors.add(error);}
-    boolean openExternal(Uri uri){throw new AssertionError("External navigation is outside this fixture");}int editorOffsetAtViewport(){return 17;}
+    boolean openExternal(Uri uri){throw new AssertionError("External navigation is outside this fixture");}int viewportOffset(){return editorOffsetAtViewport();}
     // Full Android layout is NOT executed. Preserve only the actual render-affecting calls/order.
     void rebuildBody(){bodyRebuilds++;invalidatePreview();if(mode!=MODE_EDIT)renderPreview();}
     QueueExecutor worker(){return (QueueExecutor)renderIo;}
@@ -119,10 +119,19 @@ final class MainActivity {
     long scrollOperation(){return previewScrollOperation;}
 
     void syncFromEditor(){lambda$schedulePreviewSyncFromEditor$72();}
-    void syncFromPreview(){lambda$scheduleEditorSyncFromPreview$75();}
+    void syncFromPreview(){lambda$scheduleEditorSyncFromPreview$75();}void queuePreviewSync(){scheduleEditorSyncFromPreview();}
     void capture(){captureActiveTab();}
     void scrollEvent(int y){lambda$buildInterface$7(preview,0,y,0,0);}
     void scheduleSession(){sessions++;}
     void stop(){stopPreview();}
+    interface Editable extends CharSequence {}
+    interface TextWatcher {void beforeTextChanged(CharSequence s,int a,int b,int c);void onTextChanged(CharSequence s,int a,int b,int c);void afterTextChanged(Editable e);}
+    boolean suppressChanges;
+    static final class SyntaxBoundary {void changed(CharSequence s,int a,int b,int c){}}
+    final SyntaxBoundary syntaxHighlight=new SyntaxBoundary();
+    void continueMarkdownLine(Editable e){}void invalidateStatistics(){}void updateTabsUi(){}void scheduleRecovery(){}void scheduleHighlightEdit(){}
+    final TextWatcher watcher=/* WATCHER */;
+    void changed(String text,boolean suppressed){editor.text=text;suppressChanges=suppressed;watcher.onTextChanged(text,0,0,text.length());suppressChanges=false;}
+    int pendingIntents(){return pendingOutlineNavigation==null?0:1;}long sourceRevision(){return sourceNavigationRevision;}
     /* EXACT_MEMBERS */
 }

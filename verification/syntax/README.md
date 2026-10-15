@@ -1,5 +1,7 @@
 # Affected-range syntax checks
 
+The outline-navigation adaptation copies the actual source-navigation revision declaration used by the real watcher. The focused SchedulingCheck passes (90ms coalescing, suppressed tab switch, theme reset); the unchanged syntax comparison and benchmark were not repeated for this adaptation.
+
 Run `PATH="$JAVA_HOME/bin:$PATH" bash verification/syntax/run.sh`; add `bench`
 for the matched host measurements in `verification/build/syntax/benchmark.csv`.
 The recorded five-sample series is `benchmark-2026-10-14.csv` beside this file.

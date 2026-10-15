@@ -22,7 +22,7 @@ public final class ExtractStatus {
             for (Tree type : unit.getTypeDecls()) {
                 if (!(type instanceof ClassTree) || !((ClassTree) type).getSimpleName().contentEquals("MainActivity")) continue;
                 for (Tree member : ((ClassTree) type).getMembers()) {
-                    if (member instanceof VariableTree && ((VariableTree) member).getName().toString().startsWith("statistics")) {
+                    if (member instanceof VariableTree && (((VariableTree) member).getName().toString().startsWith("statistics") || ((VariableTree) member).getName().contentEquals("sourceNavigationRevision"))) {
                         fields.add(content.substring((int) positions.getStartPosition(unit, member),
                                 (int) positions.getEndPosition(unit, member)));
                     }
