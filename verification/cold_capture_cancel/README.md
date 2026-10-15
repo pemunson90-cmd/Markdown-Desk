@@ -59,3 +59,16 @@ full-heap/performance/migration, device durability and broad feature-completion 
 are excluded. The old 48-fault matrix, full host suite, APK builds and hosted CI are
 not run by this runner. Existing maintenance/retirement guards are unchanged; their
 prior independently reviewed admission coverage is not relabelled as a new run.
+
+Compatibility regression check: `bash verification/history_operations/run.sh coordinator`
+was RED on `53b1ded` at `OperationQuiescenceCheck.wholeTransfer` (line 102).
+An ordinary counted consumer may request freeze/quiescence from its transfer callback;
+its live resource still prevents a proof until actual closure. Cold-cancellation
+synchronous durability callbacks have a separate participant marker and cannot make
+those requests. All terminal claims continue rejecting every operation/source
+participant. The marker is removed in `finally`, including throwing callbacks.
+
+After the narrow marker fix, the unchanged coordinator runner passes all 59 checks;
+the cold cancellation runner passes all 11 focused groups. Both compile production
+source with `--release 11`. No full host suite, restart matrix, build or CI was run
+for this compatibility correction.

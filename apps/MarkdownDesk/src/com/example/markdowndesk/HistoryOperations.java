@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 final class HistoryOperations {
     private enum Phase {COLD_FROZEN,OPEN,FREEZING,QUIESCENT,TERMINATING,TERMINAL_RETRY,TERMINAL}
     private static final ThreadLocal<Integer> PARTICIPANT=new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> COLD_CANCELLATION_PARTICIPANT=new ThreadLocal<>();
     private final File root;private final Object history;private final Object gateLock=new Object();private final HistoryPins probe;
     private final Map<String,Gate> gates=new HashMap<>();
     private HistoryOperations(ProtectionStore store,HistoryCatalog catalog,HistoryIdentity identity,HistoryIndex index)throws IOException {
@@ -120,14 +121,14 @@ final class HistoryOperations {
     }
     private static void activation(Gate gate)throws IOException {if(gate.phase!=Phase.COLD_FROZEN&&gate.phase!=Phase.QUIESCENT)throw new IOException("Operation cannot activate");}
     DrainRequest freezeForTerminal(String operation)throws IOException {
-        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
+        outsideHistory();rejectFreezeParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
         synchronized(history){try(HistoryStorage.MutationScope lease=HistoryStorage.administration(root)){
             HistoryPinRecord begin=probe.operationBeginLocked(operation,true);
             synchronized(gateLock){Gate gate=bind(begin);if(gate.phase!=Phase.TERMINAL)freezeGate(gate);request=new DrainRequest(this,gate);collect(gate,signals);}
         }}signal(signals);return request;
     }
     DrainRequest freeze(OperationHandle handle)throws IOException {
-        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
+        outsideHistory();rejectFreezeParticipant();List<Runnable> signals=new ArrayList<>();DrainRequest request;
         synchronized(gateLock){Gate gate=handle(handle,false);freezeGate(gate);request=new DrainRequest(this,gate);collect(gate,signals);}signal(signals);return request;
     }
     private void freezeGate(Gate gate)throws IOException {
@@ -137,7 +138,7 @@ final class HistoryOperations {
         for(CallbackTicket ticket:gate.pending){ticket.done=true;ticket.callback=null;}gate.pending.clear();
     }
     CompletionStage<Quiescence> quiesce(DrainRequest request)throws IOException {
-        outsideHistory();rejectParticipant();List<Runnable> signals=new ArrayList<>();CompletableFuture<Quiescence> future=new CompletableFuture<>();
+        outsideHistory();rejectFreezeParticipant();List<Runnable> signals=new ArrayList<>();CompletableFuture<Quiescence> future=new CompletableFuture<>();
         synchronized(gateLock){if(request==null||request.owner!=this||request.epoch!=request.gate.epoch)throw new IOException("Foreign drain request");Gate gate=request.gate;
             if(gate.phase!=Phase.FREEZING&&gate.phase!=Phase.QUIESCENT&&gate.phase!=Phase.TERMINAL_RETRY&&gate.phase!=Phase.TERMINAL)throw new IOException("Operation is not frozen");gate.waiters.add(future);collect(gate,signals);}
         signal(signals);return future.thenApply(value->value);
@@ -154,6 +155,11 @@ final class HistoryOperations {
         if(open&&handle.gate.phase!=Phase.OPEN)throw new IOException("Operation admission frozen");return handle.gate;
     }
     private void outsideHistory()throws IOException {if(Thread.holdsLock(history))throw new IOException("Operation work/signaling under history monitor");}
+    /** Consumers may request a drain while their counted work still prevents quiescence. */
+    private static void rejectFreezeParticipant()throws IOException {
+        PreparationSources.rejectParticipant();
+        if(COLD_CANCELLATION_PARTICIPANT.get()!=null)throw new IOException("Cold cancellation participant cannot request quiescence");
+    }
     static void rejectParticipant()throws IOException {if(PARTICIPANT.get()!=null)throw new IOException("Terminal entry from operation participant");PreparationSources.rejectParticipant();}
     private static void enter(){Integer n=PARTICIPANT.get();PARTICIPANT.set(n==null?1:n+1);}
     private static void leave(){int n=PARTICIPANT.get();if(n==1)PARTICIPANT.remove();else PARTICIPANT.set(n-1);}
@@ -261,7 +267,8 @@ final class HistoryOperations {
     }
     /** Synchronous durability participants cannot fabricate quiescence or publish another terminal. */
     static void cancellationCallbackLocked(PreparationSources.Publication callback)throws IOException {
-        rejectParticipant();enter();try{callback.run();}finally{leave();}
+        rejectParticipant();COLD_CANCELLATION_PARTICIPANT.set(Boolean.TRUE);enter();
+        try{callback.run();}finally{try{leave();}finally{COLD_CANCELLATION_PARTICIPANT.remove();}}
     }
     static final class Claim implements AutoCloseable {
         private final HistoryOperations owner;private final Gate gate;private final long epoch;private boolean done;
