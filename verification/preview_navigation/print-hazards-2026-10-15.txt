@@ -1,0 +1,18 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 29 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE print waits for current render
+FAIL no print adapter before captured render completes expected=0 actual=1
+CASE print waits for DOM commit after render delivery
+FAIL render delivery alone cannot authorize printing old DOM expected=0 actual=1
+CASE print cannot retarget to later active tab
+FAIL print title remains captured originating document expected=A.md actual=B.md
+FAIL print content remains captured originating document expected=<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale… (2835 chars) actual=<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale… (2834 chars)
+CASE successful ready print control
+CASE unavailable print service restores temporary mode
+FAIL missing service restores original Write mode expected=0 actual=1
+RED preview-navigation: 5 cases, 14 assertions, 5 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 5
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:131)

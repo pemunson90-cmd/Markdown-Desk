@@ -1,0 +1,24 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 31 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE current load and real renderer control
+CASE old finish while latest render waits
+CASE same URL callbacks have no accepted-load identity
+CASE old reset cannot end newer scroll suppression
+CASE duplicate current finish preserves user scroll
+CASE same-page older scroll reset cannot release newer operation
+CASE preview-to-editor deferred last hop rejects changed tab
+CASE late finish after shutdown cannot revive readiness
+CASE readiness requires complete DOM and exact JSON identity
+CASE global physical probe remains bounded across page replacement
+FAIL rapid replacements retain one physical readiness callback expected=1 actual=100
+CASE held old probe cannot block or acknowledge newer page
+CASE coalesced current finish retries after older DOM response
+CASE probe delivery checks live document options and shutdown
+CASE duplicate current completion never adds another probe
+CASE old same-page JS reply cannot clear newer operation
+RED preview-navigation: 15 cases, 56 assertions, 1 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 1
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:145)

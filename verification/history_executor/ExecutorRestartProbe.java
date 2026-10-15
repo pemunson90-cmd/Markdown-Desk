@@ -12,7 +12,7 @@ public final class ExecutorRestartProbe {
         if(mode.equals("init")){
             f.prepare(3,true);HistoryPins pins=HistoryPins.open(f.store,f.catalog,f.identity,f.index,f.disk);
             String op=pins.begin(HistoryPinRecord.Purpose.EXPORT,HistoryPinRecord.Scope.EXACT_SUBSET,Collections.singleton(f.old.original.id),HistoryPins.ManifestIdentity.read(HistoryPinRecord.Domain.NATIVE_HISTORY_V1,0,new ByteArrayInputStream(new byte[0])));
-            pins.close(op,HistoryPinRecord.Outcome.CANCELLED,null);f.preview();Files.write(root.resolveSibling("selection"),f.selection);
+            HistoryOperations operations=pins.operations();HistoryOperations.Quiescence proof=operations.quiesce(operations.freezeForTerminal(op)).toCompletableFuture().getNow(null);if(proof==null)throw new AssertionError("Synthetic zero-work operation did not quiesce");pins.close(proof,HistoryPinRecord.Outcome.CANCELLED,null);f.preview();Files.write(root.resolveSibling("selection"),f.selection);
             for(HistoryPruneIntent.Member member:f.intent.members)System.out.println("REMOVE "+member.key());
             System.out.println("RESERVE "+f.capacity.inspect().completionReservedBytes);return;
         }

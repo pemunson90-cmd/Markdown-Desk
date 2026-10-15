@@ -9,13 +9,15 @@ statistics, syntax, storage and save/session callbacks are explicit host boundar
 Tab changes are simulated through active-tab state plus the actual watcher and
 layout invalidation, not a full Android Activity lifecycle.
 
-Observed 2026-10-14: **402 checks PASS**, `-Xmx128m`. Checks include unchanged180ms
+Observed 2026-10-15 after navigation integration: **438 checks PASS**, `-Xmx128m`. Checks include unchanged180ms
 cadence, no snapshot during100keystrokes, one delayed snapshot, hidden-mode
 invalidation, suppressed setText, stale delivery before the next debounce,
 2000replacements before worker execution and while a delivery is held, A-B-A
 changes, tab closure, font/palette/mode/document acceptance, scroll capture,
-shutdown and executor rejection. Full HTML equals the unchanged production
-renderer for all9themes ×3font sizes. A real single-thread executor tests delivery
+shutdown and executor rejection. After removing only the trusted root navigation attribute, full HTML equals the
+unchanged production renderer for all9themes ×3font sizes. The extractor now
+includes page metadata/wrapping and the invalidation boundary fields; navigation
+and DOM callbacks are exercised separately in `verification/preview_navigation`. A real single-thread executor tests delivery
 backpressure and close. A separate memory case replaces32pending8MiB Strings
 while holding32MiB headroom and a queued delivery; it deliberately does not render
 those8MiB inputs. This proves bounded pending retention, not renderer peak memory.
@@ -84,9 +86,12 @@ retained-heap comparisons. The functional128MiB test is separate memory evidence
 ## Limits and separate existing behavior
 
 Physical Android/WebView/IME/Fold, device input latency, GC and scroll/printing
-acceptance are **NOT RUN**. Existing onPageFinished uses a common URL and does not
-identify stale WebView navigation completions. The queue change rejects old HTML
-before load but cannot retract a previously accepted load already inside WebView;
-its scroll-ready callback ordering needs a separate navigation protocol/device
-test. Existing350ms printing readiness behavior is also unchanged. No renderer,
-HTML/options, print navigation protocol, source limits or UI modes were redesigned.
+acceptance are **NOT RUN**. Navigation now probes an explicit DOM identity and
+complete readyState before acknowledging the current page; separate exact-source
+fixtures cover stale callbacks, repeated acknowledgment and scroll-operation
+ownership. See `verification/preview_navigation` for source RED→GREEN evidence and
+measured HTML-wrapper overhead. The renderer and base URL remain unchanged.
+Existing350ms print behavior remains a separate RED diagnostic and is not repaired
+by navigation readiness. The outline preview polling helper also remains outside
+this slice. Historical measurements above still describe the original queue
+change; they are not remeasured or attributed to navigation wrapping.

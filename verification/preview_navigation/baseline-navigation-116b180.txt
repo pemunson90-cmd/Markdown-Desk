@@ -1,0 +1,34 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 24 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: verification/build/preview-navigation/MainActivity.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE native scroll from unacknowledged DOM preserves new tab state
+FAIL old DOM native scroll cannot overwrite pending tab scroll expected=91 actual=7
+FAIL unacknowledged scroll cannot schedule persisted session expected=0 actual=1
+CASE native capture cannot persist old DOM coordinate in pending tab
+FAIL pending tab capture preserves its saved preview coordinate expected=91 actual=7
+CASE outgoing acknowledged page preserves scroll on option changes
+CASE current load and real renderer control
+CASE old finish while latest render waits
+FAIL old completion cannot mark pending B ready expected=false actual=true
+FAIL old completion cannot apply B restore position expected=1 actual=2
+CASE same URL callbacks have no accepted-load identity
+FAIL old same-URL completion cannot certify uncommitted revision expected=false actual=true
+CASE old reset cannot end newer scroll suppression
+FAIL prior 160ms reset cannot clear newer navigation suppression expected=true actual=false
+CASE duplicate current finish preserves user scroll
+FAIL duplicate current finish cannot reset user scroll expected=777 actual=0
+FAIL current page acknowledged only once expected=1 actual=2
+CASE same-page older scroll reset cannot release newer operation
+FAIL first same-page120ms reset cannot clear newer scroll operation expected=true actual=false
+CASE preview-to-editor deferred last hop rejects changed tab
+FAIL old preview offset cannot scroll new tab at deferred editor hop expected=0 actual=1
+CASE late finish after shutdown cannot revive readiness
+FAIL closed worker cannot become ready through old finish expected=false actual=true
+FAIL closed preview cannot be scrolled by late finish expected=1 actual=2
+RED preview-navigation: 11 cases, 28 assertions, 13 failures
+Exception in thread "main" java.lang.AssertionError: Baseline readiness/cleanup safety assertions failed: 13
+	at com.example.markdowndesk.NavigationCheck.main(NavigationCheck.java:152)

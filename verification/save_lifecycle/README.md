@@ -7,7 +7,7 @@ bash verification/save_lifecycle/run.sh
 bash verification/save_lifecycle/run.sh --safety
 ```
 
-Current observed safety coverage: **39 cases / 320 assertions PASS**. Baseline
+Current observed safety coverage: **40 cases / 323 assertions PASS**. Baseline
 mode retains all ordinary lifecycle cases; safety mode adds six Save As identity
 and continuation checks. The initial protected-save additions were RED with
 five failures: no original/attempted protection, generic force bypassing changed
@@ -21,6 +21,12 @@ The runner extracts unchanged production MainActivity method text through javac
 AST source positions. It exercises request capture, picker results, actual
 conflict dialog closures, protected worker, success/failure callbacks, async
 version listing and explicit restore picker, and disk-revalidated copy worker.
+The capture fixture now models explicit acknowledged-tab preview ownership;
+pending or foreign DOM state cannot replace stored scroll, while acknowledged
+current scroll can. The full production navigation predicate runs separately in
+`verification/preview_navigation`; this suite models that boundary rather than
+returning unconditional readiness. Existing save-route assertions remain intact.
+
 The controller accessor and history invalidation method are also extracted
 unchanged. DocumentTab, EditorTools, ProtectionStore, SaveCoordinator,
 HistoryController, HistoryCapacity, HistoryIdentity and HistoryIndex are actual

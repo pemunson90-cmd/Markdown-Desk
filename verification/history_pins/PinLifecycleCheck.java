@@ -30,10 +30,10 @@ public final class PinLifecycleCheck {
             f.store.putSnapshot("tab","uri","title",2,new byte[]{6},"attempted");
             f.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,5));
             check(pins.resume(id,input()).generation==0,"policy ancestor remains pinned");blocked(f);
-            pins.close(id,outcome,outcome==Outcome.RELEASED?input():null);
+            close(pins,id,outcome,outcome==Outcome.RELEASED?input():null);
             check(!graph(f).scan().diagnostics.contains("graph: active or unreconciled operation pin"),"durable close releases operation gate");
             check(f.capacity.inspect().controlReservedBytes==0&&f.capacity.inspect().controlReservedEntries==0,"closed credit converted");
-            pins.close(id,outcome,null);rejects(()->pins.close(id,outcome==Outcome.RELEASED?Outcome.CANCELLED:Outcome.RELEASED,null),"immutable outcome");
+            close(pins,id,outcome,null);rejects(()->close(pins,id,outcome==Outcome.RELEASED?Outcome.CANCELLED:Outcome.RELEASED,null),"immutable outcome");
             check(inspect(f).pins.begins.size()==1&&inspect(f).pins.closes.size()==1,"audit retained");
         }
     }
@@ -44,14 +44,14 @@ public final class PinLifecycleCheck {
         rejects(()->pins.begin(Purpose.EXPORT,Scope.EXACT_SUBSET,Collections.singleton(f.pending.id),manifest()),"transaction is not snapshot");
         String id=begin(f,pins,Scope.EXACT_SUBSET);Path snapshot=f.parent.resolve("store/"+f.original.id+".snapshot");byte[] bytes=Files.readAllBytes(snapshot);bytes[bytes.length-1]^=1;Files.write(snapshot,bytes);
         rejects(()->pins.resume(id,input()),"changed pinned input");
-        for(Outcome outcome:Outcome.values())rejects(()->pins.close(id,outcome,input()),"new close never forgives source corruption");
+        for(Outcome outcome:Outcome.values())rejects(()->close(pins,id,outcome,input()),"new close never forgives source corruption");
         blocked(f);
-        Fixture closed=new Fixture();HistoryPins closedPins=open(closed);String closedId=begin(closed,closedPins,Scope.EXACT_SUBSET);closedPins.close(closedId,Outcome.CANCELLED,null);
+        Fixture closed=new Fixture();HistoryPins closedPins=open(closed);String closedId=begin(closed,closedPins,Scope.EXACT_SUBSET);close(closedPins,closedId,Outcome.CANCELLED,null);
         Files.delete(closed.parent.resolve("store/"+closed.original.id+".snapshot"));open(closed);check(!HistoryPins.pruneBlocked(closed.store.storageRoot(),inspect(closed)),"closed audits do not dereference retired sources");
     }
     static void callbacks()throws Exception {
         Fixture f=new Fixture();HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);
-        InputStream nested=new ByteArrayInputStream(manifest){boolean fired;public synchronized int read(byte[] b,int off,int len){if(!fired){fired=true;try{pins.close(id,Outcome.CANCELLED,null);throw new AssertionError("nested close acquired parent lease");}catch(IOException expected){checks++;}}return super.read(b,off,len);}};
+        InputStream nested=new ByteArrayInputStream(manifest){boolean fired;public synchronized int read(byte[] b,int off,int len){if(!fired){fired=true;try{HistoryPinsCheck.close(pins,id,Outcome.CANCELLED,null);throw new AssertionError("nested close acquired parent lease");}catch(IOException expected){checks++;}}return super.read(b,off,len);}};
         pins.resume(id,nested);blocked(f);
         Path source=f.parent.resolve("store/"+f.original.id+".snapshot");byte[] bytes=Files.readAllBytes(source);
         InputStream replace=new ByteArrayInputStream(manifest){boolean fired;public synchronized int read(byte[] b,int off,int len){if(!fired){fired=true;try{Path other=source.resolveSibling("replacement");Files.write(other,bytes);Files.move(other,source,StandardCopyOption.REPLACE_EXISTING);}catch(IOException failure){throw new UncheckedIOException(failure);}}return super.read(b,off,len);}};
@@ -61,11 +61,11 @@ public final class PinLifecycleCheck {
         for(String event:Arrays.asList("file-before","file-after","move-before","move-after","dir-before","dir-after"))for(boolean closing:new boolean[]{false,true}){
             Fixture f=new Fixture();HistoryPins pins=open(f);String id=closing?begin(f,pins,Scope.EXACT_SUBSET):null;
             f.disk.hook=(name,file)->{if(name.equals(event))throw new IOException("injected "+event);};
-            rejects(()->{if(closing)pins.close(id,Outcome.CANCELLED,null);else begin(f,pins,Scope.EXACT_SUBSET);},"fault must reject acknowledgement "+event);
+            rejects(()->{if(closing)close(pins,id,Outcome.CANCELLED,null);else begin(f,pins,Scope.EXACT_SUBSET);},"fault must reject acknowledgement "+event);
             f.disk.hook=null;blocked(f);
             HistoryControlStore.Inspection before=inspect(f);List<Path> paths=new ArrayList<>();List<Object> keys=new ArrayList<>();
             for(HistoryControlStore.Entry entry:before.pins.stages){Path path=f.parent.resolve("history_control/"+entry.filename);paths.add(path);keys.add(Files.readAttributes(path,java.nio.file.attribute.BasicFileAttributes.class).fileKey());}
-            open(f);HistoryControlStore.Inspection after=inspect(f);
+            if(closing&&!before.pins.stages.isEmpty())recover(pins,id,null);else open(f);HistoryControlStore.Inspection after=inspect(f);
             check(after.pins.stages.isEmpty(),"full canonical stage reconciled");
             for(int i=0;i<paths.size();i++){Path promoted=Paths.get(paths.get(i).toString().replace(".stage",""));check(Objects.equals(keys.get(i),Files.readAttributes(promoted,java.nio.file.attribute.BasicFileAttributes.class).fileKey()),"full stage promoted without rewrite");}
             check(closing?!HistoryPins.pruneBlocked(f.store.storageRoot(),after):after.pins.active!=null,"reconciled outcome");open(f);
@@ -88,12 +88,12 @@ public final class PinLifecycleCheck {
                 if(changed.equals("directory")){Path root=f.parent.resolve("index");Files.move(root,f.parent.resolve("old-index"));Files.createDirectory(root);return;}
                 byte[] bytes=Files.readAllBytes(target);Path replacement=target.resolveSibling("replace.tmp");Files.write(replacement,bytes);Files.move(replacement,target,StandardCopyOption.REPLACE_EXISTING);
             }};
-            rejects(()->pins.close(id,Outcome.CANCELLED,null),"callback identity/authority change "+changed);f.disk.hook=null;
+            rejects(()->close(pins,id,Outcome.CANCELLED,null),"callback identity/authority change "+changed);f.disk.hook=null;
             check(HistoryPins.pruneBlocked(f.store.storageRoot(),inspect(f)),"failed close never installs acknowledgement");
         }
         Fixture all=new Fixture();HistoryPins pins=open(all);String id=begin(all,pins,Scope.ALL_BUNDLE);
         all.disk.hook=(event,file)->{if(event.equals("dir-after")){Path source=all.parent.resolve("store/"+all.original.id+".snapshot");byte[] bytes=Files.readAllBytes(source);bytes[bytes.length-1]^=1;Files.write(source,bytes);}};
-        rejects(()->pins.close(id,Outcome.CANCELLED,null),"ALL cancellation validates mandatory safety after final callback");all.disk.hook=null;
+        rejects(()->close(pins,id,Outcome.CANCELLED,null),"ALL cancellation validates mandatory safety after final callback");all.disk.hook=null;
         check(HistoryPins.pruneBlocked(all.store.storageRoot(),inspect(all)),"ALL failed final validation retains protection");
     }
     static void policyRecord(Fixture f,long generation,String previous)throws Exception {
@@ -104,7 +104,7 @@ public final class PinLifecycleCheck {
         while(inspect(slots).actualEntries<255){HistoryControlStore.Inspection c=inspect(slots);policyRecord(slots,c.latest.generation+1,c.latest.envelopeHash);}
         slots.capacity.reconcile();check(slots.capacity.inspect().controlActualEntries+slots.capacity.inspect().controlReservedEntries==256,"full entry allowance includes terminal slot");
         rejects(()->slots.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,5)),"policy cannot spend reserved terminal slot");
-        rejectedPolicyPromotion(slots);slots.capacity.reconcile();pins.close(id,Outcome.CANCELLED,null);
+        rejectedPolicyPromotion(slots);slots.capacity.reconcile();close(pins,id,Outcome.CANCELLED,null);
         check(inspect(slots).actualEntries==256,"terminal conversion fits full slot allowance");rejects(()->begin(slots,pins,Scope.ALL_BUNDLE),"retained audit exhaustion");
         Fixture bytes=new Fixture();HistoryControlStore.Inspection initial=inspect(bytes);HistoryPinRecord sample=record(bytes);
         int pairs=70;long base=initial.actualBytes+HistoryPinRecord.encode(sample).length+126+pairs*330L;
@@ -118,7 +118,7 @@ public final class PinLifecycleCheck {
         HistoryPins full=open(bytes);String active=begin(bytes,full,Scope.EXACT_SUBSET);HistoryControlStore.Inspection c=inspect(bytes);
         byte[] policy=HistoryControlStore.encodePolicy(c.registration.bundleId,1,c.latest.envelopeHash,128L*1024*1024,5);
         check(c.actualBytes+policy.length<=HistoryControlStore.MAX_BYTES&&c.actualBytes+c.pins.reservedBytes+policy.length>HistoryControlStore.MAX_BYTES,"policy fits physical allowance only by stealing reservation");
-        rejects(()->bytes.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,5)),"policy cannot spend terminal bytes");rejectedPolicyPromotion(bytes);bytes.capacity.reconcile();full.close(active,Outcome.CANCELLED,null);
+        rejects(()->bytes.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,5)),"policy cannot spend terminal bytes");rejectedPolicyPromotion(bytes);bytes.capacity.reconcile();close(full,active,Outcome.CANCELLED,null);
         check(inspect(bytes).actualBytes<=HistoryControlStore.MAX_BYTES,"close fits byte reservation");
     }
     static void rejectedPolicyPromotion(Fixture f)throws Exception {
@@ -131,7 +131,7 @@ public final class PinLifecycleCheck {
     static void overQuota()throws Exception {
         Fixture f=new Fixture();f.capacity.setPolicy(new HistoryPolicy(128L*1024*1024,20));long additional=64L*1024*1024+1-f.capacity.inspect().dataChargedBytes;
         while(additional>0){long size=Math.min(additional,ProtectionStore.MAX_DOCUMENT_BYTES);try(RandomAccessFile file=new RandomAccessFile(f.parent.resolve("store/"+UUID.randomUUID()+".stage").toFile(),"rw")){file.setLength(size);}additional-=size;}
-        f.capacity.setPolicy(new HistoryPolicy(64L*1024*1024,20));check(f.capacity.inspect().overQuota,"over data quota fixture");HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);pins.close(id,Outcome.CANCELLED,null);
+        f.capacity.setPolicy(new HistoryPolicy(64L*1024*1024,20));check(f.capacity.inspect().overQuota,"over data quota fixture");HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);close(pins,id,Outcome.CANCELLED,null);
         check(inspect(f).pins.closes.size()==1,"pin admission does not require spare data quota");
     }
     static void invalidEvidence()throws Exception {
@@ -156,19 +156,19 @@ public final class PinLifecycleCheck {
             Fixture changed=new Fixture();HistoryPins p=open(changed);HistoryPinRecord b;
             if(closing){begin(changed,p,Scope.EXACT_SUBSET);b=inspect(changed).pins.active;}else b=record(changed);
             Path stage=changed.parent.resolve("history_control/"+(closing?"pin-"+b.operation+".close":b.name())+".stage");byte[] bytes=closing?HistoryPinRecord.close(b,Outcome.CANCELLED):HistoryPinRecord.encode(b);Files.write(stage,bytes);
-            Files.delete(changed.parent.resolve("store/"+changed.original.id+".snapshot"));rejects(()->open(changed),"full stage promotion requires live bound snapshot");check(Arrays.equals(bytes,Files.readAllBytes(stage)),"invalid full stage preserved");
+            Files.delete(changed.parent.resolve("store/"+changed.original.id+".snapshot"));rejects(()->{if(closing)recover(p,b.operation.toString(),null);else open(changed);},"full stage promotion requires live bound snapshot");check(Arrays.equals(bytes,Files.readAllBytes(stage)),"invalid full stage preserved");
         }
     }
     static void promotedCloseFinalCallback()throws Exception {
         Fixture f=new Fixture();HistoryPins pins=open(f);begin(f,pins,Scope.EXACT_SUBSET);HistoryPinRecord active=inspect(f).pins.active;
         Files.write(f.parent.resolve("history_control/pin-"+active.operation+".close.stage"),HistoryPinRecord.close(active,Outcome.CANCELLED));
         f.disk.hook=(event,file)->{if(event.equals("dir-after")&&file.equals(f.parent.toFile())){Path source=f.parent.resolve("store/"+f.original.id+".snapshot");byte[] bytes=Files.readAllBytes(source);bytes[bytes.length-1]^=1;Files.write(source,bytes);}};
-        rejects(()->open(f),"newly promoted CLOSE still validates input after last reconciliation callback");f.disk.hook=null;
+        rejects(()->recover(pins,active.operation.toString(),null),"newly promoted CLOSE still validates input after last reconciliation callback");f.disk.hook=null;
         check(HistoryPins.pruneBlocked(f.store.storageRoot(),inspect(f)),"failed promoted close never acknowledged");
     }
     static void knownEvidenceOmission()throws Exception {
         for(boolean closed:new boolean[]{false,true}){
-            Fixture f=new Fixture();HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);if(closed)pins.close(id,Outcome.CANCELLED,null);
+            Fixture f=new Fixture();HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);if(closed)close(pins,id,Outcome.CANCELLED,null);
             Files.delete(f.parent.resolve("history_control/pin-"+id+".begin"));if(closed)Files.delete(f.parent.resolve("history_control/pin-"+id+".close"));
             check(HistoryPins.pruneBlocked(f.store.storageRoot(),inspect(f)),"known retained pin omission fails closed");
             check(f.capacity.inspect().mutationBlocked,"capacity inspection exposes known omitted evidence");
@@ -182,12 +182,12 @@ public final class PinLifecycleCheck {
         callback.disk.hook=(event,file)->{if(event.equals("dir-after")&&file.equals(callback.parent.resolve("history_control").toFile()))Files.delete(callback.parent.resolve("history_control/pin-"+protectedId+".begin"));};
         rejects(()->callback.capacity.reconcile(),"final capacity callback cannot erase pin reservation");callback.disk.hook=null;
         check(callback.capacity.inspect().mutationBlocked,"failed final capacity reconciliation stays blocked");
-        Fixture older=new Fixture();HistoryPins retained=open(older);String first=begin(older,retained,Scope.EXACT_SUBSET);retained.close(first,Outcome.CANCELLED,null);
-        String later=begin(older,retained,Scope.EXACT_SUBSET);retained.close(later,Outcome.CANCELLED,null);
+        Fixture older=new Fixture();HistoryPins retained=open(older);String first=begin(older,retained,Scope.EXACT_SUBSET);close(retained,first,Outcome.CANCELLED,null);
+        String later=begin(older,retained,Scope.EXACT_SUBSET);close(retained,later,Outcome.CANCELLED,null);
         Files.delete(older.parent.resolve("history_control/pin-"+first+".begin"));Files.delete(older.parent.resolve("history_control/pin-"+first+".close"));
         check(inspect(older).pins.valid&&inspect(older).pins.present,"later closed pair remains valid on disk");
         check(HistoryPins.pruneBlocked(older.store.storageRoot(),inspect(older)),"omitted older audit cannot hide among later retained pairs");rejects(()->open(older),"reconciliation cannot drop older audit prefix");
-        Fixture f=new Fixture();HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);pins.close(id,Outcome.CANCELLED,null);
+        Fixture f=new Fixture();HistoryPins pins=open(f);String id=begin(f,pins,Scope.EXACT_SUBSET);close(pins,id,Outcome.CANCELLED,null);
         Path old=f.parent.resolve("old-control"),root=f.parent.resolve("history_control");Files.move(root,old);Files.createDirectory(root);
         try(DirectoryStream<Path> files=Files.newDirectoryStream(old)){for(Path file:files)Files.move(file,root.resolve(file.getFileName()));}
         check(HistoryPins.pruneBlocked(f.store.storageRoot(),inspect(f)),"replacement control directory requires new durability acknowledgement");open(f);
