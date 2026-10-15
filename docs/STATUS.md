@@ -7,9 +7,8 @@ maps retained M0–M7 obligations and dependencies. Lead self-review is complete
 independent whole-campaign review remains NOT RUN. Main/origin main remains
 `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
 `codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
-last pushed head is `7542952`. Root active branch includes the reviewed writer
-`92e41bb` and committed copy helper `b4bd0c9`; the helper will be batch-pushed
-after review.
+The approved writer `92e41bb` and copy helper `b4bd0c9` are being batch-published
+on active draft PR #24.
 
 The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
 It ran the required host suite once and audited two fresh unsigned builds, both
@@ -36,18 +35,19 @@ with a narrow provenance getter and fresh identity/readiness checks after each
 callback. Approval remains scoped to this exact writer; the production sink,
 BEGIN/LINK, handoff, recovery and whole-heap proof are excluded.
 
-Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is committed on root HEAD.
-Existing preflight 30 and new copy 16 cases pass; independent copy review is pending.
-The actual production sink, final BEGIN/LINK, handoff, recovery and heap proof remain
-open. PreparationSources has 181 focused assertions passing. The source worker owns
-source/tests; root owns orchestration/integration. `accounting_repair_review` is the
-independent reviewer. No newer full gate/build/CI covers C2.
+Copy helper `b4bd0c9b8f8eb110ca0a9eda7f15569d45c315c2` is independently APPROVED
+after 3 scenario groups: exact identity binding; retained handles, Error and ordered
+cleanup; and overlength rejection before forwarding. Preflight 30 and copy 16 cases pass.
+Next, the worker owns only Writer and its fixtures for the provisional sink, live-prefix
+and promotion implementation; root owns orchestration/integration. Production sink,
+BEGIN/LINK, handoff, recovery and heap proof remain OPEN. PreparationSources has 181
+focused assertions passing. No newer full gate/build/CI covers C2.
 During implementation, run minimum affected tests and essential compile/build checks;
 reserve broad regression/performance/migration coverage for the feature-complete
 candidate. Avoid duplicating full gates.
 
-Next: obtain independent copy-helper review, then complete coherent producer,
-actual production sink, exact typed transitions,
+Next: implement and review the Writer-owned provisional sink, live-prefix and
+promotion, then complete coherent producer, exact typed transitions,
 final BEGIN/LINK and handoff, cold recovery, and real crash/ENOSPC/reopen/heap
 proofs. Continue M0–M7 directly; M1 is not complete. Whole-campaign independent
 plan review remains NOT RUN, and scoped source approvals do not satisfy it.
