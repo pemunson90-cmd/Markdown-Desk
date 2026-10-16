@@ -37,3 +37,32 @@ Incoming VIEW/EDIT/SEND URI uses `DocumentIO.metadata(ContentResolver, uri)` the
 - With provider returning `_display_name=Meeting notes.md` for ACTION_VIEW URI, title/tab/recents show exactly that name. If provider refuses optional projection, name still survives.
 - On Fold7 folded/unfolded, keyboard and landscape, Files is discoverable, one-tap actions work, dialogs display complete rows, and returning to editor doesn't lose cursor.
 - Preserve canonical signer and strictly increment versionCode for each installable test candidate; this proposal does not authorize a new APK release.
+
+## Validated research and staged UI work
+
+Sources checked October 16, 2026:
+
+- Android layout/navigation patterns: https://developer.android.com/design/ui/mobile/guides/layout-and-content/layout-and-nav-patterns . Separate **destinations** from **actions**. Top app bars carry contextual actions; overflow holds infrequent commands.
+- Android Views responsive navigation: https://developer.android.com/develop/ui/views/layout/build-responsive-navigation and window size classes: https://developer.android.com/develop/ui/views/layout/use-window-size-classes . Design against available window width, not Fold7 hardware posture. Compact under 600dp, medium 600-839dp, expanded 840dp and up; short landscape height matters too.
+- Obsidian mobile: https://obsidian.md/help/mobile . Separate quick switcher/navigation from the editing toolbar; offer custom short-reach document actions rather than hiding everything in a single menu.
+- Markor: https://github.com/gsantner/markor . Offline-first files/notebook navigation and editing functions remain distinct.
+- Android external URI contracts: https://developer.android.com/reference/android/provider/OpenableColumns and https://developer.android.com/guide/components/intents-filters . Provider-supplied display name is authoritative where available; extra metadata may be absent.
+- Android accessibility: https://developer.android.com/design/ui/mobile/guides/foundations/accessibility . Minimum 48dp targets, icon content descriptions, usable IME and screen reader paths.
+
+### Minimal-release UI redesign sequence (proposal; do not silently implement all changes)
+
+1. Rename the top-left unexplained M affordance to a discoverable **Files** label/icon, and ensure >=48dp hit bounds. Keep title/tabs/Save visible on compact width.
+2. Files opens a dedicated, compact **Recent / Folders / Favorites** chooser with search and a plain Back to editor. Existing safe SAF/open-document routes and tab/source identities remain unchanged. These are places to navigate, not editing actions.
+3. Keep one-tap Save, Favorite toggle, Bookmark, Find, Undo/Redo close to the active editor or mode-specific toolbar, with a selected-state star and brief nonblocking confirmation. Named bookmark rows jump directly to verified text, with a separate remove path. Preserve old anonymous saved reading places as readable legacy data.
+4. Group rare commands under **More → Export, History/recovery, Protected storage, Appearance, Help**. Destructive operations demand explicit scope, capabilities and confirmation.
+5. For larger available widths, use a left Files pane or rail adjacent to the same editor. Do not infer fold state from hardware; preserve current cursor, selected tab, dirty draft and responsive keyboard space.
+
+Acceptance test matrix: external Open with → title and unchanged bytes; Files→recent/folder/favorite→document→Back; compact keyboard and split viewport; folded/unfolded and landscape; large text and TalkBack; navigation/accessibility targets and theme contrast; in-place signed upgrade preserving history.
+
+### Filename bug: evidence and remaining uncertainty
+
+The incoming ACTION_VIEW/EDIT path calls DocumentIO.metadata() before assigning DocumentTab.displayName. Previously a single provider query combined standard OpenableColumns and optional fields. The source at commit 3f85227b24c7d87694419eef4e5d9308e62a4434 separated standard filename/size inspection from optional capabilities; a strict fake provider test rejects optional columns but retains the original title and document bytes. Targeted source/build tests PASS at https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38957658363 .
+
+The exact Samsung My Files provider/intent remains untested on Fold7 after this fix. Treat the user-reported Untitled.md behavior as unresolved until the next signed test candidate is opened via external **Open with** and the original title survives. Do not silently rename any real file or use URI identifiers as guessed names.
+
+Status: research and staging advice only; major navigation restructuring is not implemented or released by this document. Preserve the working app, canonical signer, theme/focus/12-tab semantics and migration controls.
