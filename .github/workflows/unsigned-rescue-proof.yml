@@ -77,15 +77,9 @@ jobs:
         shell: bash
         run: bash verification/setup_host_deps.sh
 
-      - name: Run focused current-phone and favorites regressions
+      - name: Run entire owner-scoped current-phone host gate
         shell: bash
         run: |
           set -euo pipefail
-          bash verification/workspace_favorites/run.sh
-          bash verification/reader_positions/run.sh
-          bash verification/workspace_ui/run.sh
-          bash verification/workspace_search_ui/run.sh
-          bash verification/document_io/run.sh
-          bash verification/session_recovery/run.sh
-          bash verification/save_lifecycle/run.sh --safety
-          echo 'Focused current-phone checks only. Full aggregate host regression remains separately RED in deferred portable-frame budget fixture; no release acceptance.' >> "$GITHUB_STEP_SUMMARY"
+          bash verification/run_current_phone_checks.sh
+          echo 'Owner-scoped current-phone host gate only: deferred portable tests NOT RUN; Android/device/release acceptance NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
