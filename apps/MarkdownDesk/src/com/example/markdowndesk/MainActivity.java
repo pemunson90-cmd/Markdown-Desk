@@ -3668,19 +3668,19 @@ public class MainActivity extends Activity {
                 this.main.post(()->{
                     if(request!=this.protectionStatusRequest||isFinishing()||isDestroyed())return;
                     StringBuilder details=new StringBuilder();
-                    details.append("Local document protection and history (this phone only).\\n");
+                    details.append("Local document protection and history (this phone only).\n");
                     if(!status.usageComplete||status.mutationBlocked){
-                        details.append("\\nStorage accounting is incomplete or temporarily blocked. Do not treat these readings as available capacity.");
+                        details.append("\nStorage accounting is incomplete or temporarily blocked. Do not treat these readings as available capacity.");
                     }else{
-                        details.append("\\nProtected data: ").append(protectionMiB(status.dataActualBytes));
-                        details.append("\\nReserved for pending saves/operations: ")
+                        details.append("\nProtected data: ").append(protectionMiB(status.dataActualBytes));
+                        details.append("\nReserved for pending saves/operations: ")
                             .append(protectionMiB(status.completionReservedBytes+status.operationReservedBytes));
-                        details.append("\\nCharged data: ").append(protectionMiB(status.dataChargedBytes));
-                        details.append("\\nConfigured history limit: ").append(protectionMiB(status.quotaBytes));
-                        if(status.overQuota)details.append("\\nHistory usage exceeds the configured limit.");
+                        details.append("\nCharged data: ").append(protectionMiB(status.dataChargedBytes));
+                        details.append("\nConfigured history limit: ").append(protectionMiB(status.quotaBytes));
+                        if(status.overQuota)details.append("\nHistory usage exceeds the configured limit.");
                     }
-                    if(!status.issues.isEmpty())details.append("\\n\\nThe protection system reports conditions that need review before storage changes.");
-                    details.append("\\n\\nThis screen never cleans up, deletes, exports or transfers your document history.");
+                    if(!status.issues.isEmpty())details.append("\n\nThe protection system reports conditions that need review before storage changes.");
+                    details.append("\n\nThis screen never cleans up, deletes, exports or transfers your document history.");
                     details.append(" Copying an .md file does not carry its private version history.");
                     AlertDialog dialog=historyDialogBuilder("Protected storage")
                         .setMessage(details.toString())
@@ -3733,7 +3733,7 @@ public class MainActivity extends Activity {
                 });
             }catch(Exception failure){
                 this.main.post(()->{if(readerActionCurrent(request,tabId,uri))
-                    showError("Reading places could not be loaded. Existing data was left intact.\\n\\n"+message(failure));});
+                    showError("Reading places could not be loaded. Existing data was left intact.\n\n"+message(failure));});
             }
         });
     }
