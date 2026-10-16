@@ -39,5 +39,7 @@ public final class MainActivity extends HostActivity {
  void page(List<HistoryIndex.Version> v,String history){showHistoryPage(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,v,0,null);}
  /* METHODS */
     void invalidateProtectedSaves() {}
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
     void cancelWorkspaceNavigation() {}
 }

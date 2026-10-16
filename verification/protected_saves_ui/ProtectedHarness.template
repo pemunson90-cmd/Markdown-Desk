@@ -2,6 +2,8 @@ package com.example.markdowndesk;
 import java.text.SimpleDateFormat;import android.content.*;import android.view.*;import android.widget.*;import android.os.*;import java.util.*;import java.util.concurrent.*;
 class ProtectedBase {protected void onPause(){}protected void onDestroy(){}}
 final class ProtectedHarness extends ProtectedBase {
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
  static final int MODE_PREVIEW=1,RESULT_OK=-1;
  interface DialogInterface {int BUTTON_POSITIVE=-1,BUTTON_NEGATIVE=-2,BUTTON_NEUTRAL=-3;interface Click{void clicked(DialogInterface d,int n);}interface Event{void event(DialogInterface d);}interface Key{boolean key(DialogInterface d,int key,KeyEvent event);}}
  static class KeyEvent {static final int KEYCODE_BACK=4,ACTION_UP=1;final int action;KeyEvent(int action){this.action=action;}int getAction(){return action;}}

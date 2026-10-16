@@ -254,6 +254,7 @@ public class MainActivity extends Activity {
             writeRecoveryNow();
         }
         writeSessionNow();
+        pauseDocxExport();
         invalidateProtectedSaves();
         cancelWorkspaceNavigation();
         super.onPause();
@@ -261,6 +262,7 @@ public class MainActivity extends Activity {
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        cancelDocxExport();
         invalidateProtectedSaves();
         cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
@@ -1868,6 +1870,7 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity
     protected void onActivityResult(int i, int i2, Intent intent) {
         super.onActivityResult(i, i2, intent);
+        if (i == REQUEST_DOCX_COPY) { handleDocxResult(i2, intent); return; }
         if(i==REQUEST_WORKSPACE_TREE){handleWorkspaceTreeResult(i2,intent);return;}
         if (i == REQUEST_SPLASH_IMPORT) {
             if (i2 == -1 && intent != null) {
@@ -3187,7 +3190,7 @@ public class MainActivity extends Activity {
         browser.dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(browser.frames.size()>1);
         workspaceMessage(browser,"Loading folder…");WorkspaceLoad load=new WorkspaceLoad(frame);browser.load=load;
         load.ticket=WorkspaceDirectoryLoader.tryLoad(browser.reader,frame.directory,WORKSPACE_DELIVERY,page->acceptWorkspacePage(browser,load,page));
-        if(load.ticket==null){browser.load=null;browser.rows.removeAllViews();workspaceMessage(browser,"Another folder request is still active. Retry later; cancelling cannot force a provider to finish.");}
+        if(load.ticket==null){browser.load=null;browser.rows.removeAllViews();workspaceMessage(browser,"Folder browsing is busy with an outstanding request or an earlier unconfirmed close. Wait if a request is active; if a close failed, restart the app. Editing and saving remain available.");}
     }
     private void acceptWorkspacePage(WorkspaceBrowser browser,WorkspaceLoad load,WorkspaceTreeReader.Page page) {
         if(!workspaceBrowserCurrent(browser)||browser.load!=load||load.ticket==null||browser.frames.get(browser.frames.size()-1)!=load.frame)return;
@@ -3195,6 +3198,7 @@ public class MainActivity extends Activity {
         browser.page=page;final long rows=++browser.rowGeneration;final WorkspaceFrame frame=load.frame;
         boolean revoked=page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED;
         if(revoked)workspaceMessage(browser,"Access was revoked. Choose the folder again; these rows cannot be opened.");
+        else if(page.closeDisposition()==WorkspaceTreeReader.CloseDisposition.UNCERTAIN)workspaceMessage(browser,"The provider could not confirm closing this folder listing. Folder browsing is unavailable until the app restarts. Editing and saving remain available.");
         else if(page.state==WorkspaceTreeReader.State.FAILED)workspaceMessage(browser,"Folder could not be fully read. Partial results may be shown. Retry or go Back.");
         else if(page.state==WorkspaceTreeReader.State.LIMITED)workspaceMessage(browser,"Folder list is limited; not all items are shown. Retry reloads this same listing.");
         else if(page.entries.isEmpty())workspaceMessage(browser,"This folder is empty.");
@@ -3294,6 +3298,10 @@ public class MainActivity extends Activity {
             }
         }), matchWrap());
         addWorkspaceFolderActions(linearLayout);
+        linearLayout.addView(workspaceAction("Export this document as DOCX", "New copy · DOCX source up to 1 MiB; native text up to 8 MiB", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            startDocxExport();
+        }), matchWrap());
         linearLayout.addView(workspaceAction("↶  Protected saves", "Originals and edited versions · restore to a new copy", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showProtectedSaves();
@@ -3444,6 +3452,7 @@ public class MainActivity extends Activity {
         exportMenu.add(MODE_EDIT, MAX_TABS, 0, "Share Markdown");
         exportMenu.add(MODE_EDIT, 13, 1, "Share rendered HTML");
         exportMenu.add(MODE_EDIT, 14, 2, "Print / Save PDF");
+        exportMenu.add(MODE_EDIT, 17, 3, "Export DOCX");
 
         popupMenu.getMenu().add(MODE_EDIT, 8, 20, "Save as");
         popupMenu.getMenu().add(MODE_EDIT, 7, 21, "Guide and shortcuts");
@@ -3511,6 +3520,9 @@ public class MainActivity extends Activity {
             case 16:
                 showSplashGallery();
                 return true;
+            case 17:
+                startDocxExport();
+                return true;
             default:
                 return false;
         }
@@ -3572,7 +3584,7 @@ public class MainActivity extends Activity {
     }
 
     private void showCommandPalette() {
-        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
+        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF", "Export DOCX"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
             @Override // android.content.DialogInterface.OnClickListener
             public final void onClick(DialogInterface dialogInterface, int i) {
                 MainActivity.this.lambda$showCommandPalette$59(dialogInterface, i);
@@ -3630,6 +3642,9 @@ public class MainActivity extends Activity {
                 break;
             case 15:
                 printDocument();
+                break;
+            case 16:
+                startDocxExport();
                 break;
         }
     }
@@ -4016,6 +4031,194 @@ public class MainActivity extends Activity {
         } catch (ActivityNotFoundException e) {
             showError("No app is available to share this document.");
         }
+    }
+
+    private static final int REQUEST_DOCX_COPY = 1006;
+    private enum DocxPhase { GENERATING, OFFERED, AWAIT_PICKER, PUBLISHING, NOTICE }
+    private static final class DocxUi {
+        DocumentDocxExport.Ticket ticket;
+        AlertDialog dialog;
+        Object token;
+        String pickerNonce;
+        DocxPhase phase = DocxPhase.GENERATING;
+    }
+    private DocxUi docxUi;
+    private boolean docxInterruptedCopy;
+
+    private List<Uri> currentDocxUris() {
+        if (this.tabs.size() > MAX_TABS) throw new IllegalArgumentException("Too many open tabs");
+        List<Uri> uris = new ArrayList<>();
+        for (DocumentTab tab : this.tabs) {
+            if (tab.uri == null) continue;
+            Uri uri = Uri.parse(tab.uri);
+            if (tab.uri.length() > 4096 || !"content".equals(uri.getScheme())
+                    || uri.getAuthority() == null || uri.getAuthority().isEmpty())
+                throw new IllegalArgumentException("Invalid open document URI");
+            uris.add(uri);
+        }
+        return uris;
+    }
+
+    private boolean docxCurrent(DocxUi ui, AlertDialog dialog, Object token) {
+        return ui == this.docxUi && !isFinishing() && !isDestroyed()
+                && ui.dialog == dialog && ui.token == token && dialog != null && dialog.isShowing();
+    }
+
+    private void cancelDocxExport() {
+        DocxUi ui = this.docxUi;
+        this.docxUi = null;
+        if (ui == null) return;
+        AlertDialog dialog = ui.dialog;
+        DocumentDocxExport.Ticket ticket = ui.ticket;
+        ui.dialog = null; ui.token = null; ui.ticket = null; ui.pickerNonce = null;
+        if (dialog != null) dialog.dismiss();
+        if (ticket != null) ticket.cancel();
+    }
+
+    private void pauseDocxExport() {
+        if (this.docxUi == null || this.docxUi.phase == DocxPhase.AWAIT_PICKER) return;
+        if (this.docxUi.phase == DocxPhase.PUBLISHING) this.docxInterruptedCopy = true;
+        cancelDocxExport();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (this.docxInterruptedCopy) {
+            this.docxInterruptedCopy = false;
+            showDocxNotice("DOCX export interrupted", "DOCX cancellation was requested when the app left the screen. The provider may still be finishing, and the selected DOCX copy may be incomplete. Check it before using it. No automatic retry was made.");
+        }
+    }
+
+    private void presentDocxDialog(DocxUi ui, String title, String message, String positive, Runnable action) {
+        if (ui != this.docxUi || isFinishing() || isDestroyed()) return;
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        AlertDialog.Builder builder = historyDialogBuilder(title).setMessage(message)
+                .setNegativeButton(ui.phase == DocxPhase.NOTICE ? "Close" : "Cancel", (ignored, which) -> {
+                    if (docxCurrent(ui, owned[0], token)) cancelDocxExport();
+                });
+        if (positive != null) builder.setPositiveButton(positive, (ignored, which) -> {
+            if (docxCurrent(ui, owned[0], token)) action.run();
+        });
+        owned[0] = builder.create();
+        AlertDialog previous = ui.dialog;
+        ui.dialog = owned[0]; ui.token = token;
+        if (previous != null) previous.dismiss();
+        owned[0].setOnDismissListener(ignored -> {
+            if (this.docxUi == ui && ui.dialog == owned[0] && ui.token == token) cancelDocxExport();
+        });
+        owned[0].setOnShowListener(ignored -> workspaceDialogShown(owned[0]));
+        owned[0].show();
+    }
+
+    private void showDocxNotice(String title, String message) {
+        cancelDocxExport();
+        if (isFinishing() || isDestroyed()) return;
+        DocxUi ui = new DocxUi(); ui.phase = DocxPhase.NOTICE;
+        this.docxUi = ui;
+        presentDocxDialog(ui, title, message, null, null);
+    }
+
+    private void startDocxExport() {
+        cancelDocxExport();
+        if (isFinishing() || isDestroyed()) return;
+        this.docxInterruptedCopy = false;
+        final DocxUi ui = new DocxUi();
+        this.docxUi = ui;
+        try {
+            ui.ticket = DocumentDocxExport.tryStart(getApplicationContext(),
+                    () -> new DocumentDocxExport.Capture(this.editor.getText(),
+                            this.displayName == null ? "Untitled.md" : this.displayName,
+                            this.currentUri, currentDocxUris()),
+                    offer -> {
+                        if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.GENERATING) offerDocx(ui, offer);
+                    }, failure -> {
+                        if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.GENERATING)
+                            showDocxNotice("DOCX export failed", docxFailureMessage(failure));
+                    });
+            if (ui.ticket == null) {
+                showDocxNotice("DOCX export busy", "DOCX export is busy finishing an earlier operation. Try again after it finishes. If an earlier close could not be confirmed, restart the app before a fresh attempt.");
+                return;
+            }
+            presentDocxDialog(ui, "Preparing DOCX", "Preparing a separate copy of the captured document. DOCX supports source up to 1 MiB of UTF-8; native Markdown and text files support up to 8 MiB. Your original document will not be changed.", null, null);
+        } catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The document could not be captured for DOCX. DOCX supports source up to 1 MiB of valid UTF-8 and bounded document structure and title; native Markdown and text files still support up to 8 MiB. Check the document and try again.");
+        }
+    }
+
+    private String docxWarnings(DocumentDocxExport.Offer offer) {
+        StringBuilder text = new StringBuilder();
+        for (java.util.Map.Entry<MarkdownDocx.Warning, Integer> entry : offer.warnings.entrySet()) {
+            String label;
+            switch (entry.getKey()) {
+                case IMAGE_NOT_INCLUDED: label = "Images replaced with alt text"; break;
+                case BLOCKED_LINK: label = "Unsupported links kept as labels"; break;
+                case AMBIGUOUS_TABLE: label = "Ambiguous tables kept as literal text"; break;
+                case AMBIGUOUS_LIST: label = "Ambiguous lists kept as literal text"; break;
+                case UNTERMINATED_FENCE: label = "Unclosed code fences"; break;
+                case UNSUPPORTED_INLINE: label = "Unsupported inline formatting kept literal"; break;
+                default: label = "Unsupported blocks kept literal"; break;
+            }
+            text.append("\n• ").append(label).append(": ").append(entry.getValue());
+        }
+        return text.toString();
+    }
+
+    private void offerDocx(DocxUi ui, DocumentDocxExport.Offer offer) {
+        ui.phase = DocxPhase.OFFERED;
+        presentDocxDialog(ui, "Export DOCX", "Captured document: " + offer.title + "\n\nChoose a new DOCX copy. Formatting uses a limited Markdown subset: images become alt text and unsupported syntax stays literal. No DOCX import or round-trip is promised.\n\nDOCX supports source up to 1 MiB of UTF-8; native Markdown and text files support up to 8 MiB.\n\n" + (offer.warnings.isEmpty() ? "No conversion warnings were reported." : "Conversion warnings:" + docxWarnings(offer)),
+                "Save new DOCX", () -> launchDocxPicker(ui, offer));
+    }
+
+    private void launchDocxPicker(DocxUi ui, DocumentDocxExport.Offer offer) {
+        if (!docxCurrent(ui, ui.dialog, ui.token) || ui.phase != DocxPhase.OFFERED || ui.ticket == null) return;
+        ui.phase = DocxPhase.AWAIT_PICKER;
+        AlertDialog previous = ui.dialog; ui.dialog = null; ui.token = null;
+        if (previous != null) previous.dismiss();
+        ui.pickerNonce = java.util.UUID.randomUUID().toString();
+        Intent picker = new Intent(this, DocxPickerActivity.class)
+                .putExtra(DocxPickerActivity.EXTRA_NONCE, ui.pickerNonce)
+                .putExtra("android.intent.extra.TITLE", offer.filename);
+        try { startActivityForResult(picker, REQUEST_DOCX_COPY); }
+        catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The document picker could not be opened. No verified DOCX copy is available. Try a fresh export when the picker is available.");
+        }
+    }
+
+    private void handleDocxResult(int result, Intent data) {
+        final DocxUi ui = this.docxUi;
+        String nonce = data == null ? null : data.getStringExtra(DocxPickerActivity.EXTRA_NONCE);
+        if (ui == null || !DocxPickerActivity.validNonce(nonce) || !nonce.equals(ui.pickerNonce)) return;
+        if (ui.phase != DocxPhase.AWAIT_PICKER || ui.ticket == null || isFinishing() || isDestroyed()) return;
+        if (result != -1 || data.getData() == null) { cancelDocxExport(); return; }
+        ui.pickerNonce = null;
+        ui.phase = DocxPhase.PUBLISHING;
+        try {
+            ui.ticket.publish(data.getData(), currentDocxUris(), completion -> {
+                if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.PUBLISHING) finishDocx(ui, completion);
+            });
+            presentDocxDialog(ui, "Writing DOCX copy", "Writing and checking the new copy. Success is reported only after binary readback verifies the DOCX. Cancel may leave an incomplete copy at the selected destination.", null, null);
+        } catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The selected destination could not be used safely. No verified DOCX copy is available. Choose a fresh new destination for a deliberate retry; no automatic retry was made.");
+        }
+    }
+
+    private String docxFailureMessage(DocumentDocxExport.Failure failure) {
+        String partial = failure.destinationMayContainPartialCopy ? " The selected copy may be incomplete; check it before using it." : " No verified DOCX copy was created.";
+        if (failure.problem == DocumentDocxExport.Problem.UNCERTAIN_IO)
+            return "A stream close could not be confirmed. DOCX export cannot safely restart in this running app; restart the app before a fresh attempt." + partial;
+        if (failure.problem == DocumentDocxExport.Problem.DESTINATION)
+            return "The destination was not accepted as a safe, empty new copy. Choose a fresh new destination for a deliberate retry." + partial;
+        if (failure.problem == DocumentDocxExport.Problem.GENERATION || failure.problem == DocumentDocxExport.Problem.STAGING)
+            return "The DOCX could not be prepared or its private staging could not be confirmed. DOCX has a 1 MiB UTF-8 source limit and bounded document structure; native text still supports up to 8 MiB. Check the document and storage before a fresh attempt." + partial;
+        return "DOCX export did not complete with verified binary readback. Choose a fresh new destination for a deliberate retry; no automatic retry was made." + partial;
+    }
+
+    private void finishDocx(DocxUi ui, DocumentDocxExport.Completion completion) {
+        if (ui != this.docxUi) return;
+        if (completion.verified) showDocxNotice("DOCX exported", "The new DOCX copy was verified by binary readback. The original document and its editing state are unchanged.");
+        else showDocxNotice("DOCX export failed", docxFailureMessage(completion.failure));
     }
 
     private void printDocument() {

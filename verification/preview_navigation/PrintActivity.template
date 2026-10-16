@@ -12,5 +12,7 @@ final class MainActivity extends Activity {
     void requestPrint(){printDocument();}void destroy(){onDestroy();}
     /* EXACT_MEMBERS */
     void invalidateProtectedSaves() {}
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
     void cancelWorkspaceNavigation() {}
 }

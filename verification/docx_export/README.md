@@ -7,8 +7,10 @@ PATH=/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH bash verification/d
 ```
 
 Uses installed Python, unzip, LibreOffice (`soffice`) and pdftotext; no downloads.
-Core is not wired to an Activity/SAF destination. This is no claim of durable output,
-provider safety, Word/Android acceptance, DOCX import or all M6 completion.
+The separate publication and Activity integrations are now implemented and reviewed;
+see verification/docx_publication and verification/docx_ui. This core runner alone
+does not prove durable output, provider safety, Word/Android acceptance, DOCX import
+or all M6 completion.
 
 API: `MarkdownDocx.export(source,title,stagedOutput,Limits.defaults(),cancellation)`
 returns immutable `Result` only after ZIP finish and output close. It owns the

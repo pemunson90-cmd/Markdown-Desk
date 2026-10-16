@@ -9,7 +9,7 @@ future enhancement. Existing implemented work and all private/untracked files st
 preserved; PR #24 stays draft. Local safe save, revision history, restore-to-new-copy,
 draft/session recovery, M2–M7 and all final signing/Fold gates remain required.
 
-Current pushed checkpoint is `bbabd25` on `codex/operation-data-capture`, draft
+Current pushed checkpoint is `20e5414` on `codex/operation-data-capture`, draft
 PR #24. It includes the current-phone feature checkpoints below and the preserved
 portable foundations through `4f80b49`, including independently approved writer
 snapshot closure `9c2353c` (87 publication assertions,7 copy cases,11 completion
@@ -106,7 +106,21 @@ Stage/channel Error paths preserve close uncertainty;
 unproven disposal holds only DOCX admission until process restart. Actual URI/ID
 alias checks, empty-destination preflight, one output-open attempt and binary hash/
 length readback preserve the native editor/save state. Generic provider alias/race
-limits remain explicit. No DOCX action/picker UI is wired yet.
+limits remain explicit.
+
+Actual DOCX controls and the private picker proxy are independently approved:
+72 actual UI checks plus23 actual proxy/manifest checks PASS in worker, reviewer
+and root runs; an additional independent proxy-to-parent stale-result probe PASS.
+Per-launch canonical nonce binding prevents old success/cancel results from publishing
+or cancelling a newer export. Both picker-launch denial paths retire safely. The
+UI preserves only expected AWAIT_PICKER pauses; other pause/destroy paths retire
+callbacks after local recovery/session scheduling. Worker affected save40/323,
+workspace120 and final Main/proxy SDK37 compilation PASS; earlier affected protected82,
+preview450/history84/status57/print20/134+18 evidence retained. Source remains native
+and dirty/history/baseline state unchanged. Folder uncertainty messages now distinguish
+unconfirmed closure from ordinary provider failure. Physical Android picker/provider/
+Word acceptance remains NOT RUN. Bounded DOCX import feasibility is documented in
+the fidelity matrix; no importer or round-trip promise is added.
 
 Selected-folder literal search engine and cursor ownership corrections are
 independently approved. Pre-owned one-use Listing/Attempt receipts retain actual
@@ -120,7 +134,8 @@ Limits remain128 directories/512 files/4096 rows/depth16,16 MiB total input/8 Mi
 file,100 matches with strict UTF-8, original-byte hashes and EOF/close validation.
 This is engine groundwork: search broker/results UI and hash-bound normal-open jumps
 remain unwired; no user-visible recursive search is claimed yet. Existing folder UI
-also needs the new uncertainty-specific message before that integration is complete.
+now reports uncertainty explicitly and explains process restart without promising
+that retry can dispose the resource.
 
 Read-only local-protection usage projection is independently approved:40 new
 actual-store checks PASS in both author and root runs; existing history UI123,
@@ -141,9 +156,9 @@ policy UI, automatic execution or deletion is enabled. Old binaries reject the n
 variant; no device downgrade/upgrade acceptance is claimed. Full retention remains
 open and needs reviewed execution/recovery/scheduling plus explicit user controls.
 
-Next current-phone work: serial DOCX Activity controls, reviewed search resource
-ownership and actual search UI, then workspace favorites and other dependency-ready
-M2–M7 work.
+Next current-phone work: reviewed search background admission and actual search UI,
+then workspace favorites, reading places/bookmarks, local storage controls and other
+dependency-ready M2–M7 work.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.

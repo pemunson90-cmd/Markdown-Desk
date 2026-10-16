@@ -1,7 +1,8 @@
 # Captured DOCX staging and verified binary publication helpers
 
-Prerequisite implementation only. No Activity action/picker routing is wired yet;
-this is not the user-visible DOCX feature. The reviewed MarkdownDocx core and all
+The guarded publication prerequisite is now wired through the independently reviewed
+Activity controls and private picker proxy; see verification/docx_ui. This helper
+runner alone is not evidence of the whole user-visible journey. The reviewed MarkdownDocx core and all
 editor/save/session/history/renderer code are unchanged. No APK/device/Word gate,
 aggregate run or portable app-data feature is claimed.
 
@@ -28,7 +29,7 @@ provider exceptions are not copied into Completion or warning strings.
 Caller must route only its exact ACTION_CREATE_DOCUMENT result to its pending Ticket,
 check live UI/request identity, cancel on disposal, and drop unbound recreated-process
 results. Picker-induced onPause cannot by itself destroy the pending export. These
-Activity behaviors are still unimplemented and untested here.
+Activity behaviors are covered separately in verification/docx_ui.
 
 ## Stage ownership and resource limits
 

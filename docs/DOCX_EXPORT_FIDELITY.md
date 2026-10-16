@@ -1,8 +1,9 @@
 # DOCX export fidelity
 
-The reviewed export core is implemented. Activity controls, private staging and
-verified SAF new-copy publication are **not yet implemented**. DOCX import and
-round-trip are not promised. This document export is separate from deferred
+The export core, private staging, verified SAF new-copy publication and actual
+Activity controls are implemented and independently reviewed. Physical Android
+picker/provider/Word acceptance is still open. DOCX import and round-trip are not
+implemented or promised. This document export is separate from deferred
 private app-state export/import.
 
 | Markdown input | Current core output | Limits and warnings |
@@ -35,3 +36,14 @@ verify binary readback and leave source identity, dirty state and history unchan
 Independent ZIP/XML/CRC checks and a fresh isolated LibreOffice opening/PDF conversion
 pass for the supported fixtures. Actual Android SAF publication, physical Word
 acceptance and all remaining release gates stay open.
+
+DOCX import feasibility was investigated on 2026-10-16. A bounded read-only basic
+DOCX to new untitled Markdown conversion is feasible, subject to strict ZIP/XML
+limits and an explicitly supported subset. It is not implemented or exposed in
+the app. A future importer must refuse macros, external relationships, embedded
+content and unsupported content-bearing structures, disclose formatting losses
+and keep the DOCX source separate from the Markdown save destination. A tiny
+host-only probe parsed a core-generated3126-byte/7-member ZIP (7943 inflated bytes,
+8 paragraphs) and refused a hostile DTD. This is feasibility evidence; Android
+parser security and device acceptance remain open. General Word compatibility
+and lossless DOCX round-trip remain unpromised.

@@ -17,6 +17,8 @@ class HostActivity {
     protected void onActivityResult(int request,int result,MainActivity.Intent intent) {}
 }
 public final class MainActivity extends HostActivity {
+    private static final int REQUEST_DOCX_COPY=1006;
+    private void handleDocxResult(int result,Intent data){throw new AssertionError("DOCX result belongs to actual docx_ui fixture");}
     private static final int REQUEST_WORKSPACE_TREE=1005;
     private void handleWorkspaceTreeResult(int result,Intent intent){throw new AssertionError("Workspace result belongs to actual workspace_ui fixture");}
 

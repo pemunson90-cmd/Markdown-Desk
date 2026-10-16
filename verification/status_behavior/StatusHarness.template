@@ -8,6 +8,8 @@ class Activity { protected void onDestroy() {} }
 class DocumentPrint { static void cancel(Object activity) {} }
 
 final class StatusHarness extends Activity {
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
     void invalidateProtectedSaves() {}
     void cancelWorkspaceNavigation() {}
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
