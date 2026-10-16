@@ -144,15 +144,28 @@ jobs:
           "$ADB" pull /sdcard/md-workspace.xml "$RUNNER_TEMP/md-workspace.xml" >/dev/null
           "$ADB" shell screencap -p /sdcard/md-workspace.png
           "$ADB" pull /sdcard/md-workspace.png "$RUNNER_TEMP/md-workspace.png" >/dev/null
-          python3 - "$RUNNER_TEMP/md-workspace.xml" <<'PY'
-          import sys,xml.etree.ElementTree as ET
-          root=ET.parse(sys.argv[1]).getroot()
-          labels=[n.get("text","") for n in root.iter("node")]
+          # Android's UI hierarchy exposes the currently visible scroll viewport,
+          # not every offscreen Workspace entry. Inspect each real swipe page.
+          for PAGE in 1 2 3 4 5; do
+            "$ADB" shell input swipe 160 490 160 200 380
+            sleep 1
+            "$ADB" shell uiautomator dump /sdcard/md-workspace-page.xml >/dev/null
+            "$ADB" pull /sdcard/md-workspace-page.xml "$RUNNER_TEMP/md-workspace-page-$PAGE.xml" >/dev/null
+          done
+          "$ADB" shell screencap -p /sdcard/md-workspace-bottom.png
+          "$ADB" pull /sdcard/md-workspace-bottom.png "$RUNNER_TEMP/md-workspace-bottom.png" >/dev/null
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import pathlib,sys,xml.etree.ElementTree as ET
+          directory=pathlib.Path(sys.argv[1])
+          pages=[directory/"md-workspace.xml"]+sorted(directory.glob("md-workspace-page-*.xml"))
+          labels=[]
+          for page in pages:
+              labels.extend(n.get("text","") for n in ET.parse(page).getroot().iter("node"))
           expected=("Your writing desk","Favorites","Reading bookmarks","Protected storage status")
           for value in expected:
               if not any(value in label for label in labels):
-                  raise SystemExit("Native Workspace UI missing "+value)
-          print("PASS native Workspace entry and new Favorites/Bookmarks/storage controls")
+                  raise SystemExit("Native Workspace UI missing after scroll: "+value)
+          print("PASS native Workspace and visible, scroll-reachable Favorites/Bookmarks/storage controls")
           PY
           echo 'PASS: emulator installed/test-signed candidate, launched, survived rotation and cold relaunch.' >> "$GITHUB_STEP_SUMMARY"
           echo 'PASS: native Workspace controls available, including Favorites and Reading Bookmarks.' >> "$GITHUB_STEP_SUMMARY"
@@ -170,5 +183,7 @@ jobs:
             ${{ runner.temp }}/md-window.xml
             ${{ runner.temp }}/md-workspace.xml
             ${{ runner.temp }}/md-workspace.png
+            ${{ runner.temp }}/md-workspace-bottom.png
+            ${{ runner.temp }}/md-workspace-page-*.xml
           if-no-files-found: ignore
           retention-days: 7
