@@ -9,8 +9,9 @@ future enhancement. Existing implemented work and all private/untracked files st
 preserved; PR #24 stays draft. Local safe save, revision history, restore-to-new-copy,
 draft/session recovery, M2–M7 and all final signing/Fold gates remain required.
 
-Current source includes pushed owner-scope docs `ba1c1f1` and reader rendering
-`463aab0`, built on `4f80b49`, including independently approved writer
+Current pushed checkpoint is `bbabd25` on `codex/operation-data-capture`, draft
+PR #24. It includes the current-phone feature checkpoints below and the preserved
+portable foundations through `4f80b49`, including independently approved writer
 snapshot closure `9c2353c` (87 publication assertions,7 copy cases,11 completion
 cases,52 scope checks PASS). No newer full suite/APK/hosted/device gate is claimed.
 The existing Activity already wires protected saves, document history, comparison,
@@ -40,8 +41,9 @@ visit; tab loading resets it. Android IME/native undo/selection acceptance is un
 
 The read-only WorkspaceTreeReader helper is independently approved after exact-text
 budget and encoded-URI fixture repairs:47 focused assertions and actual SDK37
-source compile PASS. No persisted tree grants/navigation UI or recursive search is
-yet wired; M3 is not complete. The helper reports partial/cancelled/failed listings
+source compile PASS at that checkpoint. Folder grants/navigation are now wired as
+recorded below; recursive search remains in progress and M3 is not complete. The
+helper reports partial/cancelled/failed listings
 explicitly and makes no provider-pagination or whole-process heap guarantee.
 
 Print-only paged layout is independently approved:13 framing checks,15 real host
@@ -70,8 +72,9 @@ The DOCX export core is independently approved after resource/fidelity fixes:
 and a fresh isolated LibreOffice/PDF11-check journey PASS. Actual SDK bootclasspath
 compile PASS. Original maximum-line regex stack-overflow probes now pass; XML output
 checks budgets before encoding and cancellation is periodic. See the
-[explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). No Activity/SAF adapter exists
-and no user-visible DOCX export or import/round-trip is claimed.
+[explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). The guarded SAF adapter is now
+implemented as recorded below; Activity export controls are in progress. No
+user-visible DOCX export or import/round-trip is claimed yet.
 
 The actual Add folder → saved roots → nested browser → normal document open journey
 is implemented and independently approved (final Activity blob `ec749864`).120 focused
@@ -97,7 +100,9 @@ repaired without removing the original safety assertions.
 DOCX private staging and guarded binary new-copy publication are implemented and
 independently approved after resource/error-phase fixes. Final focused runner176
 assertions plus independent provider ZIP/XML/CRC PASS; SDK37 source compilation
-passed in the worker run. Stage/channel Error paths preserve close uncertainty;
+passed in the worker run. Both independent correction re-reviews approved the
+exact frozen sources, and the root reran the full focused runner before commit.
+Stage/channel Error paths preserve close uncertainty;
 unproven disposal holds only DOCX admission until process restart. Actual URI/ID
 alias checks, empty-destination preflight, one output-open attempt and binary hash/
 length readback preserve the native editor/save state. Generic provider alias/race
@@ -105,8 +110,15 @@ limits remain explicit. No DOCX action/picker UI is wired yet.
 
 Folder-search engine review found a blocking cursor-close ownership gap in the
 existing reader-to-consumer boundary; correction is in progress before search UI
-integration. A read-only local-protection usage projection is also in progress;
-policy changes and automatic pruning are not implemented by that packet.
+integration.
+
+Read-only local-protection usage projection is independently approved:40 new
+actual-store checks PASS in both author and root runs; existing history UI123,
+capture-race and6 fresh-process checks passed in the author run. It samples current
+installed authority, policy and generation coherently, preserves actual/reserved
+accounting, emits bounded issue enums and performs no registration/reconciliation/
+policy writes. No usage dialog is wired yet; settings and automatic pruning remain
+open. This is visibility groundwork, not configurable-retention completion.
 
 Next current-phone work: serial DOCX Activity controls, reviewed search resource
 ownership and actual search UI, then workspace favorites and other dependency-ready

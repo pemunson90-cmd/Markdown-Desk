@@ -61,6 +61,7 @@ bash verification/history_catalog/run.sh
 bash verification/history_index/run.sh
 bash verification/history_diff/run.sh
 bash verification/history_ui/run.sh
+bash verification/local_protection_status/run.sh
 bash verification/history_ui_integration/run.sh
 bash verification/protected_saves_ui/run.sh
 bash verification/private_archive/run.sh all

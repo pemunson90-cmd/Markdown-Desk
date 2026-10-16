@@ -44,6 +44,51 @@ public final class HistoryController {
     }
     /** Native writes continue to check current authority; this is not a permanent permission token. */
     public ProtectionStore protectionStore(){return store;}
+    public enum LocalProtectionIssue {
+        INCOMPLETE_ACCOUNTING, MUTATION_BLOCKED, OVER_QUOTA, BACKEND_DIAGNOSTICS_PRESENT
+    }
+    /** Immutable local accounting, not available disk space or pruning authority.
+     * Incomplete totals must never be presented as a capacity allowance. */
+    public static final class LocalProtectionStatus {
+        public final long quotaBytes,policyGeneration,dataActualBytes,completionReservedBytes,
+                operationReservedBytes,dataChargedBytes,controlActualBytes,controlReservedBytes;
+        public final int automaticCount,controlActualEntries,controlReservedEntries;
+        public final boolean usageComplete,mutationBlocked,overQuota;
+        public final Set<LocalProtectionIssue> issues;
+        private LocalProtectionStatus(HistoryCapacity.EffectivePolicy policy,HistoryCapacity.Usage usage) {
+            quotaBytes=policy.quotaBytes;policyGeneration=policy.generation;automaticCount=policy.automaticCount;
+            dataActualBytes=usage.dataActualBytes;completionReservedBytes=usage.completionReservedBytes;
+            operationReservedBytes=usage.operationReservedBytes;dataChargedBytes=usage.dataChargedBytes;
+            controlActualBytes=usage.controlActualBytes;controlReservedBytes=usage.controlReservedBytes;
+            controlActualEntries=usage.controlActualEntries;controlReservedEntries=usage.controlReservedEntries;
+            usageComplete=usage.usageComplete;mutationBlocked=usage.mutationBlocked;overQuota=usage.overQuota;
+            EnumSet<LocalProtectionIssue> flags=EnumSet.noneOf(LocalProtectionIssue.class);
+            if(!usageComplete)flags.add(LocalProtectionIssue.INCOMPLETE_ACCOUNTING);
+            if(mutationBlocked)flags.add(LocalProtectionIssue.MUTATION_BLOCKED);
+            if(overQuota)flags.add(LocalProtectionIssue.OVER_QUOTA);
+            if(!usage.diagnostics.isEmpty())flags.add(LocalProtectionIssue.BACKEND_DIAGNOSTICS_PRESENT);
+            issues=Collections.unmodifiableSet(flags);
+        }
+    }
+    /** Read-only synchronous inspection on the existing I/O queue. Never registers,
+     * reconciles or repairs authority; callback changes invalidate the entire sample.
+     * Provider/storage detail is deliberately excluded from this presentation API. */
+    public LocalProtectionStatus inspectLocalProtection()throws IOException {
+        synchronized(monitor) {
+            try {
+                HistoryCapacity authority=HistoryStorage.capacity(store.storageRoot());
+                if(authority==null)throw new IOException("Missing local protection authority");
+                authority.requireStoreHandle(store.storageRoot());
+                long generation=HistoryStorage.generation(store.storageRoot());
+                HistoryCapacity.EffectivePolicy policy=authority.policy();
+                HistoryCapacity.Usage usage=authority.inspect();
+                if(HistoryStorage.capacity(store.storageRoot())!=authority
+                        ||HistoryStorage.generation(store.storageRoot())!=generation||authority.policy()!=policy)
+                    throw new IOException("Changed local protection sample");
+                return new LocalProtectionStatus(policy,usage);
+            }catch(IOException|RuntimeException failure){throw new IOException("Local protection status is unavailable. Try again after storage recovery.");}
+        }
+    }
     public String resolveDocument(String exactUri,String tabId)throws IOException {
         document(tabId);nullable(exactUri);return identity.resolve(exactUri,tabId);
     }
