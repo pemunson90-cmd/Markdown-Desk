@@ -63,6 +63,7 @@ public final class WorkspaceFavoritesUiCheck {
         show(h);settle(h);
         WorkspaceHarness.AlertDialog list=dialog(h);
         yes(list.items.length==1&&list.items[0].contains("A real document.md"),"document pin shown in UI");
+        yes(list.message==null,"populated favorite list is not displaced by message text");
         List<WorkspaceFavoritesStore.Favorite> saved=new WorkspaceFavoritesStore(h.application).read();
         yes(saved.size()==1&&saved.get(0).uri.equals(DOCUMENT)
            &&saved.get(0).kind==WorkspaceFavoritesStore.Kind.DOCUMENT,"actual document store persists exact URI");
@@ -72,7 +73,7 @@ public final class WorkspaceFavoritesUiCheck {
         yes(current(h)==null,"one-tap favorite opens without options dialog");
         show(h);settle(h);dialog(h).getButton(-3).tap();settle(h);
         WorkspaceHarness.AlertDialog remove=dialog(h);
-        yes(remove.title!=null||remove.message.contains("shortcut"),"removal uses deliberate separate chooser");
+        yes(remove.message==null,"remove picker shows list instead of swallowing it behind dialog message");
         yes(remove.items.length==1,"removal lists only saved shortcuts");
         remove.item(0);settle(h);
         yes(new WorkspaceFavoritesStore(h.application).read().isEmpty(),
