@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - 'rescue/md-unsigned-build-proof-*'
+    paths:
+      - 'apps/MarkdownDesk/**'
+      - 'shared/**'
+      - 'verification/**'
+      - '.github/workflows/unsigned-rescue-proof.yml'
+
+concurrency:
+  group: markdown-desk-rescue-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
