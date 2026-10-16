@@ -4052,13 +4052,6 @@ public class MainActivity extends Activity {
         LinearLayout content=new LinearLayout(this);
         content.setOrientation(MODE_PREVIEW);
         content.setPadding(dp(18),dp(10),dp(18),dp(14));
-        TextView heading=new TextView(this);
-        heading.setText("Files");
-        heading.setTextSize(23.0f);
-        heading.setTypeface(Typeface.create("sans-serif",MODE_PREVIEW));
-        heading.setTextColor(this.palette.text);
-        heading.setAccessibilityHeading(true);
-        content.addView(heading,matchWrap());
         TextView description=new TextView(this);
         description.setText("Open or switch documents. Editing tools are in the editor and More menu.");
         description.setTextSize(13.0f);
