@@ -10,6 +10,9 @@ final class SearchHarness extends SearchBase {
     void invalidateReaderActions() {}
     void invalidateProtectionStatus() {} // Reader bookmark lifecycle is tested separately
     void showWorkspaceFavorites() {}
+ void pinCurrentDocumentFavorite() {}
+ void showRemoveWorkspaceFavorite() {}
+
     void pinWorkspaceFavorite(Uri uri,String label,WorkspaceFavoritesStore.Kind kind) {}
  static final int MODE_PREVIEW=1,RESULT_OK=-1;
  interface DialogInterface {int BUTTON_POSITIVE=-1,BUTTON_NEGATIVE=-2,BUTTON_NEUTRAL=-3;interface Click{void clicked(DialogInterface d,int n);}interface Event{void event(DialogInterface d);}interface Key{boolean key(DialogInterface d,int key,KeyEvent event);}}
