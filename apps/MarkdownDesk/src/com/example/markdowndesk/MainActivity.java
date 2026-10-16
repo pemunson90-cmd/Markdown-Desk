@@ -3483,7 +3483,6 @@ public class MainActivity extends Activity {
                     for(int i=0;i<saved.size();i++)
                         labels[i]=(saved.get(i).kind==WorkspaceFavoritesStore.Kind.TREE?"Folder · ":"Document · ")+saved.get(i).label;
                     AlertDialog dialog=historyDialogBuilder("Remove favorite")
-                        .setMessage("Choose a shortcut to remove. Original files and folder permissions stay unchanged.")
                         .setItems(labels,(d,index)->{
                             if(favoriteCurrent(request))removeWorkspaceFavorite(saved.get(index));
                         })
@@ -3523,7 +3522,6 @@ public class MainActivity extends Activity {
                         .setNegativeButton("Close",null);
                     if(saved.isEmpty())builder.setMessage("No favorites yet. Use ☆ Favorite current document in the Workspace for one-tap saving.");
                     else {
-                        builder.setMessage("Tap a favorite to open it. Use Remove favorite to delete only its shortcut.");
                         builder.setItems(names,(d,index)->{
                             if(favoriteCurrent(request))openWorkspaceFavorite(saved.get(index));
                         });
@@ -3776,7 +3774,6 @@ public class MainActivity extends Activity {
                     String[] names=new String[state.bookmarks.size()];
                     for(int i=0;i<names.length;i++)names[i]=state.bookmarks.get(i).label;
                     AlertDialog dialog=historyDialogBuilder("Remove bookmark")
-                        .setMessage("Choose a bookmark to remove. The document text will not change.")
                         .setItems(names,(d,index)->{
                             if(readerActionCurrent(request,tabId,uri))
                                 removeReaderBookmark(state.bookmarks.get(index),request,tabId,uri);
@@ -3815,7 +3812,6 @@ public class MainActivity extends Activity {
                         .setNegativeButton("Close",null);
                     if(labels.length==0)builder.setMessage("No bookmarks yet. In Write or Split, place the cursor and tap ☆ Bookmark this spot.");
                     else {
-                        builder.setMessage("Tap a bookmark to jump straight to its text.");
                         builder.setItems(labels,(d,index)->{
                             if(!readerActionCurrent(request,tabId,uri))return;
                             if(extra!=0&&index==0)navigateReaderAnchor(state.location,request,tabId,uri);
