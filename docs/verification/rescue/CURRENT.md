@@ -18,6 +18,13 @@
 - Canonical release certificate SHA-256: `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Private `MarkdownDesk-release.p12` and signing instructions exist in the user's Library archive `MarkdownDesk-2.1.0-Full-Build-Bundle.zip`. Do not publish keys/passwords to GitHub, Actions, logs, or source. Sign only in a trusted private final-release session, after applicable gates and a monotonically increased version code.
 - No canonical signed APK, in-place upgrade test, or physical Fold7 acceptance has occurred in this rescue.
 
+## Most recent verified checkpoint — 2026-10-16, 11:53 AM Eastern
+
+- Head `841ce47860b40fb224a3e9dba5d9ce19e16d6065`: complete owner-scoped current-phone host suite and unsigned Android package PASS in [GitHub run 38925912617](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38925912617). The prior RED run 38925408121 was a missing input-filter fixture dependency; this latest clean successful run supersedes it. All 18 owner-deferred portable-state test families remain explicitly NOT RUN, not silently green.
+- Real Android emulator: installation, startup, screen rotation, force-stop/relaunch PASS in [run 38922151520](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38922151520). Workspace scrolling and visible Favorites/Bookmarks/storage controls PASS in [run 38923460074](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38923460074). Real emulator taps into safe unsaved-bookmark refusal, empty Favorites and read-only protected-storage status PASS in [run 38924164753](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38924164753).
+- Protection-status Activity lifecycle now dismisses its visible dialog and invalidates pending status results on pause/destroy/refresh; focused production-source UI fixture tests 123 workspace checks plus saving/recovery PASS in [run 38925062331](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38925062331). That native emulator run used the same Activity source as the later test-fixture-only commits. Do not infer foldable/provider/real-user-data acceptance.
+- Production source files remain subject to code review and user-Fold acceptance. No private signing key used, no release APK approved, no original production app overwritten.
+
 ## Exact next work
 1. Confirm latest public branch heads and work ownership; preserve all current rescue/PR24 history.
 2. Reconcile remaining M2–M7 **current-phone** product obligations against the working app source; prioritize independently testable user journeys (including safe workspace operations and native acceptance), not deferred portable export.
