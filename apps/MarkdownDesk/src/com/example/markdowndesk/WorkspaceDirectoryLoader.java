@@ -58,6 +58,7 @@ final class WorkspaceDirectoryLoader {
         private Executor deliveryExecutor;
         private Consumer<WorkspaceTreeReader.Page> callback;
         private WorkspaceTreeReader.Page page;
+        private WorkspaceTreeReader.Listing listing;
         private boolean cancelled,finished;
 
         private Ticket(WorkspaceTreeReader reader,WorkspaceTreeReader.Directory directory,
@@ -81,7 +82,8 @@ final class WorkspaceDirectoryLoader {
             try {
                 WorkspaceTreeReader input;WorkspaceTreeReader.Directory target;
                 synchronized(guard){if(cancelled)return;input=reader;target=directory;}
-                WorkspaceTreeReader.Page result=input.list(target,limits,signal);
+                listing=input.prepareList(target,limits,signal);
+                WorkspaceTreeReader.Page result=listing.read();
                 synchronized(guard){
                     reader=null;directory=null;
                     if(cancelled)return;
@@ -115,7 +117,11 @@ final class WorkspaceDirectoryLoader {
 
         private void finishLocked(){
             finished=true;callback=null;deliveryExecutor=null;page=null;reader=null;directory=null;
-            if(owner==this)owner=null;
+            if(listing==null||listing.closeDisposition()==WorkspaceTreeReader.CloseDisposition.CLOSED){
+                listing=null;if(owner==this)owner=null;
+            }
+            // An uncertain cursor is never retried/replaced. Only its minted
+            // receipt and physical owner survive disposal until process restart.
         }
     }
 }

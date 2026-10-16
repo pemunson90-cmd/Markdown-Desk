@@ -108,9 +108,19 @@ alias checks, empty-destination preflight, one output-open attempt and binary ha
 length readback preserve the native editor/save state. Generic provider alias/race
 limits remain explicit. No DOCX action/picker UI is wired yet.
 
-Folder-search engine review found a blocking cursor-close ownership gap in the
-existing reader-to-consumer boundary; correction is in progress before search UI
-integration.
+Selected-folder literal search engine and cursor ownership corrections are
+independently approved. Pre-owned one-use Listing/Attempt receipts retain actual
+unknown cursor/stream disposal through fatal errors; folder admission fails closed
+until process restart without retaining UI callbacks. Search stops before further
+query/open on uncertain close and reports skipped types. Terminal cursor-close
+cancellation now has CANCELLED precedence while preserving resource uncertainty.
+Root focused runs: reader52, directory admission123 and final search66 PASS; author
+also ran existing workspace UI120 and SDK37 compilation of all three sources.
+Limits remain128 directories/512 files/4096 rows/depth16,16 MiB total input/8 MiB per
+file,100 matches with strict UTF-8, original-byte hashes and EOF/close validation.
+This is engine groundwork: search broker/results UI and hash-bound normal-open jumps
+remain unwired; no user-visible recursive search is claimed yet. Existing folder UI
+also needs the new uncertainty-specific message before that integration is complete.
 
 Read-only local-protection usage projection is independently approved:40 new
 actual-store checks PASS in both author and root runs; existing history UI123,

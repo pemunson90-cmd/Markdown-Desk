@@ -27,11 +27,11 @@ public final class WorkspaceDirectoryLoaderCheck {
   synchronized int size(){return tasks.size();}
  }
  static final class Rows implements Cursor {
-  int closes,count,at=-1;CountDownLatch closing,releaseClose;
-  public boolean moveToNext(){return ++at<count;}
+  int closes,count,at=-1;boolean closeFail;java.lang.Error bodyFatal,closeFatal;CountDownLatch closing,releaseClose;
+  public boolean moveToNext(){if(bodyFatal!=null)throw bodyFatal;return ++at<count;}
   public int getColumnIndex(String name){return Arrays.asList("document_id","_display_name","mime_type","_size","last_modified","flags").indexOf(name);}
   public boolean isNull(int column){return column>=3;}public String getString(int column){return column==0?"id"+at:column==1?"file"+at:"text/plain";}public long getLong(int column){return 0;}
-  public void close(){closes++;if(closing!=null){closing.countDown();try{await(releaseClose);}catch(InterruptedException e){throw new AssertionError(e);}}}
+  public void close(){closes++;if(closeFatal!=null)throw closeFatal;if(closeFail)throw new IllegalStateException("cursor close");if(closing!=null){closing.countDown();try{await(releaseClose);}catch(InterruptedException e){throw new AssertionError(e);}}}
  }
  static final class Provider extends ContentResolver {
   final Rows rows=new Rows();final CountDownLatch entered=new CountDownLatch(1);CountDownLatch release;CancellationSignal signal;int calls;
@@ -94,10 +94,28 @@ public final class WorkspaceDirectoryLoaderCheck {
   rejects(()->WorkspaceDirectoryLoader.tryLoad(null,r.root(),q,x->{}),IllegalArgumentException.class);
   AtomicReference<Throwable> background=new AtomicReference<>();Thread thread=new Thread(()->{try{start(r,q,calls);}catch(Throwable failure){background.set(failure);}});thread.start();thread.join(2000);check(background.get() instanceof IllegalStateException,"main-thread admission enforced");
  }
+ static void poisoned(String mode)throws Exception {
+  Provider p=new Provider();p.rows.closeFail=!mode.equals("fatal-closed");MainQueue q=new MainQueue();AtomicInteger callbacks=new AtomicInteger();WorkspaceTreeReader r=reader(p);
+  boolean fatal=mode.startsWith("fatal");java.lang.Error original=new AssertionError("original provider body Error");CountDownLatch uncaught=new CountDownLatch(1);AtomicReference<Throwable> thrown=new AtomicReference<>();
+  if(fatal){p.rows.bodyFatal=original;if(mode.equals("fatal-close-error")){p.rows.closeFail=false;p.rows.closeFatal=new AssertionError("provider close Error");}Thread.setDefaultUncaughtExceptionHandler((thread,error)->{thrown.set(error);uncaught.countDown();});}
+  if(mode.equals("poison-reject"))q.reject=true;
+  if(mode.equals("poison-cancel")){p.release=new CountDownLatch(1);}
+  WorkspaceDirectoryLoader.Ticket ticket=WorkspaceDirectoryLoader.tryLoad(r,r.root(),q,page->{check(page.state==WorkspaceTreeReader.State.FAILED&&page.closeDisposition()==WorkspaceTreeReader.CloseDisposition.UNCERTAIN,"uncertain failure notified once");callbacks.incrementAndGet();});
+  if(mode.equals("poison-cancel")){await(p.entered);ticket.cancel();p.release.countDown();}
+  workerDone();if(fatal){await(uncaught);check(thrown.get()==original,"fatal body Error rethrown unchanged");}
+  if(mode.equals("fatal-closed")){released();check(field(ticket,"listing")==null,"successful close releases fatal receipt");return;}
+  check(start(reader(new Provider()),q,callbacks)==null,"uncertain cursor retains process physical owner");
+  if(!fatal&&!mode.equals("poison-reject")&&!mode.equals("poison-cancel")){q.drain();check(callbacks.get()==1,"one normal failed Page delivery");}
+  ticket.cancel();q.drain();check(start(reader(new Provider()),q,callbacks)==null,"cancel/delivery/rejection cannot reset poisoned owner");
+  check(field(ticket,"reader")==null&&field(ticket,"directory")==null&&field(ticket,"page")==null&&field(ticket,"callback")==null&&field(ticket,"deliveryExecutor")==null&&field(ticket,"listing")!=null,"poison retains receipt only, drops UI/query/Page graph");
+  Object receipt=field(ticket,"listing");check(field(receipt,"reader")==null&&field(receipt,"directory")==null&&field(receipt,"limits")==null&&field(receipt,"cancellation")==null&&field(receipt,"cursor")!=null,"receipt retains actual cursor not request/Page graph");
+  check(p.calls==1&&p.rows.closes==1,"no retry query or close");
+ }
  public static void main(String[] args)throws Exception {
   Looper.getMainLooper();ExecutorService pool=worker();
   try{
    if(args.length>0&&args[0].equals("worker-reject")){pool.shutdown();Provider p=new Provider();WorkspaceTreeReader r=reader(p);MainQueue q=new MainQueue();rejects(()->start(r,q,new AtomicInteger()),RejectedExecutionException.class);released();check(p.calls==0&&q.size()==0,"worker refusal has no query/delivery");}
+   else if(args.length>0){poisoned(args[0]);}
    else{blockedCancellation();queuedCancellation();cursorCloseLifetime();prequeryCancellation();cancellationListenerAndDefaults();callbacksAndRejections();}
    System.out.println("PASS workspace directory loader: "+checks+" assertions "+Arrays.toString(args));
   }finally{pool.shutdownNow();check(pool.awaitTermination(5,TimeUnit.SECONDS),"test worker terminated");}

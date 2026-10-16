@@ -76,3 +76,16 @@ No aggregate run, APK build, browser Activity integration or physical SAF/device
 acceptance is claimed. Application-resolver/Handler executor policy and UI token
 validation must be enforced by that later integration. This prerequisite alone is
 not the folder-browser feature.
+
+
+Owned-cursor correction: Ticket retains reader-minted Listing BEFORE read(), then
+only a proven normal close may retire physical admission. Uncertain FAILED Page
+may notify once; after delivery/cancel/rejected delivery/fatal Error, static owner
+and stripped Listing/cursor receipt remain process-lifetime BUSY. Page, reader,
+directory, signal inputs, callback and delivery executor references are dropped;
+Listing has no Page/entry graph. Original fatal body Error is rethrown even if close
+also fails; fatal body with successful close releases normally. No retry/isClosed
+heuristic/reset or Activity edits. Existing87+3 assertions and six new fresh-JVM
+modes8/5/5/6/6/3 assertions all PASS (123 total). Search root-cursor regression was
+RED before source correction; broker compilation was RED while its removed-list
+callsite awaited adaptation. Final actualUI120 and actual SDK compile PASS.

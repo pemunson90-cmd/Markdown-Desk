@@ -56,3 +56,14 @@ Review correction evidence: corrected URI expectations first failed the old stub
 (`exact text cap LIMITED without lookahead`). Production now checks exhausted text
 credit before moveToNext; the regression requires LIMITED and exactly one move.
 Final focused run:47 assertions PASS; actual SDK compile and diff check PASS.
+
+
+Owned-cursor correction: production callers now obtain a reader-minted Listing via
+prepareList(directory,limits,signal), retain it, then call one-use read(). The unsafe
+list convenience was removed. Listing owns the cursor immediately on acquisition;
+only a normal close return clears it. Page.closeDisposition() exposes CLOSED or
+UNCERTAIN, never a cursor. Fatal body/close errors propagate with original body
+identity preserved; the preowner still holds uncertainty. Listing clears reader,
+directory, limits, signal and local entries on read exit; no raw Page graph is retained
+by its receipt. Final52 focused assertions PASS, including fatal body+close Runtime/
+Error, one-use enforcement and successful-close fatal release. SDK compile PASS.

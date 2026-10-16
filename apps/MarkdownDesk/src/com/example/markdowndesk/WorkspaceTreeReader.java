@@ -13,6 +13,7 @@ import java.util.*;
  * Caps app-retained metadata, not provider/CursorWindow allocations. There is no
  * pagination/continuation promise, recursive walk, grant mutation or write API. */
 final class WorkspaceTreeReader {
+    enum CloseDisposition {CLOSED,UNCERTAIN}
     enum State { COMPLETE, LIMITED, CANCELLED, FAILED }
     enum Error { NONE, ACCESS_REVOKED, UNAVAILABLE, PROVIDER_FAILURE, MALFORMED_PROVIDER }
     static final class Limits {
@@ -38,7 +39,10 @@ final class WorkspaceTreeReader {
     static final class Page {
         final List<Entry> entries;final int scannedRows,retainedTextUnits;
         final State state;final Error error;
-        private Page(List<Entry> entries,int scanned,int units,State state,Error error){
+        private final Listing receipt;
+        CloseDisposition closeDisposition(){return receipt==null?CloseDisposition.CLOSED:CloseDisposition.UNCERTAIN;}
+        private Page(List<Entry> entries,int scanned,int units,State state,Error error,Listing listing){
+            receipt=listing.closeDisposition()==CloseDisposition.UNCERTAIN?listing:null;
             // This list is private to one completed call; no mutable alias escapes.
             this.entries=Collections.unmodifiableList(entries);scannedRows=scanned;retainedTextUnits=units;this.state=state;this.error=error;
         }
@@ -58,15 +62,34 @@ final class WorkspaceTreeReader {
         this.resolver=resolver;tree=selectedTree;root=new Directory(this,id);
     }
     Directory root(){return root;}
-    Page list(Directory directory,Limits limits,CancellationSignal cancellation){
+    Listing prepareList(Directory directory,Limits limits,CancellationSignal cancellation){
         if(directory==null||directory.owner!=this||limits==null||cancellation==null)
             throw new IllegalArgumentException("Foreign directory or missing query inputs");
+        return new Listing(this,directory,limits,cancellation);
+    }
+    /** Pre-owned before query; retains only actual cursor/failures after read.
+     * No retry/reset/close API: uncertainty is process-lifetime fail-stop evidence. */
+    static final class Listing {
+        private WorkspaceTreeReader reader;private Directory directory;private Limits limits;
+        private CancellationSignal cancellation;private Cursor cursor;private Throwable bodyFailure,closeFailure;
+        private boolean used;
+        private Listing(WorkspaceTreeReader reader,Directory directory,Limits limits,CancellationSignal cancellation){
+            this.reader=reader;this.directory=directory;this.limits=limits;this.cancellation=cancellation;
+        }
+        CloseDisposition closeDisposition(){return cursor==null?CloseDisposition.CLOSED:CloseDisposition.UNCERTAIN;}
+        Page read(){
+            synchronized(this){if(used)throw new IllegalStateException("Workspace listing is one-use");used=true;}
+            try{return reader.readOwned(this,directory,limits,cancellation);}
+            finally{reader=null;directory=null;limits=null;cancellation=null;if(cursor==null){bodyFailure=null;closeFailure=null;}}
+        }
+    }
+    private Page readOwned(Listing listing,Directory directory,Limits limits,CancellationSignal cancellation){
         List<Entry> entries=new ArrayList<>();Set<String> ids=new HashSet<>();
         int scanned=0,units=0;State state=State.COMPLETE;Error error=Error.NONE;Cursor cursor=null;
         try {
             cancellation.throwIfCanceled();
             Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(tree,directory.id);
-            cursor=resolver.query(children,PROJECTION.clone(),null,null,null,cancellation);
+            listing.cursor=resolver.query(children,PROJECTION.clone(),null,null,null,cancellation);cursor=listing.cursor;
             cancellation.throwIfCanceled();
             if(cursor==null)throw new ProviderFailure();
             int[] columns=new int[PROJECTION.length];
@@ -97,10 +120,13 @@ final class WorkspaceTreeReader {
         catch(SecurityException revoked){state=State.FAILED;error=Error.ACCESS_REVOKED;}
         catch(Malformed malformed){state=State.FAILED;error=Error.MALFORMED_PROVIDER;}
         catch(RuntimeException failure){state=State.FAILED;error=failure.getCause() instanceof FileNotFoundException?Error.UNAVAILABLE:Error.PROVIDER_FAILURE;}
+        catch(java.lang.Error fatal){listing.bodyFailure=fatal;throw fatal;}
         finally {
-            if(cursor!=null)try{cursor.close();}catch(RuntimeException failure){state=State.FAILED;error=Error.PROVIDER_FAILURE;}
+            if(cursor!=null)try{cursor.close();listing.cursor=null;}
+            catch(RuntimeException failure){listing.closeFailure=failure;state=State.FAILED;error=Error.PROVIDER_FAILURE;}
+            catch(java.lang.Error fatal){listing.closeFailure=fatal;if(listing.bodyFailure==null)throw fatal;}
         }
-        return new Page(entries,scanned,units,state,error);
+        return new Page(entries,scanned,units,state,error,listing);
     }
     private static String field(Cursor cursor,int column,int maximum,boolean nonempty){
         if(cursor.isNull(column))throw new Malformed();String value=cursor.getString(column);
