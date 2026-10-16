@@ -38,7 +38,15 @@ public final class WorkspaceFavoritesUiCheck {
         yes(dialog!=null&&dialog.isShowing(),"visible, current favorites dialog");
         return dialog;
     }
-    static void settle(WorkspaceHarness h){h.drainLocal();}
+    static void settle(WorkspaceHarness h){
+        // UI callback can schedule fresh disk work, which then posts another UI
+        // callback. Drain both queues until stable, rather than stopping at one turn.
+        for(int i=0;i<8;i++){
+            h.drainLocal();
+            if(h.io.tasks.isEmpty()&&!android.os.Handler.pending())return;
+        }
+        throw new AssertionError("Favorites I/O and UI delivery did not settle");
+    }
     static void normalAndPersistence()throws Exception {
         WorkspaceUiCheck.Prefs roots=new WorkspaceUiCheck.Prefs(),favorites=new WorkspaceUiCheck.Prefs();
         WorkspaceUiCheck.Provider provider=new WorkspaceUiCheck.Provider();
