@@ -86,13 +86,9 @@ jobs:
         shell: bash
         run: bash verification/setup_host_deps.sh
 
-      - name: Verify favorites UI integration and adjacent current-phone behavior
+      - name: Verify broad owner-scoped current-phone host suite
         shell: bash
         run: |
           set -euo pipefail
-          bash verification/workspace_favorites/run.sh
-          bash verification/workspace_ui/run.sh
-          bash verification/workspace_search_ui/run.sh
-          bash verification/reader_positions/run.sh
-          bash verification/save_lifecycle/run.sh --safety
-          echo 'Focused source integration only. Prior broad current-phone gate remains separately recorded; final native/device/release tests NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
+          bash verification/run_current_phone_checks.sh
+          echo 'Full current-phone host source suite PASS if this step succeeds. 18 owner-deferred portable-private-state suites explicitly NOT RUN. Native Fold7/provider/release signing NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
