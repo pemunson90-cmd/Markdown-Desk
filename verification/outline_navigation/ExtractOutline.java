@@ -15,6 +15,7 @@ public final class ExtractOutline {
             "parseJsInt", "scrollEditorToOffset", "lambda$scrollEditorToOffset$76"));
         wanted.addAll(List.of("PreviewPage", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollIsCurrent", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "previewPageHtml", "isCurrentPreviewPage", "previewDomGuard", "acknowledgePreviewPage", "beginPreviewScroll", "releasePreviewScroll", "showOutline", "scrollPreviewToSourceOffset", "jumpToSourceOffset", "handlePreviewUri", "setMode", "editorOffsetAtViewport", "findNext", "lambda$showSearchMatches$88"));
         wanted.addAll(List.of("SourceNavigation", "sourceNavigationRevision", "sourceRouteRevision", "explicitNavigationSequence", "pendingOutlineNavigation", "sourceEditorNavigation", "sourceEditorScroll", "isCurrentSourceNavigation", "retireExplicitSourceNavigation", "retireStaleSourceNavigation", "retirePreviewSynchronization", "applyPendingOutlineNavigation"));
+        wanted.add("readerTypography");
         List<String> watchers=new ArrayList<>();
         Map<String,String> found=new LinkedHashMap<>();
         JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();

@@ -81,9 +81,12 @@ final class PreviewHarness extends Activity {
         watcher.onTextChanged(editor.text, 0, 0, text.length()); suppressChanges = false;
     }
     void acknowledgeForCapture() {
-        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode));
+        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode,readerTypography));
         previewPage.acknowledged=true;previewReady=true;
     }
+    ReaderTypography typography() {return readerTypography;}
+    void typography(ReaderTypography value) {readerTypography=value;}
+    boolean currentPage() {return isCurrentPreviewPage(previewPage);}
     void layout() { /* LAYOUT */ }
     void settle() {
         main.runDelayed();

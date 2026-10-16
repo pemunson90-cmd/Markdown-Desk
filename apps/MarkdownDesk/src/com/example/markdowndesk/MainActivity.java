@@ -56,6 +56,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,6 +73,8 @@ public class MainActivity extends Activity {
     private static final String PREFS = "markdown_desk";
     private static final String PREF_DARK = "dark_theme";
     private static final String PREF_FONT = "font_size";
+    private static final String PREF_READER_FAMILY="reader_font_family", PREF_READER_LINE="reader_line_height",
+            PREF_READER_GAP="reader_paragraph_gap", PREF_READER_MARGIN="reader_margin_px", PREF_READER_MEASURE="reader_measure_px";
     private static final String PREF_PREVIEW_FONT = "preview_font_size";
     private static final String PREF_GOAL = "word_goal";
     private static final String PREF_LAUNCH_SPLASH = "launch_splash";
@@ -107,6 +110,7 @@ public class MainActivity extends Activity {
     private KeyListener editorKeyListener;
     private float fontSp;
     private float previewFontSp;
+    private ReaderTypography readerTypography=ReaderTypography.defaults();
     private HorizontalScrollView formatScroll;
     private LinearLayout formats;
     private HorizontalScrollView readToolsScroll;
@@ -215,6 +219,7 @@ public class MainActivity extends Activity {
         this.dark = this.palette.dark;
         this.fontSp = this.preferences.getFloat(PREF_FONT, 18.0f);
         this.previewFontSp = this.preferences.getFloat(PREF_PREVIEW_FONT, 18.0f);
+        this.readerTypography=readReaderTypography();
         this.lineNumbers = this.preferences.getBoolean(PREF_LINES, false);
         this.typewriterMode = this.preferences.getBoolean(PREF_TYPEWRITER, false);
         this.wordGoal = this.preferences.getInt(PREF_GOAL, MODE_EDIT);
@@ -3316,9 +3321,89 @@ public class MainActivity extends Activity {
         Button typewriterButton;
         Button splashButton;
         Button galleryButton;
+        TextView typographyHeading;
+        final String[] readerFamilyNames={"Serif","Sans serif","Monospace"};
+        final Button[] readerFamilyButtons=new Button[3], readerMinus=new Button[4], readerPlus=new Button[4];
+        final TextView[] readerLabels=new TextView[4];
         final String[] themeNames = {"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
         final Button[] themeButtons = new Button[9];
         final List<Button> buttons = new ArrayList<>();
+    }
+
+    private ReaderTypography readReaderTypography() {
+        Map<String,?> saved=this.preferences.getAll();
+        Object family=saved.get(PREF_READER_FAMILY), line=saved.get(PREF_READER_LINE), gap=saved.get(PREF_READER_GAP),
+                margin=saved.get(PREF_READER_MARGIN), measure=saved.get(PREF_READER_MEASURE);
+        return ReaderTypography.fromValues(family instanceof String?(String)family:null,
+                line instanceof Number?((Number)line).floatValue():Float.NaN,
+                gap instanceof Number?((Number)gap).floatValue():Float.NaN,
+                margin instanceof Integer?(Integer)margin:0, measure instanceof Integer?(Integer)measure:0);
+    }
+
+    private void updateReaderTypography(ReaderTypography value, AppearanceUi ui) {
+        this.readerTypography=value;
+        this.preferences.edit().putString(PREF_READER_FAMILY,value.family.name()).putFloat(PREF_READER_LINE,value.lineHeight)
+                .putFloat(PREF_READER_GAP,value.paragraphGapEm).putInt(PREF_READER_MARGIN,value.horizontalMarginPx)
+                .putInt(PREF_READER_MEASURE,value.measurePx).apply();
+        renderPreview();
+        refreshAppearance(ui);
+    }
+
+    private void adjustReaderTypography(int field, int delta, AppearanceUi ui) {
+        ReaderTypography next=this.readerTypography;
+        switch(field) {
+            case 0: next=next.withLineHeight(Math.max(1.2f,Math.min(2.2f,Math.round((next.lineHeight+delta*.1f)*100f)/100f)));break;
+            case 1: next=next.withParagraphGapEm(Math.max(.5f,Math.min(1.5f,Math.round((next.paragraphGapEm+delta*.1f)*100f)/100f)));break;
+            case 2: next=next.withHorizontalMarginPx(Math.max(12,Math.min(44,next.horizontalMarginPx+delta*4)));break;
+            case 3: next=next.withMeasurePx(Math.max(480,Math.min(960,next.measurePx+delta*40)));break;
+            default: return;
+        }
+        updateReaderTypography(next,ui);
+    }
+
+    private void addReaderTypographyControls(AppearanceUi ui, LinearLayout parent) {
+        ui.typographyHeading=new TextView(this);
+        ui.typographyHeading.setText("Reading layout");ui.typographyHeading.setTextSize(16f);
+        ui.typographyHeading.setPadding(dp(4),dp(16),dp(4),dp(4));parent.addView(ui.typographyHeading,matchWrap());
+        for(int n=0;n<ui.readerFamilyButtons.length;n++) {
+            final ReaderTypography.Family family=ReaderTypography.Family.values()[n];
+            ui.readerFamilyButtons[n]=appearanceButton(ui,ui.readerFamilyNames[n],ui.readerFamilyNames[n],
+                    view -> updateReaderTypography(readerTypography.withFamily(family),ui));
+            parent.addView(ui.readerFamilyButtons[n],matchWrap());
+        }
+        String[] names={"line spacing","paragraph spacing","side margins","width"};
+        for(int n=0;n<4;n++) {
+            final int field=n;ui.readerLabels[n]=new TextView(this);
+            ui.readerLabels[n].setPadding(dp(4),dp(10),dp(4),dp(4));parent.addView(ui.readerLabels[n],matchWrap());
+            LinearLayout row=new LinearLayout(this);row.setOrientation(MODE_EDIT);
+            ui.readerMinus[n]=appearanceButton(ui,"−","Decrease reading "+names[n],view -> adjustReaderTypography(field,-1,ui));
+            ui.readerPlus[n]=appearanceButton(ui,"+","Increase reading "+names[n],view -> adjustReaderTypography(field,1,ui));
+            row.addView(ui.readerMinus[n],new LinearLayout.LayoutParams(MODE_EDIT,dp(44),1f));
+            row.addView(ui.readerPlus[n],new LinearLayout.LayoutParams(MODE_EDIT,dp(44),1f));parent.addView(row,matchWrap());
+        }
+        parent.addView(appearanceButton(ui,"Reset reading layout","Reset reading layout to defaults",
+                view -> updateReaderTypography(ReaderTypography.defaults(),ui)),matchWrap());
+    }
+
+    private void refreshReaderTypography(AppearanceUi ui) {
+        ui.typographyHeading.setTextColor(this.palette.text);
+        for(int n=0;n<ui.readerFamilyButtons.length;n++) {
+            Button button=ui.readerFamilyButtons[n];boolean selected=this.readerTypography.family==ReaderTypography.Family.values()[n];
+            button.setText((selected?"●  ":"○  ")+ui.readerFamilyNames[n]);
+            setAppearanceSelection(button,ui.readerFamilyNames[n],selected);
+            button.setBackground(UiTheme.rounded(selected?this.palette.accentSoft:this.palette.surface,dp(13),selected?this.palette.accent:this.palette.border,1));
+        }
+        ui.readerLabels[0].setText(String.format(java.util.Locale.ROOT,"Line spacing · %.2f×",this.readerTypography.lineHeight));
+        ui.readerLabels[1].setText(String.format(java.util.Locale.ROOT,"Paragraph spacing · %.2f em",this.readerTypography.paragraphGapEm));
+        ui.readerLabels[2].setText("Side margins · "+this.readerTypography.horizontalMarginPx+" px");
+        ui.readerLabels[3].setText("Reading width · "+this.readerTypography.measurePx+" px");
+        boolean[] minus={readerTypography.lineHeight>1.2f,readerTypography.paragraphGapEm>.5f,readerTypography.horizontalMarginPx>12,readerTypography.measurePx>480};
+        boolean[] plus={readerTypography.lineHeight<2.2f,readerTypography.paragraphGapEm<1.5f,readerTypography.horizontalMarginPx<44,readerTypography.measurePx<960};
+        for(int n=0;n<4;n++) {
+            ui.readerLabels[n].setTextColor(this.palette.muted);
+            ui.readerMinus[n].setEnabled(minus[n]);ui.readerMinus[n].setAlpha(minus[n]?1f:.4f);
+            ui.readerPlus[n].setEnabled(plus[n]);ui.readerPlus[n].setAlpha(plus[n]?1f:.4f);
+        }
     }
 
     private Button appearanceButton(AppearanceUi ui, String label, View.OnClickListener listener) {
@@ -3380,6 +3465,7 @@ public class MainActivity extends Activity {
         setAppearanceSelection(ui.typewriterButton, "Typewriter mode", this.typewriterMode);
         setAppearanceSelection(ui.splashButton, "Show launch splash", this.launchSplashEnabled);
         ui.galleryButton.setText("⋯  Splash images (" + SplashStore.enabled(this).size() + " on)");
+        refreshReaderTypography(ui);
         if (ui.dialog != null && ui.dialog.isShowing()) {
             styleDialog(ui.dialog);
         }
@@ -3479,6 +3565,7 @@ public class MainActivity extends Activity {
             preferences.edit().putFloat(PREF_FONT, fontSp).putFloat(PREF_PREVIEW_FONT, previewFontSp).apply();
             sourceLabel.setText("Source text · 18 sp"); readLabel.setText("Reading text · 18 sp"); if (mode != MODE_EDIT) renderPreview();
         } }), matchWrap());
+        addReaderTypographyControls(ui,linearLayout);
         // Keep every setting reachable on cover displays, in landscape, and
         // with larger system fonts. Done stays outside scrolling content.
         ScrollView appearanceScroll = new ScrollView(this);
@@ -3596,7 +3683,7 @@ public class MainActivity extends Activity {
         intent.setType(z ? "text/html" : "text/markdown");
         intent.putExtra("android.intent.extra.SUBJECT", this.displayName);
         if (z) {
-            string = MarkdownRenderer.render(string, this.palette, this.previewFontSp);
+            string = MarkdownRenderer.render(string, this.palette, this.previewFontSp, this.readerTypography);
         }
         intent.putExtra("android.intent.extra.TEXT", string);
         try {
@@ -3608,7 +3695,7 @@ public class MainActivity extends Activity {
 
     private void printDocument() {
         DocumentPrint.start(this, () -> new DocumentPrint.Capture(this.editor.getText(), this.displayName,
-                this.palette, this.previewFontSp, this.utf8Bom), this::showError);
+                this.palette, this.previewFontSp, this.utf8Bom, this.readerTypography), this::showError);
     }
 
     private void styleDialog(AlertDialog alertDialog) {
@@ -3676,14 +3763,14 @@ public class MainActivity extends Activity {
         if (this.previewStopped || this.mode == MODE_EDIT || this.preview == null || this.editor == null) return;
         // Capture on main only, after debounce (or an explicit view/appearance render).
         this.previewWork.request(new LatestPreview.Request(previewDocumentId(), this.previewRevision,
-                this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode));
+                this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode, this.readerTypography));
     }
 
     private void acceptPreview(LatestPreview.Result result) {
         LatestPreview.Request request = result.request;
         if (this.previewStopped || this.preview == null || this.editor == null || this.isFinishing()
                 || request.revision != this.previewRevision || !request.documentId.equals(previewDocumentId())
-                || request.palette != this.palette || Float.compare(request.fontSp, this.previewFontSp) != 0
+                || request.palette != this.palette || request.typography != this.readerTypography || Float.compare(request.fontSp, this.previewFontSp) != 0
                 || request.mode != this.mode || this.mode == MODE_EDIT) return;
         PreviewPage page = new PreviewPage(this.preview, request);
         this.previewPage = page;
@@ -3698,6 +3785,7 @@ public class MainActivity extends Activity {
         final UiTheme.Palette palette;
         final float fontSp;
         final int mode;
+        final ReaderTypography typography;
         boolean acknowledged;
 
         PreviewPage(WebView view, LatestPreview.Request request) {
@@ -3708,6 +3796,7 @@ public class MainActivity extends Activity {
             this.palette = request.palette;
             this.fontSp = request.fontSp;
             this.mode = request.mode;
+            this.typography=request.typography;
         }
     }
 
@@ -3724,7 +3813,7 @@ public class MainActivity extends Activity {
         return page != null && page == this.previewPage && page.view == this.preview
                 && !this.previewStopped && !isFinishing() && !isDestroyed()
                 && page.revision == this.previewRevision && page.documentId.equals(previewDocumentId())
-                && page.palette == this.palette && Float.compare(page.fontSp, this.previewFontSp) == 0
+                && page.palette == this.palette && page.typography == this.readerTypography && Float.compare(page.fontSp, this.previewFontSp) == 0
                 && page.mode == this.mode && this.mode != MODE_EDIT;
     }
 

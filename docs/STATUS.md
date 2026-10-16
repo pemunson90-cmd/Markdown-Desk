@@ -1,6 +1,6 @@
 # Current project status
 
-## Current owner checkpoint — local safety and current-phone features, 2026-10-15
+## Current owner checkpoint — local safety and current-phone features, 2026-10-16
 
 [Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
 controls: portable private-state export/import is deferred, not a current-phone
@@ -23,8 +23,14 @@ No new local data-loss defect is established by this scope change.
 Reader typography model/renderer `463aab0` is independently approved:80 focused
 assertions PASS; default HTML is byte-identical across nine captured themes. Existing
 renderer golden467, nested-list12 and table-divider14,020 assertions PASS in the
-worker’s affected run. Appearance controls/persistence and async preview wiring are
-not yet implemented; this is not a completed user-facing Reader Pro feature.
+worker’s affected run. Appearance controls/persistence, captured async previews,
+HTML sharing and print input are now implemented and independently approved:
+40 UI/typed-preference/control checks,6 immutable-request checks,3 HTML-share checks;
+affected preview450, navigation18 cases/66 checks, outline32 cases/74 checks,
+mode43/126/4963 and print20 cases/134 plus18 controlled checks PASS. Changed Android
+sources compile against SDK37/JDK17. Current style identity joins the existing
+revision/document/page guards. Visual WebView/TalkBack/Fold acceptance remains open;
+reader anchors/bookmarks/annotations and other M4 obligations are not complete.
 
 Native Undo/Redo and the Workspace local-history limitation are implemented and
 independently approved. New routing32 checks PASS; affected mode126, labels43,
@@ -46,9 +52,10 @@ style is captured for rendering. Android WebView/print spooler and print-dialog
 margin behavior remain NOT RUN. The required aggregate registers Java-only checks;
 actual PDFs remain an explicit tool-dependent runner, not an aggregate claim.
 
-Next current-phone work: wire reader typography into Appearance/persistence and
-captured async previews; implement bounded SAF folder navigation and paged PDF
-improvements with serial Activity ownership and focused independent reviews.
+Next current-phone work: finish saved-folder registry and process-wide cancellable
+query admission, then wire the actual Add folder → browser → normal open journey.
+Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
+and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.
 Physical process death/provider/Fold7/in-place signed-upgrade acceptance remains
 NOT RUN and is batched for the coherent candidate.

@@ -6,7 +6,7 @@ public final class PreviewBehavior {
     private static int checks;
     static void check(boolean ok, String message) { checks++; if (!ok) throw new AssertionError(message); }
     static void equal(Object expected, Object actual, String message) { check(Objects.equals(expected,actual),message); }
-    static String expected(PreviewHarness h) { return MarkdownRenderer.render(h.editor.text.value,h.palette,h.previewFontSp); }
+    static String expected(PreviewHarness h) { return MarkdownRenderer.render(h.editor.text.value,h.palette,h.previewFontSp,h.typography()); }
     static String loaded(PreviewHarness h) {
         String html=h.preview.html;
         check(html.startsWith("<!doctype html><html data-md-preview=\""),"only trusted root metadata wrapping");
@@ -82,7 +82,7 @@ public final class PreviewBehavior {
     }
 
     static void acceptanceGuards() {
-        for(int which=0;which<6;which++) {
+        for(int which=0;which<7;which++) {
             PreviewHarness h=new PreviewHarness(); queueDelivery(h);
             switch(which) {
                 case 0: h.activeTab=1; break;
@@ -91,9 +91,17 @@ public final class PreviewBehavior {
                 case 3: h.mode=PreviewHarness.MODE_SPLIT; break;
                 case 4: h.finishing=true; break;
                 case 5: h.tabs.clear(); break;
+                case 6: h.typography(ReaderTypography.defaults()); break;
             }
             h.main.runPosted(); equal(0,h.preview.loads,"acceptance guard " + which);
         }
+    }
+
+    static void typographyIdentity() {
+        PreviewHarness h=new PreviewHarness();h.typography(ReaderTypography.defaults().withFamily(ReaderTypography.Family.MONOSPACE).withLineHeight(2.2f));h.renderPreview();h.settle();equal(expected(h),loaded(h),"actual custom style HTML");
+        h.acknowledgeForCapture();check(h.currentPage(),"captured style page current");h.typography(h.typography().withMeasurePx(960));check(!h.currentPage(),"style identity retires old page even without revision change");
+        h.renderPreview();h.settle();equal(expected(h),loaded(h),"new style HTML after change");
+        queueDelivery(h);int loads=h.preview.loads;h.typography(ReaderTypography.defaults());h.renderPreview();h.typography(ReaderTypography.defaults().withFamily(ReaderTypography.Family.MONOSPACE));h.renderPreview();h.main.runPosted();equal(loads,h.preview.loads,"style A B A stale delivery rejected");h.settle();equal(expected(h),loaded(h),"latest captured style accepted");
     }
 
     static void scrollAndShutdown() {
@@ -183,7 +191,7 @@ public final class PreviewBehavior {
 
     public static void main(String[] args) throws Exception {
         debounceAndCopies(); staleBeforeDebounceAndSuppression(); boundedPendingAndDelivery();
-        transitions(); acceptanceGuards(); scrollAndShutdown(); fullHtmlParity(); helperLifecycle(); realWorkerConcurrency(); boundedLargePendingMemory();
+        transitions(); acceptanceGuards(); typographyIdentity(); scrollAndShutdown(); fullHtmlParity(); helperLifecycle(); realWorkerConcurrency(); boundedLargePendingMemory();
         System.out.println("Preview production watcher/scheduler + helper: " + checks + " checks PASS");
     }
 }

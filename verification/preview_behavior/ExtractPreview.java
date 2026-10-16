@@ -36,7 +36,7 @@ public final class ExtractPreview {
                     }
                     if (!baseline && member instanceof ClassTree && Set.of("PreviewPage", "SourceNavigation").contains(((ClassTree) member).getSimpleName().toString())) fields.add(raw.apply(member));
                     if (member instanceof VariableTree && Set.of("renderIo", "previewRenderToken", "previewWork",
-                            "previewRevision", "previewStopped", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "sourceNavigationRevision", "sourceRouteRevision", "explicitNavigationSequence", "pendingOutlineNavigation", "sourceEditorNavigation", "sourceEditorScroll").contains(((VariableTree) member).getName().toString())) {
+                            "readerTypography", "previewRevision", "previewStopped", "previewPage", "previewProbePending", "previewProbeRunning", "previewProbeSequence", "previewScrollOperation", "previewScrollRelease", "previewEditorScroll", "sourceNavigationRevision", "sourceRouteRevision", "explicitNavigationSequence", "pendingOutlineNavigation", "sourceEditorNavigation", "sourceEditorScroll").contains(((VariableTree) member).getName().toString())) {
                         fields.add(raw.apply(member));
                     }
                 }

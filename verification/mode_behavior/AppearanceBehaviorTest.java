@@ -1,3 +1,4 @@
+package com.example.markdowndesk;
 public final class AppearanceBehaviorTest {
     static int checks;
     static void check(String name, boolean condition) {checks++; if (!condition) throw new AssertionError(name);}

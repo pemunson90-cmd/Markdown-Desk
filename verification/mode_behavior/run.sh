@@ -12,5 +12,5 @@ java -cp "$out" LabelBehaviorTest
 java -cp "$out" ModeBehaviorTest
 javac --release 11 -d "$out" verification/mode_behavior/ExtractAppearance.java
 java -cp "$out" ExtractAppearance apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java verification/mode_behavior/AppearanceHarness.template "$out/AppearanceHarness.java"
-javac --release 11 -d "$out" "$out/AppearanceHarness.java" verification/mode_behavior/AppearanceBehaviorTest.java
-java -cp "$out" AppearanceBehaviorTest
+javac --release 11 -d "$out" apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java "$out/AppearanceHarness.java" verification/mode_behavior/AppearanceBehaviorTest.java
+java -cp "$out" com.example.markdowndesk.AppearanceBehaviorTest

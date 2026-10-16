@@ -1,0 +1,21 @@
+package com.example.markdowndesk;
+import java.util.*;
+final class ReaderUiHarness {
+ static final int MODE_EDIT=0,MODE_PREVIEW=1;static final String PREF_READER_FAMILY="reader_font_family",PREF_READER_LINE="reader_line_height",PREF_READER_GAP="reader_paragraph_gap",PREF_READER_MARGIN="reader_margin_px",PREF_READER_MEASURE="reader_measure_px";
+ ReaderTypography readerTypography=ReaderTypography.defaults();final Preferences preferences=new Preferences();int renders,refreshes;final Colors palette=new Colors();
+ static class Colors {int text=1,muted=2,surface=3,border=4,accent=5,accentSoft=6;}
+ static class UiTheme {static Object rounded(int a,int b,int c,int d){return a;}}
+ static class View {interface OnClickListener{void onClick(View v);}}
+ static class TextView extends View {String text;int color;TextView(Object c){}void setText(String s){text=s;}void setTextColor(int c){color=c;}void setPadding(int a,int b,int c,int d){}void setTextSize(float s){}}
+ static class Button extends TextView {boolean enabled=true,selected;float alpha=1;String description;View.OnClickListener click;Object background;Button(Object c){super(c);}void setEnabled(boolean b){enabled=b;}void setAlpha(float a){alpha=a;}void setBackground(Object o){background=o;}void tap(){if(enabled)click.onClick(this);}}
+ static class LinearLayout extends View {final List<View> children=new ArrayList<>();LinearLayout(Object c){}void setOrientation(int o){}void addView(View v,Object p){children.add(v);}static class LayoutParams{LayoutParams(int a,int b,float c){}}}
+ static class AppearanceUi {final Object dialog=new Object();TextView typographyHeading;final String[] readerFamilyNames={"Serif","Sans serif","Monospace"};final Button[] readerFamilyButtons=new Button[3],readerMinus=new Button[4],readerPlus=new Button[4];final TextView[] readerLabels=new TextView[4];final List<Button> buttons=new ArrayList<>();}
+ static class Preferences {final Map<String,Object> values=new HashMap<>();Map<String,?> getAll(){return values;}PrefEdit edit(){return new PrefEdit(values);}}
+ static class PrefEdit {final Map<String,Object> values;PrefEdit(Map<String,Object> v){values=v;}PrefEdit putString(String k,String v){values.put(k,v);return this;}PrefEdit putFloat(String k,float v){values.put(k,v);return this;}PrefEdit putInt(String k,int v){values.put(k,v);return this;}void apply(){}}
+ int dp(int n){return n;}Object matchWrap(){return null;}void renderPreview(){renders++;}void refreshAppearance(AppearanceUi ui){refreshes++;refreshReaderTypography(ui);}
+ Button appearanceButton(AppearanceUi ui,String label,String description,View.OnClickListener click){Button b=new Button(this);b.text=label;b.description=description;b.click=click;ui.buttons.add(b);return b;}
+ void setAppearanceSelection(Button b,String label,boolean selected){b.description=label;b.selected=selected;}
+ /* METHODS */
+ AppearanceUi setup(){AppearanceUi ui=new AppearanceUi();addReaderTypographyControls(ui,new LinearLayout(this));refreshReaderTypography(ui);return ui;}
+ ReaderTypography read(){return readReaderTypography();}void adjust(int field,int delta,AppearanceUi ui){adjustReaderTypography(field,delta,ui);}
+}
