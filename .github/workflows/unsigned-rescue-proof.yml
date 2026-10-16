@@ -63,3 +63,11 @@ jobs:
           path: apps/MarkdownDesk/build/MarkdownDesk-unsigned-proof.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Provision pinned host test dependencies
+        shell: bash
+        run: bash verification/setup_host_deps.sh
+
+      - name: Run required host regression
+        shell: bash
+        run: bash verification/run_host_checks.sh
