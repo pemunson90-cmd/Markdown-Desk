@@ -55,15 +55,9 @@ public final class ReaderPlacesUiCheck {
  static void normal()throws Exception {
   WorkspaceHarness h=create(true);
   call(h,"showReaderPlaces");settle(h);
-  yes(dialog(h).message.contains("No places saved"),"empty bookmark UI explains how to save places");
-  dialog(h).getButton(-3).tap();settle(h);
-  yes(state(h)!=null&&state(h).location!=null&&state(h).bookmarks.isEmpty(),
-    "manual reading place persisted with exact current source");
-  yes(provider.queries==0&&provider.takes==0,"reading place never writes the source provider");
-  call(h,"showReaderPlaces");settle(h);
-  yes(dialog(h).items.length==1&&dialog(h).items[0].contains("Return to"),
-    "saved location appears in real dialog");
-  dialog(h).getButton(-1).tap(); // opens new bookmark name UI
+  yes(dialog(h).message.contains("No bookmarks"),"empty bookmark UI explains named bookmarks");
+  yes(provider.queries==0&&provider.takes==0,"bookmark UI never writes the source provider");
+  dialog(h).getButton(-1).tap(); // one bookmark action opens name UI
   WorkspaceHarness.AlertDialog naming=dialog(h);
   yes(naming.customView instanceof EditText,"real accessible bookmark name input");
   ((EditText)naming.customView).setText("Chapter two");
@@ -71,18 +65,25 @@ public final class ReaderPlacesUiCheck {
   yes(state(h).bookmarks.size()==1&&state(h).bookmarks.get(0).label.equals("Chapter two"),
      "named bookmark persists exact source anchor");
   call(h,"showReaderPlaces");settle(h);
-  yes(dialog(h).items.length==2&&dialog(h).items[1].contains("Chapter two"),
-     "named bookmark appears beside saved position");
+  yes(dialog(h).items.length==1&&dialog(h).items[0].contains("Chapter two"),
+     "named bookmark is clearly listed as a go-to destination");
   h.editor.selection=0;
-  dialog(h).item(1);
-  yes(dialog(h).message.contains("verified text"),"selection opens guarded options");
-  dialog(h).getButton(-1).tap();settle(h);
+  dialog(h).item(0);settle(h);
   yes(h.editor.selection==15&&h.editor.visible==15,
-     "bookmark moves actual editor selection and visible anchor");
-  call(h,"showReaderPlaces");settle(h);dialog(h).item(1);
+     "one-tap bookmark jumps directly to verified source location");
+  yes(current(h)==null,"one-tap navigation requires no second options dialog");
+  // Legacy positions stay readable even though two competing Save actions are gone.
+  save(h,false,null);settle(h);
+  yes(state(h).location!=null,"previous saved-place metadata remains available");
+  call(h,"showReaderPlaces");settle(h);
+  yes(dialog(h).items.length==2&&dialog(h).items[0].contains("Previously saved"),
+      "legacy saved place is distinguished from named bookmarks");
   dialog(h).getButton(-3).tap();settle(h);
+  yes(dialog(h).items.length==1&&dialog(h).items[0].contains("Chapter two"),
+      "separate bookmark removal menu lists only named bookmarks");
+  dialog(h).item(0);settle(h);
   yes(state(h).bookmarks.isEmpty()&&state(h).location!=null,
-      "remove only named bookmark, keeping saved reading place");
+      "remove only named bookmark, keeping existing saved reading place");
   yes(provider.queries==0&&provider.takes==0,"bookmarks never touch provider document bytes");
  }
  static void refusalsAndStaleness()throws Exception {

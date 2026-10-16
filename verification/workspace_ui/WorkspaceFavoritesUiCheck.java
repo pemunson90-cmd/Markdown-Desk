@@ -54,7 +54,13 @@ public final class WorkspaceFavoritesUiCheck {
         show(h);settle(h);
         WorkspaceHarness.AlertDialog empty=dialog(h);
         yes(empty.message.contains("No favorites"),"empty UI is honest");
-        empty.getButton(-1).tap();settle(h);
+        empty.getButton(-2).tap();
+        // The direct Workspace star performs a single save action, without
+        // re-opening Favorites or presenting a transient confirmation dialog.
+        h.tapWorkspaceAction("☆ Favorite current document");settle(h);
+        yes(current(h)==null,"single-tap pin leaves no surprising Favorites dialog");
+        yes(android.widget.Toast.latest.contains("Added to Favorites"),"one-tap pin confirms via toast");
+        show(h);settle(h);
         WorkspaceHarness.AlertDialog list=dialog(h);
         yes(list.items.length==1&&list.items[0].contains("A real document.md"),"document pin shown in UI");
         List<WorkspaceFavoritesStore.Favorite> saved=new WorkspaceFavoritesStore(h.application).read();
@@ -62,14 +68,16 @@ public final class WorkspaceFavoritesUiCheck {
            &&saved.get(0).kind==WorkspaceFavoritesStore.Kind.DOCUMENT,"actual document store persists exact URI");
         yes(provider.takes==0&&provider.queries==0,"favorite did not request permissions or provider calls");
         list.item(0);
-        WorkspaceHarness.AlertDialog options=dialog(h);
-        yes(options.message.contains("current document permission"),"document options describe permission");
-        options.getButton(-1).tap();
-        yes(h.opens==1&&DOCUMENT.equals(h.opened)&&h.openExisting,"favorite opens ordinary route");
-        show(h);settle(h);dialog(h).item(0);
-        dialog(h).getButton(-3).tap();settle(h);
-        yes(dialog(h).items==null&&new WorkspaceFavoritesStore(h.application).read().isEmpty(),
+        yes(h.opens==1&&DOCUMENT.equals(h.opened)&&h.openExisting,"single-tap favorite opens ordinary route");
+        yes(current(h)==null,"one-tap favorite opens without options dialog");
+        show(h);settle(h);dialog(h).getButton(-3).tap();settle(h);
+        WorkspaceHarness.AlertDialog remove=dialog(h);
+        yes(remove.title!=null||remove.message.contains("shortcut"),"removal uses deliberate separate chooser");
+        yes(remove.items.length==1,"removal lists only saved shortcuts");
+        remove.item(0);settle(h);
+        yes(new WorkspaceFavoritesStore(h.application).read().isEmpty(),
            "removing shortcut preserves document and leaves empty list");
+        yes(android.widget.Toast.latest.contains("Favorite removed"),"remove gives inline feedback");
         yes(h.opens==1&&provider.takes==0&&provider.queries==0,"unpin never changes opened document or provider");
         WorkspaceHarness again=withDocument(roots,favorites,provider);
         show(again);settle(again);
@@ -95,14 +103,15 @@ public final class WorkspaceFavoritesUiCheck {
         WorkspaceUiCheck.Provider provider=new WorkspaceUiCheck.Provider();
         WorkspaceHarness h=new WorkspaceHarness(new Context(roots,favorites,provider));
         pin(h,TREE,"Projects",WorkspaceFavoritesStore.Kind.TREE);settle(h);
+        show(h);settle(h);
         WorkspaceHarness.AlertDialog list=dialog(h);
         yes(list.items.length==1&&list.items[0].contains("Folder · Projects"),"folder favorite appears");
-        list.item(0);dialog(h).getButton(-1).tap();settle(h);
+        list.item(0);settle(h);
         yes(h.error.contains("needs access")&&provider.takes==0,"no permission means no guessed folder open");
         yes(new WorkspaceFavoritesStore(h.application).read().size()==1,"missing grant preserves shortcut");
         h.result(-1,WorkspaceUiCheck.selection(65));WorkspaceUiCheck.settle(h);
-        show(h);settle(h);dialog(h).item(0);dialog(h).getButton(-1).tap();
-        yes(h.browsing(),"real current saved-folder grant permits ordinary browser navigation");
+        show(h);settle(h);dialog(h).item(0);
+        yes(h.browsing(),"one tap with real saved-folder grant opens ordinary browser");
         h.cancel();
     }
     public static void main(String[] args){
