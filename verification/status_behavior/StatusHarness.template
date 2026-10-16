@@ -8,6 +8,8 @@ class Activity { protected void onDestroy() {} }
 class DocumentPrint { static void cancel(Object activity) {} }
 
 final class StatusHarness extends Activity {
+    void invalidateProtectedSaves() {}
+    void cancelWorkspaceNavigation() {}
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
     static final class R { static final class plurals { static final int word_count = 1, character_count = 2; } }
     static final class TextView { String text; void setText(String value) { text = value; } }

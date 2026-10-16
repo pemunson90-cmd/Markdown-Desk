@@ -254,12 +254,14 @@ public class MainActivity extends Activity {
             writeRecoveryNow();
         }
         writeSessionNow();
+        invalidateProtectedSaves();
         cancelWorkspaceNavigation();
         super.onPause();
     }
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        invalidateProtectedSaves();
         cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
@@ -2708,34 +2710,122 @@ public class MainActivity extends Activity {
         openDocument(Uri.parse(((RecentStore.Item) list.get(i)).uri), 3, true);
     }
 
+    private volatile long protectedSavesRequest;
+    private ProtectedSavesSession protectedSavesSession;
+
+    private static final class ProtectedSavesSession {
+        final long request;
+        List<ProtectionStore.Snapshot> versions;
+        AlertDialog dialog;
+        Object token;
+        int start;
+        ProtectedSavesSession(long request, List<ProtectionStore.Snapshot> versions) {
+            this.request = request; this.versions = versions;
+        }
+    }
+
+    private void invalidateProtectedSaves() {
+        ++this.protectedSavesRequest;
+        ProtectedSavesSession session = this.protectedSavesSession;
+        this.protectedSavesSession = null;
+        if (session == null) return;
+        AlertDialog dialog = session.dialog;
+        session.versions = null; session.dialog = null; session.token = null;
+        if (dialog != null) dialog.dismiss();
+    }
+
+    private boolean protectedSavesCurrent(ProtectedSavesSession session, AlertDialog dialog, Object token) {
+        return session == this.protectedSavesSession && session.request == this.protectedSavesRequest
+                && !isFinishing() && !isDestroyed() && session.versions != null
+                && session.dialog == dialog && session.token == token && dialog != null && dialog.isShowing();
+    }
+
     private void showProtectedSaves() {
+        invalidateProtectedSaves();
+        if (isFinishing() || isDestroyed()) return;
+        final long request = this.protectedSavesRequest;
         this.io.execute(() -> {
+            if (request != this.protectedSavesRequest) return;
             try {
                 final List<ProtectionStore.Snapshot> versions = getProtectionStore().snapshots();
+                if (request != this.protectedSavesRequest) return;
                 versions.sort((left, right) -> Long.compare(right.timestamp, left.timestamp));
-                final String[] labels = new String[versions.size()];
-                SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-                for (int index = 0; index < versions.size(); index++) {
-                    ProtectionStore.Snapshot snapshot = versions.get(index);
-                    labels[index] = (snapshot.title == null ? "Untitled.md" : snapshot.title) + " · "
-                            + ("original".equals(snapshot.role) ? "Original" : "Edited version") + "\n" + dates.format(new Date(snapshot.timestamp));
-                }
                 this.main.post(() -> {
-                    if (isFinishing()) return;
-                    if (versions.isEmpty()) { showError("No protected saves are available yet."); return; }
-                    new AlertDialog.Builder(this).setTitle("Protected saves")
-                            .setItems(labels, (dialog, index) -> {
-                                ProtectionStore.Snapshot snapshot = versions.get(index);
-                                new AlertDialog.Builder(this).setTitle("Restore protected version?")
-                                        .setMessage("Restore " + (snapshot.title == null ? "this version" : snapshot.title) + " to a new copy. The original and protected versions will be kept.")
-                                        .setPositiveButton("Restore to new copy", (confirm, which) -> launchProtectedCopy(snapshot.id, snapshot.title))
-                                        .setNegativeButton("Cancel", null).show();
-                            }).setNegativeButton("Close", null).show();
+                    if (request != this.protectedSavesRequest || isFinishing() || isDestroyed()) return;
+                    ProtectedSavesSession session = new ProtectedSavesSession(request, versions);
+                    this.protectedSavesSession = session;
+                    showProtectedSavesPage(session, 0);
                 });
             } catch (Exception failure) {
-                this.main.post(() -> showError("Protected saves could not be read. Keep the existing recovery draft and resolve storage or access errors.\n\n" + message(failure)));
+                this.main.post(() -> {
+                    if (request == this.protectedSavesRequest && !isFinishing() && !isDestroyed())
+                        showError("Protected saves could not be read. Keep the existing recovery draft and resolve storage or access errors.\n\n" + message(failure));
+                });
             }
         });
+    }
+
+    private void presentProtectedSavesDialog(ProtectedSavesSession session, AlertDialog dialog, Object token) {
+        AlertDialog previous = session.dialog;
+        session.dialog = dialog; session.token = token;
+        if (previous != null) previous.dismiss();
+        dialog.setOnDismissListener(ignored -> {
+            if (session == this.protectedSavesSession && session.dialog == dialog && session.token == token)
+                invalidateProtectedSaves();
+        });
+        dialog.setOnShowListener(ignored -> workspaceDialogShown(dialog));
+        dialog.show();
+    }
+
+    private void showProtectedSavesPage(ProtectedSavesSession session, int requestedStart) {
+        if (session != this.protectedSavesSession || session.request != this.protectedSavesRequest
+                || session.versions == null || isFinishing() || isDestroyed()) return;
+        int size = session.versions.size();
+        final int start = size == 0 ? 0 : Math.min(Math.max(0, requestedStart), ((size - 1) / 100) * 100);
+        session.start = start;
+        int end = start + Math.min(100, size - start);
+        String[] labels = new String[end - start];
+        SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        for (int index = start; index < end; index++) {
+            ProtectionStore.Snapshot snapshot = session.versions.get(index);
+            labels[index - start] = (snapshot.title == null ? "Untitled.md" : snapshot.title) + " · "
+                    + ("original".equals(snapshot.role) ? "Original" : "Edited version") + "\n" + dates.format(new Date(snapshot.timestamp));
+        }
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        AlertDialog.Builder builder = historyDialogBuilder("Protected saves" + (size == 0 ? "" : " · " + (start + 1) + "–" + end + " of " + size))
+                .setNegativeButton("Close", null);
+        if (size == 0) builder.setMessage("No protected saves are available yet.");
+        else builder.setAdapter(workspaceRootRows(labels), (ignored, index) -> {
+            AlertDialog dialog = owned[0];
+            if (!protectedSavesCurrent(session, dialog, token) || index < 0 || index >= labels.length) return;
+            ProtectionStore.Snapshot snapshot = session.versions.get(start + index);
+            showProtectedSaveActions(session, start, snapshot.id, snapshot.title);
+        });
+        if (start > 0) builder.setNeutralButton("Previous", (ignored, which) -> {
+            if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start - 100);
+        });
+        if (end < size) builder.setPositiveButton("Next", (ignored, which) -> {
+            if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start + 100);
+        });
+        owned[0] = builder.create();
+        presentProtectedSavesDialog(session, owned[0], token);
+    }
+
+    private void showProtectedSaveActions(ProtectedSavesSession session, int start, String id, String title) {
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        owned[0] = historyDialogBuilder("Restore protected version?")
+                .setMessage("Restore " + (title == null ? "this version" : title) + " to a new copy. The original and protected versions will be kept.")
+                .setPositiveButton("Restore to new copy", (ignored, which) -> {
+                    if (!protectedSavesCurrent(session, owned[0], token)) return;
+                    invalidateProtectedSaves();
+                    launchProtectedCopy(id, title);
+                })
+                .setNegativeButton("Back", (ignored, which) -> {
+                    if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start);
+                }).create();
+        presentProtectedSavesDialog(session, owned[0], token);
     }
 
     private void invalidateHistory() {

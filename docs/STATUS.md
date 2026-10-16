@@ -85,6 +85,15 @@ existing UTF-8/8 MiB native file policy. No recursive search, favorites or file
 rename/move/duplicate is claimed. Physical picker/grant restart/provider/Fold gates
 remain open; legacy Back retains the manifest's explicit predictive-Back opt-out.
 
+The fallback Protected saves UI is independently approved (Activity blob `30fd424`):
+100-row pages, all-nine-theme/recycled rows, exact showing-dialog/session/generation
+checks, lifecycle cleanup and unchanged selected-ID restore-to-new-copy routing.
+82 focused checks PASS; affected save40/323, workspace120, preview450, history84,
+status57 and print20/134+18 PASS; final Android source compile PASS. Existing complete
+native inventory loading remains unchanged; pagination is not a whole-inventory
+memory bound. Missing lifecycle fixture boundaries exposed during integration were
+repaired without removing the original safety assertions.
+
 Next current-phone work: implement reviewed DOCX staging/verified binary new-copy
 publication, then serial Activity controls. Continue workspace search/favorites and
 other dependency-ready M2–M7 work.

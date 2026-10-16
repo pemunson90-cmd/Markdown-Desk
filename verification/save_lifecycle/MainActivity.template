@@ -10,6 +10,7 @@ import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.text.SimpleDateFormat;
+import android.view.*;import android.widget.*;import android.os.Build;
 
 /** Model only the Android boundary; app lifecycle method bodies are inserted unchanged. */
 class HostActivity {
@@ -47,20 +48,27 @@ public final class MainActivity extends HostActivity {
     static final class Button { boolean enabled=true; public void setEnabled(boolean value){enabled=value;} }
     static final class Status { int value; public void setText(int value){this.value=value;} }
     static final class R { static final class string { static final int saving=11; } }
-    interface DialogInterface { interface OnClickListener {void onClick(DialogInterface dialog,int which);} }
-    static final class AlertDialog {
-        boolean dismissed; void dismiss(){dismissed=true;}
+    interface DialogInterface { interface OnClickListener {void onClick(DialogInterface dialog,int which);} interface Event {void onEvent(DialogInterface d);} }
+    static final class AlertDialog implements DialogInterface {
+        final MainActivity owner;final Builder builder; boolean showing,dismissed;DialogInterface.Event dismiss,show;TextView message;
+        AlertDialog(){this.owner=null;this.builder=null;}
+        AlertDialog(MainActivity owner,Builder builder){this.owner=owner;this.builder=builder;}
+        void dismiss(){dismissed=true;if(!showing)return;showing=false;if(dismiss!=null)dismiss.onEvent(this);}boolean isShowing(){return showing;}
+        void setOnDismissListener(DialogInterface.Event event){dismiss=event;}void setOnShowListener(DialogInterface.Event event){show=event;}
+        void show(){showing=true;owner.dialog=builder;if(show!=null)show.onEvent(this);}TextView findViewById(int id){return message;}
         static final class Builder {
-            final MainActivity owner; String[] labels; DialogInterface.OnClickListener positive,negative,neutral,items;
-            Builder(MainActivity a){owner=a;}
+            final MainActivity owner;final AlertDialog dialog; String[] labels; DialogInterface.OnClickListener positive,negative,neutral,items;
+            Builder(MainActivity a){owner=a;dialog=new AlertDialog(a,this);}
             Builder setItems(String[] values,DialogInterface.OnClickListener cb){labels=values;items=cb;return this;}
-            Builder setTitle(String value){return this;} Builder setMessage(String value){return this;}
+            Builder setAdapter(android.widget.ArrayAdapter<String> values,DialogInterface.OnClickListener cb){labels=values.values;items=cb;return this;}
+            Builder setTitle(String value){return this;}Builder setCustomTitle(TextView value){return this;} Builder setMessage(String value){dialog.message=new TextView(owner);dialog.message.setText(value);return this;}
             Builder setPositiveButton(String value,DialogInterface.OnClickListener cb){positive=cb;return this;}
             Builder setNegativeButton(String value,DialogInterface.OnClickListener cb){negative=cb;return this;}
             Builder setNeutralButton(String value,DialogInterface.OnClickListener cb){neutral=cb;return this;}
-            void show(){owner.dialog=this;}
+            AlertDialog create(){return dialog;}void show(){dialog.show();}
         }
     }
+    UiTheme.Palette palette=UiTheme.palette(0,false);boolean isDestroyed(){return false;}int dp(int value){return value;}void styleDialog(AlertDialog dialog){}
     static class ActivityNotFoundException extends RuntimeException {}
     boolean finishing;
     boolean isFinishing(){return finishing;}

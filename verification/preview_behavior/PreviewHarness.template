@@ -75,6 +75,7 @@ final class PreviewHarness extends Activity {
     void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
     void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
     void cancelWorkspaceNavigation() {}
+    void invalidateProtectedSaves() {}
     void stopStatistics() {} boolean isDestroyed() { return preview.destroyed; } boolean isFinishing() { mainOnly(); return finishing; }
     QueueExecutor worker() { return (QueueExecutor) renderIo; }
     void changed(String text, boolean suppressed) {

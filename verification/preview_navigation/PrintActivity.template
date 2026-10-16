@@ -11,4 +11,6 @@ final class MainActivity extends Activity {
     void showError(String s){errors.add(s);}void stopStatistics(){}void stopPreview(){}void rebuildBody(){rebuilds++;}
     void requestPrint(){printDocument();}void destroy(){onDestroy();}
     /* EXACT_MEMBERS */
+    void invalidateProtectedSaves() {}
+    void cancelWorkspaceNavigation() {}
 }
