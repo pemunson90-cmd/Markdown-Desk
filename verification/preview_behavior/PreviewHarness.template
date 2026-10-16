@@ -74,6 +74,7 @@ final class PreviewHarness extends Activity {
     final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
     void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
     void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
+    void cancelWorkspaceNavigation() {}
     void stopStatistics() {} boolean isDestroyed() { return preview.destroyed; } boolean isFinishing() { mainOnly(); return finishing; }
     QueueExecutor worker() { return (QueueExecutor) renderIo; }
     void changed(String text, boolean suppressed) {

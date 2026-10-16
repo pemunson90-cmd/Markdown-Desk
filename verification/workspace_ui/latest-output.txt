@@ -1,0 +1,117 @@
+Final Workspace UI journey, review and pause regressions
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Workspace actual UI journey: 120 checks PASS; real store/reader/process broker, Android UI boundaries only
+
+Unchanged document read boundary (earlier focused check)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS Unicode including supplementary characters
+PASS CRLF leading trailing whitespace and final newline
+PASS mixed CRLF LF and bare CR
+PASS UTF8 BOM fidelity
+PASS empty document
+PASS BOM only document
+PASS embedded BOM remains content
+PASS encode independent UTF8 golden bytes
+PASS strict capture preserves independent UTF8 BOM bytes
+PASS strict capture rejects unmatched high surrogate
+PASS strict capture rejects unmatched low surrogate
+PASS invalid UTF8 fixture 0
+PASS invalid UTF8 fixture 1
+PASS invalid UTF8 fixture 2
+PASS invalid UTF8 fixture 3
+PASS invalid UTF8 fixture 4
+PASS invalid UTF8 fixture 5
+PASS null input rejected
+PASS read provider IOException closes input
+PASS 8 MiB exact boundary read
+PASS 8 MiB plus one rejected unchanged
+PASS BOM counts toward byte boundary
+PASS 8 MiB exact boundary write and reopen
+PASS 8 MiB UTF8 BOM-inclusive write boundary
+PASS fallback edit save reopen with BOM CRLF
+PASS fallback truncates shorter successful save
+PASS unsupported descriptor falls back
+PASS null output rejected
+PASS revoked read rejects and preserves
+PASS revoked write rejects and preserves
+PASS mid-write error propagates closes stream
+PASS flush error propagates closes stream
+PASS close error propagates
+PASS provider corruption visible in reopened bytes
+PASS read-back revoked after successful write rejects
+PASS real host descriptor save truncates syncs reopens
+PASS metadata provider values cursor closed
+PASS metadata absent null columns defaults with denied descriptor
+PASS metadata flags without write bit require descriptor
+PASS metadata query failure denied descriptor read only
+PASS metadata revoked permissions read only
+PASS metadata real rw descriptor nontruncating closed
+DocumentIO host fixtures: 42 passed, 0 failed
+
+Affected save lifecycle (earlier focused check)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted exact picker handler, capture/lookup, save worker/callbacks and constants via javac AST
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS PREVIEW capture retains pending scroll and accepts acknowledged scroll
+PASS HISTORY changed active Save As invalidates old dialog
+PASS HISTORY startup remains on I/O queue and blocked control retains evidence
+PASS HISTORY verified same-URI and Save As routes retain exact identity
+PASS HISTORY optional metadata errors preserve verified success and newer edits
+PASS HISTORY optional warning follows originating tab/destination after continuation
+PASS RESTORE quota failure keeps existing evidence and blocks copy
+PASS RESTORE canceled and busy picker results cannot write
+PASS RESTORE versions list performs I/O asynchronously and launches explicit copy picker
+PASS CONSENT overwrite reuses original captured revision and preserves newer edits
+PASS CONSENT dialog retains captured origin after active tab switch
+PASS CONSENT stale observed hash conflicts again
+PASS CONSENT closed origin cannot retarget
+PASS PROTECTION failed store blocks all provider writes
+PASS PROTECTION failed provider read retains attempted edit
+PASS RESTORE corrupted selected snapshot fails closed
+PASS RESTORE snapshot copy independent of twelve active tabs
+PASS RESTORE original URI cannot be overwritten
+PASS PROTECTION ordinary save retains exact original and captured attempted bytes
+PASS PROTECTION Save As protects nonempty destination first
+PASS PROTECTION generic force cannot bypass changed source
+PASS PROTECTION unknown baseline must conflict
+PASS PROTECTION uncertain outcome does not promise legacy recovery
+PASS invalid Unicode capture stops before queuing save
+PASS normal save commits verified version
+PASS normal Save As success adopts verified destination
+PASS untitled Save As succeeds without current URI
+PASS newer active edits remain dirty and retain recovery
+PASS switched-tab callback updates only saving tab
+PASS Save As newer edits remain dirty
+PASS Save As switched-tab callback preserves active identity
+PASS closed-tab callback does not resurrect original tab
+PASS provider write and readback failures retain dirty content
+PASS cancelled Save As leaves origin unchanged
+PASS SAFETY Save As does not adopt identity before verification
+PASS SAFETY provider-write-failed Save As retains original identity and baseline
+PASS SAFETY readback-mismatched Save As retains original identity and baseline
+PASS SAFETY removed Save As origin never retargets active tab
+PASS SAFETY busy picker result never adopts destination
+PASS SAFETY closed Save As tab clears stale continuation
+PASS save-lifecycle safety: 40 cases, 323 assertions, 0 failures
+
+Affected preview lifecycle (earlier focused check)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Preview production watcher/scheduler + helper: 450 checks PASS
+
+Final actual Android source compile
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.

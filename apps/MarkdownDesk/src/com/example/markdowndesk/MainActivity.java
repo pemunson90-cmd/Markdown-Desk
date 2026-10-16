@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.util.DisplayMetrics;
 import android.os.Build;
 import android.os.Bundle;
@@ -253,11 +254,13 @@ public class MainActivity extends Activity {
             writeRecoveryNow();
         }
         writeSessionNow();
+        cancelWorkspaceNavigation();
         super.onPause();
     }
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
         stopPreview();
@@ -1863,6 +1866,7 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity
     protected void onActivityResult(int i, int i2, Intent intent) {
         super.onActivityResult(i, i2, intent);
+        if(i==REQUEST_WORKSPACE_TREE){handleWorkspaceTreeResult(i2,intent);return;}
         if (i == REQUEST_SPLASH_IMPORT) {
             if (i2 == -1 && intent != null) {
                 importSplashImages(intent);
@@ -2939,6 +2943,236 @@ public class MainActivity extends Activity {
         catch (ActivityNotFoundException failure) { this.restoreSnapshotId = null; showError("No document picker is available on this device."); }
     }
 
+    private static final int REQUEST_WORKSPACE_TREE=1005;
+    // Separate from Activity.main: destroying an Activity must not remove a physical delivery.
+    private static final Handler WORKSPACE_MAIN=new Handler(Looper.getMainLooper());
+    private static final java.util.concurrent.Executor WORKSPACE_DELIVERY=command -> {
+        if(!WORKSPACE_MAIN.post(command))throw new java.util.concurrent.RejectedExecutionException("Workspace delivery unavailable");
+    };
+    private long workspaceGeneration;
+    private boolean workspaceRegistryBusy;
+    private WorkspaceRootList workspaceRootList;
+    private WorkspaceBrowser workspaceBrowser;
+    private static final class WorkspaceFrame {
+        final WorkspaceTreeReader.Directory directory;final String label;final Uri uri;
+        WorkspaceFrame(WorkspaceTreeReader.Directory directory,String label,Uri uri){this.directory=directory;this.label=label;this.uri=uri;}
+    }
+    private static final class WorkspaceLoad {
+        final WorkspaceFrame frame;WorkspaceDirectoryLoader.Ticket ticket;
+        WorkspaceLoad(WorkspaceFrame frame){this.frame=frame;}
+    }
+    private static final class WorkspaceRootList {
+        final long generation;AlertDialog dialog;
+        WorkspaceRootList(long generation){this.generation=generation;}
+    }
+    private static final class WorkspaceBrowser {
+        final long generation;final WorkspaceRootStore.Root root;final WorkspaceTreeReader reader;
+        final List<WorkspaceFrame> frames=new ArrayList<>();
+        AlertDialog dialog,confirmation;TextView titleView;LinearLayout rows;WorkspaceLoad load;WorkspaceTreeReader.Page page;long rowGeneration;
+        WorkspaceBrowser(long generation,WorkspaceRootStore.Root root,WorkspaceTreeReader reader){this.generation=generation;this.root=root;this.reader=reader;}
+    }
+    private boolean workspaceLive(long generation){return generation==this.workspaceGeneration&&!isFinishing()&&!isDestroyed();}
+    private void cancelWorkspaceNavigation() {
+        ++this.workspaceGeneration;
+        WorkspaceRootList roots=this.workspaceRootList;this.workspaceRootList=null;
+        if(roots!=null&&roots.dialog!=null)roots.dialog.dismiss();
+        WorkspaceBrowser browser=this.workspaceBrowser;this.workspaceBrowser=null;
+        if(browser!=null) {
+            WorkspaceLoad load=browser.load;browser.load=null;browser.page=null;++browser.rowGeneration;
+            if(load!=null&&load.ticket!=null)load.ticket.cancel();
+            if(browser.rows!=null)browser.rows.removeAllViews();browser.frames.clear();
+            if(browser.confirmation!=null)browser.confirmation.dismiss();
+            if(browser.dialog!=null)browser.dialog.dismiss();
+        }
+    }
+    private void addWorkspaceFolderActions(LinearLayout parent) {
+        parent.addView(workspaceAction("Add folder","Choose a folder with Android's document picker",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
+        }),matchWrap());
+        parent.addView(workspaceAction("Folders","Browse your saved folder shortcuts",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+    }
+    private void launchWorkspaceFolderPicker() {
+        if(isFinishing()||isDestroyed())return;
+        cancelWorkspaceNavigation();
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                |Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        try{startActivityForResult(picker,REQUEST_WORKSPACE_TREE);}
+        catch(ActivityNotFoundException failure){showError("No folder picker is available on this device.");}
+    }
+    private void handleWorkspaceTreeResult(int result,Intent intent) {
+        if(isFinishing()||isDestroyed())return;
+        if(result!=RESULT_OK||intent==null||intent.getData()==null)return;
+        int flags=intent.getFlags();
+        if((flags&Intent.FLAG_GRANT_READ_URI_PERMISSION)==0||(flags&Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)==0) {
+            showError("Folder access could not be saved. Choose the folder again.");return;
+        }
+        if(this.workspaceRegistryBusy){showError("A saved-folder update is still active. Try again shortly.");return;}
+        cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final Uri tree=intent.getData();final android.content.Context application=getApplicationContext();
+        final int grants=flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {
+            try {
+                // Validate the exact tree before permission mutation; no provider query for a label.
+                new WorkspaceTreeReader(application.getContentResolver(),tree);
+                String id=DocumentsContract.getTreeDocumentId(tree);int end=Math.min(256,id.length());
+                if(end<id.length()&&end>0&&Character.isHighSurrogate(id.charAt(end-1)))end--;
+                String label=id.substring(0,end);
+                application.getContentResolver().takePersistableUriPermission(tree,grants);
+                WorkspaceRootStore.Root root=new WorkspaceRootStore(application).rememberGranted(tree,label,application.getContentResolver());
+                this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))openWorkspaceRoot(root);});
+            }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Folder access could not be saved. Choose the folder again.\n\n"+message(failure));});}
+        });
+    }
+    private void showWorkspaceFolders() {
+        if(isFinishing()||isDestroyed())return;
+        if(this.workspaceRegistryBusy){showError("A saved-folder update is still active. Try again shortly.");return;}
+        cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final android.content.Context application=getApplicationContext();this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {
+            try {
+                List<WorkspaceRootStore.RootState> roots=new WorkspaceRootStore(application).list(application.getContentResolver());
+                this.main.post(() -> {
+                    this.workspaceRegistryBusy=false;if(!workspaceLive(generation))return;
+                    WorkspaceRootList list=new WorkspaceRootList(generation);this.workspaceRootList=list;
+                    String[] labels=new String[roots.size()];for(int n=0;n<roots.size();n++)labels[n]=roots.get(n).root.label+(roots.get(n).access==WorkspaceRootStore.Access.ACCESS_NEEDED?" · Access needed":"");
+                    AlertDialog.Builder builder=historyDialogBuilder("Folders").setPositiveButton("Add folder",(dialog,which)->{if(workspaceRootListCurrent(list))launchWorkspaceFolderPicker();}).setNegativeButton("Close",null);
+                    if(roots.isEmpty())builder.setMessage("No folders saved yet. Add a folder to browse its files.");
+                    else builder.setAdapter(workspaceRootRows(labels),(dialog,index)->{if(!workspaceRootListCurrent(list))return;WorkspaceRootStore.RootState selected=roots.get(index);if(selected.access==WorkspaceRootStore.Access.CURRENT)openWorkspaceRoot(selected.root);else showWorkspaceRootOptions(selected.root,true);});
+                    list.dialog=builder.create();list.dialog.setOnDismissListener(dialog->{if(this.workspaceRootList==list){this.workspaceRootList=null;++this.workspaceGeneration;}});
+                    list.dialog.setOnShowListener(dialog->workspaceDialogShown(list.dialog));list.dialog.show();
+                });
+            }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Saved folders could not be read; existing shortcuts were kept.\n\n"+message(failure));});}
+        });
+    }
+    private boolean workspaceRootListCurrent(WorkspaceRootList list){return list!=null&&this.workspaceRootList==list&&workspaceLive(list.generation)&&list.dialog!=null&&list.dialog.isShowing();}
+    private void showWorkspaceRootOptions(WorkspaceRootStore.Root root,boolean needsAccess) {
+        cancelWorkspaceNavigation();WorkspaceRootList list=new WorkspaceRootList(this.workspaceGeneration);this.workspaceRootList=list;
+        list.dialog=historyDialogBuilder(root.label).setMessage(needsAccess?"Access is needed. Choose this folder again to restore access, or remove its shortcut.":"Removing this shortcut does not delete files or release existing document permissions.")
+                .setPositiveButton("Choose folder again",(dialog,which)->{if(workspaceRootListCurrent(list))launchWorkspaceFolderPicker();})
+                .setNeutralButton("Remove from list",(dialog,which)->{if(workspaceRootListCurrent(list))removeWorkspaceRoot(root);})
+                .setNegativeButton("Cancel",null).create();
+        list.dialog.setOnDismissListener(dialog->{if(this.workspaceRootList==list){this.workspaceRootList=null;++this.workspaceGeneration;}});
+        list.dialog.setOnShowListener(dialog->workspaceDialogShown(list.dialog));list.dialog.show();
+    }
+    private void removeWorkspaceRoot(WorkspaceRootStore.Root root) {
+        if(this.workspaceRegistryBusy)return;cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final android.content.Context application=getApplicationContext();this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {try {
+            new WorkspaceRootStore(application).remove(root.uri);
+            this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showWorkspaceFolders();});
+        }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Folder shortcut could not be removed.\n\n"+message(failure));});}});
+    }
+    private void openWorkspaceRoot(WorkspaceRootStore.Root root) {
+        cancelWorkspaceNavigation();
+        try {
+            WorkspaceTreeReader reader=new WorkspaceTreeReader(getApplicationContext().getContentResolver(),root.uri);
+            WorkspaceBrowser browser=new WorkspaceBrowser(this.workspaceGeneration,root,reader);this.workspaceBrowser=browser;
+            browser.frames.add(new WorkspaceFrame(reader.root(),root.label,DocumentsContract.buildDocumentUriUsingTree(root.uri,DocumentsContract.getTreeDocumentId(root.uri))));
+            LinearLayout content=new LinearLayout(this);content.setOrientation(MODE_PREVIEW);content.setPadding(dp(16),dp(8),dp(16),dp(8));
+            content.addView(workspaceLocalButton("Retry","Reload this bounded folder listing",view->{if(workspaceBrowserCurrent(browser))loadWorkspaceFrame(browser);}),matchWrap());
+            content.addView(workspaceLocalButton("Folder options","Choose this folder again or remove its shortcut",view->{if(workspaceBrowserCurrent(browser))showWorkspaceRootOptions(root,false);}),matchWrap());
+            browser.rows=new LinearLayout(this);browser.rows.setOrientation(MODE_PREVIEW);content.addView(browser.rows,matchWrap());
+            ScrollView scroll=new ScrollView(this);scroll.addView(content,matchWrap());
+            browser.titleView=workspaceTitle(root.label);
+            browser.dialog=new AlertDialog.Builder(this).setCustomTitle(browser.titleView).setView(scroll)
+                    .setNegativeButton("Close",(dialog,which)->{if(workspaceBrowserCurrent(browser))cancelWorkspaceNavigation();})
+                    .setNeutralButton("Up",(dialog,which)->{})
+                    .setPositiveButton("Folders",(dialog,which)->{if(workspaceBrowserCurrent(browser))showWorkspaceFolders();}).create();
+            browser.dialog.setOnDismissListener(dialog->{if(this.workspaceBrowser==browser)cancelWorkspaceNavigation();});
+            browser.dialog.setOnKeyListener((dialog,key,event)->{if(key!=KeyEvent.KEYCODE_BACK||!workspaceBrowserCurrent(browser))return false;if(event.getAction()==KeyEvent.ACTION_UP)workspaceUp(browser);return true;});
+            browser.dialog.setOnShowListener(dialog->{workspaceDialogShown(browser.dialog);browser.dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(view->{if(workspaceBrowserCurrent(browser))workspaceUp(browser);});});
+            browser.dialog.show();loadWorkspaceFrame(browser);
+        }catch(RuntimeException failure){cancelWorkspaceNavigation();showError("Folder could not be opened.\n\n"+message(failure));}
+    }
+    private boolean workspaceBrowserCurrent(WorkspaceBrowser browser){return browser!=null&&this.workspaceBrowser==browser&&workspaceLive(browser.generation)&&browser.dialog!=null&&browser.dialog.isShowing()&&!browser.frames.isEmpty();}
+    private void loadWorkspaceFrame(WorkspaceBrowser browser) {
+        if(!workspaceBrowserCurrent(browser))return;
+        WorkspaceLoad previous=browser.load;browser.load=null;if(previous!=null&&previous.ticket!=null)previous.ticket.cancel();
+        browser.page=null;++browser.rowGeneration;browser.rows.removeAllViews();
+        WorkspaceFrame frame=browser.frames.get(browser.frames.size()-1);browser.titleView.setText(frame.label);browser.titleView.setTextColor(this.palette.text);
+        browser.dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(browser.frames.size()>1);
+        workspaceMessage(browser,"Loading folder…");WorkspaceLoad load=new WorkspaceLoad(frame);browser.load=load;
+        load.ticket=WorkspaceDirectoryLoader.tryLoad(browser.reader,frame.directory,WORKSPACE_DELIVERY,page->acceptWorkspacePage(browser,load,page));
+        if(load.ticket==null){browser.load=null;browser.rows.removeAllViews();workspaceMessage(browser,"Another folder request is still active. Retry later; cancelling cannot force a provider to finish.");}
+    }
+    private void acceptWorkspacePage(WorkspaceBrowser browser,WorkspaceLoad load,WorkspaceTreeReader.Page page) {
+        if(!workspaceBrowserCurrent(browser)||browser.load!=load||load.ticket==null||browser.frames.get(browser.frames.size()-1)!=load.frame)return;
+        browser.load=null;browser.rows.removeAllViews();if(page.state==WorkspaceTreeReader.State.CANCELLED){workspaceMessage(browser,"Folder listing stopped. Retry to load this folder.");return;}
+        browser.page=page;final long rows=++browser.rowGeneration;final WorkspaceFrame frame=load.frame;
+        boolean revoked=page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED;
+        if(revoked)workspaceMessage(browser,"Access was revoked. Choose the folder again; these rows cannot be opened.");
+        else if(page.state==WorkspaceTreeReader.State.FAILED)workspaceMessage(browser,"Folder could not be fully read. Partial results may be shown. Retry or go Back.");
+        else if(page.state==WorkspaceTreeReader.State.LIMITED)workspaceMessage(browser,"Folder list is limited; not all items are shown. Retry reloads this same listing.");
+        else if(page.entries.isEmpty())workspaceMessage(browser,"This folder is empty.");
+        if(revoked)browser.rows.addView(workspaceLocalButton("Choose folder again","Restore access with Android's folder picker",view->{if(workspaceRowCurrent(browser,frame,rows))launchWorkspaceFolderPicker();}),matchWrap());
+        for(WorkspaceTreeReader.Entry entry:page.entries) {
+            Button button=workspaceLocalButton((entry.directory==null?"File · ":"Folder · ")+entry.displayName,entry.directory==null?"Open "+entry.displayName:"Browse "+entry.displayName,
+                    view->selectWorkspaceEntry(browser,frame,rows,entry));
+            button.setEnabled(!revoked);browser.rows.addView(button,matchWrap());
+        }
+    }
+    private boolean workspaceRowCurrent(WorkspaceBrowser browser,WorkspaceFrame frame,long rows){return workspaceBrowserCurrent(browser)&&browser.rowGeneration==rows&&browser.frames.get(browser.frames.size()-1)==frame;}
+    private void selectWorkspaceEntry(WorkspaceBrowser browser,WorkspaceFrame frame,long rows,WorkspaceTreeReader.Entry entry) {
+        if(!workspaceRowCurrent(browser,frame,rows)||browser.page==null||browser.page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED)return;
+        if(entry.directory!=null) {
+            if(browser.frames.size()>=32){showError("Folder navigation is limited to 32 levels. Go Up before opening another folder.");return;}
+            for(WorkspaceFrame ancestor:browser.frames)if(ancestor.uri.toString().equals(entry.uri.toString())){showError("This folder points back to a folder already in this path.");return;}
+            browser.frames.add(new WorkspaceFrame(entry.directory,entry.displayName,entry.uri));loadWorkspaceFrame(browser);return;
+        }
+        String name=entry.displayName.toLowerCase(Locale.ROOT);
+        if(entry.mimeType.startsWith("text/")||name.endsWith(".md")||name.endsWith(".markdown")||name.endsWith(".txt")){openWorkspaceFile(browser,frame,rows,entry);return;}
+        if(browser.confirmation!=null)browser.confirmation.dismiss();
+        AlertDialog confirmation=historyDialogBuilder("Open as text?").setMessage(entry.displayName+" may not be a text file. Normal UTF-8 and size checks still apply.")
+                .setPositiveButton("Open as text",(dialog,which)->{
+                    AlertDialog accepted=browser.confirmation;
+                    if(accepted==null||accepted!=dialog||!accepted.isShowing())return;
+                    browser.confirmation=null;accepted.dismiss();
+                    openWorkspaceFile(browser,frame,rows,entry);
+                }).setNegativeButton("Cancel",null).create();
+        browser.confirmation=confirmation;
+        confirmation.setOnDismissListener(dialog->{if(browser.confirmation==dialog)browser.confirmation=null;});
+        confirmation.setOnShowListener(dialog->workspaceDialogShown(confirmation));confirmation.show();
+    }
+    private void openWorkspaceFile(WorkspaceBrowser browser,WorkspaceFrame frame,long rows,WorkspaceTreeReader.Entry entry) {
+        if(!workspaceRowCurrent(browser,frame,rows)||browser.page==null||browser.page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED)return;
+        cancelWorkspaceNavigation();openDocument(entry.uri,0,true);
+    }
+    private void workspaceUp(WorkspaceBrowser browser) {
+        if(!workspaceBrowserCurrent(browser))return;
+        if(browser.frames.size()==1){cancelWorkspaceNavigation();return;}
+        browser.frames.remove(browser.frames.size()-1);loadWorkspaceFrame(browser);
+    }
+    private android.widget.ArrayAdapter<String> workspaceRootRows(String[] labels) {
+        return new android.widget.ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,labels) {
+            @Override public View getView(int position,View recycled,ViewGroup parent) {
+                TextView row=(TextView)super.getView(position,recycled,parent);
+                row.setTextColor(MainActivity.this.palette.text);
+                return row;
+            }
+        };
+    }
+    private TextView workspaceTitle(String title) {
+        TextView heading=new TextView(this);heading.setText(title);heading.setTextColor(this.palette.text);heading.setTextSize(20);
+        heading.setPadding(dp(24),dp(20),dp(24),dp(12));
+        if(Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
+        return heading;
+    }
+    private void workspaceDialogShown(AlertDialog dialog) {
+        styleDialog(dialog);
+        TextView message=dialog.findViewById(android.R.id.message);
+        if(message!=null)message.setTextColor(this.palette.text);
+    }
+    private Button workspaceLocalButton(String label,String description,View.OnClickListener listener) {
+        Button button=createPillButton(label,description,listener);this.buttons.remove(button);return button;
+    }
+    private void workspaceMessage(WorkspaceBrowser browser,String message) {
+        TextView text=new TextView(this);text.setText(message);text.setTextColor(this.palette.muted);text.setPadding(dp(4),dp(8),dp(4),dp(8));browser.rows.addView(text,matchWrap());
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -2969,6 +3203,7 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$showWorkspace$52(view);
             }
         }), matchWrap());
+        addWorkspaceFolderActions(linearLayout);
         linearLayout.addView(workspaceAction("↶  Protected saves", "Originals and edited versions · restore to a new copy", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showProtectedSaves();
@@ -2978,7 +3213,7 @@ public class MainActivity extends Activity {
             showDocumentHistory();
         }), matchWrap());
         TextView historyLimit = new TextView(this);
-        historyLimit.setText("Current text files do not include private history. Uninstalling the app or clearing its storage can lose that history. Keep separate copies of text you need.");
+        historyLimit.setText("Markdown and text files use UTF-8, up to 8 MiB. Current text files do not include private history. Uninstalling the app or clearing its storage can lose that history. Keep separate copies of text you need.");
         historyLimit.setTextColor(this.palette.muted);
         historyLimit.setTextSize(13.0f);
         historyLimit.setPadding(dp(4), dp(8), dp(4), dp(12));

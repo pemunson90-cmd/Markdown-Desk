@@ -73,7 +73,21 @@ checks budgets before encoding and cancellation is periodic. See the
 [explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). No Activity/SAF adapter exists
 and no user-visible DOCX export or import/round-trip is claimed.
 
-Next current-phone work: wire the actual Add folder → browser → normal open journey.
+The actual Add folder → saved roots → nested browser → normal document open journey
+is implemented and independently approved (final Activity blob `ec749864`).120 focused
+checks PASS, including real store/reader/broker integration, exact grant handling,
+stale confirmations, all-nine-palette/recycled rows and blocked-cancel pause ordering.
+Existing DocumentIO42, save40 cases/323 and preview450 checks passed during this
+integration; final changed Activity source compiles against SDK37. Pause queues
+local recovery/session writes before potentially blocking folder cancellation; this
+is queue-order evidence, not physical durability. The Workspace also exposes the
+existing UTF-8/8 MiB native file policy. No recursive search, favorites or file
+rename/move/duplicate is claimed. Physical picker/grant restart/provider/Fold gates
+remain open; legacy Back retains the manifest's explicit predictive-Back opt-out.
+
+Next current-phone work: implement reviewed DOCX staging/verified binary new-copy
+publication, then serial Activity controls. Continue workspace search/favorites and
+other dependency-ready M2–M7 work.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.

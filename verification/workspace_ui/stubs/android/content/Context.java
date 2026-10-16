@@ -1,0 +1,1 @@
+package android.content;public class Context {private final SharedPreferences prefs;private final ContentResolver resolver;public Context(SharedPreferences p,ContentResolver r){prefs=p;resolver=r;}public SharedPreferences getSharedPreferences(String n,int mode){return prefs;}public ContentResolver getContentResolver(){return resolver;}}

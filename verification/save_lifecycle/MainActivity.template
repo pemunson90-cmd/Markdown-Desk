@@ -16,6 +16,9 @@ class HostActivity {
     protected void onActivityResult(int request,int result,MainActivity.Intent intent) {}
 }
 public final class MainActivity extends HostActivity {
+    private static final int REQUEST_WORKSPACE_TREE=1005;
+    private void handleWorkspaceTreeResult(int result,Intent intent){throw new AssertionError("Workspace result belongs to actual workspace_ui fixture");}
+
     public static final class Uri {
         final String value; private Uri(String value){this.value=value;}
         static Uri parse(String value){return new Uri(value);}

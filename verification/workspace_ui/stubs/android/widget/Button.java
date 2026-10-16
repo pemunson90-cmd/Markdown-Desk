@@ -1,0 +1,1 @@
+package android.widget;public class Button extends TextView {public android.view.View.OnClickListener click;public Button(Object context){super(context);}public void setOnClickListener(android.view.View.OnClickListener listener){click=listener;}public void tap(){if(enabled&&click!=null)click.onClick(this);}}

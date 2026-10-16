@@ -1,0 +1,34 @@
+package com.example.markdowndesk;
+import android.content.*;import android.view.*;import android.widget.*;import android.net.Uri;import android.provider.DocumentsContract;import android.os.*;import java.util.*;import java.util.concurrent.*;
+class WorkspaceBase {protected void onPause(){}protected void onDestroy(){}}
+final class WorkspaceHarness extends WorkspaceBase {
+ static final int MODE_PREVIEW=1,RESULT_OK=-1;
+ interface DialogInterface {int BUTTON_POSITIVE=-1,BUTTON_NEGATIVE=-2,BUTTON_NEUTRAL=-3;interface Click{void clicked(DialogInterface d,int n);}interface Event{void event(DialogInterface d);}interface Key{boolean key(DialogInterface d,int key,KeyEvent event);}}
+ static class KeyEvent {static final int KEYCODE_BACK=4,ACTION_UP=1;final int action;KeyEvent(int action){this.action=action;}int getAction(){return action;}}
+ static class AlertDialog implements DialogInterface {
+  boolean showing;String title,message;TextView customTitle,messageView;android.widget.ArrayAdapter<String> adapter;final Window window=new Window();String[] items;DialogInterface.Click item;DialogInterface.Event dismiss,show;DialogInterface.Key key;final Map<Integer,Button> buttons=new HashMap<>();
+  static class Window {Object background;void setBackgroundDrawable(Object value){background=value;}}
+  Window getWindow(){return window;}TextView findViewById(int id){return id==android.R.id.message?messageView:null;}
+  void show(){showing=true;if(show!=null)show.event(this);}void dismiss(){if(!showing)return;showing=false;if(dismiss!=null)dismiss.event(this);}boolean isShowing(){return showing;}void setTitle(String s){title=s;}Button getButton(int n){return buttons.get(n);}void setOnDismissListener(DialogInterface.Event e){dismiss=e;}void setOnShowListener(DialogInterface.Event e){show=e;}void setOnKeyListener(DialogInterface.Key e){key=e;}
+  void item(int index){item.clicked(this,index);dismiss();}void back(){if(key!=null){key.key(this,4,new KeyEvent(0));key.key(this,4,new KeyEvent(1));}else dismiss();}
+  static class Builder {final AlertDialog d=new AlertDialog();Builder(Object c){}Builder setTitle(String s){d.title=s;return this;}Builder setMessage(String s){d.message=s;d.messageView=new TextView(this);d.messageView.setText(s);return this;}Builder setCustomTitle(TextView title){d.customTitle=title;return this;}Builder setAdapter(android.widget.ArrayAdapter<String> adapter,DialogInterface.Click listener){d.adapter=adapter;d.items=adapter.values;d.item=listener;return this;}Builder setView(View v){return this;}Builder setItems(String[] s,DialogInterface.Click c){d.items=s;d.item=c;return this;}Builder button(int n,String s,DialogInterface.Click c){Button b=new Button(this);b.text=s;b.click=v->{if(c!=null)c.clicked(d,n);d.dismiss();};d.buttons.put(n,b);return this;}Builder setPositiveButton(String s,DialogInterface.Click c){return button(-1,s,c);}Builder setNegativeButton(String s,DialogInterface.Click c){return button(-2,s,c);}Builder setNeutralButton(String s,DialogInterface.Click c){return button(-3,s,c);}AlertDialog create(){return d;}}
+ }
+ static class ActivityNotFoundException extends RuntimeException{}
+ static class Queue extends AbstractExecutorService {final ArrayDeque<Runnable> tasks=new ArrayDeque<>();boolean closed;public void execute(Runnable r){if(closed)throw new RejectedExecutionException();tasks.add(r);}void drain(){while(!tasks.isEmpty())tasks.remove().run();}public void shutdown(){closed=true;}public List<Runnable> shutdownNow(){closed=true;return List.of();}public boolean isShutdown(){return closed;}public boolean isTerminated(){return closed;}public boolean awaitTermination(long n,TimeUnit t){return closed;}}
+ final Queue io=new Queue();final Handler main=new Handler(Looper.getMainLooper());final Context application;final List<Button> buttons=new ArrayList<>();AlertDialog workspaceDialog;boolean finishing,destroyed,dirty;String error;Intent picker;int pickerRequest,opens,openFlags;boolean openExisting;Uri opened;UiTheme.Palette palette=UiTheme.palette(0,false);
+ WorkspaceHarness(Context application){this.application=application;}Context getApplicationContext(){return application;}boolean isFinishing(){return finishing;}boolean isDestroyed(){return destroyed;}int dp(int value){return value;}Object matchWrap(){return null;}void showError(String value){error=value;}String message(Exception e){return e.getMessage();}void startActivityForResult(Intent p,int request){picker=p;pickerRequest=request;}
+ Button createPillButton(String label,String description,View.OnClickListener listener){Button b=new Button(this);b.text=label;b.description=description;b.click=listener;buttons.add(b);return b;}View workspaceAction(String label,String description,View.OnClickListener listener){Button b=new Button(this);b.text=label;b.description=description;b.click=listener;return b;}void openDocument(Uri uri,int flags,boolean existing){opens++;opened=uri;openFlags=flags;openExisting=existing;}
+ static class DocumentPrint {static void cancel(Object a){}}
+ static class Preview {void destroy(){}}
+ final List<String> pauseTrace=Collections.synchronizedList(new ArrayList<>());
+ final Preview preview=new Preview();void captureActiveTab(){pauseTrace.add("capture");}void writeRecoveryNow(){pauseTrace.add("recovery");io.execute(()->{});}void writeSessionNow(){pauseTrace.add("session");io.execute(()->{});}void stopStatistics(){}void stopPreview(){}
+ /* MEMBERS */
+ void add(){LinearLayout actions=new LinearLayout(this);addWorkspaceFolderActions(actions);((Button)actions.children.get(0)).tap();}void result(int code,Intent data){activityResult(1005,code,data);}
+ void activityResult(int i,int i2,Intent intent){/* PICKER_ROUTE */}
+void roots(){showWorkspaceFolders();}void chooseRoot(int n){workspaceRootList.dialog.item(n);}void drainLocal(){io.drain();Handler.drain();}int depth(){return workspaceBrowser==null?0:workspaceBrowser.frames.size();}void up(){workspaceUp(workspaceBrowser);}void cancel(){cancelWorkspaceNavigation();}void pause(){onPause();}void destroy(){onDestroy();destroyed=true;}boolean browsing(){return workspaceBrowser!=null;}AlertDialog folderDialog(){return workspaceRootList.dialog;}AlertDialog browserDialog(){return workspaceBrowser.dialog;}
+ Button row(String text){for(View v:workspaceBrowser.rows.children)if(v instanceof Button&&((Button)v).text.equals(text))return (Button)v;throw new AssertionError("Missing row "+text);}
+ String status(){if(workspaceBrowser==null)return "closed";StringBuilder result=new StringBuilder();for(View v:workspaceBrowser.rows.children)if(v instanceof TextView)result.append(((TextView)v).text).append('\n');return result.toString();}
+ void retry(){loadWorkspaceFrame(workspaceBrowser);}void options(){showWorkspaceRootOptions(workspaceBrowser.root,false);}
+ void confirm(){workspaceBrowser.confirmation.getButton(-1).tap();}
+ AlertDialog confirmation(){return workspaceBrowser.confirmation;}
+}
