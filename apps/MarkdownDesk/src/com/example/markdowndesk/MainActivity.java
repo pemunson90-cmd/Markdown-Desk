@@ -258,6 +258,7 @@ public class MainActivity extends Activity {
         invalidateProtectedSaves();
         cancelWorkspaceFavorites();
         invalidateReaderActions();
+        invalidateProtectionStatus();
         cancelWorkspaceNavigation();
         super.onPause();
     }
@@ -268,6 +269,7 @@ public class MainActivity extends Activity {
         invalidateProtectedSaves();
         cancelWorkspaceFavorites();
         invalidateReaderActions();
+        invalidateProtectionStatus();
         cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
@@ -3657,11 +3659,20 @@ public class MainActivity extends Activity {
     // A fresh underlying sample is required; unavailable accounting is never shown
     // as a fabricated amount of free storage.
     private volatile long protectionStatusRequest;
+    private AlertDialog protectionStatusDialog;
+    private void invalidateProtectionStatus() {
+        ++this.protectionStatusRequest;
+        AlertDialog old=this.protectionStatusDialog;
+        this.protectionStatusDialog=null;
+        if(old!=null)old.dismiss();
+    }
     private static String protectionMiB(long bytes) {
         return String.format(Locale.ROOT,"%.2f MiB",bytes/1048576.0d);
     }
     private void showProtectionUsage() {
-        final long request=++this.protectionStatusRequest;
+        if(isFinishing()||isDestroyed())return;
+        invalidateProtectionStatus();
+        final long request=this.protectionStatusRequest;
         this.io.execute(()->{
             try{
                 final HistoryController.LocalProtectionStatus status=getHistoryController().inspectLocalProtection();
@@ -3686,6 +3697,10 @@ public class MainActivity extends Activity {
                         .setMessage(details.toString())
                         .setPositiveButton("Refresh",(d,which)->showProtectionUsage())
                         .setNegativeButton("Close",null).create();
+                    this.protectionStatusDialog=dialog;
+                    dialog.setOnDismissListener(ignored->{
+                        if(this.protectionStatusDialog==dialog)this.protectionStatusDialog=null;
+                    });
                     dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
                     dialog.show();
                 });
