@@ -118,12 +118,31 @@ jobs:
           "$ADB" shell screencap -p /sdcard/md-landscape.png
           "$ADB" pull /sdcard/md-landscape.png "$RUNNER_TEMP/md-landscape.png" >/dev/null
           "$ADB" shell settings put system user_rotation 0
+          # Force a real portrait viewport for Workspace interaction tests.
+          # The hosted emulator otherwise remains 640x320 despite user_rotation=0;
+          # swipes starting at y490 were outside its physical display.
+          "$ADB" shell wm size 360x800
+          sleep 3
           "$ADB" shell am force-stop com.example.markdowndesk
           "$ADB" shell am start -W -n com.example.markdowndesk/.MainActivity
           sleep 3
           "$ADB" shell pidof com.example.markdowndesk
           "$ADB" shell uiautomator dump /sdcard/md-window.xml >/dev/null
           "$ADB" pull /sdcard/md-window.xml "$RUNNER_TEMP/md-window.xml" >/dev/null
+          "$ADB" shell wm size
+          "$ADB" shell screencap -p /sdcard/md-portrait-check.png
+          "$ADB" pull /sdcard/md-portrait-check.png "$RUNNER_TEMP/md-portrait-check.png" >/dev/null
+          python3 - "$RUNNER_TEMP/md-portrait-check.png" <<'PY'
+          import struct,sys
+          with open(sys.argv[1],"rb") as f:
+              header=f.read(24)
+          if header[:8]!=bytes([137,80,78,71,13,10,26,10]):
+              raise SystemExit("No PNG from emulator")
+          width,height=struct.unpack(">II",header[16:24])
+          if height<=width or height<490:
+              raise SystemExit(f"Workspace smoke requires portrait display, got {width}x{height}")
+          print(f"PASS portrait emulator display {width}x{height}")
+          PY
           # Press the real visible Workspace control by its accessibility bounds.
           # No hard-coded UI coordinates or screenshots-as-test assertions.
           WORKSPACE_TAP="$(python3 - "$RUNNER_TEMP/md-window.xml" <<'PY'
@@ -233,6 +252,7 @@ jobs:
           path: |
             ${{ runner.temp }}/md-emulator.log
             ${{ runner.temp }}/md-portrait.png
+            ${{ runner.temp }}/md-portrait-check.png
             ${{ runner.temp }}/md-landscape.png
             ${{ runner.temp }}/md-window.xml
             ${{ runner.temp }}/md-workspace.xml
