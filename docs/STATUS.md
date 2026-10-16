@@ -169,6 +169,13 @@ caps64 document records/16 bookmarks per document/128 total, never evicts bookma
 preserves malformed state and checks commits. No current Activity reader/bookmark
 journey is wired yet; this helper checkpoint does not complete saved places or M4.
 
+Workspace favorites store is independently approved:107 focused checks PASS in
+worker and root runs; SDK37 compile PASS in worker. It retains up to64 exact-URI
+shortcuts with stable order, explicit document/tree kinds, no silent eviction,
+strict bounded JSON and checked commits; corrupted values remain intact. Favorites
+never grant access, query providers or change recents/saved roots. Add/list/remove/
+open favorites controls are not wired yet and remain the next actual UI packet.
+
 Next current-phone work: reviewed search background admission and actual search UI,
 then workspace favorites, reading places/bookmarks, local storage controls and other
 dependency-ready M2–M7 work.
