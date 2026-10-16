@@ -32,6 +32,7 @@ bash verification/workspace_tree_reader/run.sh
 bash verification/workspace_roots/run.sh
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
+bash verification/workspace_search_loader/run.sh
 bash verification/workspace_ui/run.sh
 
 bash verification/contrast/run.sh --gate

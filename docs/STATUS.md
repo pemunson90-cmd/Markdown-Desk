@@ -73,8 +73,8 @@ and a fresh isolated LibreOffice/PDF11-check journey PASS. Actual SDK bootclassp
 compile PASS. Original maximum-line regex stack-overflow probes now pass; XML output
 checks budgets before encoding and cancellation is periodic. See the
 [explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). The guarded SAF adapter is now
-implemented as recorded below; Activity export controls are in progress. No
-user-visible DOCX export or import/round-trip is claimed yet.
+implemented with Activity controls as recorded below. DOCX export is wired; no
+importer or round-trip is claimed.
 
 The actual Add folder → saved roots → nested browser → normal document open journey
 is implemented and independently approved (final Activity blob `ec749864`).120 focused
@@ -132,8 +132,12 @@ Root focused runs: reader52, directory admission123 and final search66 PASS; aut
 also ran existing workspace UI120 and SDK37 compilation of all three sources.
 Limits remain128 directories/512 files/4096 rows/depth16,16 MiB total input/8 MiB per
 file,100 matches with strict UTF-8, original-byte hashes and EOF/close validation.
-This is engine groundwork: search broker/results UI and hash-bound normal-open jumps
-remain unwired; no user-visible recursive search is claimed yet. Existing folder UI
+The dedicated background search broker is now independently approved:87 focused
+checks PASS in worker and root runs; actual SDK37 compile PASS in the worker run.
+It retains one physical/queued owner, clears UI before cancellation, and distinguishes
+closed failure from unknown resource disposal without tying up save/session workers.
+Results UI and hash-bound normal-open jumps remain unwired; no user-visible recursive
+search is claimed yet. Existing folder UI
 now reports uncertainty explicitly and explains process restart without promising
 that retry can dispose the resource.
 
