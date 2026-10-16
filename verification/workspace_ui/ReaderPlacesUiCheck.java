@@ -86,6 +86,8 @@ public final class ReaderPlacesUiCheck {
   yes(provider.queries==0&&provider.takes==0,"bookmarks never touch provider document bytes");
  }
  static void refusalsAndStaleness()throws Exception {
+  // Independent scenario must not inherit the prior saved reading place.
+  readerPrefs=new WorkspaceUiCheck.Prefs();
   WorkspaceHarness unsaved=create(false);
   call(unsaved,"showReaderPlaces");
   yes(unsaved.error.contains("Open a saved document"),"unsaved doc refuses reader metadata");
