@@ -5,6 +5,8 @@ import java.util.regex.PatternSyntaxException;
 
 /** Android boundary only. DOM actions and delayed delivery are modeled, not a browser engine. */
 final class MainActivity {
+ void searchContentChanged() {}
+ void cancelSearchLocation() {}
     static final int MODE_EDIT=0,MODE_PREVIEW=1,MODE_SPLIT=2;
     static final class QueueExecutor extends AbstractExecutorService {
         final ArrayDeque<Runnable> tasks=new ArrayDeque<>();boolean stopped;

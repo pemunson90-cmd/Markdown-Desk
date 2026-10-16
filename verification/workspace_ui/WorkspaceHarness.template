@@ -2,6 +2,8 @@ package com.example.markdowndesk;
 import android.content.*;import android.view.*;import android.widget.*;import android.net.Uri;import android.provider.DocumentsContract;import android.os.*;import java.util.*;import java.util.concurrent.*;
 class WorkspaceBase {protected void onPause(){}protected void onDestroy(){}}
 final class WorkspaceHarness extends WorkspaceBase {
+ void cancelWorkspaceSearch() {}
+ void showWorkspaceSearch(WorkspaceRootStore.Root root,String literal){throw new AssertionError("Search UI belongs to actual workspace_search_ui fixture");}
     void pauseDocxExport() {}
     void cancelDocxExport() {}
  static final int MODE_PREVIEW=1,RESULT_OK=-1;

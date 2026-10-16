@@ -5,6 +5,7 @@ import java.util.concurrent.*;
 class DocumentPrint {static void cancel(Object activity){}}
 class Activity { protected void onDestroy() {} }
 final class PreviewHarness extends Activity {
+ void searchContentChanged() {}
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
     static boolean background;
     static void mainOnly() { if (background) throw new AssertionError("UI access on worker"); }

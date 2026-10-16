@@ -35,6 +35,7 @@ bash verification/workspace_favorites/run.sh
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
 bash verification/workspace_search_loader/run.sh
+bash verification/workspace_search_ui/run.sh
 bash verification/search_hit_verifier/run.sh
 bash verification/workspace_ui/run.sh
 

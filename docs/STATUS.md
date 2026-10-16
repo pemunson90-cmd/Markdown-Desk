@@ -136,8 +136,20 @@ The dedicated background search broker is now independently approved:87 focused
 checks PASS in worker and root runs; actual SDK37 compile PASS in the worker run.
 It retains one physical/queued owner, clears UI before cancellation, and distinguishes
 closed failure from unknown resource disposal without tying up save/session workers.
-Results UI and hash-bound normal-open jumps remain unwired; no user-visible recursive
-search is claimed yet. Existing folder UI
+Actual selected-saved-folder search/results and guarded normal-open jumps are now
+implemented and independently approved (Main blob490ac5fb):104 actual UI checks PASS
+in worker and root runs. Independent restore4 plus same-URI/hash A→B→A stale-result
+probe PASS. Queries retain intentional spaces and case sensitivity; results expose
+partial/limited/revoked/cancelled states and skipped types without false not-found.
+A process-wide bounded grant preflight and displayed-text verifier hold admission
+through physical/queued work. Normal open/dedup/failure/tab-limit paths remain in use;
+one-use intended restore/setText exemptions preserve actual content-generation checks.
+Hash/byteLength/URI/tab/load/content/BOM and exact match range are checked before
+navigation; dirty tabs are never reloaded to fit a result. New query/results/notices
+use all nine palettes. Worker affected DocumentIO42/save40/323/workspace120/preview450,
+history84/status57/outline32/74/navigation18/66/mode43+126+4963/engine66 and final
+SDK37 Main compilation PASS. Physical provider/picker/TalkBack/Fold acceptance remains
+NOT RUN. Existing folder UI
 now reports uncertainty explicitly and explains process restart without promising
 that retry can dispose the resource.
 
@@ -211,8 +223,8 @@ recovery. Fresh-process post-intent-unlink recovery does not invent cleanup auth
 No runtime scheduling, startup bridge or enabled cleanup UI is wired yet. Existing
 scan bounds remain; this is not a whole-job heap ceiling or device performance claim.
 
-Next current-phone work: actual search UI and guarded normal-open navigation,
-then workspace favorites, reading places/bookmarks, local storage controls and other
+Next current-phone work: actual workspace favorites controls, reading places/
+bookmarks, retention scheduling/settings integration and other
 dependency-ready M2–M7 work.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.

@@ -8,6 +8,7 @@ class Activity { protected void onDestroy() {} }
 class DocumentPrint { static void cancel(Object activity) {} }
 
 final class StatusHarness extends Activity {
+ void searchContentChanged() {}
     void pauseDocxExport() {}
     void cancelDocxExport() {}
     void invalidateProtectedSaves() {}

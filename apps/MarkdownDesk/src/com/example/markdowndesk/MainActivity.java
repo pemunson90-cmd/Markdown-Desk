@@ -464,6 +464,7 @@ public class MainActivity extends Activity {
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
                 MainActivity.this.sourceNavigationRevision++;
+                MainActivity.this.searchContentChanged();
                 MainActivity.this.invalidatePreview();
                 MainActivity.this.invalidateStatistics();
                 MainActivity.this.syntaxHighlight.changed(charSequence, i, i2, i3);
@@ -1373,7 +1374,7 @@ public class MainActivity extends Activity {
     }
 
     private void setMode(int i, boolean z) {
-        if (this.mode != i) this.sourceRouteRevision++;
+        if (this.mode != i) { this.sourceRouteRevision++; cancelSearchLocation(); }
         this.mode = i;
         if (i == MODE_SPLIT && !this.preferences.getBoolean("split_hint_seen", false)) {
             Toast.makeText(this, "Split: Markdown source + rendered Read view", MODE_PREVIEW).show();
@@ -1770,6 +1771,7 @@ public class MainActivity extends Activity {
     }
 
     private void restoreActiveTab(boolean z) {
+        searchRestoreChanged();
         invalidateHistory();
         if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
             return;
@@ -1785,7 +1787,8 @@ public class MainActivity extends Activity {
         this.dirty = documentTab.dirty;
         this.mode = documentTab.mode;
         this.suppressChanges = true;
-        this.editor.setText(documentTab.text);
+        beginSearchRestoreText();
+        try{this.editor.setText(documentTab.text);}finally{endSearchRestoreText();}
         int iClamp = clamp(documentTab.selectionStart, MODE_EDIT, documentTab.text.length());
         this.editor.setSelection(iClamp, clamp(documentTab.selectionEnd, iClamp, documentTab.text.length()));
         this.suppressChanges = false;
@@ -2014,7 +2017,11 @@ public class MainActivity extends Activity {
     }
 
     private void openDocument(final Uri uri, final int i, final boolean z, final boolean viewOnly) {
+        SearchLocation opening=this.searchOpenCall;
+        if(opening==null||opening!=this.searchLocation||!opening.awaitingOpen||uri==null||!opening.hit.uri.toString().equals(uri.toString()))cancelSearchLocation();
+        else opening.load=this.loadToken;
         if (uri == null || !"content".equalsIgnoreCase(uri.getScheme())) {
+            cancelSearchLocation();
             showError("For safety, Markdown Desk can only open documents supplied through Android's document system.");
             return;
         }
@@ -2022,14 +2029,17 @@ public class MainActivity extends Activity {
         if (iFindTabByUri >= 0) {
             switchToTab(iFindTabByUri, false);
             if (viewOnly) setMode(MODE_PREVIEW, false);
+            searchOpenFinished(uri,this.loadToken);
             return;
         }
         if (this.tabs.size() >= MAX_TABS) {
+            cancelSearchLocation();
             Toast.makeText(this, "Close a tab before opening another.", MODE_PREVIEW).show();
             return;
         }
         final int i2 = this.loadToken + MODE_PREVIEW;
         this.loadToken = i2;
+        if(opening!=null&&opening==this.searchLocation&&opening.awaitingOpen)opening.load=i2;
         this.statusView.setText(R.string.opening);
         this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda64
             @Override // java.lang.Runnable
@@ -2079,7 +2089,11 @@ public class MainActivity extends Activity {
         this.tabs.add(documentTab);
         this.activeTab = this.tabs.size() - MODE_PREVIEW;
         RecentStore.touch(this, uri.toString(), documentTab.displayName);
-        restoreActiveTab(false);
+        SearchLocation opening=this.searchLocation;
+        if(opening==null||!opening.awaitingOpen||opening.load!=i||!opening.hit.uri.toString().equals(uri.toString()))opening=null;
+        this.searchOpenCall=opening;
+        try{restoreActiveTab(false);}catch(RuntimeException|Error failed){cancelSearchLocation();throw failed;}finally{this.searchOpenCall=null;}
+        searchOpenFinished(uri,i);
         scheduleSession();
     }
 
@@ -2088,6 +2102,7 @@ public class MainActivity extends Activity {
         if (i != this.loadToken || isFinishing()) {
             return;
         }
+        searchOpenFailed(uri,i);
         updateStatus();
         if (z) {
             showRecentFailure(uri, exc);
@@ -3036,6 +3051,273 @@ public class MainActivity extends Activity {
         catch (ActivityNotFoundException failure) { this.restoreSnapshotId = null; showError("No document picker is available on this device."); }
     }
 
+    private static final Object SEARCH_GRANT_GUARD = new Object();
+    private static SearchGrantJob searchGrantOwner;
+    private long searchGeneration;
+    private SearchScreen searchScreen;
+    private AlertDialog searchNotice;
+    private Object searchNoticeToken;
+    private SearchLocation searchLocation;
+    private SearchLocation searchOpenCall;
+
+    private static final class SearchScreen {
+        final long generation; final WorkspaceRootStore.Root root;
+        String literal; AlertDialog dialog; Object token; EditText input; LinearLayout rows;
+        SearchGrantJob grant; WorkspaceSearchLoader.Ticket ticket; WorkspaceLiteralSearch.Result result;
+        SearchScreen(long generation, WorkspaceRootStore.Root root, String literal) { this.generation=generation;this.root=root;this.literal=literal; }
+    }
+    private static final class SearchLocation {
+        final WorkspaceLiteralSearch.FileHit hit; final WorkspaceLiteralSearch.Match match; final String literal;
+        boolean awaitingOpen=true, allowRestore=true, allowContent; int load; String tabId; long revision,route; boolean bom;
+        SearchHitVerifier.Ticket ticket;
+        SearchLocation(WorkspaceLiteralSearch.FileHit hit, WorkspaceLiteralSearch.Match match, String literal) { this.hit=hit;this.match=match;this.literal=literal; }
+    }
+    /** One process-wide preflight slot; cancellation drops the only screen callback.
+     * Its worker owns application metadata only, never the Activity or editor. */
+    private static final class SearchGrantJob implements Runnable {
+        final android.content.Context application; final Uri root;
+        private java.util.function.Consumer<Boolean> callback;
+        SearchGrantJob(android.content.Context application,Uri root,java.util.function.Consumer<Boolean> callback){this.application=application;this.root=root;this.callback=callback;}
+        static SearchGrantJob reserve(android.content.Context app,Uri root,java.util.function.Consumer<Boolean> callback){
+            synchronized(SEARCH_GRANT_GUARD){if(searchGrantOwner!=null)return null;return searchGrantOwner=new SearchGrantJob(app,root,callback);}
+        }
+        void cancel(){synchronized(SEARCH_GRANT_GUARD){callback=null;}}
+        void release(){synchronized(SEARCH_GRANT_GUARD){callback=null;if(searchGrantOwner==this)searchGrantOwner=null;}}
+        public void run(){
+            boolean posted=false;
+            try {
+                boolean readable=false;
+                try { for(WorkspaceRootStore.RootState state:new WorkspaceRootStore(application).list(application.getContentResolver()))
+                    if(state.root.uri.toString().equals(root.toString())&&state.access==WorkspaceRootStore.Access.CURRENT)readable=true;
+                }catch(Exception unavailable){readable=false;}
+                final boolean allowed=readable;
+                posted=WORKSPACE_MAIN.post(()->{
+                    try {java.util.function.Consumer<Boolean> target;synchronized(SEARCH_GRANT_GUARD){target=callback;callback=null;}if(target!=null)target.accept(allowed);}
+                    finally{release();}
+                });
+            }finally{if(!posted)release();}
+        }
+    }
+    private void cancelSearchLocation(){
+        SearchLocation location=this.searchLocation;this.searchLocation=null;
+        if(location!=null){SearchHitVerifier.Ticket ticket=location.ticket;location.ticket=null;if(ticket!=null)ticket.cancel();}
+    }
+    private void searchContentChanged(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&location.allowContent){location.allowContent=false;return;}
+        cancelSearchLocation();
+    }
+    private void searchRestoreChanged(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&location.allowRestore){location.allowRestore=false;return;}
+        cancelSearchLocation();
+    }
+    private void beginSearchRestoreText(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&!location.allowRestore)location.allowContent=true;
+    }
+    private void endSearchRestoreText(){if(this.searchOpenCall!=null)this.searchOpenCall.allowContent=false;}
+    private void cancelWorkspaceSearch(){
+        closeWorkspaceSearchNotice();
+        ++this.searchGeneration;
+        SearchScreen screen=this.searchScreen;this.searchScreen=null;
+        cancelSearchLocation();
+        if(screen==null)return;
+        AlertDialog dialog=screen.dialog;SearchGrantJob grant=screen.grant;WorkspaceSearchLoader.Ticket ticket=screen.ticket;
+        screen.dialog=null;screen.token=null;screen.input=null;screen.grant=null;screen.ticket=null;screen.result=null;
+        if(screen.rows!=null)screen.rows.removeAllViews();screen.rows=null;
+        if(grant!=null)grant.cancel();
+        if(dialog!=null)dialog.dismiss();
+        if(ticket!=null)ticket.cancel();
+    }
+    private void closeWorkspaceSearchNotice(){
+        AlertDialog notice=this.searchNotice;this.searchNotice=null;this.searchNoticeToken=null;
+        if(notice!=null)notice.dismiss();
+    }
+    private void showWorkspaceSearchNotice(String message){
+        if(isFinishing()||isDestroyed())return;
+        SearchScreen screen=this.searchScreen;
+        if(screen!=null&&searchCurrent(screen,screen.dialog,screen.token)){
+            screen.dialog.setMessage(message);workspaceDialogShown(screen.dialog);return;
+        }
+        final Object token=new Object();
+        AlertDialog notice=historyDialogBuilder("Folder search").setMessage(message).setPositiveButton("OK",null).create();
+        AlertDialog previous=this.searchNotice;this.searchNotice=notice;this.searchNoticeToken=token;
+        if(previous!=null)previous.dismiss();
+        notice.setOnDismissListener(ignored->{if(this.searchNotice==notice&&this.searchNoticeToken==token){this.searchNotice=null;this.searchNoticeToken=null;}});
+        notice.setOnShowListener(ignored->workspaceDialogShown(notice));notice.show();
+    }
+    private boolean searchCurrent(SearchScreen screen,AlertDialog dialog,Object token){
+        return screen==this.searchScreen&&screen.generation==this.searchGeneration&&!isFinishing()&&!isDestroyed()
+                &&screen.dialog==dialog&&screen.token==token&&dialog!=null&&dialog.isShowing();
+    }
+    private void presentSearchDialog(SearchScreen screen,AlertDialog dialog,Object token){
+        AlertDialog previous=screen.dialog;screen.dialog=dialog;screen.token=token;
+        if(previous!=null)previous.dismiss();
+        dialog.setOnDismissListener(ignored->{if(this.searchScreen==screen&&screen.dialog==dialog&&screen.token==token)cancelWorkspaceSearch();});
+        dialog.setOnKeyListener((ignored,key,event)->{if(key!=KeyEvent.KEYCODE_BACK||!searchCurrent(screen,dialog,token))return false;if(event.getAction()==KeyEvent.ACTION_UP)openWorkspaceRoot(screen.root);return true;});
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));dialog.show();
+    }
+    private void showWorkspaceSearch(WorkspaceRootStore.Root root,String literal){
+        cancelWorkspaceNavigation();
+        if(isFinishing()||isDestroyed())return;
+        SearchScreen screen=new SearchScreen(this.searchGeneration,root,literal);this.searchScreen=screen;
+        EditText input=new EditText(this);screen.input=input;
+        input.setText(literal);input.setSingleLine(true);input.setTextColor(this.palette.text);input.setHintTextColor(this.palette.muted);
+        input.setHint("Exact, case-sensitive text (up to 128 characters)");input.setContentDescription("Case-sensitive literal query in saved folder "+root.label);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(128)});
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        owned[0]=historyDialogBuilder("Search this saved folder: "+root.label).setMessage("Search Markdown and text in this saved root and its subfolders, even when browsing a nested folder. Exact case-sensitive text; spaces are preserved. No regular expressions.")
+                .setView(input).setPositiveButton("Search",null)
+                .setNegativeButton("Cancel",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+        owned[0].getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view->{if(searchCurrent(screen,owned[0],token))submitWorkspaceSearch(screen,input.getText());});
+    }
+    private void submitWorkspaceSearch(SearchScreen screen,CharSequence value){
+        if(!searchCurrent(screen,screen.dialog,screen.token)||screen.grant!=null)return;
+        if(value==null||value.length()==0||value.length()>128){showWorkspaceSearchNotice("Enter 1–128 UTF-16 units of literal text.");return;}
+        for(int index=0;index<value.length();index++){
+            char ch=value.charAt(index);if(Character.isHighSurrogate(ch)){if(++index>=value.length()||!Character.isLowSurrogate(value.charAt(index))){showWorkspaceSearchNotice("Search requires valid Unicode.");return;}}
+            else if(Character.isLowSurrogate(ch)){showWorkspaceSearchNotice("Search requires valid Unicode.");return;}
+        }
+        screen.literal=value.toString();
+        SearchGrantJob job=SearchGrantJob.reserve(getApplicationContext(),screen.root.uri,allowed->{
+            if(!searchCurrent(screen,screen.dialog,screen.token))return;
+            screen.grant=null;
+            if(!allowed){WorkspaceRootStore.Root root=screen.root;cancelWorkspaceSearch();showWorkspaceRootOptions(root,true);return;}
+            startWorkspaceSearch(screen);
+        });
+        if(job==null){showWorkspaceSearchNotice("A saved-folder access check is still active. Wait for it to finish before searching again.");return;}
+        screen.grant=job;screen.dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+        try{this.io.execute(job);}
+        catch(java.util.concurrent.RejectedExecutionException rejected){screen.grant=null;job.release();screen.dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(true);showWorkspaceSearchNotice("Folder access could not be checked.");}
+        catch(RuntimeException uncertain){job.cancel();cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder access check could not be confirmed. Wait for any active check; if it cannot finish, restart the app.");}
+        catch(Error fatal){job.cancel();cancelWorkspaceSearch();throw fatal;}
+    }
+    private void startWorkspaceSearch(SearchScreen screen){
+        if(!searchCurrent(screen,screen.dialog,screen.token))return;
+        screen.input=null;
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        owned[0]=historyDialogBuilder("Searching saved folder: "+screen.root.label).setMessage("Searching Markdown and text in this saved root and its subfolders…")
+                .setNegativeButton("Cancel",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(screen.root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+        try {
+            screen.ticket=WorkspaceSearchLoader.trySearch(getApplicationContext(),screen.root.uri,screen.literal,WorkspaceLiteralSearch.Limits.defaults(),delivery->{
+                if(searchCurrent(screen,owned[0],token))acceptWorkspaceSearch(screen,delivery);
+            });
+            if(screen.ticket==null){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search is busy with an outstanding request or an unconfirmed close. Wait for an active request; after a failed close, restart the app. Editing and saving remain available.");}
+        }catch(RuntimeException failed){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search could not start. Editing and saving remain available.");}
+    }
+    private String searchReasons(java.util.Set<WorkspaceLiteralSearch.Reason> reasons){
+        StringBuilder text=new StringBuilder();
+        for(WorkspaceLiteralSearch.Reason reason:reasons){
+            if(text.length()>0)text.append("; ");
+            switch(reason){
+                case DIRECTORIES:text.append("directory limit");break;
+                case FILES:text.append("file limit");break;
+                case ROWS:text.append("folder row limit");break;
+                case DEPTH:text.append("folder depth limit");break;
+                case BYTES:text.append("read-byte limit");break;
+                case MATCHES:text.append("match limit");break;
+                case METADATA:text.append("result-label limit");break;
+                case DIRECTORY_PARTIAL:text.append("partial folder listing");break;
+                case UNREADABLE:text.append("unreadable files");break;
+                case ACCESS_REVOKED:text.append("folder access revoked");break;
+                case CLOSE_UNCERTAIN:text.append("provider close not confirmed; restart the app before searching again");break;
+                default:text.append("repeated folder skipped");break;
+            }
+        }
+        return text.toString();
+    }
+    private String searchSummary(WorkspaceLiteralSearch.Result result){
+        int matches=0;for(WorkspaceLiteralSearch.FileHit hit:result.hits)matches+=hit.matches.size();
+        String state=result.state==WorkspaceLiteralSearch.State.COMPLETE?(matches==0?"No matches.":"Search complete.")
+                :result.state==WorkspaceLiteralSearch.State.CANCELLED?"Search cancelled; this is not a complete search."
+                :(matches==0?"No matches in the files searched; search incomplete.":"Search incomplete; validated matches are shown.");
+        return state+"\n"+matches+" matches in "+result.hits.size()+" validated files; "+result.candidateFiles+" candidate files; "+result.skippedTypes+" nontext types skipped; "+result.diagnostics.size()+" unreadable or skipped diagnostics.\n"
+                +result.directoryAttempts+" directory attempts, "+result.scannedRows+" rows, "+result.bytesRead+" bytes read."
+                +(result.reasons.isEmpty()?"":"\nLimits and diagnostics: "+searchReasons(result.reasons))
+                +(result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)?"\nFolder access was revoked. Search again after choosing the folder again; these results cannot be opened.":"");
+    }
+    private void acceptWorkspaceSearch(SearchScreen screen,WorkspaceSearchLoader.Delivery delivery){
+        screen.ticket=null;
+        if(delivery.result==null||!screen.root.uri.toString().equals(delivery.result.tree.toString())||!screen.literal.equals(delivery.result.literal)){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search failed without a complete result. Search again explicitly; editing and saving remain available.");return;}
+        screen.result=delivery.result;
+        LinearLayout rows=new LinearLayout(this);rows.setOrientation(MODE_PREVIEW);screen.rows=rows;
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        boolean enabled=!delivery.result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)&&delivery.result.state!=WorkspaceLiteralSearch.State.CANCELLED;
+        int count=0;
+        for(WorkspaceLiteralSearch.FileHit hit:delivery.result.hits)for(WorkspaceLiteralSearch.Match match:hit.matches){
+            if(count++>=100)break;
+            Button button=searchMatchButton(hit,match,view->{if(searchCurrent(screen,owned[0],token))selectWorkspaceMatch(screen,hit,match);});
+            button.setEnabled(enabled);rows.addView(button,matchWrap());
+        }
+        ScrollView scroll=new ScrollView(this);scroll.addView(rows,matchWrap());
+        owned[0]=historyDialogBuilder("Search results: "+screen.root.label).setMessage(searchSummary(delivery.result)).setView(scroll)
+                .setPositiveButton("Search again",(ignored,which)->{if(searchCurrent(screen,owned[0],token))showWorkspaceSearch(screen.root,screen.literal);})
+                .setNegativeButton("Close",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(screen.root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+    }
+    private Button searchMatchButton(WorkspaceLiteralSearch.FileHit hit,WorkspaceLiteralSearch.Match match,View.OnClickListener action){
+        String snippet=match.snippet.replace("\r","\\r").replace("\n","\\n").replace("\t","\\t");
+        String label=hit.displayName+" · line "+match.line+"\n"+snippet;
+        Button button=workspaceLocalButton(label,"Open "+label,action);
+        button.setTextColor(this.palette.text);button.setBackground(UiTheme.rounded(this.palette.raised,dp(12),this.palette.border,1));
+        return button;
+    }
+    private void selectWorkspaceMatch(SearchScreen screen,WorkspaceLiteralSearch.FileHit hit,WorkspaceLiteralSearch.Match match){
+        if(!searchCurrent(screen,screen.dialog,screen.token)||screen.result==null||screen.result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)||screen.result.state==WorkspaceLiteralSearch.State.CANCELLED)return;
+        String literal=screen.literal;cancelWorkspaceSearch();
+        SearchLocation location=new SearchLocation(hit,match,literal);this.searchLocation=location;
+        this.searchOpenCall=location;
+        try{openDocument(hit.uri,0,true);}catch(RuntimeException|Error failed){cancelSearchLocation();throw failed;}finally{this.searchOpenCall=null;}
+    }
+    private void searchOpenFailed(Uri uri,int load){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location.awaitingOpen&&location.hit.uri.toString().equals(uri.toString())&&(load<0||location.load==load))cancelSearchLocation();
+    }
+    private void searchOpenFinished(Uri uri,int load){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location.awaitingOpen&&location.load==load&&location.hit.uri.toString().equals(uri.toString()))completeSearchOpen(location);
+    }
+    private void completeSearchOpen(SearchLocation location){
+        if(location!=this.searchLocation||this.activeTab<0||this.activeTab>=this.tabs.size())return;
+        location.awaitingOpen=false;location.tabId=this.tabs.get(this.activeTab).id;location.revision=this.sourceNavigationRevision;
+        location.route=this.sourceRouteRevision;location.bom=this.utf8Bom;location.load=this.loadToken;
+        verifySearchLocation(location);
+    }
+    private boolean searchLocationCurrent(SearchLocation location){
+        return this.searchLocation==location&&!location.awaitingOpen&&!isFinishing()&&!isDestroyed()
+                &&this.activeTab>=0&&this.activeTab<this.tabs.size()&&location.tabId.equals(this.tabs.get(this.activeTab).id)
+                &&this.currentUri!=null&&location.hit.uri.toString().equals(this.currentUri.toString())&&location.hit.uri.toString().equals(this.tabs.get(this.activeTab).uri)&&location.load==this.loadToken
+                &&location.revision==this.sourceNavigationRevision&&location.route==this.sourceRouteRevision&&location.bom==this.utf8Bom;
+    }
+    private void verifySearchLocation(SearchLocation location){
+        if(!searchLocationCurrent(location)){cancelSearchLocation();return;}
+        try {
+            location.ticket=SearchHitVerifier.tryVerify(()->{
+                if(!searchLocationCurrent(location))throw new IllegalStateException("Retired search location");
+                return new SearchHitVerifier.Capture(this.editor.getText(),this.utf8Bom);
+            },outcome->{if(searchLocationCurrent(location))finishSearchLocation(location,outcome);else if(this.searchLocation==location)cancelSearchLocation();});
+            if(location.ticket==null){cancelSearchLocation();showWorkspaceSearchNotice("The file was opened, but its search location could not be checked while an earlier check is still active. Search again explicitly; no automatic retry was made.");}
+        }catch(RuntimeException failed){cancelSearchLocation();showSearchChanged();}
+    }
+    private void showSearchChanged(){showWorkspaceSearchNotice("File changed since search or could not be checked; search again. The normally opened document was kept.");}
+    private void finishSearchLocation(SearchLocation location,SearchHitVerifier.Outcome outcome){
+        WorkspaceLiteralSearch.Match match=location.match;
+        int offset=match.offsetUtf16,length=match.lengthUtf16;
+        boolean valid=outcome.result!=null&&outcome.result.byteLength==location.hit.byteLength&&outcome.result.sha256.equals(location.hit.hash)
+                &&offset>=0&&length==location.literal.length()&&offset<=this.editor.length()&&length<=this.editor.length()-offset;
+        if(valid)for(int index=0;index<length;index++)if(this.editor.getText().charAt(offset+index)!=location.literal.charAt(index)){valid=false;break;}
+        cancelSearchLocation();
+        if(!valid){showSearchChanged();return;}
+        jumpToSourceOffset(offset);
+        this.editor.setSelection(offset,offset+length);
+    }
+
     private static final int REQUEST_WORKSPACE_TREE=1005;
     // Separate from Activity.main: destroying an Activity must not remove a physical delivery.
     private static final Handler WORKSPACE_MAIN=new Handler(Looper.getMainLooper());
@@ -3066,6 +3348,7 @@ public class MainActivity extends Activity {
     }
     private boolean workspaceLive(long generation){return generation==this.workspaceGeneration&&!isFinishing()&&!isDestroyed();}
     private void cancelWorkspaceNavigation() {
+        cancelWorkspaceSearch();
         ++this.workspaceGeneration;
         WorkspaceRootList roots=this.workspaceRootList;this.workspaceRootList=null;
         if(roots!=null&&roots.dialog!=null)roots.dialog.dismiss();
@@ -3167,6 +3450,7 @@ public class MainActivity extends Activity {
             browser.frames.add(new WorkspaceFrame(reader.root(),root.label,DocumentsContract.buildDocumentUriUsingTree(root.uri,DocumentsContract.getTreeDocumentId(root.uri))));
             LinearLayout content=new LinearLayout(this);content.setOrientation(MODE_PREVIEW);content.setPadding(dp(16),dp(8),dp(16),dp(8));
             content.addView(workspaceLocalButton("Retry","Reload this bounded folder listing",view->{if(workspaceBrowserCurrent(browser))loadWorkspaceFrame(browser);}),matchWrap());
+            content.addView(workspaceLocalButton("Search this saved folder","Search Markdown and text in this saved root and its subfolders",view->{if(workspaceBrowserCurrent(browser))showWorkspaceSearch(browser.root,"");}),matchWrap());
             content.addView(workspaceLocalButton("Folder options","Choose this folder again or remove its shortcut",view->{if(workspaceBrowserCurrent(browser))showWorkspaceRootOptions(root,false);}),matchWrap());
             browser.rows=new LinearLayout(this);browser.rows.setOrientation(MODE_PREVIEW);content.addView(browser.rows,matchWrap());
             ScrollView scroll=new ScrollView(this);scroll.addView(content,matchWrap());
