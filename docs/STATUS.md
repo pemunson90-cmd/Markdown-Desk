@@ -58,8 +58,14 @@ are checked, writes verify commit success, malformed records are preserved, and
 neither remembering nor removing roots takes/releases provider permissions. The
 registry alone does not establish a user-visible folder browser.
 
-Next current-phone work: finish process-wide cancellable query admission and wire
-the actual Add folder → browser → normal open journey.
+Process-wide folder-query admission is independently approved:87 focused checks
+plus3 fresh-JVM worker-rejection checks and SDK37 compile PASS. One physical query
+or undelivered Page holds admission; cancellation drops UI references immediately
+but never releases ignored/blocked provider work early. It is isolated from save/
+session I/O. Integration must use an application resolver and a static main Handler
+whose delivery messages survive Activity cleanup.
+
+Next current-phone work: wire the actual Add folder → browser → normal open journey.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.
@@ -694,8 +700,9 @@ Matched synthetic fixtures remain local under ignored
 `verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`. Physical Fold/SAF/IME/
 TalkBack/upgrade and Android filesystem durability remain distinct NOT RUN gates.
 
-Named history/diff/configurable retention, private backup/restore and M2–M7
-features are not complete. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death
+Historical gap summary (superseded by the current owner checkpoint above):
+named history/diff/configurable retention, private backup/restore and M2–M7
+were incomplete at that earlier checkpoint. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death
 and actual Android durability checks remain NOT RUN. Canonical signing inputs
 will be required only for authorized release preparation, never in Git/logs/CI.
 
