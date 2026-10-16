@@ -1,5 +1,8 @@
 # Markdown Desk rescue continuation — 2026-10-16
 
+**Long-chat continuity / latest owner UX report:** Start at [CHAT_HANDOFF_2026-10-16.md](CHAT_HANDOFF_2026-10-16.md) and its complementary Library mirror at `/Markdown Desk/MarkdownDesk_CHAT_HANDOFF_2026-10-16.md`. New **unfixed minor** Fold7 issue: compact **Files** header is cramped, showing **File** with the final **s** on the second line; batch with other UI polish, preserve tap target/accessibility. Signed code21 RC3 has focused + native emulator PASS; owner RC3 install/acceptance not yet verified. The chat reached a user-reported maximum-length banner; do not depend on further history being available.
+
+
 ## Scope and source
 - User-approved continuation without Codex usage, on isolated branch `rescue/md-unsigned-build-proof-20261016`. Do not overwrite, reset, or merge the original draft PR #24 branch `codex/operation-data-capture` without separate integration review. Original production baseline is 2.2.5/versionCode 18, package `com.example.markdowndesk`.
 - Rescue branch began at original development commit `1a17223a74acc4f465edc1209c59db2674affbf1`.
