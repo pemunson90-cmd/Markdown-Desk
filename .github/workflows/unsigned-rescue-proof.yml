@@ -65,6 +65,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Provide host fixture discovery tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          rg --version
+
       - name: Provision pinned host test dependencies
         shell: bash
         run: bash verification/setup_host_deps.sh
