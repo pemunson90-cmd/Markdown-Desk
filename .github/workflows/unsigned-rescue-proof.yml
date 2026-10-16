@@ -86,9 +86,14 @@ jobs:
         shell: bash
         run: bash verification/setup_host_deps.sh
 
-      - name: Verify broad owner-scoped current-phone host suite
+      - name: Verify changed Favorites and Bookmarks journeys
         shell: bash
         run: |
           set -euo pipefail
-          bash verification/run_current_phone_checks.sh
-          echo 'Full current-phone host source suite PASS if this step succeeds. 18 owner-deferred portable-private-state suites explicitly NOT RUN. Native Fold7/provider/release signing NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
+          bash verification/workspace_favorites/run.sh
+          bash verification/workspace_ui/run.sh
+          bash verification/workspace_search_ui/run.sh
+          bash verification/reader_positions/run.sh
+          bash verification/mode_behavior/run.sh
+          bash verification/save_lifecycle/run.sh --safety
+          echo 'Focused interaction/safety regression only. Full current-phone suite NOT RUN on this UI revision; deferred portable suite NOT RUN; real Fold7 acceptance NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
