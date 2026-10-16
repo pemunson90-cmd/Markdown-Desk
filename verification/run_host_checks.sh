@@ -102,3 +102,4 @@ bash verification/terminal_cancelled_admission/run.sh
 bash verification/cold_capture_cancel/run.sh
 bash verification/history_maintenance/run.sh
 bash verification/history_executor/run.sh
+bash verification/automatic_retention/run.sh

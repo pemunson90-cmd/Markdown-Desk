@@ -197,6 +197,20 @@ complete unblocked accounting. Uncertain post-append outcomes never trigger roll
 or automatic retry. This bridge does not register, reconcile, schedule or delete.
 No settings/automatic-cleanup UI is enabled yet.
 
+Opt-in automatic-retention planner/execution/replay backend is independently
+approved. Root ran261 finite checks plus2 maximum-document/live-memory checks PASS;
+worker final same-source38 SIGKILL boundaries/76 fresh-JVM reopens PASS. Affected
+existing selected executor747 finite/22 memory/44 restart fixtures/88 reopens and
+planner94+6 passed in worker runs without repeating unrelated portable tests.
+One batch removes at most one eligible unnamed group above the per-history floor;
+current durable consent and exact policy/intent/native identities are revalidated
+before destructive boundaries. Selected authorization remains distinct, including
+retained in-memory retirement; pressure cleanup stays excluded. Cancellation cuts
+off before publication, with a committed attempt finished or retained for exact
+recovery. Fresh-process post-intent-unlink recovery does not invent cleanup authority.
+No runtime scheduling, startup bridge or enabled cleanup UI is wired yet. Existing
+scan bounds remain; this is not a whole-job heap ceiling or device performance claim.
+
 Next current-phone work: actual search UI and guarded normal-open navigation,
 then workspace favorites, reading places/bookmarks, local storage controls and other
 dependency-ready M2–M7 work.
