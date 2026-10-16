@@ -538,13 +538,17 @@ public class MainActivity extends Activity {
         this.readTools.setPadding(dp(MAX_TABS), dp(7), dp(MAX_TABS), dp(7));
         this.readToolsScroll.addView(this.readTools, wrapWrap());
         this.root.addView(this.readToolsScroll, matchWrap());
-        addReadTool("☆", "Favorite current document in one tap", view -> pinCurrentDocumentFavorite());
+        addReadTool("☆", "Favorite current document in one tap", new View.OnClickListener() {
+            @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
+        });
         addReadTool("A−", "Decrease reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); } });
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
         configureEditorHistoryActions();
-        addFormat("☆", "Favorite current document in one tap", view -> pinCurrentDocumentFavorite());
+        addFormat("☆", "Favorite current document in one tap", new View.OnClickListener() {
+            @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
+        });
         addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
