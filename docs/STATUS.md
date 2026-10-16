@@ -52,8 +52,14 @@ style is captured for rendering. Android WebView/print spooler and print-dialog
 margin behavior remain NOT RUN. The required aggregate registers Java-only checks;
 actual PDFs remain an explicit tool-dependent runner, not an aggregate claim.
 
-Next current-phone work: finish saved-folder registry and process-wide cancellable
-query admission, then wire the actual Add folder → browser → normal open journey.
+Saved-folder registry is independently approved after a bounded-parser repair:
+61 focused assertions and actual SDK37 compile PASS. Exact persisted read grants
+are checked, writes verify commit success, malformed records are preserved, and
+neither remembering nor removing roots takes/releases provider permissions. The
+registry alone does not establish a user-visible folder browser.
+
+Next current-phone work: finish process-wide cancellable query admission and wire
+the actual Add folder → browser → normal open journey.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.

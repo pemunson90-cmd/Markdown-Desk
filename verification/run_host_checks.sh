@@ -29,6 +29,7 @@ bash verification/reader_typography_ui/run.sh
 bash verification/mode_behavior/run.sh
 bash verification/editor_undo/run.sh
 bash verification/workspace_tree_reader/run.sh
+bash verification/workspace_roots/run.sh
 
 bash verification/contrast/run.sh --gate
 
