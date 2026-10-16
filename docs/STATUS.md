@@ -160,6 +160,15 @@ policy UI, automatic execution or deletion is enabled. Old binaries reject the n
 variant; no device downgrade/upgrade acceptance is claimed. Full retention remains
 open and needs reviewed execution/recovery/scheduling plus explicit user controls.
 
+Saved reading-place/bookmark helpers are implemented and independently approved,
+including terminal cancellation and strict ASCII JSON escape corrections: final151
+focused checks PASS in worker and root runs, actual SDK37 helper compile PASS in
+worker. Anchors use streaming strict UTF-8 hashes and unique bounded context matching;
+changed/ambiguous/deleted text refuses a guessed jump. The separate versioned store
+caps64 document records/16 bookmarks per document/128 total, never evicts bookmarks,
+preserves malformed state and checks commits. No current Activity reader/bookmark
+journey is wired yet; this helper checkpoint does not complete saved places or M4.
+
 Next current-phone work: reviewed search background admission and actual search UI,
 then workspace favorites, reading places/bookmarks, local storage controls and other
 dependency-ready M2–M7 work.
