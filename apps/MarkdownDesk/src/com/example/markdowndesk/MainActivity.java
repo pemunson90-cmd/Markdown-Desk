@@ -3652,6 +3652,52 @@ public class MainActivity extends Activity {
         readerDialogShow(dialog);
     }
 
+
+    // Local protection inspection only: no policy update, maintenance or deletion.
+    // A fresh underlying sample is required; unavailable accounting is never shown
+    // as a fabricated amount of free storage.
+    private volatile long protectionStatusRequest;
+    private static String protectionMiB(long bytes) {
+        return String.format(Locale.ROOT,"%.2f MiB",bytes/1048576.0d);
+    }
+    private void showProtectionUsage() {
+        final long request=++this.protectionStatusRequest;
+        this.io.execute(()->{
+            try{
+                final HistoryController.LocalProtectionStatus status=getHistoryController().inspectLocalProtection();
+                this.main.post(()->{
+                    if(request!=this.protectionStatusRequest||isFinishing()||isDestroyed())return;
+                    StringBuilder details=new StringBuilder();
+                    details.append("Local document protection and history (this phone only).\\n");
+                    if(!status.usageComplete||status.mutationBlocked){
+                        details.append("\\nStorage accounting is incomplete or temporarily blocked. Do not treat these readings as available capacity.");
+                    }else{
+                        details.append("\\nProtected data: ").append(protectionMiB(status.dataActualBytes));
+                        details.append("\\nReserved for pending saves/operations: ")
+                            .append(protectionMiB(status.completionReservedBytes+status.operationReservedBytes));
+                        details.append("\\nCharged data: ").append(protectionMiB(status.dataChargedBytes));
+                        details.append("\\nConfigured history limit: ").append(protectionMiB(status.quotaBytes));
+                        if(status.overQuota)details.append("\\nHistory usage exceeds the configured limit.");
+                    }
+                    if(!status.issues.isEmpty())details.append("\\n\\nThe protection system reports conditions that need review before storage changes.");
+                    details.append("\\n\\nThis screen never cleans up, deletes, exports or transfers your document history.");
+                    details.append(" Copying an .md file does not carry its private version history.");
+                    AlertDialog dialog=historyDialogBuilder("Protected storage")
+                        .setMessage(details.toString())
+                        .setPositiveButton("Refresh",(d,which)->showProtectionUsage())
+                        .setNegativeButton("Close",null).create();
+                    dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+                    dialog.show();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{
+                    if(request==this.protectionStatusRequest&&!isFinishing()&&!isDestroyed())
+                        showError("Protected storage status is unavailable. Your documents and recovery data were left untouched.");
+                });
+            }
+        });
+    }
+
     private void showReaderPlaces() {
         if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
             showError("Open a saved document to see its reading places.");return;
@@ -3927,6 +3973,10 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showProtectedSaves();
         }), matchWrap());
+        linearLayout.addView(workspaceAction("Protected storage status","Read current history storage usage without changing or deleting files",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            showProtectionUsage();
+        }),matchWrap());
         linearLayout.addView(workspaceAction("History for this document", "Named versions, comparison and restore to a new copy", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDocumentHistory();
