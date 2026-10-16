@@ -176,7 +176,18 @@ strict bounded JSON and checked commits; corrupted values remain intact. Favorit
 never grant access, query providers or change recents/saved roots. Add/list/remove/
 open favorites controls are not wired yet and remain the next actual UI packet.
 
-Next current-phone work: reviewed search background admission and actual search UI,
+Selected-hit displayed-text verification is independently approved:76 focused
+checks PASS in worker and root runs, actual DocumentIO UTF-8/BOM encoding oracles
+included; SDK37 compile PASS in worker. One process-wide owner is admitted before
+copying the displayed text and survives cancellation through actual hash work and
+queued delivery. Streaming fixed-buffer hashing avoids a whole encoded-byte clone;
+UI must still bind the authentic hit to exact tab/URI/load/content generation/BOM
+before jumping. The classfile-only NIO compatibility concern was withdrawn after
+root and reviewer independently verified canonical D8 rewrites the invocation to
+the Android-compatible descriptor in a tiny isolated DEX probe (no APK). This is
+not device/minSdk-wide acceptance or a whole-app heap claim.
+
+Next current-phone work: actual search UI and guarded normal-open navigation,
 then workspace favorites, reading places/bookmarks, local storage controls and other
 dependency-ready M2–M7 work.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
