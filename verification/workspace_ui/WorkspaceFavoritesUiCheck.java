@@ -105,9 +105,14 @@ public final class WorkspaceFavoritesUiCheck {
         yes(h.browsing(),"real current saved-folder grant permits ordinary browser navigation");
         h.cancel();
     }
-    public static void main(String[] args)throws Exception{
-        normalAndPersistence();failuresAndStale();folderPermission();
-        System.out.println("Favorites actual UI: "+checks+
-          " checks PASS; exact Activity route and local store, modeled Android permissions");
+    public static void main(String[] args){
+        // The modeled provider broker has process-global workers. Match the existing
+        // workspace harness by exiting deterministically after test completion.
+        try{
+            normalAndPersistence();failuresAndStale();folderPermission();
+            System.out.println("Favorites actual UI: "+checks+
+                " checks PASS; exact Activity route and local store, modeled Android permissions");
+            System.exit(0);
+        }catch(Throwable failure){failure.printStackTrace();System.exit(1);}
     }
 }
