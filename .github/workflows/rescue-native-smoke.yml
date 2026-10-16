@@ -167,6 +167,60 @@ jobs:
                   raise SystemExit("Native Workspace UI missing after scroll: "+value)
           print("PASS native Workspace and visible, scroll-reachable Favorites/Bookmarks/storage controls")
           PY
+          # Click only by a visible accessibility text/bounds pair, not guesswork.
+          tap_native_label() {
+            local xml="$1" text="$2" coordinates
+            coordinates="$(python3 - "$xml" "$text" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot();phrase=sys.argv[2]
+          items=[n for n in root.iter("node") if phrase in n.get("text","")]
+          if len(items)!=1:raise SystemExit("Visible clickable label missing/ambiguous: "+phrase)
+          pattern=r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"
+          match=re.fullmatch(pattern,items[0].get("bounds",""))
+          if not match:raise SystemExit("No visible tap bounds: "+phrase)
+          a,b,c,d=map(int,match.groups());print((a+c)//2,(b+d)//2)
+          PY
+            )"
+            "$ADB" shell input tap $coordinates
+          }
+          dump_native_state() {
+            local id="$1"
+            sleep 2
+            "$ADB" shell uiautomator dump /sdcard/md-native-check.xml >/dev/null
+            "$ADB" pull /sdcard/md-native-check.xml "$RUNNER_TEMP/md-$id.xml" >/dev/null
+            "$ADB" shell screencap -p /sdcard/md-native-check.png
+            "$ADB" pull /sdcard/md-native-check.png "$RUNNER_TEMP/md-$id.png" >/dev/null
+          }
+          check_native_text() {
+            python3 - "$1" "$2" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          labels=[n.get("text","") for n in ET.parse(sys.argv[1]).getroot().iter("node")]
+          if not any(sys.argv[2] in x for x in labels):
+              raise SystemExit("Expected native UI message absent: "+sys.argv[2])
+          PY
+          }
+          # The first-launch document is unsaved. Its bookmark action must
+          # refuse to write positional metadata and provide an honest message.
+          tap_native_label "$RUNNER_TEMP/md-workspace-page-5.xml" "Reading bookmarks"
+          dump_native_state "bookmark-unsaved"
+          check_native_text "$RUNNER_TEMP/md-bookmark-unsaved.xml" "Open a saved document"
+          "$ADB" shell input keyevent KEYCODE_BACK
+          sleep 1
+          "$ADB" shell input tap $WORKSPACE_TAP
+          dump_native_state "workspace-reopen"
+          tap_native_label "$RUNNER_TEMP/md-workspace-reopen.xml" "Favorites"
+          dump_native_state "favorites-empty"
+          check_native_text "$RUNNER_TEMP/md-favorites-empty.xml" "No favorites saved"
+          "$ADB" shell input keyevent KEYCODE_BACK
+          sleep 1
+          "$ADB" shell input tap $WORKSPACE_TAP
+          sleep 1
+          "$ADB" shell input swipe 160 490 160 200 380
+          dump_native_state "storage-entry"
+          tap_native_label "$RUNNER_TEMP/md-storage-entry.xml" "Protected storage status"
+          dump_native_state "storage-status"
+          check_native_text "$RUNNER_TEMP/md-storage-status.xml" "Local document protection and history"
+          echo "PASS native bookmark unsaved-state refusal, empty Favorites, and local storage inspection." >> "$GITHUB_STEP_SUMMARY"
           echo 'PASS: emulator installed/test-signed candidate, launched, survived rotation and cold relaunch.' >> "$GITHUB_STEP_SUMMARY"
           echo 'PASS: native Workspace controls available, including Favorites and Reading Bookmarks.' >> "$GITHUB_STEP_SUMMARY"
           echo 'NOT RUN: Fold7, user data migration, Android SAF third-party providers, TalkBack, release certificate/signing.' >> "$GITHUB_STEP_SUMMARY"
@@ -185,5 +239,13 @@ jobs:
             ${{ runner.temp }}/md-workspace.png
             ${{ runner.temp }}/md-workspace-bottom.png
             ${{ runner.temp }}/md-workspace-page-*.xml
+            ${{ runner.temp }}/md-bookmark-unsaved.xml
+            ${{ runner.temp }}/md-bookmark-unsaved.png
+            ${{ runner.temp }}/md-workspace-reopen.xml
+            ${{ runner.temp }}/md-favorites-empty.xml
+            ${{ runner.temp }}/md-favorites-empty.png
+            ${{ runner.temp }}/md-storage-entry.xml
+            ${{ runner.temp }}/md-storage-status.xml
+            ${{ runner.temp }}/md-storage-status.png
           if-no-files-found: ignore
           retention-days: 7
