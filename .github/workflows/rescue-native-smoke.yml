@@ -148,8 +148,8 @@ jobs:
           WORKSPACE_TAP="$(python3 - "$RUNNER_TEMP/md-window.xml" <<'PY'
           import re,sys,xml.etree.ElementTree as ET
           root=ET.parse(sys.argv[1]).getroot()
-          matches=[n for n in root.iter("node") if n.get("text")=="M"]
-          if len(matches)!=1: raise SystemExit("Workspace entrypoint absent or ambiguous")
+          matches=[n for n in root.iter("node") if n.get("text")=="Files"]
+          if len(matches)!=1: raise SystemExit("Files entrypoint absent or ambiguous")
           bounds=matches[0].get("bounds","")
           groups=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",bounds)
           if groups is None: raise SystemExit("Workspace bounds unavailable")
@@ -180,11 +180,11 @@ jobs:
           labels=[]
           for page in pages:
               labels.extend(n.get("text","") for n in ET.parse(page).getroot().iter("node"))
-          expected=("Your writing desk","Favorites","Go to bookmark","Protected storage status")
+          expected=("Files","Open a file","New document","Open tabs","Favorites","Folders")
           for value in expected:
               if not any(value in label for label in labels):
                   raise SystemExit("Native Workspace UI missing after scroll: "+value)
-          print("PASS native Workspace and visible, scroll-reachable Favorites/Bookmarks/storage controls")
+          print("PASS native Files hub destinations are scroll-reachable")
           PY
           # Click only by a visible accessibility text/bounds pair, not guesswork.
           tap_native_label() {
@@ -218,11 +218,8 @@ jobs:
               raise SystemExit("Expected native UI message absent: "+sys.argv[2])
           PY
           }
-          # The first-launch document is unsaved. Its bookmark action must
-          # refuse to write positional metadata and provide an honest message.
-          tap_native_label "$RUNNER_TEMP/md-workspace-page-5.xml" "Go to bookmark"
-          dump_native_state "bookmark-unsaved"
-          check_native_text "$RUNNER_TEMP/md-bookmark-unsaved.xml" "Open a saved document"
+          # Verify the Files destination actually launches the preserved
+          # Favorites screen. Other editing and storage tools live in More.
           "$ADB" shell input keyevent KEYCODE_BACK
           sleep 1
           "$ADB" shell input tap $WORKSPACE_TAP
@@ -230,13 +227,10 @@ jobs:
           tap_native_label "$RUNNER_TEMP/md-workspace-reopen.xml" "Favorites"
           dump_native_state "favorites-empty"
           check_native_text "$RUNNER_TEMP/md-favorites-empty.xml" "No favorites yet"
-          # Protected Storage was exercised in prior successful native run 38924164753
-          # and by the owner on Fold7 RC1. This focused RC2 smoke checks its
-          # scroll-reachable entry, not its separate dialog behavior.
-          echo "PASS native bookmark unsaved-state refusal, empty Favorites and scroll-reachable storage control." >> "$GITHUB_STEP_SUMMARY"
-          echo 'Protected Storage dialog repeat: NOT RUN in this focused RC2 smoke (previous native and owner tests passed).' >> "$GITHUB_STEP_SUMMARY"
+          echo "PASS native Files chooser and Favorites destination; source file untouched." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Bookmark selection, open-provider URI, and More menu: NOT RUN in this focused native navigation smoke; separately tested source paths.' >> "$GITHUB_STEP_SUMMARY"
           echo 'PASS: emulator installed/test-signed candidate, launched, survived rotation and cold relaunch.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'PASS: native Workspace controls available, including Favorites and Reading Bookmarks.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PASS: native Files hub and Favorites destination available on portrait Android.' >> "$GITHUB_STEP_SUMMARY"
           echo 'NOT RUN: Fold7, user data migration, Android SAF third-party providers, TalkBack, release certificate/signing.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Retain emulator evidence only (no distributable APK)
