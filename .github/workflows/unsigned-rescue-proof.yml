@@ -90,6 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          bash verification/document_io/run.sh
           bash verification/workspace_favorites/run.sh
           bash verification/workspace_ui/run.sh
           bash verification/workspace_search_ui/run.sh
