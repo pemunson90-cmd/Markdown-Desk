@@ -257,6 +257,7 @@ public class MainActivity extends Activity {
         pauseDocxExport();
         invalidateProtectedSaves();
         cancelWorkspaceFavorites();
+        invalidateReaderActions();
         cancelWorkspaceNavigation();
         super.onPause();
     }
@@ -266,6 +267,7 @@ public class MainActivity extends Activity {
         cancelDocxExport();
         invalidateProtectedSaves();
         cancelWorkspaceFavorites();
+        invalidateReaderActions();
         cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
@@ -3494,6 +3496,202 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    // Explicit local reading places. Source positions are verified against immutable
+    // snapshots; any changed/ambiguous text refuses navigation rather than guessing.
+    private volatile long readerRequest;
+    private AlertDialog readerDialog;
+
+    private void invalidateReaderActions() {
+        ++this.readerRequest;
+        AlertDialog old=this.readerDialog;
+        this.readerDialog=null;
+        if(old!=null)old.dismiss();
+    }
+
+    private boolean readerActionCurrent(long request,String tabId,String uri) {
+        return !isFinishing()&&!isDestroyed()&&this.readerRequest==request
+            &&this.activeTab>=0&&this.activeTab<this.tabs.size()
+            &&tabId.equals(this.tabs.get(this.activeTab).id)
+            &&this.currentUri!=null&&uri.equals(this.currentUri.toString());
+    }
+
+    private void readerDialogShow(AlertDialog dialog) {
+        this.readerDialog=dialog;
+        dialog.setOnDismissListener(ignored->{if(this.readerDialog==dialog)this.readerDialog=null;});
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+        dialog.show();
+    }
+
+    private void saveReaderAnchor(boolean bookmark,String label) {
+        if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
+            showError("Open a saved document before saving a reading place.");return;
+        }
+        if(this.mode==MODE_PREVIEW){
+            showError("Switch to Write or Split, place the cursor at the text you want, then save your place.");return;
+        }
+        invalidateReaderActions();
+        final long request=this.readerRequest;
+        final DocumentTab tab=this.tabs.get(this.activeTab);
+        final String tabId=tab.id,uri=this.currentUri.toString();
+        final String source=this.editor.getText().toString();
+        final int offset=Math.max(0,Math.min(source.length(),this.editor.getSelectionStart()));
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                ReaderAnchor.Anchor anchor=ReaderAnchor.capture(source,offset,ReaderAnchor.Kind.TEXT,()->{
+                    if(Thread.currentThread().isInterrupted())throw new IOException("Reading-place capture interrupted");
+                });
+                ReaderPositionStore store=new ReaderPositionStore(application);
+                if(bookmark)store.addBookmark(uri,label,anchor);
+                else store.saveLocation(uri,anchor);
+                this.main.post(()->{
+                    if(readerActionCurrent(request,tabId,uri))
+                        Toast.makeText(this,bookmark?"Bookmark saved":"Reading place saved",Toast.LENGTH_SHORT).show();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{
+                    if(readerActionCurrent(request,tabId,uri))
+                        showError("Reading place could not be saved. The document was not changed.\\n\\n"+message(failure));
+                });
+            }
+        });
+    }
+
+    private void promptReaderBookmark() {
+        if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
+            showError("Open a saved document first.");return;
+        }
+        if(this.mode==MODE_PREVIEW){
+            showError("Switch to Write or Split and position the cursor before bookmarking.");return;
+        }
+        invalidateReaderActions();
+        final long request=this.readerRequest;
+        final EditText input=new EditText(this);
+        input.setSingleLine(true);
+        input.setTextColor(this.palette.text);
+        input.setHintTextColor(this.palette.muted);
+        input.setHint("Bookmark name");
+        input.setContentDescription("Name for reading bookmark");
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(80)});
+        final String tabId=this.tabs.get(this.activeTab).id,uri=this.currentUri.toString();
+        AlertDialog dialog=historyDialogBuilder("Bookmark this place")
+            .setMessage("Bookmarks use the source cursor, not an estimated reading-screen scroll position.")
+            .setView(input)
+            .setPositiveButton("Save",null)
+            .setNegativeButton("Cancel",null).create();
+        readerDialogShow(dialog);
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view->{
+            if(!readerActionCurrent(request,tabId,uri))return;
+            String label=input.getText().toString().trim();
+            if(label.isEmpty()){input.setError("Enter a bookmark name");return;}
+            dialog.dismiss();
+            saveReaderAnchor(true,label);
+        });
+    }
+
+    private void removeReaderBookmark(ReaderPositionStore.Bookmark bookmark,long request,String tabId,String uri) {
+        if(!readerActionCurrent(request,tabId,uri))return;
+        invalidateReaderActions();
+        final long next=this.readerRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                new ReaderPositionStore(application).removeBookmark(uri,bookmark.id);
+                this.main.post(()->{if(readerActionCurrent(next,tabId,uri))showReaderPlaces();});
+            }catch(Exception failure){
+                this.main.post(()->{if(readerActionCurrent(next,tabId,uri))
+                    showError("Bookmark could not be removed; the source document was not changed.\\n\\n"+message(failure));});
+            }
+        });
+    }
+
+    private void navigateReaderAnchor(ReaderAnchor.Anchor anchor,long request,String tabId,String uri) {
+        if(!readerActionCurrent(request,tabId,uri))return;
+        final String source=this.editor.getText().toString();
+        this.io.execute(()->{
+            try{
+                ReaderAnchor.Resolution result=ReaderAnchor.resolve(anchor,source,()->{
+                    if(Thread.currentThread().isInterrupted())throw new IOException("Reading-place search interrupted");
+                });
+                this.main.post(()->{
+                    if(!readerActionCurrent(request,tabId,uri))return;
+                    if(!this.editor.getText().toString().equals(source)){
+                        showError("The document changed. Open Reading places again to verify the new text.");return;
+                    }
+                    if(result.status==ReaderAnchor.Status.UNRESOLVED){
+                        showError("That passage moved or changed too much to locate safely.");return;
+                    }
+                    if(this.mode==MODE_PREVIEW)setMode(MODE_EDIT,false);
+                    int offset=result.offset;
+                    this.editor.setSelection(offset);
+                    this.editor.post(()->{
+                        if(readerActionCurrent(request,tabId,uri)
+                            &&this.editor.getText().toString().equals(source))
+                            this.editor.bringPointIntoView(offset);
+                    });
+                });
+            }catch(Exception failure){
+                this.main.post(()->{if(readerActionCurrent(request,tabId,uri))
+                    showError("Reading place could not be verified.\\n\\n"+message(failure));});
+            }
+        });
+    }
+
+    private void showReaderBookmarkOptions(ReaderPositionStore.Bookmark bookmark,long request,String tabId,String uri) {
+        if(!readerActionCurrent(request,tabId,uri))return;
+        AlertDialog dialog=historyDialogBuilder(bookmark.label)
+            .setMessage("Jump to the verified text, or remove only this bookmark.")
+            .setPositiveButton("Go to text",(d,which)->{
+                if(readerActionCurrent(request,tabId,uri))navigateReaderAnchor(bookmark.anchor,request,tabId,uri);
+            })
+            .setNeutralButton("Remove bookmark",(d,which)->removeReaderBookmark(bookmark,request,tabId,uri))
+            .setNegativeButton("Back",(d,which)->{
+                if(readerActionCurrent(request,tabId,uri))showReaderPlaces();
+            }).create();
+        readerDialogShow(dialog);
+    }
+
+    private void showReaderPlaces() {
+        if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
+            showError("Open a saved document to see its reading places.");return;
+        }
+        invalidateReaderActions();
+        final long request=this.readerRequest;
+        final String tabId=this.tabs.get(this.activeTab).id,uri=this.currentUri.toString();
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                final ReaderPositionStore.DocumentState state=new ReaderPositionStore(application).read(uri);
+                this.main.post(()->{
+                    if(!readerActionCurrent(request,tabId,uri))return;
+                    int count=state==null?0:state.bookmarks.size(),extra=state!=null&&state.location!=null?1:0;
+                    final String[] labels=new String[extra+count];
+                    if(extra!=0)labels[0]="Return to saved reading place";
+                    for(int i=0;i<count;i++)labels[i+extra]="☆ "+state.bookmarks.get(i).label;
+                    AlertDialog.Builder builder=historyDialogBuilder("Reading places")
+                        .setPositiveButton("Bookmark here",(d,which)->{
+                            if(readerActionCurrent(request,tabId,uri))promptReaderBookmark();
+                        })
+                        .setNeutralButton("Save my place",(d,which)->{
+                            if(readerActionCurrent(request,tabId,uri))saveReaderAnchor(false,null);
+                        })
+                        .setNegativeButton("Close",null);
+                    if(labels.length==0)builder.setMessage("No places saved yet. Switch to Write or Split and position the cursor, then save a place or a named bookmark.");
+                    else builder.setItems(labels,(d,index)->{
+                        if(!readerActionCurrent(request,tabId,uri))return;
+                        if(extra!=0&&index==0)navigateReaderAnchor(state.location,request,tabId,uri);
+                        else showReaderBookmarkOptions(state.bookmarks.get(index-extra),request,tabId,uri);
+                    });
+                    readerDialogShow(builder.create());
+                });
+            }catch(Exception failure){
+                this.main.post(()->{if(readerActionCurrent(request,tabId,uri))
+                    showError("Reading places could not be loaded. Existing data was left intact.\\n\\n"+message(failure));});
+            }
+        });
+    }
+
     private void addWorkspaceFolderActions(LinearLayout parent) {
         parent.addView(workspaceAction("Add folder","Choose a folder with Android's document picker",view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
@@ -3733,6 +3931,14 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDocumentHistory();
         }), matchWrap());
+        linearLayout.addView(workspaceAction("Save reading place","Remember the current Write/Split cursor location without changing the file",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            saveReaderAnchor(false,null);
+        }),matchWrap());
+        linearLayout.addView(workspaceAction("☆ Reading bookmarks","Save named source positions and revisit saved places",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            showReaderPlaces();
+        }),matchWrap());
         TextView historyLimit = new TextView(this);
         historyLimit.setText("Markdown and text files use UTF-8, up to 8 MiB. Current text files do not include private history. Uninstalling the app or clearing its storage can lose that history. Keep separate copies of text you need.");
         historyLimit.setTextColor(this.palette.muted);
