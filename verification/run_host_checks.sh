@@ -42,6 +42,7 @@ bash verification/preview_navigation/run.sh
 bash verification/outline_navigation/run.sh
 bash verification/preview_navigation/run_print.sh
 bash verification/print_layout/run.sh --java-only
+bash verification/docx_export/run.sh --core-only
 bash verification/line_index/run.sh
 bash verification/syntax/run.sh
 

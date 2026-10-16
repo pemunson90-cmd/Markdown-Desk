@@ -65,6 +65,14 @@ but never releases ignored/blocked provider work early. It is isolated from save
 session I/O. Integration must use an application resolver and a static main Handler
 whose delivery messages survive Activity cleanup.
 
+The DOCX export core is independently approved after resource/fidelity fixes:
+184 Java checks,14 review regressions,86 independent ZIP/XML/list checks, ZIP CRC,
+and a fresh isolated LibreOffice/PDF11-check journey PASS. Actual SDK bootclasspath
+compile PASS. Original maximum-line regex stack-overflow probes now pass; XML output
+checks budgets before encoding and cancellation is periodic. See the
+[explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). No Activity/SAF adapter exists
+and no user-visible DOCX export or import/round-trip is claimed.
+
 Next current-phone work: wire the actual Add folder → browser → normal open journey.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
