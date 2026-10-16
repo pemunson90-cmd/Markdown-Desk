@@ -1,0 +1,39 @@
+name: Markdown Desk public Android signing utility (no private keys)
+
+on:
+  push:
+    branches:
+      - rescue/md-unsigned-build-proof-20261016
+    paths:
+      - .github/workflows/rescue-apksigner-utility.yml
+
+permissions:
+  contents: read
+
+jobs:
+  tool:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Install public Android SDK Build Tools 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?SDK unavailable}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install "build-tools;36.0.0"
+          mkdir -p "$RUNNER_TEMP/md-sign-tool"
+          JAR="$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar"
+          test -s "$JAR"
+          cp "$JAR" "$RUNNER_TEMP/md-sign-tool/apksigner.jar"
+          sha256sum "$JAR" | tee "$RUNNER_TEMP/md-sign-tool/SHA256SUMS.txt"
+          echo 'This artifact contains ONLY the public Android SDK apksigner program. No keystores, passwords, or APKs.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain public utility
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: android-apksigner-36-public
+          path: ${{ runner.temp }}/md-sign-tool/
+          if-no-files-found: error
+          retention-days: 2
