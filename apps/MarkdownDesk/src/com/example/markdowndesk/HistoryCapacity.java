@@ -13,7 +13,8 @@ public final class HistoryCapacity {
         public final String bundleId,controlRecordHash;
         public final long generation,quotaBytes;
         public final int automaticCount;
-        EffectivePolicy(HistoryControlStore.Record record){bundleId=record.bundleId.toString();generation=record.generation;controlRecordHash=record.envelopeHash;quotaBytes=record.quotaBytes;automaticCount=record.automaticCount;}
+        public final boolean automaticEnabled;
+        EffectivePolicy(HistoryControlStore.Record record){automaticEnabled=record.automaticEnabled;bundleId=record.bundleId.toString();generation=record.generation;controlRecordHash=record.envelopeHash;quotaBytes=record.quotaBytes;automaticCount=record.automaticCount;}
     }
     public static final class Usage {
         public final long dataActualBytes,completionReservedBytes,completionReservedSlots,dataChargedBytes,controlActualBytes;
@@ -110,12 +111,22 @@ public final class HistoryCapacity {
         return new Usage(usage.dataActualBytes,usage.completionReservedBytes,usage.completionReservedSlots,inspection,usage.usageComplete,
             usage.mutationBlocked||!authorityMatches(inspection),acknowledged==null?Long.MAX_VALUE:acknowledged.quotaBytes,usage.diagnostics,usage.operationActualBytes,usage.operationReservedBytes,usage.operationOccupiedEntries,usage.operationReservedEntries);}}
     public EffectivePolicy setPolicy(HistoryPolicy requested)throws IOException{
-        synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return setPolicyLocked(requested);}}
+        synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return setPolicyLocked(requested,false,false);}}
     }
-    private EffectivePolicy setPolicyLocked(HistoryPolicy requested)throws IOException{
+    /** Explicit opt-in policy only. This method never schedules or performs cleanup.
+     * A triple no-op still requires current installed authority and fresh complete accounting. */
+    public EffectivePolicy setPolicy(HistoryPolicy requested,boolean automaticEnabled)throws IOException{
+        synchronized(monitor){try(HistoryStorage.MutationScope scope=HistoryStorage.administration(store.storageRoot())){return setPolicyLocked(requested,automaticEnabled,true);}}
+    }
+    private EffectivePolicy setPolicyLocked(HistoryPolicy requested,boolean automaticEnabled,boolean explicit)throws IOException{
         requireReady();Usage usage=inspect();if(usage.mutationBlocked||!usage.usageComplete)throw new IOException("Incomplete policy accounting");if(requested==null)throw new IOException("Missing requested policy");
-        HistoryControlStore.Inspection inspection=control.inspect();long generation=HistoryControlStore.nextGeneration(inspection.latest.generation);
-        byte[] bytes=HistoryControlStore.encodePolicy(inspection.latest.bundleId,generation,inspection.latest.envelopeHash,requested.quotaBytes,requested.automaticCount);
+        if(automaticEnabled&&requested.automaticCount==0)throw new IOException("Automatic policy requires a positive target");
+        HistoryControlStore.Inspection inspection=control.inspect();
+        if(!authorityMatches(inspection))throw new IOException("Policy authority changed");
+        if(explicit&&requested.quotaBytes==acknowledged.quotaBytes&&requested.automaticCount==acknowledged.automaticCount&&automaticEnabled==acknowledged.automaticEnabled)return acknowledged;
+        long generation=HistoryControlStore.nextGeneration(inspection.latest.generation);
+        byte[] bytes=explicit?HistoryControlStore.encodeAutomaticPolicy(inspection.latest.bundleId,generation,inspection.latest.envelopeHash,requested.quotaBytes,requested.automaticCount,automaticEnabled)
+            :HistoryControlStore.encodePolicy(inspection.latest.bundleId,generation,inspection.latest.envelopeHash,requested.quotaBytes,requested.automaticCount);
         admitControl(inspection,bytes.length,1);ready=false;
         publish(HistoryControlStore.policyFilename(generation),bytes,false);return reconcileLocked();
     }

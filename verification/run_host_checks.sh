@@ -75,6 +75,7 @@ bash verification/history_archive_manifest/run.sh
 bash verification/history_retention/run.sh
 bash verification/history_planner/run.sh
 bash verification/history_capacity/run.sh all
+bash verification/automatic_retention_policy/run.sh
 bash verification/control_inspection_bounds/run.sh
 
 bash verification/history_pins/run.sh

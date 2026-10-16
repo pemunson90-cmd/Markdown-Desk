@@ -130,6 +130,17 @@ accounting, emits bounded issue enums and performs no registration/reconciliatio
 policy writes. No usage dialog is wired yet; settings and automatic pruning remain
 open. This is visibility groundwork, not configurable-retention completion.
 
+Durable automatic-retention consent metadata is implemented and independently
+reviewed (root review of separate worker changes):81 focused checks PASS in worker
+and root runs; worker affected codec209/policy49/admission61/control-bounds30 PASS.
+Legacy registrations/policies keep exact bytes and mean disabled; new strict chained
+policy variant adds explicit opt-in, with unchanged shared control accounting and
+uncertain-publication handling. Old setter remains legacy and disables consent;
+explicit triple no-op still requires fresh valid authority. No runtime cleanup,
+policy UI, automatic execution or deletion is enabled. Old binaries reject the new
+variant; no device downgrade/upgrade acceptance is claimed. Full retention remains
+open and needs reviewed execution/recovery/scheduling plus explicit user controls.
+
 Next current-phone work: serial DOCX Activity controls, reviewed search resource
 ownership and actual search UI, then workspace favorites and other dependency-ready
 M2–M7 work.

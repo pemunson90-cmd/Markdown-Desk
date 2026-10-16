@@ -21,7 +21,7 @@ final class HistoryControlStore {
     static final int MAGIC=0x4d444843, VERSION=1, MAX_RECORD=16384, MAX_ENTRIES=256;
     static final long MAX_BYTES=1024L*1024;
     private static final int HEADER=13, CHECKSUM=32, MAX_NAME=64;
-    private static final int REGISTRATION=1, POLICY=2;
+    private static final int REGISTRATION=1, POLICY=2, POLICY_AUTOMATIC=3;
     private final File parent;
     private final Path root;
 
@@ -40,8 +40,13 @@ final class HistoryControlStore {
         final UUID bundleId;
         final long generation, quotaBytes;
         final int automaticCount, serializedBytes;
+        final boolean automaticEnabled;
         final String envelopeHash;
         Record(UUID bundleId,long generation,long quotaBytes,int automaticCount,int serializedBytes,String envelopeHash) {
+            this(bundleId,generation,quotaBytes,automaticCount,serializedBytes,envelopeHash,false);
+        }
+        Record(UUID bundleId,long generation,long quotaBytes,int automaticCount,int serializedBytes,String envelopeHash,boolean automaticEnabled) {
+            this.automaticEnabled=automaticEnabled;
             this.bundleId=bundleId;this.generation=generation;this.quotaBytes=quotaBytes;
             this.automaticCount=automaticCount;this.serializedBytes=serializedBytes;this.envelopeHash=envelopeHash;
         }
@@ -56,8 +61,8 @@ final class HistoryControlStore {
     }
     static final class Policy extends Record {
         final String previousHash;
-        private Policy(UUID bundleId,long generation,String previousHash,long quota,int count,int size,String hash) {
-            super(bundleId,generation,quota,count,size,hash);this.previousHash=previousHash;
+        private Policy(UUID bundleId,long generation,String previousHash,long quota,int count,int size,String hash,boolean enabled) {
+            super(bundleId,generation,quota,count,size,hash,enabled);this.previousHash=previousHash;
         }
     }
     static final class Entry {
@@ -170,6 +175,16 @@ final class HistoryControlStore {
         }
         return envelope(POLICY,bytes.toByteArray());
     }
+    /** Explicit consent policy; legacy records and registrations always mean disabled. */
+    static byte[] encodeAutomaticPolicy(UUID bundleId,long generation,String previousHash,long quotaBytes,int automaticCount,boolean enabled)throws IOException {
+        if(bundleId==null||generation<=0||enabled&&automaticCount==0)throw new IOException("Invalid automatic policy");
+        validatePolicy(quotaBytes,automaticCount);byte[] previous=hashBytes(previousHash);
+        ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+        try(DataOutputStream out=new DataOutputStream(bytes)) {
+            uuid(out,bundleId);out.writeLong(generation);out.write(previous);out.writeLong(quotaBytes);out.writeInt(automaticCount);out.writeByte(enabled?1:0);
+        }
+        return envelope(POLICY_AUTOMATIC,bytes.toByteArray());
+    }
     private static byte[] envelope(int type,byte[] body)throws IOException {
         if(body.length>MAX_RECORD-HEADER-CHECKSUM)throw new IOException("Control record limit exceeded");
         ByteArrayOutputStream bytes=new ByteArrayOutputStream(HEADER+body.length+CHECKSUM);
@@ -186,7 +201,7 @@ final class HistoryControlStore {
         DataInputStream in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-CHECKSUM));
         if(in.readInt()!=MAGIC||in.readInt()!=VERSION)throw new IOException("Unsupported control framing");
         int type=in.readUnsignedByte(),length=in.readInt();
-        if((type!=REGISTRATION&&type!=POLICY)||length!=bytes.length-HEADER-CHECKSUM)throw new IOException("Invalid control framing");
+        if((type!=REGISTRATION&&type!=POLICY&&type!=POLICY_AUTOMATIC)||length!=bytes.length-HEADER-CHECKSUM)throw new IOException("Invalid control framing");
         UUID bundle=uuid(in);long generation=in.readLong();Record record;
         String hash=hex(sha(bytes));
         if(type==REGISTRATION) {
@@ -199,7 +214,9 @@ final class HistoryControlStore {
         }else {
             if(generation<=0)throw new IOException("Invalid policy generation");
             byte[] previous=new byte[CHECKSUM];in.readFully(previous);long quota=in.readLong();int count=in.readInt();validatePolicy(quota,count);
-            record=new Policy(bundle,generation,hex(previous),quota,count,bytes.length,hash);
+            boolean enabled=false;
+            if(type==POLICY_AUTOMATIC){int flag=in.readUnsignedByte();if(flag>1||flag==1&&count==0)throw new IOException("Invalid automatic policy flag");enabled=flag==1;}
+            record=new Policy(bundle,generation,hex(previous),quota,count,bytes.length,hash,enabled);
         }
         if(in.available()!=0)throw new IOException("Trailing control body");
         return record;
