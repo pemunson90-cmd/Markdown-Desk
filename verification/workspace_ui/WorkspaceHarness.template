@@ -28,6 +28,7 @@ final class WorkspaceHarness extends WorkspaceBase {
  final Preview preview=new Preview();void captureActiveTab(){pauseTrace.add("capture");}void writeRecoveryNow(){pauseTrace.add("recovery");io.execute(()->{});}void writeSessionNow(){pauseTrace.add("session");io.execute(()->{});}void stopStatistics(){}void stopPreview(){}
  /* MEMBERS */
     void invalidateProtectedSaves() {}
+    void cancelWorkspaceFavorites() {} // Out-of-scope navigation, separately tested
  void add(){LinearLayout actions=new LinearLayout(this);addWorkspaceFolderActions(actions);((Button)actions.children.get(0)).tap();}void result(int code,Intent data){activityResult(1005,code,data);}
  void activityResult(int i,int i2,Intent intent){/* PICKER_ROUTE */}
 void roots(){showWorkspaceFolders();}void chooseRoot(int n){workspaceRootList.dialog.item(n);}void drainLocal(){io.drain();Handler.drain();}int depth(){return workspaceBrowser==null?0:workspaceBrowser.frames.size();}void up(){workspaceUp(workspaceBrowser);}void cancel(){cancelWorkspaceNavigation();}void pause(){onPause();}void destroy(){onDestroy();destroyed=true;}boolean browsing(){return workspaceBrowser!=null;}AlertDialog folderDialog(){return workspaceRootList.dialog;}AlertDialog browserDialog(){return workspaceBrowser.dialog;}
