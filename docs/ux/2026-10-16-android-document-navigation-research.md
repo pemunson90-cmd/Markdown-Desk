@@ -1,6 +1,6 @@
 # Markdown Desk Android document UX research — proposal, 2026-10-16
 
-**Status: RESEARCH / DESIGN PROPOSAL ONLY. Not owner-ratified and not implemented.**
+**Status: OWNER-APPROVED STAGED NAVIGATION.** First compact Files-hub implementation is committed on the isolated rescue branch; unfolded rail and broader workspace redesign remain unimplemented. Signed owner RC3 candidate is under verification.
 Current user-reported defect: M Workspace is overburdened and not discoverable; prior Favorites and Reading Places menus required too many clicks. User also reports that opening a markdown file via Android's **Open with → Markdown Desk** displays `Untitled.md` whereas opening through the app retains its title. Keep the existing signed-install preservation policy.
 
 ## Direct references (actual guidance / shipping apps)
@@ -17,7 +17,7 @@ Current user-reported defect: M Workspace is overburdened and not discoverable; 
 - **Current-document actions:** Save, ☆ toggle Favorite, Bookmark place, Undo/Redo, Find-in-current, appearance by mode. They answer 'what do I do to this document?'
 - **Rare/system work:** Import/Export, PDF/DOCX, Protected history/storage, preferences and help go under descriptive Overflow/Tools sections. Destructive file operations only in document/folder context controls with explicit scope and confirmations.
 
-## Proposed minimum-change layout (do not implement before owner direction)
+## Minimum-change layout — owner-approved direction, staged implementation
 Folded/compact: Keep the current editor, tabs and Write/Read/Split modes. Replace cryptic 'M' with a labeled **Files** affordance. Files opens a **dedicated browser** with Recent/Folders/Favorites selectors, integrated search, and a clear back-to-editor affordance. Keep one-tap ☆ favorite and contextual bookmark near the editor. Avoid a second permanently occupied bottom row while the IME is open; preserve writing viewport.
 
 Unfolded/expanded: Files/Favorites/Recents/search in a **navigable left pane** or compact rail; document editor to right with existing tabs. No duplicate UI layer for every M action. Posture transitions preserve draft text, cursor, session, and selected folder; back returns to the editor rather than throwing away work.
@@ -49,7 +49,7 @@ Sources checked October 16, 2026:
 - Android external URI contracts: https://developer.android.com/reference/android/provider/OpenableColumns and https://developer.android.com/guide/components/intents-filters . Provider-supplied display name is authoritative where available; extra metadata may be absent.
 - Android accessibility: https://developer.android.com/design/ui/mobile/guides/foundations/accessibility . Minimum 48dp targets, icon content descriptions, usable IME and screen reader paths.
 
-### Minimal-release UI redesign sequence (proposal; do not silently implement all changes)
+### Minimal-release UI redesign sequence (stage 1 committed; later stages still gated)
 
 1. Rename the top-left unexplained M affordance to a discoverable **Files** label/icon, and ensure >=48dp hit bounds. Keep title/tabs/Save visible on compact width.
 2. Files opens a dedicated, compact **Recent / Folders / Favorites** chooser with search and a plain Back to editor. Existing safe SAF/open-document routes and tab/source identities remain unchanged. These are places to navigate, not editing actions.
@@ -65,4 +65,4 @@ The incoming ACTION_VIEW/EDIT path calls DocumentIO.metadata() before assigning 
 
 The exact Samsung My Files provider/intent remains untested on Fold7 after this fix. Treat the user-reported Untitled.md behavior as unresolved until the next signed test candidate is opened via external **Open with** and the original title survives. Do not silently rename any real file or use URI identifiers as guessed names.
 
-Status: research and staging advice only; major navigation restructuring is not implemented or released by this document. Preserve the working app, canonical signer, theme/focus/12-tab semantics and migration controls.
+Status (2026-10-16): Stage 1 is implemented on the rescue branch: Files replaces M on compact top toolbar, opens a focused file chooser with Open/New/Tabs/Favorites/Folders/inline Recents and returns to the editor; Tools and recovery remains available via More, and bookmark actions are placed in the existing mode toolbar. The external provider filename/optional-projection fix is independently committed. Wider unfolded left rail, safe file rename/move/duplicate and broader M2–M7 are still outstanding. The currently installed signed app is unchanged until a tested newer candidate is intentionally installed.
