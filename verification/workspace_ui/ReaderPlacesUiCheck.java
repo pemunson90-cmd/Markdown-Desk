@@ -67,6 +67,7 @@ public final class ReaderPlacesUiCheck {
   call(h,"showReaderPlaces");settle(h);
   yes(dialog(h).items.length==1&&dialog(h).items[0].contains("Chapter two"),
      "named bookmark is clearly listed as a go-to destination");
+  yes(dialog(h).message==null,"populated bookmark rows cannot be hidden behind dialog message");
   h.editor.selection=0;
   dialog(h).item(0);settle(h);
   yes(h.editor.selection==15&&h.editor.visible==15,
