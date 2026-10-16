@@ -541,6 +541,9 @@ public class MainActivity extends Activity {
         addReadTool("☆", "Favorite current document in one tap", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
         });
+        addReadTool("↪", "Go to saved bookmark", new View.OnClickListener() {
+            @Override public void onClick(View view) { MainActivity.this.showReaderPlaces(); }
+        });
         addReadTool("A−", "Decrease reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); } });
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
@@ -548,6 +551,12 @@ public class MainActivity extends Activity {
         configureEditorHistoryActions();
         addFormat("☆", "Favorite current document in one tap", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
+        });
+        addFormat("Mark", "Bookmark the current cursor position", new View.OnClickListener() {
+            @Override public void onClick(View view) { MainActivity.this.promptReaderBookmark(); }
+        });
+        addFormat("Go", "Go to a saved bookmark", new View.OnClickListener() {
+            @Override public void onClick(View view) { MainActivity.this.showReaderPlaces(); }
         });
         addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
             @Override // android.view.View.OnClickListener
