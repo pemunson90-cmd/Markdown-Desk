@@ -12,6 +12,8 @@ final class MainActivity extends Activity {
     void requestPrint(){printDocument();}void destroy(){onDestroy();}
     /* EXACT_MEMBERS */
     void invalidateProtectedSaves() {}
+    void cancelWorkspaceFavorites() {} // Unrelated UI; retained production lifecycle elsewhere
+    void invalidateReaderActions() {} // Reading action teardown is owned separately
     void pauseDocxExport() {}
     void cancelDocxExport() {}
     void cancelWorkspaceNavigation() {}
