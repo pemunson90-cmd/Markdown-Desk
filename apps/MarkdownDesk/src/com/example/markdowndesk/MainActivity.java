@@ -3392,7 +3392,7 @@ public class MainActivity extends Activity {
         this.io.execute(()->{
             try {
                 new WorkspaceFavoritesStore(application).pin(uri,safeLabel,kind);
-                this.main.post(()->{if(favoriteCurrent(request))showWorkspaceFavorites();});
+                this.main.post(()->{if(favoriteCurrent(request))Toast.makeText(this,"Added to Favorites",Toast.LENGTH_SHORT).show();});
             }catch(Exception failure){
                 this.main.post(()->{if(favoriteCurrent(request))showError("Favorite could not be saved. No documents were changed.\n\n"+message(failure));});
             }
@@ -3417,7 +3417,7 @@ public class MainActivity extends Activity {
         this.io.execute(()->{
             try{
                 new WorkspaceFavoritesStore(application).unpin(favorite.uri);
-                this.main.post(()->{if(favoriteCurrent(request))showWorkspaceFavorites();});
+                this.main.post(()->{if(favoriteCurrent(request))Toast.makeText(this,"Favorite removed; original file kept",Toast.LENGTH_SHORT).show();});
             }catch(Exception failure){
                 this.main.post(()->{if(favoriteCurrent(request))showError("Favorite could not be removed; the shortcut was preserved.\n\n"+message(failure));});
             }
@@ -3465,6 +3465,42 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    // Shortcut removal is a separate, deliberate menu from one-tap open.
+    private void showRemoveWorkspaceFavorite() {
+        if(isFinishing()||isDestroyed())return;
+        cancelWorkspaceFavorites();
+        final long request=this.favoriteRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                final List<WorkspaceFavoritesStore.Favorite> saved=new WorkspaceFavoritesStore(application).read();
+                this.main.post(()->{
+                    if(!favoriteCurrent(request))return;
+                    if(saved.isEmpty()){Toast.makeText(this,"No favorites to remove",Toast.LENGTH_SHORT).show();return;}
+                    String[] labels=new String[saved.size()];
+                    for(int i=0;i<saved.size();i++)
+                        labels[i]=(saved.get(i).kind==WorkspaceFavoritesStore.Kind.TREE?"Folder · ":"Document · ")+saved.get(i).label;
+                    AlertDialog dialog=historyDialogBuilder("Remove favorite")
+                        .setMessage("Choose a shortcut to remove. Original files and folder permissions stay unchanged.")
+                        .setItems(labels,(d,index)->{
+                            if(favoriteCurrent(request))removeWorkspaceFavorite(saved.get(index));
+                        })
+                        .setNegativeButton("Cancel",null).create();
+                    this.favoriteDialog=dialog;
+                    dialog.setOnDismissListener(ignored->{
+                        if(this.favoriteDialog==dialog)this.favoriteDialog=null;
+                    });
+                    dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+                    dialog.show();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{
+                    if(favoriteCurrent(request))showError("Favorites could not be read. Existing shortcuts were kept.\n\n"+message(failure));
+                });
+            }
+        });
+    }
+
     private void showWorkspaceFavorites() {
         if(isFinishing()||isDestroyed())return;
         cancelWorkspaceFavorites();
@@ -3479,14 +3515,20 @@ public class MainActivity extends Activity {
                     for(int i=0;i<saved.size();i++)names[i]=
                         (saved.get(i).kind==WorkspaceFavoritesStore.Kind.TREE?"Folder · ":"Document · ")+saved.get(i).label;
                     AlertDialog.Builder builder=historyDialogBuilder("Favorites")
-                        .setPositiveButton("Favorite current document",(d,which)->{
+                        .setPositiveButton("☆ Add current document",(d,which)->{
                             if(favoriteCurrent(request))pinCurrentDocumentFavorite();
                         })
                         .setNegativeButton("Close",null);
-                    if(saved.isEmpty())builder.setMessage("No favorites saved. Open or save a document, then add it here. Saved folders can also be favorited from their browser.");
-                    else builder.setItems(names,(d,index)->{
-                        if(favoriteCurrent(request))showWorkspaceFavoriteOptions(saved.get(index));
-                    });
+                    if(saved.isEmpty())builder.setMessage("No favorites yet. Use ☆ Favorite current document in the Workspace for one-tap saving.");
+                    else {
+                        builder.setMessage("Tap a favorite to open it. Use Remove favorite to delete only its shortcut.");
+                        builder.setItems(names,(d,index)->{
+                            if(favoriteCurrent(request))openWorkspaceFavorite(saved.get(index));
+                        });
+                        builder.setNeutralButton("Remove favorite…",(d,which)->{
+                            if(favoriteCurrent(request))showRemoveWorkspaceFavorite();
+                        });
+                    }
                     AlertDialog dialog=builder.create();this.favoriteDialog=dialog;
                     dialog.setOnDismissListener(ignored->{if(this.favoriteDialog==dialog)this.favoriteDialog=null;});
                     dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
@@ -3600,7 +3642,7 @@ public class MainActivity extends Activity {
         this.io.execute(()->{
             try{
                 new ReaderPositionStore(application).removeBookmark(uri,bookmark.id);
-                this.main.post(()->{if(readerActionCurrent(next,tabId,uri))showReaderPlaces();});
+                this.main.post(()->{if(readerActionCurrent(next,tabId,uri))Toast.makeText(this,"Bookmark removed",Toast.LENGTH_SHORT).show();});
             }catch(Exception failure){
                 this.main.post(()->{if(readerActionCurrent(next,tabId,uri))
                     showError("Bookmark could not be removed; the source document was not changed.\\n\\n"+message(failure));});
@@ -3713,6 +3755,40 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void showRemoveReaderBookmark() {
+        if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
+            showError("Open a saved document before managing bookmarks.");return;
+        }
+        invalidateReaderActions();
+        final long request=this.readerRequest;
+        final String tabId=this.tabs.get(this.activeTab).id,uri=this.currentUri.toString();
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                final ReaderPositionStore.DocumentState state=new ReaderPositionStore(application).read(uri);
+                this.main.post(()->{
+                    if(!readerActionCurrent(request,tabId,uri))return;
+                    if(state==null||state.bookmarks.isEmpty()){
+                        Toast.makeText(this,"No bookmarks to remove",Toast.LENGTH_SHORT).show();return;
+                    }
+                    String[] names=new String[state.bookmarks.size()];
+                    for(int i=0;i<names.length;i++)names[i]=state.bookmarks.get(i).label;
+                    AlertDialog dialog=historyDialogBuilder("Remove bookmark")
+                        .setMessage("Choose a bookmark to remove. The document text will not change.")
+                        .setItems(names,(d,index)->{
+                            if(readerActionCurrent(request,tabId,uri))
+                                removeReaderBookmark(state.bookmarks.get(index),request,tabId,uri);
+                        })
+                        .setNegativeButton("Cancel",null).create();
+                    readerDialogShow(dialog);
+                });
+            }catch(Exception failure){
+                this.main.post(()->{if(readerActionCurrent(request,tabId,uri))
+                    showError("Bookmarks could not be read; existing data was kept.\n\n"+message(failure));});
+            }
+        });
+    }
+
     private void showReaderPlaces() {
         if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
             showError("Open a saved document to see its reading places.");return;
@@ -3728,22 +3804,25 @@ public class MainActivity extends Activity {
                     if(!readerActionCurrent(request,tabId,uri))return;
                     int count=state==null?0:state.bookmarks.size(),extra=state!=null&&state.location!=null?1:0;
                     final String[] labels=new String[extra+count];
-                    if(extra!=0)labels[0]="Return to saved reading place";
-                    for(int i=0;i<count;i++)labels[i+extra]="☆ "+state.bookmarks.get(i).label;
-                    AlertDialog.Builder builder=historyDialogBuilder("Reading places")
-                        .setPositiveButton("Bookmark here",(d,which)->{
+                    if(extra!=0)labels[0]="↪ Previously saved reading place";
+                    for(int i=0;i<count;i++)labels[i+extra]="↪ "+state.bookmarks.get(i).label;
+                    AlertDialog.Builder builder=historyDialogBuilder("Bookmarks")
+                        .setPositiveButton("☆ Bookmark this spot",(d,which)->{
                             if(readerActionCurrent(request,tabId,uri))promptReaderBookmark();
                         })
-                        .setNeutralButton("Save my place",(d,which)->{
-                            if(readerActionCurrent(request,tabId,uri))saveReaderAnchor(false,null);
-                        })
                         .setNegativeButton("Close",null);
-                    if(labels.length==0)builder.setMessage("No places saved yet. Switch to Write or Split and position the cursor, then save a place or a named bookmark.");
-                    else builder.setItems(labels,(d,index)->{
-                        if(!readerActionCurrent(request,tabId,uri))return;
-                        if(extra!=0&&index==0)navigateReaderAnchor(state.location,request,tabId,uri);
-                        else showReaderBookmarkOptions(state.bookmarks.get(index-extra),request,tabId,uri);
-                    });
+                    if(labels.length==0)builder.setMessage("No bookmarks yet. In Write or Split, place the cursor and tap ☆ Bookmark this spot.");
+                    else {
+                        builder.setMessage("Tap a bookmark to jump straight to its text.");
+                        builder.setItems(labels,(d,index)->{
+                            if(!readerActionCurrent(request,tabId,uri))return;
+                            if(extra!=0&&index==0)navigateReaderAnchor(state.location,request,tabId,uri);
+                            else navigateReaderAnchor(state.bookmarks.get(index-extra).anchor,request,tabId,uri);
+                        });
+                        if(count>0)builder.setNeutralButton("Remove bookmark…",(d,which)->{
+                            if(readerActionCurrent(request,tabId,uri))showRemoveReaderBookmark();
+                        });
+                    }
                     readerDialogShow(builder.create());
                 });
             }catch(Exception failure){
@@ -3760,7 +3839,10 @@ public class MainActivity extends Activity {
         parent.addView(workspaceAction("Folders","Browse your saved folder shortcuts",view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
         }),matchWrap());
-        parent.addView(workspaceAction("☆ Favorites","Open or remove saved document and folder shortcuts",view -> {
+        parent.addView(workspaceAction("☆ Favorite current document","One tap to save this document shortcut",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();pinCurrentDocumentFavorite();
+        }),matchWrap());
+        parent.addView(workspaceAction("☆ Favorites","Tap a favorite to open it, or manage shortcuts",view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
         }),matchWrap());
     }
@@ -3996,11 +4078,11 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDocumentHistory();
         }), matchWrap());
-        linearLayout.addView(workspaceAction("Save reading place","Remember the current Write/Split cursor location without changing the file",view->{
+        linearLayout.addView(workspaceAction("☆ Bookmark this spot","Name your cursor position in Write or Split",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
-            saveReaderAnchor(false,null);
+            promptReaderBookmark();
         }),matchWrap());
-        linearLayout.addView(workspaceAction("☆ Reading bookmarks","Save named source positions and revisit saved places",view->{
+        linearLayout.addView(workspaceAction("↪ Go to bookmark","Tap a saved bookmark to jump straight to its text",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
             showReaderPlaces();
         }),matchWrap());
