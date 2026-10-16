@@ -188,6 +188,15 @@ root and reviewer independently verified canonical D8 rewrites the invocation to
 the Android-compatible descriptor in a tiny isolated DEX probe (no APK). This is
 not device/minSdk-wide acceptance or a whole-app heap claim.
 
+Local-protection policy controller bridge is independently approved:41 new
+actual-store policy checks PASS in worker and root runs; affected status41 and
+history UI123/capture-race/6 fresh-process checks PASS in worker. Updates require
+fresh installed authority and exact expected root/bundle/generation/control hash,
+validate supported values and publish once; unchanged policies still require fresh
+complete unblocked accounting. Uncertain post-append outcomes never trigger rollback
+or automatic retry. This bridge does not register, reconcile, schedule or delete.
+No settings/automatic-cleanup UI is enabled yet.
+
 Next current-phone work: actual search UI and guarded normal-open navigation,
 then workspace favorites, reading places/bookmarks, local storage controls and other
 dependency-ready M2–M7 work.

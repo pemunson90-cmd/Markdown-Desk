@@ -53,9 +53,17 @@ public final class HistoryController {
         public final long quotaBytes,policyGeneration,dataActualBytes,completionReservedBytes,
                 operationReservedBytes,dataChargedBytes,controlActualBytes,controlReservedBytes;
         public final int automaticCount,controlActualEntries,controlReservedEntries;
-        public final boolean usageComplete,mutationBlocked,overQuota;
+        public final boolean usageComplete,mutationBlocked,overQuota,automaticEnabled;
         public final Set<LocalProtectionIssue> issues;
+        // Expected-intent context only, not filesystem identity or independent write authority.
+        private final File policyRoot;
+        private final String policyBundleId,policyControlHash;
         private LocalProtectionStatus(HistoryCapacity.EffectivePolicy policy,HistoryCapacity.Usage usage) {
+            this(null,policy,usage); // Display-only compatibility; cannot authorize a policy update.
+        }
+        private LocalProtectionStatus(File root,HistoryCapacity.EffectivePolicy policy,HistoryCapacity.Usage usage) {
+            policyRoot=root;policyBundleId=policy.bundleId;policyControlHash=policy.controlRecordHash;
+            automaticEnabled=policy.automaticEnabled;
             quotaBytes=policy.quotaBytes;policyGeneration=policy.generation;automaticCount=policy.automaticCount;
             dataActualBytes=usage.dataActualBytes;completionReservedBytes=usage.completionReservedBytes;
             operationReservedBytes=usage.operationReservedBytes;dataChargedBytes=usage.dataChargedBytes;
@@ -85,8 +93,36 @@ public final class HistoryController {
                 if(HistoryStorage.capacity(store.storageRoot())!=authority
                         ||HistoryStorage.generation(store.storageRoot())!=generation||authority.policy()!=policy)
                     throw new IOException("Changed local protection sample");
-                return new LocalProtectionStatus(policy,usage);
+                return new LocalProtectionStatus(store.storageRoot(),policy,usage);
             }catch(IOException|RuntimeException failure){throw new IOException("Local protection status is unavailable. Try again after storage recovery.");}
+        }
+    }
+    /** Persist a user-confirmed policy against exact observed policy evidence. Never
+     * schedules/deletes or repairs uncertain state. Failure can follow a durable append:
+     * reload status rather than assuming unchanged settings or automatically retrying. */
+    public LocalProtectionStatus updateLocalProtectionPolicy(LocalProtectionStatus expected,
+            long quotaBytes,int automaticCount,boolean enabled)throws IOException {
+        synchronized(monitor) {
+            try {
+                HistoryCapacity authority=HistoryStorage.capacity(store.storageRoot());
+                if(authority==null)throw new IOException("Missing local protection authority");
+                authority.requireStoreHandle(store.storageRoot());
+                LocalProtectionStatus fresh=inspectLocalProtection();
+                if(expected==null||expected.policyRoot==null||!store.storageRoot().equals(expected.policyRoot)
+                        ||!fresh.policyBundleId.equals(expected.policyBundleId)
+                        ||fresh.policyGeneration!=expected.policyGeneration
+                        ||!fresh.policyControlHash.equals(expected.policyControlHash)
+                        ||!fresh.usageComplete||fresh.mutationBlocked)
+                    throw new IOException("Stale or incomplete local protection policy");
+                long mib=1024L*1024;
+                if((quotaBytes!=64*mib&&quotaBytes!=128*mib&&quotaBytes!=256*mib&&quotaBytes!=512*mib&&quotaBytes!=1024*mib)
+                        ||(automaticCount!=0&&automaticCount!=5&&automaticCount!=10&&automaticCount!=20&&automaticCount!=50)
+                        ||enabled&&automaticCount==0)
+                    throw new IOException("Unsupported local protection policy");
+                if(fresh.quotaBytes==quotaBytes&&fresh.automaticCount==automaticCount&&fresh.automaticEnabled==enabled)return fresh;
+                authority.setPolicy(new HistoryPolicy(quotaBytes,automaticCount),enabled);
+                return inspectLocalProtection();
+            }catch(IOException|RuntimeException failure){throw new IOException("Local protection policy outcome is unconfirmed. Refresh status before trying again.");}
         }
     }
     public String resolveDocument(String exactUri,String tabId)throws IOException {
