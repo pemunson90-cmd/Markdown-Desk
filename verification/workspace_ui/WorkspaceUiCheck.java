@@ -63,9 +63,21 @@ public final class WorkspaceUiCheck {
   try{h.pause();}finally{cancelRelease.countDown();p.release.countDown();}observer.join(4000);yes(!observer.isAlive()&&failure[0]==null,"finite blocking cancel observation completed");
   yes(observed.equals(List.of("capture","recovery","session"))&&queued[0]==2,"local capture/recovery/session queued BEFORE provider cancellation waits");settle(h);
  }
+ static void protectionStatusCancellation()throws Exception {
+  WorkspaceHarness h=setup(new Prefs(),new Provider());
+  Field count=WorkspaceHarness.class.getDeclaredField("protectionStatusRequest");
+  Field dialog=WorkspaceHarness.class.getDeclaredField("protectionStatusDialog");
+  Method cancel=WorkspaceHarness.class.getDeclaredMethod("invalidateProtectionStatus");
+  count.setAccessible(true);dialog.setAccessible(true);cancel.setAccessible(true);
+  WorkspaceHarness.AlertDialog pending=new WorkspaceHarness.AlertDialog();pending.show();
+  dialog.set(h,pending);count.setLong(h,12L);cancel.invoke(h);
+  yes(!pending.isShowing(),"actual protection status dialog closes on invalidation");
+  yes(dialog.get(h)==null,"protection status releases cancelled dialog reference");
+  yes(count.getLong(h)==13L,"cancel increments generation; late results fail stale check");
+ }
  static void physicalSlot()throws Exception {
   Prefs prefs=new Prefs();Provider p=new Provider();WorkspaceHarness h=setup(prefs,p);p.entered=new CountDownLatch(1);p.release=new CountDownLatch(1);h.result(-1,selection(65));h.drainLocal();yes(p.entered.await(3,TimeUnit.SECONDS),"physical provider query entered");h.destroy();h.result(-1,selection(65));yes(p.takes==1,"destroyed picker result cannot queue registry work");
   WorkspaceHarness next=setup(prefs,p);next.roots();next.drainLocal();next.chooseRoot(0);yes(next.status().contains("outstanding request")&&p.queries==1,"recreation cannot replace cancelled physical slot");final int[] saves={0};next.io.execute(()->saves[0]++);next.io.drain();yes(saves[0]==1,"independent save/session queue progresses during stuck query");p.release.countDown();settle(next);next.retry();settle(next);yes(p.queries==2,"retry only after actual query cleanup");next.cancel();
  }
- public static void main(String[] args){try{Looper.getMainLooper();if(args.length>0){if(args[0].equals("confirmation"))confirmationConsent();else if(args[0].equals("pause"))pauseAutosaveOrdering();else paletteProperties();System.out.println("review regression PASS");System.exit(0);}grantJourney();failuresAndStale();boundedNavigation();physicalSlot();confirmationConsent();paletteProperties();pauseAutosaveOrdering();System.out.println("Workspace actual UI journey: "+checks+" checks PASS; real store/reader/process broker, Android UI boundaries only");System.exit(0);}catch(Throwable failure){failure.printStackTrace();System.exit(1);}}
+ public static void main(String[] args){try{Looper.getMainLooper();if(args.length>0){if(args[0].equals("confirmation"))confirmationConsent();else if(args[0].equals("pause"))pauseAutosaveOrdering();else paletteProperties();System.out.println("review regression PASS");System.exit(0);}grantJourney();failuresAndStale();boundedNavigation();physicalSlot();confirmationConsent();paletteProperties();pauseAutosaveOrdering();protectionStatusCancellation();System.out.println("Workspace actual UI journey: "+checks+" checks PASS; real store/reader/process broker, Android UI boundaries only");System.exit(0);}catch(Throwable failure){failure.printStackTrace();System.exit(1);}}
 }
