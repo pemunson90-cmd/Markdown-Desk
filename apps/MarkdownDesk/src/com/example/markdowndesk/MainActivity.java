@@ -256,6 +256,7 @@ public class MainActivity extends Activity {
         writeSessionNow();
         pauseDocxExport();
         invalidateProtectedSaves();
+        cancelWorkspaceFavorites();
         cancelWorkspaceNavigation();
         super.onPause();
     }
@@ -264,6 +265,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         cancelDocxExport();
         invalidateProtectedSaves();
+        cancelWorkspaceFavorites();
         cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
@@ -3361,12 +3363,146 @@ public class MainActivity extends Activity {
             if(browser.dialog!=null)browser.dialog.dismiss();
         }
     }
+    // Favorites are optional local shortcuts. They never grant provider permissions or mutate files.
+    // All persistence runs on the existing I/O lane, and discarded Activity results are never rendered.
+    private long favoriteRequest;
+    private AlertDialog favoriteDialog;
+
+    private void cancelWorkspaceFavorites() {
+        ++this.favoriteRequest;
+        AlertDialog previous=this.favoriteDialog;
+        this.favoriteDialog=null;
+        if(previous!=null)previous.dismiss();
+    }
+
+    private boolean favoriteCurrent(long request) {
+        return request==this.favoriteRequest&&!isFinishing()&&!isDestroyed();
+    }
+
+    private void pinWorkspaceFavorite(Uri uri,String label,WorkspaceFavoritesStore.Kind kind) {
+        if(uri==null||label==null||label.isEmpty()){showError("Choose an existing saved document or folder first.");return;}
+        cancelWorkspaceFavorites();
+        final long request=this.favoriteRequest;
+        final android.content.Context application=getApplicationContext();
+        final String safeLabel=label.length()>256?label.substring(0,256):label;
+        this.io.execute(()->{
+            try {
+                new WorkspaceFavoritesStore(application).pin(uri,safeLabel,kind);
+                this.main.post(()->{if(favoriteCurrent(request))showWorkspaceFavorites();});
+            }catch(Exception failure){
+                this.main.post(()->{if(favoriteCurrent(request))showError("Favorite could not be saved. No documents were changed.\n\n"+message(failure));});
+            }
+        });
+    }
+
+    private void pinCurrentDocumentFavorite() {
+        if(this.currentUri==null||this.activeTab<0||this.activeTab>=this.tabs.size()){
+            showError("Save or open a document before adding it to Favorites.");return;
+        }
+        DocumentTab tab=this.tabs.get(this.activeTab);
+        String name=tab.displayName;
+        if(name==null||name.isEmpty())name=this.currentUri.getLastPathSegment();
+        if(name==null||name.isEmpty())name="Saved document";
+        pinWorkspaceFavorite(this.currentUri,name,WorkspaceFavoritesStore.Kind.DOCUMENT);
+    }
+
+    private void removeWorkspaceFavorite(WorkspaceFavoritesStore.Favorite favorite) {
+        cancelWorkspaceFavorites();
+        final long request=this.favoriteRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                new WorkspaceFavoritesStore(application).unpin(favorite.uri);
+                this.main.post(()->{if(favoriteCurrent(request))showWorkspaceFavorites();});
+            }catch(Exception failure){
+                this.main.post(()->{if(favoriteCurrent(request))showError("Favorite could not be removed; the shortcut was preserved.\n\n"+message(failure));});
+            }
+        });
+    }
+
+    private void openWorkspaceFavorite(WorkspaceFavoritesStore.Favorite favorite) {
+        if(favorite.kind==WorkspaceFavoritesStore.Kind.DOCUMENT){
+            openDocument(favorite.uri,3,true);return;
+        }
+        final long request=this.favoriteRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                WorkspaceRootStore.Root root=null;
+                for(WorkspaceRootStore.RootState state:new WorkspaceRootStore(application).list(application.getContentResolver())){
+                    if(state.root.uri.equals(favorite.uri)&&state.access==WorkspaceRootStore.Access.CURRENT){root=state.root;break;}
+                }
+                final WorkspaceRootStore.Root allowed=root;
+                this.main.post(()->{
+                    if(!favoriteCurrent(request))return;
+                    if(allowed==null)showError("This folder needs access again. Open Folders and choose it again.");
+                    else openWorkspaceRoot(allowed);
+                });
+            }catch(Exception failure){
+                this.main.post(()->{if(favoriteCurrent(request))showError("Folder access could not be verified.\n\n"+message(failure));});
+            }
+        });
+    }
+
+    private void showWorkspaceFavoriteOptions(WorkspaceFavoritesStore.Favorite favorite) {
+        if(isFinishing()||isDestroyed())return;
+        final long request=this.favoriteRequest;
+        final AlertDialog dialog=historyDialogBuilder(favorite.label)
+            .setMessage(favorite.kind==WorkspaceFavoritesStore.Kind.TREE
+                ?"Saved folder shortcut; opening requires a current folder permission."
+                :"Saved document shortcut; opening requires current document permission.")
+            .setPositiveButton("Open",(d,which)->{if(favoriteCurrent(request))openWorkspaceFavorite(favorite);})
+            .setNeutralButton("Remove shortcut",(d,which)->{if(favoriteCurrent(request))removeWorkspaceFavorite(favorite);})
+            .setNegativeButton("Back",(d,which)->{if(favoriteCurrent(request))showWorkspaceFavorites();})
+            .create();
+        this.favoriteDialog=dialog;
+        dialog.setOnDismissListener(ignored->{if(this.favoriteDialog==dialog)this.favoriteDialog=null;});
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+        dialog.show();
+    }
+
+    private void showWorkspaceFavorites() {
+        if(isFinishing()||isDestroyed())return;
+        cancelWorkspaceFavorites();
+        final long request=this.favoriteRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                final List<WorkspaceFavoritesStore.Favorite> saved=new WorkspaceFavoritesStore(application).read();
+                this.main.post(()->{
+                    if(!favoriteCurrent(request))return;
+                    String[] names=new String[saved.size()];
+                    for(int i=0;i<saved.size();i++)names[i]=
+                        (saved.get(i).kind==WorkspaceFavoritesStore.Kind.TREE?"Folder · ":"Document · ")+saved.get(i).label;
+                    AlertDialog.Builder builder=historyDialogBuilder("Favorites")
+                        .setPositiveButton("Favorite current document",(d,which)->{
+                            if(favoriteCurrent(request))pinCurrentDocumentFavorite();
+                        })
+                        .setNegativeButton("Close",null);
+                    if(saved.isEmpty())builder.setMessage("No favorites saved. Open or save a document, then add it here. Saved folders can also be favorited from their browser.");
+                    else builder.setItems(names,(d,index)->{
+                        if(favoriteCurrent(request))showWorkspaceFavoriteOptions(saved.get(index));
+                    });
+                    AlertDialog dialog=builder.create();this.favoriteDialog=dialog;
+                    dialog.setOnDismissListener(ignored->{if(this.favoriteDialog==dialog)this.favoriteDialog=null;});
+                    dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+                    dialog.show();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{if(favoriteCurrent(request))showError("Favorites could not be read. Existing shortcuts were kept.\n\n"+message(failure));});
+            }
+        });
+    }
+
     private void addWorkspaceFolderActions(LinearLayout parent) {
         parent.addView(workspaceAction("Add folder","Choose a folder with Android's document picker",view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
         }),matchWrap());
         parent.addView(workspaceAction("Folders","Browse your saved folder shortcuts",view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+        parent.addView(workspaceAction("☆ Favorites","Open or remove saved document and folder shortcuts",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
         }),matchWrap());
     }
     private void launchWorkspaceFolderPicker() {
@@ -3452,6 +3588,9 @@ public class MainActivity extends Activity {
             content.addView(workspaceLocalButton("Retry","Reload this bounded folder listing",view->{if(workspaceBrowserCurrent(browser))loadWorkspaceFrame(browser);}),matchWrap());
             content.addView(workspaceLocalButton("Search this saved folder","Search Markdown and text in this saved root and its subfolders",view->{if(workspaceBrowserCurrent(browser))showWorkspaceSearch(browser.root,"");}),matchWrap());
             content.addView(workspaceLocalButton("Folder options","Choose this folder again or remove its shortcut",view->{if(workspaceBrowserCurrent(browser))showWorkspaceRootOptions(root,false);}),matchWrap());
+            content.addView(workspaceLocalButton("☆ Favorite this saved folder","Save a shortcut, without changing folder access or files",view->{
+                if(workspaceBrowserCurrent(browser))pinWorkspaceFavorite(root.uri,root.label,WorkspaceFavoritesStore.Kind.TREE);
+            }),matchWrap());
             browser.rows=new LinearLayout(this);browser.rows.setOrientation(MODE_PREVIEW);content.addView(browser.rows,matchWrap());
             ScrollView scroll=new ScrollView(this);scroll.addView(content,matchWrap());
             browser.titleView=workspaceTitle(root.label);
