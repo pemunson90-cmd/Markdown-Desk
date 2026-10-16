@@ -361,12 +361,12 @@ public class MainActivity extends Activity {
         this.topBar = new LinearLayout(this);
         this.topBar.setOrientation(MODE_EDIT);
         this.topBar.setGravity(16);
-        this.topBar.addView(createTopButton("M", "Workspace", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda27
+        this.topBar.addView(createTopButton("Files", "Browse files, recent documents and favorites", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda27
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.lambda$buildInterface$1(view);
             }
-        }), new LinearLayout.LayoutParams(dp(44), dp(44)));
+        }), new LinearLayout.LayoutParams(dp(56), dp(48)));
         LinearLayout linearLayout = new LinearLayout(this);
         linearLayout.setOrientation(MODE_PREVIEW);
         linearLayout.setPadding(dp(MAX_TABS), MODE_EDIT, dp(8), MODE_EDIT);
@@ -639,7 +639,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$buildInterface$1(View view) {
-        showWorkspace();
+        showFilesNavigator();
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -4033,6 +4033,78 @@ public class MainActivity extends Activity {
         TextView text=new TextView(this);text.setText(message);text.setTextColor(this.palette.muted);text.setPadding(dp(4),dp(8),dp(4),dp(8));browser.rows.addView(text,matchWrap());
     }
 
+    /** Compact file destination; document editing and recovery tools stay in More.
+     * Reuses the existing picker, recent-store and SAF folder flow without changing
+     * their permissions, tabs, history or save behavior. */
+    private void showFilesNavigator() {
+        if(isFinishing()||isDestroyed())return;
+        if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(MODE_PREVIEW);
+        content.setPadding(dp(18),dp(10),dp(18),dp(14));
+        TextView heading=new TextView(this);
+        heading.setText("Files");
+        heading.setTextSize(23.0f);
+        heading.setTypeface(Typeface.create("sans-serif",MODE_PREVIEW));
+        heading.setTextColor(this.palette.text);
+        heading.setAccessibilityHeading(true);
+        content.addView(heading,matchWrap());
+        TextView description=new TextView(this);
+        description.setText("Open or switch documents. Editing tools are in the editor and More menu.");
+        description.setTextSize(13.0f);
+        description.setTextColor(this.palette.muted);
+        description.setPadding(dp(4),dp(4),dp(4),dp(12));
+        content.addView(description,matchWrap());
+        content.addView(workspaceAction("Open a file","Choose a Markdown or text document",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchOpen();
+        }),matchWrap());
+        content.addView(workspaceAction("New document","Start writing a new document",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
+        }),matchWrap());
+        content.addView(workspaceAction("Open tabs","Switch to a document already open",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
+        }),matchWrap());
+        content.addView(workspaceAction("Favorites","One tap to reopen saved documents or folders",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
+        }),matchWrap());
+        content.addView(workspaceAction("Folders","Browse saved folders or search inside a folder",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+        content.addView(workspaceAction("Add folder","Use Android's folder picker to remember a folder",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
+        }),matchWrap());
+        final List<RecentStore.Item> recent=RecentStore.read(this);
+        if(!recent.isEmpty()){
+            TextView label=new TextView(this);
+            label.setText("RECENT DOCUMENTS");
+            label.setTextSize(12.0f);
+            label.setLetterSpacing(0.12f);
+            label.setTextColor(this.palette.muted);
+            label.setPadding(dp(4),dp(14),dp(4),dp(6));
+            content.addView(label,matchWrap());
+            final int shown=Math.min(5,recent.size());
+            for(int i=0;i<shown;i++){
+                final RecentStore.Item item=recent.get(i);
+                content.addView(workspaceAction(item.name,"Open recent document",view->{
+                    if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                    openDocument(Uri.parse(item.uri),3,true);
+                }),matchWrap());
+            }
+            if(recent.size()>shown)content.addView(workspaceAction("All recent documents","Browse every recent document",view->{
+                if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showRecents();
+            }),matchWrap());
+        }
+        scroll.addView(content,matchWrap());
+        final AlertDialog dialog=historyDialogBuilder("Files")
+            .setView(scroll)
+            .setNegativeButton("Back to editor",null).create();
+        this.workspaceDialog=dialog;
+        dialog.setOnDismissListener(ignored->{if(this.workspaceDialog==dialog)this.workspaceDialog=null;});
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+        dialog.show();
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -4232,6 +4304,7 @@ public class MainActivity extends Activity {
         exportMenu.add(MODE_EDIT, 14, 2, "Print / Save PDF");
         exportMenu.add(MODE_EDIT, 17, 3, "Export DOCX");
 
+        popupMenu.getMenu().add(MODE_EDIT, 18, 19, "Tools and recovery");
         popupMenu.getMenu().add(MODE_EDIT, 8, 20, "Save as");
         popupMenu.getMenu().add(MODE_EDIT, 7, 21, "Guide and shortcuts");
         popupMenu.getMenu().add(MODE_EDIT, 15, 22, "Close document");
@@ -4300,6 +4373,9 @@ public class MainActivity extends Activity {
                 return true;
             case 17:
                 startDocxExport();
+                return true;
+            case 18:
+                showWorkspace();
                 return true;
             default:
                 return false;
