@@ -20,7 +20,7 @@ public final class ExtractAppearance {
             for (Tree member : ((ClassTree) declaration).getMembers()) {
                 if (!(member instanceof MethodTree)) continue;
                 String name = ((MethodTree) member).getName().toString();
-                if (name.equals("refreshAppearance") || name.equals("setAppearanceSelection")) {
+                if (name.equals("refreshAppearance") || name.equals("setAppearanceSelection") || name.equals("refreshReaderTypography")) {
                     methods.append(source.substring((int) positions.getStartPosition(unit, member),
                         (int) positions.getEndPosition(unit, member))).append('\n');
                     foundRefresh |= name.equals("refreshAppearance");

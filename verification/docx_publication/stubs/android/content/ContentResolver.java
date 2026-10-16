@@ -1,0 +1,1 @@
+package android.content;import android.net.Uri;import android.database.Cursor;import java.io.*;public abstract class ContentResolver {public abstract Cursor query(Uri u,String[]p,String s,String[]a,String o);public abstract InputStream openInputStream(Uri u)throws FileNotFoundException;public abstract OutputStream openOutputStream(Uri u,String mode)throws FileNotFoundException;}

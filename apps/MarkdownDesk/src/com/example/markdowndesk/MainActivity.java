@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.util.DisplayMetrics;
 import android.os.Build;
 import android.os.Bundle;
@@ -56,6 +57,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,6 +74,8 @@ public class MainActivity extends Activity {
     private static final String PREFS = "markdown_desk";
     private static final String PREF_DARK = "dark_theme";
     private static final String PREF_FONT = "font_size";
+    private static final String PREF_READER_FAMILY="reader_font_family", PREF_READER_LINE="reader_line_height",
+            PREF_READER_GAP="reader_paragraph_gap", PREF_READER_MARGIN="reader_margin_px", PREF_READER_MEASURE="reader_measure_px";
     private static final String PREF_PREVIEW_FONT = "preview_font_size";
     private static final String PREF_GOAL = "word_goal";
     private static final String PREF_LAUNCH_SPLASH = "launch_splash";
@@ -107,6 +111,7 @@ public class MainActivity extends Activity {
     private KeyListener editorKeyListener;
     private float fontSp;
     private float previewFontSp;
+    private ReaderTypography readerTypography=ReaderTypography.defaults();
     private HorizontalScrollView formatScroll;
     private LinearLayout formats;
     private HorizontalScrollView readToolsScroll;
@@ -215,6 +220,7 @@ public class MainActivity extends Activity {
         this.dark = this.palette.dark;
         this.fontSp = this.preferences.getFloat(PREF_FONT, 18.0f);
         this.previewFontSp = this.preferences.getFloat(PREF_PREVIEW_FONT, 18.0f);
+        this.readerTypography=readReaderTypography();
         this.lineNumbers = this.preferences.getBoolean(PREF_LINES, false);
         this.typewriterMode = this.preferences.getBoolean(PREF_TYPEWRITER, false);
         this.wordGoal = this.preferences.getInt(PREF_GOAL, MODE_EDIT);
@@ -248,11 +254,17 @@ public class MainActivity extends Activity {
             writeRecoveryNow();
         }
         writeSessionNow();
+        pauseDocxExport();
+        invalidateProtectedSaves();
+        cancelWorkspaceNavigation();
         super.onPause();
     }
 
     @Override // android.app.Activity
     protected void onDestroy() {
+        cancelDocxExport();
+        invalidateProtectedSaves();
+        cancelWorkspaceNavigation();
         DocumentPrint.cancel(this);
         stopStatistics();
         stopPreview();
@@ -293,6 +305,10 @@ public class MainActivity extends Activity {
         if (!keyEvent.isCtrlPressed()) {
             return super.onKeyShortcut(i, keyEvent);
         }
+        if(keyEvent.hasModifiers(KeyEvent.META_CTRL_ON)&&(i==KeyEvent.KEYCODE_Z||i==KeyEvent.KEYCODE_Y))
+            return runEditorHistoryAction(i==KeyEvent.KEYCODE_Z?android.R.id.undo:android.R.id.redo);
+        if(keyEvent.hasModifiers(KeyEvent.META_CTRL_ON|KeyEvent.META_SHIFT_ON)&&i==KeyEvent.KEYCODE_Z)
+            return runEditorHistoryAction(android.R.id.redo);
         if (keyEvent.isShiftPressed() && i == 44) {
             showCommandPalette();
             return true;
@@ -448,6 +464,7 @@ public class MainActivity extends Activity {
             @Override // android.text.TextWatcher
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
                 MainActivity.this.sourceNavigationRevision++;
+                MainActivity.this.searchContentChanged();
                 MainActivity.this.invalidatePreview();
                 MainActivity.this.invalidateStatistics();
                 MainActivity.this.syntaxHighlight.changed(charSequence, i, i2, i3);
@@ -519,6 +536,7 @@ public class MainActivity extends Activity {
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        configureEditorHistoryActions();
         addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
@@ -1201,6 +1219,23 @@ public class MainActivity extends Activity {
         setMode(i, i == 0);
     }
 
+    private void configureEditorHistoryActions() {
+        this.editor.setHistoryActionListener(this::runEditorHistoryAction);
+        addFormat("Undo", "Undo last edit", view -> runEditorHistoryAction(android.R.id.undo));
+        addFormat("Redo", "Redo last undone edit", view -> runEditorHistoryAction(android.R.id.redo));
+    }
+
+    private boolean runEditorHistoryAction(int actionId) {
+        if(actionId!=android.R.id.undo&&actionId!=android.R.id.redo)return false;
+        // Consume blocked native keyboard/context actions too: never fall through the lock.
+        if(this.editor==null||this.activeTab<0||this.activeTab>=this.tabs.size()||!canMutate())return true;
+        ensureEditor(false);
+        boolean previousSmartEditing=this.smartEditing;
+        this.smartEditing=true;
+        try {return this.editor.performNativeHistoryAction(actionId);}
+        finally {this.smartEditing=previousSmartEditing;}
+    }
+
     private void addFormat(String str, String str2, View.OnClickListener onClickListener) {
         Button buttonCreatePillButton = createPillButton(str, str2, onClickListener);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(42));
@@ -1339,7 +1374,7 @@ public class MainActivity extends Activity {
     }
 
     private void setMode(int i, boolean z) {
-        if (this.mode != i) this.sourceRouteRevision++;
+        if (this.mode != i) { this.sourceRouteRevision++; cancelSearchLocation(); }
         this.mode = i;
         if (i == MODE_SPLIT && !this.preferences.getBoolean("split_hint_seen", false)) {
             Toast.makeText(this, "Split: Markdown source + rendered Read view", MODE_PREVIEW).show();
@@ -1736,6 +1771,7 @@ public class MainActivity extends Activity {
     }
 
     private void restoreActiveTab(boolean z) {
+        searchRestoreChanged();
         invalidateHistory();
         if (this.activeTab < 0 || this.activeTab >= this.tabs.size()) {
             return;
@@ -1751,7 +1787,8 @@ public class MainActivity extends Activity {
         this.dirty = documentTab.dirty;
         this.mode = documentTab.mode;
         this.suppressChanges = true;
-        this.editor.setText(documentTab.text);
+        beginSearchRestoreText();
+        try{this.editor.setText(documentTab.text);}finally{endSearchRestoreText();}
         int iClamp = clamp(documentTab.selectionStart, MODE_EDIT, documentTab.text.length());
         this.editor.setSelection(iClamp, clamp(documentTab.selectionEnd, iClamp, documentTab.text.length()));
         this.suppressChanges = false;
@@ -1836,6 +1873,8 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity
     protected void onActivityResult(int i, int i2, Intent intent) {
         super.onActivityResult(i, i2, intent);
+        if (i == REQUEST_DOCX_COPY) { handleDocxResult(i2, intent); return; }
+        if(i==REQUEST_WORKSPACE_TREE){handleWorkspaceTreeResult(i2,intent);return;}
         if (i == REQUEST_SPLASH_IMPORT) {
             if (i2 == -1 && intent != null) {
                 importSplashImages(intent);
@@ -1978,7 +2017,11 @@ public class MainActivity extends Activity {
     }
 
     private void openDocument(final Uri uri, final int i, final boolean z, final boolean viewOnly) {
+        SearchLocation opening=this.searchOpenCall;
+        if(opening==null||opening!=this.searchLocation||!opening.awaitingOpen||uri==null||!opening.hit.uri.toString().equals(uri.toString()))cancelSearchLocation();
+        else opening.load=this.loadToken;
         if (uri == null || !"content".equalsIgnoreCase(uri.getScheme())) {
+            cancelSearchLocation();
             showError("For safety, Markdown Desk can only open documents supplied through Android's document system.");
             return;
         }
@@ -1986,14 +2029,17 @@ public class MainActivity extends Activity {
         if (iFindTabByUri >= 0) {
             switchToTab(iFindTabByUri, false);
             if (viewOnly) setMode(MODE_PREVIEW, false);
+            searchOpenFinished(uri,this.loadToken);
             return;
         }
         if (this.tabs.size() >= MAX_TABS) {
+            cancelSearchLocation();
             Toast.makeText(this, "Close a tab before opening another.", MODE_PREVIEW).show();
             return;
         }
         final int i2 = this.loadToken + MODE_PREVIEW;
         this.loadToken = i2;
+        if(opening!=null&&opening==this.searchLocation&&opening.awaitingOpen)opening.load=i2;
         this.statusView.setText(R.string.opening);
         this.io.execute(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda64
             @Override // java.lang.Runnable
@@ -2043,7 +2089,11 @@ public class MainActivity extends Activity {
         this.tabs.add(documentTab);
         this.activeTab = this.tabs.size() - MODE_PREVIEW;
         RecentStore.touch(this, uri.toString(), documentTab.displayName);
-        restoreActiveTab(false);
+        SearchLocation opening=this.searchLocation;
+        if(opening==null||!opening.awaitingOpen||opening.load!=i||!opening.hit.uri.toString().equals(uri.toString()))opening=null;
+        this.searchOpenCall=opening;
+        try{restoreActiveTab(false);}catch(RuntimeException|Error failed){cancelSearchLocation();throw failed;}finally{this.searchOpenCall=null;}
+        searchOpenFinished(uri,i);
         scheduleSession();
     }
 
@@ -2052,6 +2102,7 @@ public class MainActivity extends Activity {
         if (i != this.loadToken || isFinishing()) {
             return;
         }
+        searchOpenFailed(uri,i);
         updateStatus();
         if (z) {
             showRecentFailure(uri, exc);
@@ -2677,34 +2728,122 @@ public class MainActivity extends Activity {
         openDocument(Uri.parse(((RecentStore.Item) list.get(i)).uri), 3, true);
     }
 
+    private volatile long protectedSavesRequest;
+    private ProtectedSavesSession protectedSavesSession;
+
+    private static final class ProtectedSavesSession {
+        final long request;
+        List<ProtectionStore.Snapshot> versions;
+        AlertDialog dialog;
+        Object token;
+        int start;
+        ProtectedSavesSession(long request, List<ProtectionStore.Snapshot> versions) {
+            this.request = request; this.versions = versions;
+        }
+    }
+
+    private void invalidateProtectedSaves() {
+        ++this.protectedSavesRequest;
+        ProtectedSavesSession session = this.protectedSavesSession;
+        this.protectedSavesSession = null;
+        if (session == null) return;
+        AlertDialog dialog = session.dialog;
+        session.versions = null; session.dialog = null; session.token = null;
+        if (dialog != null) dialog.dismiss();
+    }
+
+    private boolean protectedSavesCurrent(ProtectedSavesSession session, AlertDialog dialog, Object token) {
+        return session == this.protectedSavesSession && session.request == this.protectedSavesRequest
+                && !isFinishing() && !isDestroyed() && session.versions != null
+                && session.dialog == dialog && session.token == token && dialog != null && dialog.isShowing();
+    }
+
     private void showProtectedSaves() {
+        invalidateProtectedSaves();
+        if (isFinishing() || isDestroyed()) return;
+        final long request = this.protectedSavesRequest;
         this.io.execute(() -> {
+            if (request != this.protectedSavesRequest) return;
             try {
                 final List<ProtectionStore.Snapshot> versions = getProtectionStore().snapshots();
+                if (request != this.protectedSavesRequest) return;
                 versions.sort((left, right) -> Long.compare(right.timestamp, left.timestamp));
-                final String[] labels = new String[versions.size()];
-                SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-                for (int index = 0; index < versions.size(); index++) {
-                    ProtectionStore.Snapshot snapshot = versions.get(index);
-                    labels[index] = (snapshot.title == null ? "Untitled.md" : snapshot.title) + " · "
-                            + ("original".equals(snapshot.role) ? "Original" : "Edited version") + "\n" + dates.format(new Date(snapshot.timestamp));
-                }
                 this.main.post(() -> {
-                    if (isFinishing()) return;
-                    if (versions.isEmpty()) { showError("No protected saves are available yet."); return; }
-                    new AlertDialog.Builder(this).setTitle("Protected saves")
-                            .setItems(labels, (dialog, index) -> {
-                                ProtectionStore.Snapshot snapshot = versions.get(index);
-                                new AlertDialog.Builder(this).setTitle("Restore protected version?")
-                                        .setMessage("Restore " + (snapshot.title == null ? "this version" : snapshot.title) + " to a new copy. The original and protected versions will be kept.")
-                                        .setPositiveButton("Restore to new copy", (confirm, which) -> launchProtectedCopy(snapshot.id, snapshot.title))
-                                        .setNegativeButton("Cancel", null).show();
-                            }).setNegativeButton("Close", null).show();
+                    if (request != this.protectedSavesRequest || isFinishing() || isDestroyed()) return;
+                    ProtectedSavesSession session = new ProtectedSavesSession(request, versions);
+                    this.protectedSavesSession = session;
+                    showProtectedSavesPage(session, 0);
                 });
             } catch (Exception failure) {
-                this.main.post(() -> showError("Protected saves could not be read. Keep the existing recovery draft and resolve storage or access errors.\n\n" + message(failure)));
+                this.main.post(() -> {
+                    if (request == this.protectedSavesRequest && !isFinishing() && !isDestroyed())
+                        showError("Protected saves could not be read. Keep the existing recovery draft and resolve storage or access errors.\n\n" + message(failure));
+                });
             }
         });
+    }
+
+    private void presentProtectedSavesDialog(ProtectedSavesSession session, AlertDialog dialog, Object token) {
+        AlertDialog previous = session.dialog;
+        session.dialog = dialog; session.token = token;
+        if (previous != null) previous.dismiss();
+        dialog.setOnDismissListener(ignored -> {
+            if (session == this.protectedSavesSession && session.dialog == dialog && session.token == token)
+                invalidateProtectedSaves();
+        });
+        dialog.setOnShowListener(ignored -> workspaceDialogShown(dialog));
+        dialog.show();
+    }
+
+    private void showProtectedSavesPage(ProtectedSavesSession session, int requestedStart) {
+        if (session != this.protectedSavesSession || session.request != this.protectedSavesRequest
+                || session.versions == null || isFinishing() || isDestroyed()) return;
+        int size = session.versions.size();
+        final int start = size == 0 ? 0 : Math.min(Math.max(0, requestedStart), ((size - 1) / 100) * 100);
+        session.start = start;
+        int end = start + Math.min(100, size - start);
+        String[] labels = new String[end - start];
+        SimpleDateFormat dates = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        for (int index = start; index < end; index++) {
+            ProtectionStore.Snapshot snapshot = session.versions.get(index);
+            labels[index - start] = (snapshot.title == null ? "Untitled.md" : snapshot.title) + " · "
+                    + ("original".equals(snapshot.role) ? "Original" : "Edited version") + "\n" + dates.format(new Date(snapshot.timestamp));
+        }
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        AlertDialog.Builder builder = historyDialogBuilder("Protected saves" + (size == 0 ? "" : " · " + (start + 1) + "–" + end + " of " + size))
+                .setNegativeButton("Close", null);
+        if (size == 0) builder.setMessage("No protected saves are available yet.");
+        else builder.setAdapter(workspaceRootRows(labels), (ignored, index) -> {
+            AlertDialog dialog = owned[0];
+            if (!protectedSavesCurrent(session, dialog, token) || index < 0 || index >= labels.length) return;
+            ProtectionStore.Snapshot snapshot = session.versions.get(start + index);
+            showProtectedSaveActions(session, start, snapshot.id, snapshot.title);
+        });
+        if (start > 0) builder.setNeutralButton("Previous", (ignored, which) -> {
+            if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start - 100);
+        });
+        if (end < size) builder.setPositiveButton("Next", (ignored, which) -> {
+            if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start + 100);
+        });
+        owned[0] = builder.create();
+        presentProtectedSavesDialog(session, owned[0], token);
+    }
+
+    private void showProtectedSaveActions(ProtectedSavesSession session, int start, String id, String title) {
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        owned[0] = historyDialogBuilder("Restore protected version?")
+                .setMessage("Restore " + (title == null ? "this version" : title) + " to a new copy. The original and protected versions will be kept.")
+                .setPositiveButton("Restore to new copy", (ignored, which) -> {
+                    if (!protectedSavesCurrent(session, owned[0], token)) return;
+                    invalidateProtectedSaves();
+                    launchProtectedCopy(id, title);
+                })
+                .setNegativeButton("Back", (ignored, which) -> {
+                    if (protectedSavesCurrent(session, owned[0], token)) showProtectedSavesPage(session, start);
+                }).create();
+        presentProtectedSavesDialog(session, owned[0], token);
     }
 
     private void invalidateHistory() {
@@ -2912,6 +3051,506 @@ public class MainActivity extends Activity {
         catch (ActivityNotFoundException failure) { this.restoreSnapshotId = null; showError("No document picker is available on this device."); }
     }
 
+    private static final Object SEARCH_GRANT_GUARD = new Object();
+    private static SearchGrantJob searchGrantOwner;
+    private long searchGeneration;
+    private SearchScreen searchScreen;
+    private AlertDialog searchNotice;
+    private Object searchNoticeToken;
+    private SearchLocation searchLocation;
+    private SearchLocation searchOpenCall;
+
+    private static final class SearchScreen {
+        final long generation; final WorkspaceRootStore.Root root;
+        String literal; AlertDialog dialog; Object token; EditText input; LinearLayout rows;
+        SearchGrantJob grant; WorkspaceSearchLoader.Ticket ticket; WorkspaceLiteralSearch.Result result;
+        SearchScreen(long generation, WorkspaceRootStore.Root root, String literal) { this.generation=generation;this.root=root;this.literal=literal; }
+    }
+    private static final class SearchLocation {
+        final WorkspaceLiteralSearch.FileHit hit; final WorkspaceLiteralSearch.Match match; final String literal;
+        boolean awaitingOpen=true, allowRestore=true, allowContent; int load; String tabId; long revision,route; boolean bom;
+        SearchHitVerifier.Ticket ticket;
+        SearchLocation(WorkspaceLiteralSearch.FileHit hit, WorkspaceLiteralSearch.Match match, String literal) { this.hit=hit;this.match=match;this.literal=literal; }
+    }
+    /** One process-wide preflight slot; cancellation drops the only screen callback.
+     * Its worker owns application metadata only, never the Activity or editor. */
+    private static final class SearchGrantJob implements Runnable {
+        final android.content.Context application; final Uri root;
+        private java.util.function.Consumer<Boolean> callback;
+        SearchGrantJob(android.content.Context application,Uri root,java.util.function.Consumer<Boolean> callback){this.application=application;this.root=root;this.callback=callback;}
+        static SearchGrantJob reserve(android.content.Context app,Uri root,java.util.function.Consumer<Boolean> callback){
+            synchronized(SEARCH_GRANT_GUARD){if(searchGrantOwner!=null)return null;return searchGrantOwner=new SearchGrantJob(app,root,callback);}
+        }
+        void cancel(){synchronized(SEARCH_GRANT_GUARD){callback=null;}}
+        void release(){synchronized(SEARCH_GRANT_GUARD){callback=null;if(searchGrantOwner==this)searchGrantOwner=null;}}
+        public void run(){
+            boolean posted=false;
+            try {
+                boolean readable=false;
+                try { for(WorkspaceRootStore.RootState state:new WorkspaceRootStore(application).list(application.getContentResolver()))
+                    if(state.root.uri.toString().equals(root.toString())&&state.access==WorkspaceRootStore.Access.CURRENT)readable=true;
+                }catch(Exception unavailable){readable=false;}
+                final boolean allowed=readable;
+                posted=WORKSPACE_MAIN.post(()->{
+                    try {java.util.function.Consumer<Boolean> target;synchronized(SEARCH_GRANT_GUARD){target=callback;callback=null;}if(target!=null)target.accept(allowed);}
+                    finally{release();}
+                });
+            }finally{if(!posted)release();}
+        }
+    }
+    private void cancelSearchLocation(){
+        SearchLocation location=this.searchLocation;this.searchLocation=null;
+        if(location!=null){SearchHitVerifier.Ticket ticket=location.ticket;location.ticket=null;if(ticket!=null)ticket.cancel();}
+    }
+    private void searchContentChanged(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&location.allowContent){location.allowContent=false;return;}
+        cancelSearchLocation();
+    }
+    private void searchRestoreChanged(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&location.allowRestore){location.allowRestore=false;return;}
+        cancelSearchLocation();
+    }
+    private void beginSearchRestoreText(){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location==this.searchOpenCall&&location.awaitingOpen&&!location.allowRestore)location.allowContent=true;
+    }
+    private void endSearchRestoreText(){if(this.searchOpenCall!=null)this.searchOpenCall.allowContent=false;}
+    private void cancelWorkspaceSearch(){
+        closeWorkspaceSearchNotice();
+        ++this.searchGeneration;
+        SearchScreen screen=this.searchScreen;this.searchScreen=null;
+        cancelSearchLocation();
+        if(screen==null)return;
+        AlertDialog dialog=screen.dialog;SearchGrantJob grant=screen.grant;WorkspaceSearchLoader.Ticket ticket=screen.ticket;
+        screen.dialog=null;screen.token=null;screen.input=null;screen.grant=null;screen.ticket=null;screen.result=null;
+        if(screen.rows!=null)screen.rows.removeAllViews();screen.rows=null;
+        if(grant!=null)grant.cancel();
+        if(dialog!=null)dialog.dismiss();
+        if(ticket!=null)ticket.cancel();
+    }
+    private void closeWorkspaceSearchNotice(){
+        AlertDialog notice=this.searchNotice;this.searchNotice=null;this.searchNoticeToken=null;
+        if(notice!=null)notice.dismiss();
+    }
+    private void showWorkspaceSearchNotice(String message){
+        if(isFinishing()||isDestroyed())return;
+        SearchScreen screen=this.searchScreen;
+        if(screen!=null&&searchCurrent(screen,screen.dialog,screen.token)){
+            screen.dialog.setMessage(message);workspaceDialogShown(screen.dialog);return;
+        }
+        final Object token=new Object();
+        AlertDialog notice=historyDialogBuilder("Folder search").setMessage(message).setPositiveButton("OK",null).create();
+        AlertDialog previous=this.searchNotice;this.searchNotice=notice;this.searchNoticeToken=token;
+        if(previous!=null)previous.dismiss();
+        notice.setOnDismissListener(ignored->{if(this.searchNotice==notice&&this.searchNoticeToken==token){this.searchNotice=null;this.searchNoticeToken=null;}});
+        notice.setOnShowListener(ignored->workspaceDialogShown(notice));notice.show();
+    }
+    private boolean searchCurrent(SearchScreen screen,AlertDialog dialog,Object token){
+        return screen==this.searchScreen&&screen.generation==this.searchGeneration&&!isFinishing()&&!isDestroyed()
+                &&screen.dialog==dialog&&screen.token==token&&dialog!=null&&dialog.isShowing();
+    }
+    private void presentSearchDialog(SearchScreen screen,AlertDialog dialog,Object token){
+        AlertDialog previous=screen.dialog;screen.dialog=dialog;screen.token=token;
+        if(previous!=null)previous.dismiss();
+        dialog.setOnDismissListener(ignored->{if(this.searchScreen==screen&&screen.dialog==dialog&&screen.token==token)cancelWorkspaceSearch();});
+        dialog.setOnKeyListener((ignored,key,event)->{if(key!=KeyEvent.KEYCODE_BACK||!searchCurrent(screen,dialog,token))return false;if(event.getAction()==KeyEvent.ACTION_UP)openWorkspaceRoot(screen.root);return true;});
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));dialog.show();
+    }
+    private void showWorkspaceSearch(WorkspaceRootStore.Root root,String literal){
+        cancelWorkspaceNavigation();
+        if(isFinishing()||isDestroyed())return;
+        SearchScreen screen=new SearchScreen(this.searchGeneration,root,literal);this.searchScreen=screen;
+        EditText input=new EditText(this);screen.input=input;
+        input.setText(literal);input.setSingleLine(true);input.setTextColor(this.palette.text);input.setHintTextColor(this.palette.muted);
+        input.setHint("Exact, case-sensitive text (up to 128 characters)");input.setContentDescription("Case-sensitive literal query in saved folder "+root.label);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(128)});
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        owned[0]=historyDialogBuilder("Search this saved folder: "+root.label).setMessage("Search Markdown and text in this saved root and its subfolders, even when browsing a nested folder. Exact case-sensitive text; spaces are preserved. No regular expressions.")
+                .setView(input).setPositiveButton("Search",null)
+                .setNegativeButton("Cancel",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+        owned[0].getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view->{if(searchCurrent(screen,owned[0],token))submitWorkspaceSearch(screen,input.getText());});
+    }
+    private void submitWorkspaceSearch(SearchScreen screen,CharSequence value){
+        if(!searchCurrent(screen,screen.dialog,screen.token)||screen.grant!=null)return;
+        if(value==null||value.length()==0||value.length()>128){showWorkspaceSearchNotice("Enter 1–128 UTF-16 units of literal text.");return;}
+        for(int index=0;index<value.length();index++){
+            char ch=value.charAt(index);if(Character.isHighSurrogate(ch)){if(++index>=value.length()||!Character.isLowSurrogate(value.charAt(index))){showWorkspaceSearchNotice("Search requires valid Unicode.");return;}}
+            else if(Character.isLowSurrogate(ch)){showWorkspaceSearchNotice("Search requires valid Unicode.");return;}
+        }
+        screen.literal=value.toString();
+        SearchGrantJob job=SearchGrantJob.reserve(getApplicationContext(),screen.root.uri,allowed->{
+            if(!searchCurrent(screen,screen.dialog,screen.token))return;
+            screen.grant=null;
+            if(!allowed){WorkspaceRootStore.Root root=screen.root;cancelWorkspaceSearch();showWorkspaceRootOptions(root,true);return;}
+            startWorkspaceSearch(screen);
+        });
+        if(job==null){showWorkspaceSearchNotice("A saved-folder access check is still active. Wait for it to finish before searching again.");return;}
+        screen.grant=job;screen.dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+        try{this.io.execute(job);}
+        catch(java.util.concurrent.RejectedExecutionException rejected){screen.grant=null;job.release();screen.dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(true);showWorkspaceSearchNotice("Folder access could not be checked.");}
+        catch(RuntimeException uncertain){job.cancel();cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder access check could not be confirmed. Wait for any active check; if it cannot finish, restart the app.");}
+        catch(Error fatal){job.cancel();cancelWorkspaceSearch();throw fatal;}
+    }
+    private void startWorkspaceSearch(SearchScreen screen){
+        if(!searchCurrent(screen,screen.dialog,screen.token))return;
+        screen.input=null;
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        owned[0]=historyDialogBuilder("Searching saved folder: "+screen.root.label).setMessage("Searching Markdown and text in this saved root and its subfolders…")
+                .setNegativeButton("Cancel",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(screen.root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+        try {
+            screen.ticket=WorkspaceSearchLoader.trySearch(getApplicationContext(),screen.root.uri,screen.literal,WorkspaceLiteralSearch.Limits.defaults(),delivery->{
+                if(searchCurrent(screen,owned[0],token))acceptWorkspaceSearch(screen,delivery);
+            });
+            if(screen.ticket==null){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search is busy with an outstanding request or an unconfirmed close. Wait for an active request; after a failed close, restart the app. Editing and saving remain available.");}
+        }catch(RuntimeException failed){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search could not start. Editing and saving remain available.");}
+    }
+    private String searchReasons(java.util.Set<WorkspaceLiteralSearch.Reason> reasons){
+        StringBuilder text=new StringBuilder();
+        for(WorkspaceLiteralSearch.Reason reason:reasons){
+            if(text.length()>0)text.append("; ");
+            switch(reason){
+                case DIRECTORIES:text.append("directory limit");break;
+                case FILES:text.append("file limit");break;
+                case ROWS:text.append("folder row limit");break;
+                case DEPTH:text.append("folder depth limit");break;
+                case BYTES:text.append("read-byte limit");break;
+                case MATCHES:text.append("match limit");break;
+                case METADATA:text.append("result-label limit");break;
+                case DIRECTORY_PARTIAL:text.append("partial folder listing");break;
+                case UNREADABLE:text.append("unreadable files");break;
+                case ACCESS_REVOKED:text.append("folder access revoked");break;
+                case CLOSE_UNCERTAIN:text.append("provider close not confirmed; restart the app before searching again");break;
+                default:text.append("repeated folder skipped");break;
+            }
+        }
+        return text.toString();
+    }
+    private String searchSummary(WorkspaceLiteralSearch.Result result){
+        int matches=0;for(WorkspaceLiteralSearch.FileHit hit:result.hits)matches+=hit.matches.size();
+        String state=result.state==WorkspaceLiteralSearch.State.COMPLETE?(matches==0?"No matches.":"Search complete.")
+                :result.state==WorkspaceLiteralSearch.State.CANCELLED?"Search cancelled; this is not a complete search."
+                :(matches==0?"No matches in the files searched; search incomplete.":"Search incomplete; validated matches are shown.");
+        return state+"\n"+matches+" matches in "+result.hits.size()+" validated files; "+result.candidateFiles+" candidate files; "+result.skippedTypes+" nontext types skipped; "+result.diagnostics.size()+" unreadable or skipped diagnostics.\n"
+                +result.directoryAttempts+" directory attempts, "+result.scannedRows+" rows, "+result.bytesRead+" bytes read."
+                +(result.reasons.isEmpty()?"":"\nLimits and diagnostics: "+searchReasons(result.reasons))
+                +(result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)?"\nFolder access was revoked. Search again after choosing the folder again; these results cannot be opened.":"");
+    }
+    private void acceptWorkspaceSearch(SearchScreen screen,WorkspaceSearchLoader.Delivery delivery){
+        screen.ticket=null;
+        if(delivery.result==null||!screen.root.uri.toString().equals(delivery.result.tree.toString())||!screen.literal.equals(delivery.result.literal)){cancelWorkspaceSearch();showWorkspaceSearchNotice("Folder search failed without a complete result. Search again explicitly; editing and saving remain available.");return;}
+        screen.result=delivery.result;
+        LinearLayout rows=new LinearLayout(this);rows.setOrientation(MODE_PREVIEW);screen.rows=rows;
+        final Object token=new Object();final AlertDialog[] owned=new AlertDialog[1];
+        boolean enabled=!delivery.result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)&&delivery.result.state!=WorkspaceLiteralSearch.State.CANCELLED;
+        int count=0;
+        for(WorkspaceLiteralSearch.FileHit hit:delivery.result.hits)for(WorkspaceLiteralSearch.Match match:hit.matches){
+            if(count++>=100)break;
+            Button button=searchMatchButton(hit,match,view->{if(searchCurrent(screen,owned[0],token))selectWorkspaceMatch(screen,hit,match);});
+            button.setEnabled(enabled);rows.addView(button,matchWrap());
+        }
+        ScrollView scroll=new ScrollView(this);scroll.addView(rows,matchWrap());
+        owned[0]=historyDialogBuilder("Search results: "+screen.root.label).setMessage(searchSummary(delivery.result)).setView(scroll)
+                .setPositiveButton("Search again",(ignored,which)->{if(searchCurrent(screen,owned[0],token))showWorkspaceSearch(screen.root,screen.literal);})
+                .setNegativeButton("Close",(ignored,which)->{if(searchCurrent(screen,owned[0],token))cancelWorkspaceSearch();})
+                .setNeutralButton("Back to folder",(ignored,which)->{if(searchCurrent(screen,owned[0],token))openWorkspaceRoot(screen.root);}).create();
+        presentSearchDialog(screen,owned[0],token);
+    }
+    private Button searchMatchButton(WorkspaceLiteralSearch.FileHit hit,WorkspaceLiteralSearch.Match match,View.OnClickListener action){
+        String snippet=match.snippet.replace("\r","\\r").replace("\n","\\n").replace("\t","\\t");
+        String label=hit.displayName+" · line "+match.line+"\n"+snippet;
+        Button button=workspaceLocalButton(label,"Open "+label,action);
+        button.setTextColor(this.palette.text);button.setBackground(UiTheme.rounded(this.palette.raised,dp(12),this.palette.border,1));
+        return button;
+    }
+    private void selectWorkspaceMatch(SearchScreen screen,WorkspaceLiteralSearch.FileHit hit,WorkspaceLiteralSearch.Match match){
+        if(!searchCurrent(screen,screen.dialog,screen.token)||screen.result==null||screen.result.reasons.contains(WorkspaceLiteralSearch.Reason.ACCESS_REVOKED)||screen.result.state==WorkspaceLiteralSearch.State.CANCELLED)return;
+        String literal=screen.literal;cancelWorkspaceSearch();
+        SearchLocation location=new SearchLocation(hit,match,literal);this.searchLocation=location;
+        this.searchOpenCall=location;
+        try{openDocument(hit.uri,0,true);}catch(RuntimeException|Error failed){cancelSearchLocation();throw failed;}finally{this.searchOpenCall=null;}
+    }
+    private void searchOpenFailed(Uri uri,int load){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location.awaitingOpen&&location.hit.uri.toString().equals(uri.toString())&&(load<0||location.load==load))cancelSearchLocation();
+    }
+    private void searchOpenFinished(Uri uri,int load){
+        SearchLocation location=this.searchLocation;
+        if(location!=null&&location.awaitingOpen&&location.load==load&&location.hit.uri.toString().equals(uri.toString()))completeSearchOpen(location);
+    }
+    private void completeSearchOpen(SearchLocation location){
+        if(location!=this.searchLocation||this.activeTab<0||this.activeTab>=this.tabs.size())return;
+        location.awaitingOpen=false;location.tabId=this.tabs.get(this.activeTab).id;location.revision=this.sourceNavigationRevision;
+        location.route=this.sourceRouteRevision;location.bom=this.utf8Bom;location.load=this.loadToken;
+        verifySearchLocation(location);
+    }
+    private boolean searchLocationCurrent(SearchLocation location){
+        return this.searchLocation==location&&!location.awaitingOpen&&!isFinishing()&&!isDestroyed()
+                &&this.activeTab>=0&&this.activeTab<this.tabs.size()&&location.tabId.equals(this.tabs.get(this.activeTab).id)
+                &&this.currentUri!=null&&location.hit.uri.toString().equals(this.currentUri.toString())&&location.hit.uri.toString().equals(this.tabs.get(this.activeTab).uri)&&location.load==this.loadToken
+                &&location.revision==this.sourceNavigationRevision&&location.route==this.sourceRouteRevision&&location.bom==this.utf8Bom;
+    }
+    private void verifySearchLocation(SearchLocation location){
+        if(!searchLocationCurrent(location)){cancelSearchLocation();return;}
+        try {
+            location.ticket=SearchHitVerifier.tryVerify(()->{
+                if(!searchLocationCurrent(location))throw new IllegalStateException("Retired search location");
+                return new SearchHitVerifier.Capture(this.editor.getText(),this.utf8Bom);
+            },outcome->{if(searchLocationCurrent(location))finishSearchLocation(location,outcome);else if(this.searchLocation==location)cancelSearchLocation();});
+            if(location.ticket==null){cancelSearchLocation();showWorkspaceSearchNotice("The file was opened, but its search location could not be checked while an earlier check is still active. Search again explicitly; no automatic retry was made.");}
+        }catch(RuntimeException failed){cancelSearchLocation();showSearchChanged();}
+    }
+    private void showSearchChanged(){showWorkspaceSearchNotice("File changed since search or could not be checked; search again. The normally opened document was kept.");}
+    private void finishSearchLocation(SearchLocation location,SearchHitVerifier.Outcome outcome){
+        WorkspaceLiteralSearch.Match match=location.match;
+        int offset=match.offsetUtf16,length=match.lengthUtf16;
+        boolean valid=outcome.result!=null&&outcome.result.byteLength==location.hit.byteLength&&outcome.result.sha256.equals(location.hit.hash)
+                &&offset>=0&&length==location.literal.length()&&offset<=this.editor.length()&&length<=this.editor.length()-offset;
+        if(valid)for(int index=0;index<length;index++)if(this.editor.getText().charAt(offset+index)!=location.literal.charAt(index)){valid=false;break;}
+        cancelSearchLocation();
+        if(!valid){showSearchChanged();return;}
+        jumpToSourceOffset(offset);
+        this.editor.setSelection(offset,offset+length);
+    }
+
+    private static final int REQUEST_WORKSPACE_TREE=1005;
+    // Separate from Activity.main: destroying an Activity must not remove a physical delivery.
+    private static final Handler WORKSPACE_MAIN=new Handler(Looper.getMainLooper());
+    private static final java.util.concurrent.Executor WORKSPACE_DELIVERY=command -> {
+        if(!WORKSPACE_MAIN.post(command))throw new java.util.concurrent.RejectedExecutionException("Workspace delivery unavailable");
+    };
+    private long workspaceGeneration;
+    private boolean workspaceRegistryBusy;
+    private WorkspaceRootList workspaceRootList;
+    private WorkspaceBrowser workspaceBrowser;
+    private static final class WorkspaceFrame {
+        final WorkspaceTreeReader.Directory directory;final String label;final Uri uri;
+        WorkspaceFrame(WorkspaceTreeReader.Directory directory,String label,Uri uri){this.directory=directory;this.label=label;this.uri=uri;}
+    }
+    private static final class WorkspaceLoad {
+        final WorkspaceFrame frame;WorkspaceDirectoryLoader.Ticket ticket;
+        WorkspaceLoad(WorkspaceFrame frame){this.frame=frame;}
+    }
+    private static final class WorkspaceRootList {
+        final long generation;AlertDialog dialog;
+        WorkspaceRootList(long generation){this.generation=generation;}
+    }
+    private static final class WorkspaceBrowser {
+        final long generation;final WorkspaceRootStore.Root root;final WorkspaceTreeReader reader;
+        final List<WorkspaceFrame> frames=new ArrayList<>();
+        AlertDialog dialog,confirmation;TextView titleView;LinearLayout rows;WorkspaceLoad load;WorkspaceTreeReader.Page page;long rowGeneration;
+        WorkspaceBrowser(long generation,WorkspaceRootStore.Root root,WorkspaceTreeReader reader){this.generation=generation;this.root=root;this.reader=reader;}
+    }
+    private boolean workspaceLive(long generation){return generation==this.workspaceGeneration&&!isFinishing()&&!isDestroyed();}
+    private void cancelWorkspaceNavigation() {
+        cancelWorkspaceSearch();
+        ++this.workspaceGeneration;
+        WorkspaceRootList roots=this.workspaceRootList;this.workspaceRootList=null;
+        if(roots!=null&&roots.dialog!=null)roots.dialog.dismiss();
+        WorkspaceBrowser browser=this.workspaceBrowser;this.workspaceBrowser=null;
+        if(browser!=null) {
+            WorkspaceLoad load=browser.load;browser.load=null;browser.page=null;++browser.rowGeneration;
+            if(load!=null&&load.ticket!=null)load.ticket.cancel();
+            if(browser.rows!=null)browser.rows.removeAllViews();browser.frames.clear();
+            if(browser.confirmation!=null)browser.confirmation.dismiss();
+            if(browser.dialog!=null)browser.dialog.dismiss();
+        }
+    }
+    private void addWorkspaceFolderActions(LinearLayout parent) {
+        parent.addView(workspaceAction("Add folder","Choose a folder with Android's document picker",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
+        }),matchWrap());
+        parent.addView(workspaceAction("Folders","Browse your saved folder shortcuts",view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+    }
+    private void launchWorkspaceFolderPicker() {
+        if(isFinishing()||isDestroyed())return;
+        cancelWorkspaceNavigation();
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                |Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        try{startActivityForResult(picker,REQUEST_WORKSPACE_TREE);}
+        catch(ActivityNotFoundException failure){showError("No folder picker is available on this device.");}
+    }
+    private void handleWorkspaceTreeResult(int result,Intent intent) {
+        if(isFinishing()||isDestroyed())return;
+        if(result!=RESULT_OK||intent==null||intent.getData()==null)return;
+        int flags=intent.getFlags();
+        if((flags&Intent.FLAG_GRANT_READ_URI_PERMISSION)==0||(flags&Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)==0) {
+            showError("Folder access could not be saved. Choose the folder again.");return;
+        }
+        if(this.workspaceRegistryBusy){showError("A saved-folder update is still active. Try again shortly.");return;}
+        cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final Uri tree=intent.getData();final android.content.Context application=getApplicationContext();
+        final int grants=flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {
+            try {
+                // Validate the exact tree before permission mutation; no provider query for a label.
+                new WorkspaceTreeReader(application.getContentResolver(),tree);
+                String id=DocumentsContract.getTreeDocumentId(tree);int end=Math.min(256,id.length());
+                if(end<id.length()&&end>0&&Character.isHighSurrogate(id.charAt(end-1)))end--;
+                String label=id.substring(0,end);
+                application.getContentResolver().takePersistableUriPermission(tree,grants);
+                WorkspaceRootStore.Root root=new WorkspaceRootStore(application).rememberGranted(tree,label,application.getContentResolver());
+                this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))openWorkspaceRoot(root);});
+            }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Folder access could not be saved. Choose the folder again.\n\n"+message(failure));});}
+        });
+    }
+    private void showWorkspaceFolders() {
+        if(isFinishing()||isDestroyed())return;
+        if(this.workspaceRegistryBusy){showError("A saved-folder update is still active. Try again shortly.");return;}
+        cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final android.content.Context application=getApplicationContext();this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {
+            try {
+                List<WorkspaceRootStore.RootState> roots=new WorkspaceRootStore(application).list(application.getContentResolver());
+                this.main.post(() -> {
+                    this.workspaceRegistryBusy=false;if(!workspaceLive(generation))return;
+                    WorkspaceRootList list=new WorkspaceRootList(generation);this.workspaceRootList=list;
+                    String[] labels=new String[roots.size()];for(int n=0;n<roots.size();n++)labels[n]=roots.get(n).root.label+(roots.get(n).access==WorkspaceRootStore.Access.ACCESS_NEEDED?" · Access needed":"");
+                    AlertDialog.Builder builder=historyDialogBuilder("Folders").setPositiveButton("Add folder",(dialog,which)->{if(workspaceRootListCurrent(list))launchWorkspaceFolderPicker();}).setNegativeButton("Close",null);
+                    if(roots.isEmpty())builder.setMessage("No folders saved yet. Add a folder to browse its files.");
+                    else builder.setAdapter(workspaceRootRows(labels),(dialog,index)->{if(!workspaceRootListCurrent(list))return;WorkspaceRootStore.RootState selected=roots.get(index);if(selected.access==WorkspaceRootStore.Access.CURRENT)openWorkspaceRoot(selected.root);else showWorkspaceRootOptions(selected.root,true);});
+                    list.dialog=builder.create();list.dialog.setOnDismissListener(dialog->{if(this.workspaceRootList==list){this.workspaceRootList=null;++this.workspaceGeneration;}});
+                    list.dialog.setOnShowListener(dialog->workspaceDialogShown(list.dialog));list.dialog.show();
+                });
+            }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Saved folders could not be read; existing shortcuts were kept.\n\n"+message(failure));});}
+        });
+    }
+    private boolean workspaceRootListCurrent(WorkspaceRootList list){return list!=null&&this.workspaceRootList==list&&workspaceLive(list.generation)&&list.dialog!=null&&list.dialog.isShowing();}
+    private void showWorkspaceRootOptions(WorkspaceRootStore.Root root,boolean needsAccess) {
+        cancelWorkspaceNavigation();WorkspaceRootList list=new WorkspaceRootList(this.workspaceGeneration);this.workspaceRootList=list;
+        list.dialog=historyDialogBuilder(root.label).setMessage(needsAccess?"Access is needed. Choose this folder again to restore access, or remove its shortcut.":"Removing this shortcut does not delete files or release existing document permissions.")
+                .setPositiveButton("Choose folder again",(dialog,which)->{if(workspaceRootListCurrent(list))launchWorkspaceFolderPicker();})
+                .setNeutralButton("Remove from list",(dialog,which)->{if(workspaceRootListCurrent(list))removeWorkspaceRoot(root);})
+                .setNegativeButton("Cancel",null).create();
+        list.dialog.setOnDismissListener(dialog->{if(this.workspaceRootList==list){this.workspaceRootList=null;++this.workspaceGeneration;}});
+        list.dialog.setOnShowListener(dialog->workspaceDialogShown(list.dialog));list.dialog.show();
+    }
+    private void removeWorkspaceRoot(WorkspaceRootStore.Root root) {
+        if(this.workspaceRegistryBusy)return;cancelWorkspaceNavigation();final long generation=this.workspaceGeneration;
+        final android.content.Context application=getApplicationContext();this.workspaceRegistryBusy=true;
+        this.io.execute(() -> {try {
+            new WorkspaceRootStore(application).remove(root.uri);
+            this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showWorkspaceFolders();});
+        }catch(Exception failure){this.main.post(() -> {this.workspaceRegistryBusy=false;if(workspaceLive(generation))showError("Folder shortcut could not be removed.\n\n"+message(failure));});}});
+    }
+    private void openWorkspaceRoot(WorkspaceRootStore.Root root) {
+        cancelWorkspaceNavigation();
+        try {
+            WorkspaceTreeReader reader=new WorkspaceTreeReader(getApplicationContext().getContentResolver(),root.uri);
+            WorkspaceBrowser browser=new WorkspaceBrowser(this.workspaceGeneration,root,reader);this.workspaceBrowser=browser;
+            browser.frames.add(new WorkspaceFrame(reader.root(),root.label,DocumentsContract.buildDocumentUriUsingTree(root.uri,DocumentsContract.getTreeDocumentId(root.uri))));
+            LinearLayout content=new LinearLayout(this);content.setOrientation(MODE_PREVIEW);content.setPadding(dp(16),dp(8),dp(16),dp(8));
+            content.addView(workspaceLocalButton("Retry","Reload this bounded folder listing",view->{if(workspaceBrowserCurrent(browser))loadWorkspaceFrame(browser);}),matchWrap());
+            content.addView(workspaceLocalButton("Search this saved folder","Search Markdown and text in this saved root and its subfolders",view->{if(workspaceBrowserCurrent(browser))showWorkspaceSearch(browser.root,"");}),matchWrap());
+            content.addView(workspaceLocalButton("Folder options","Choose this folder again or remove its shortcut",view->{if(workspaceBrowserCurrent(browser))showWorkspaceRootOptions(root,false);}),matchWrap());
+            browser.rows=new LinearLayout(this);browser.rows.setOrientation(MODE_PREVIEW);content.addView(browser.rows,matchWrap());
+            ScrollView scroll=new ScrollView(this);scroll.addView(content,matchWrap());
+            browser.titleView=workspaceTitle(root.label);
+            browser.dialog=new AlertDialog.Builder(this).setCustomTitle(browser.titleView).setView(scroll)
+                    .setNegativeButton("Close",(dialog,which)->{if(workspaceBrowserCurrent(browser))cancelWorkspaceNavigation();})
+                    .setNeutralButton("Up",(dialog,which)->{})
+                    .setPositiveButton("Folders",(dialog,which)->{if(workspaceBrowserCurrent(browser))showWorkspaceFolders();}).create();
+            browser.dialog.setOnDismissListener(dialog->{if(this.workspaceBrowser==browser)cancelWorkspaceNavigation();});
+            browser.dialog.setOnKeyListener((dialog,key,event)->{if(key!=KeyEvent.KEYCODE_BACK||!workspaceBrowserCurrent(browser))return false;if(event.getAction()==KeyEvent.ACTION_UP)workspaceUp(browser);return true;});
+            browser.dialog.setOnShowListener(dialog->{workspaceDialogShown(browser.dialog);browser.dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(view->{if(workspaceBrowserCurrent(browser))workspaceUp(browser);});});
+            browser.dialog.show();loadWorkspaceFrame(browser);
+        }catch(RuntimeException failure){cancelWorkspaceNavigation();showError("Folder could not be opened.\n\n"+message(failure));}
+    }
+    private boolean workspaceBrowserCurrent(WorkspaceBrowser browser){return browser!=null&&this.workspaceBrowser==browser&&workspaceLive(browser.generation)&&browser.dialog!=null&&browser.dialog.isShowing()&&!browser.frames.isEmpty();}
+    private void loadWorkspaceFrame(WorkspaceBrowser browser) {
+        if(!workspaceBrowserCurrent(browser))return;
+        WorkspaceLoad previous=browser.load;browser.load=null;if(previous!=null&&previous.ticket!=null)previous.ticket.cancel();
+        browser.page=null;++browser.rowGeneration;browser.rows.removeAllViews();
+        WorkspaceFrame frame=browser.frames.get(browser.frames.size()-1);browser.titleView.setText(frame.label);browser.titleView.setTextColor(this.palette.text);
+        browser.dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(browser.frames.size()>1);
+        workspaceMessage(browser,"Loading folder…");WorkspaceLoad load=new WorkspaceLoad(frame);browser.load=load;
+        load.ticket=WorkspaceDirectoryLoader.tryLoad(browser.reader,frame.directory,WORKSPACE_DELIVERY,page->acceptWorkspacePage(browser,load,page));
+        if(load.ticket==null){browser.load=null;browser.rows.removeAllViews();workspaceMessage(browser,"Folder browsing is busy with an outstanding request or an earlier unconfirmed close. Wait if a request is active; if a close failed, restart the app. Editing and saving remain available.");}
+    }
+    private void acceptWorkspacePage(WorkspaceBrowser browser,WorkspaceLoad load,WorkspaceTreeReader.Page page) {
+        if(!workspaceBrowserCurrent(browser)||browser.load!=load||load.ticket==null||browser.frames.get(browser.frames.size()-1)!=load.frame)return;
+        browser.load=null;browser.rows.removeAllViews();if(page.state==WorkspaceTreeReader.State.CANCELLED){workspaceMessage(browser,"Folder listing stopped. Retry to load this folder.");return;}
+        browser.page=page;final long rows=++browser.rowGeneration;final WorkspaceFrame frame=load.frame;
+        boolean revoked=page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED;
+        if(revoked)workspaceMessage(browser,"Access was revoked. Choose the folder again; these rows cannot be opened.");
+        else if(page.closeDisposition()==WorkspaceTreeReader.CloseDisposition.UNCERTAIN)workspaceMessage(browser,"The provider could not confirm closing this folder listing. Folder browsing is unavailable until the app restarts. Editing and saving remain available.");
+        else if(page.state==WorkspaceTreeReader.State.FAILED)workspaceMessage(browser,"Folder could not be fully read. Partial results may be shown. Retry or go Back.");
+        else if(page.state==WorkspaceTreeReader.State.LIMITED)workspaceMessage(browser,"Folder list is limited; not all items are shown. Retry reloads this same listing.");
+        else if(page.entries.isEmpty())workspaceMessage(browser,"This folder is empty.");
+        if(revoked)browser.rows.addView(workspaceLocalButton("Choose folder again","Restore access with Android's folder picker",view->{if(workspaceRowCurrent(browser,frame,rows))launchWorkspaceFolderPicker();}),matchWrap());
+        for(WorkspaceTreeReader.Entry entry:page.entries) {
+            Button button=workspaceLocalButton((entry.directory==null?"File · ":"Folder · ")+entry.displayName,entry.directory==null?"Open "+entry.displayName:"Browse "+entry.displayName,
+                    view->selectWorkspaceEntry(browser,frame,rows,entry));
+            button.setEnabled(!revoked);browser.rows.addView(button,matchWrap());
+        }
+    }
+    private boolean workspaceRowCurrent(WorkspaceBrowser browser,WorkspaceFrame frame,long rows){return workspaceBrowserCurrent(browser)&&browser.rowGeneration==rows&&browser.frames.get(browser.frames.size()-1)==frame;}
+    private void selectWorkspaceEntry(WorkspaceBrowser browser,WorkspaceFrame frame,long rows,WorkspaceTreeReader.Entry entry) {
+        if(!workspaceRowCurrent(browser,frame,rows)||browser.page==null||browser.page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED)return;
+        if(entry.directory!=null) {
+            if(browser.frames.size()>=32){showError("Folder navigation is limited to 32 levels. Go Up before opening another folder.");return;}
+            for(WorkspaceFrame ancestor:browser.frames)if(ancestor.uri.toString().equals(entry.uri.toString())){showError("This folder points back to a folder already in this path.");return;}
+            browser.frames.add(new WorkspaceFrame(entry.directory,entry.displayName,entry.uri));loadWorkspaceFrame(browser);return;
+        }
+        String name=entry.displayName.toLowerCase(Locale.ROOT);
+        if(entry.mimeType.startsWith("text/")||name.endsWith(".md")||name.endsWith(".markdown")||name.endsWith(".txt")){openWorkspaceFile(browser,frame,rows,entry);return;}
+        if(browser.confirmation!=null)browser.confirmation.dismiss();
+        AlertDialog confirmation=historyDialogBuilder("Open as text?").setMessage(entry.displayName+" may not be a text file. Normal UTF-8 and size checks still apply.")
+                .setPositiveButton("Open as text",(dialog,which)->{
+                    AlertDialog accepted=browser.confirmation;
+                    if(accepted==null||accepted!=dialog||!accepted.isShowing())return;
+                    browser.confirmation=null;accepted.dismiss();
+                    openWorkspaceFile(browser,frame,rows,entry);
+                }).setNegativeButton("Cancel",null).create();
+        browser.confirmation=confirmation;
+        confirmation.setOnDismissListener(dialog->{if(browser.confirmation==dialog)browser.confirmation=null;});
+        confirmation.setOnShowListener(dialog->workspaceDialogShown(confirmation));confirmation.show();
+    }
+    private void openWorkspaceFile(WorkspaceBrowser browser,WorkspaceFrame frame,long rows,WorkspaceTreeReader.Entry entry) {
+        if(!workspaceRowCurrent(browser,frame,rows)||browser.page==null||browser.page.error==WorkspaceTreeReader.Error.ACCESS_REVOKED)return;
+        cancelWorkspaceNavigation();openDocument(entry.uri,0,true);
+    }
+    private void workspaceUp(WorkspaceBrowser browser) {
+        if(!workspaceBrowserCurrent(browser))return;
+        if(browser.frames.size()==1){cancelWorkspaceNavigation();return;}
+        browser.frames.remove(browser.frames.size()-1);loadWorkspaceFrame(browser);
+    }
+    private android.widget.ArrayAdapter<String> workspaceRootRows(String[] labels) {
+        return new android.widget.ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,labels) {
+            @Override public View getView(int position,View recycled,ViewGroup parent) {
+                TextView row=(TextView)super.getView(position,recycled,parent);
+                row.setTextColor(MainActivity.this.palette.text);
+                return row;
+            }
+        };
+    }
+    private TextView workspaceTitle(String title) {
+        TextView heading=new TextView(this);heading.setText(title);heading.setTextColor(this.palette.text);heading.setTextSize(20);
+        heading.setPadding(dp(24),dp(20),dp(24),dp(12));
+        if(Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
+        return heading;
+    }
+    private void workspaceDialogShown(AlertDialog dialog) {
+        styleDialog(dialog);
+        TextView message=dialog.findViewById(android.R.id.message);
+        if(message!=null)message.setTextColor(this.palette.text);
+    }
+    private Button workspaceLocalButton(String label,String description,View.OnClickListener listener) {
+        Button button=createPillButton(label,description,listener);this.buttons.remove(button);return button;
+    }
+    private void workspaceMessage(WorkspaceBrowser browser,String message) {
+        TextView text=new TextView(this);text.setText(message);text.setTextColor(this.palette.muted);text.setPadding(dp(4),dp(8),dp(4),dp(8));browser.rows.addView(text,matchWrap());
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -2942,6 +3581,11 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$showWorkspace$52(view);
             }
         }), matchWrap());
+        addWorkspaceFolderActions(linearLayout);
+        linearLayout.addView(workspaceAction("Export this document as DOCX", "New copy · DOCX source up to 1 MiB; native text up to 8 MiB", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            startDocxExport();
+        }), matchWrap());
         linearLayout.addView(workspaceAction("↶  Protected saves", "Originals and edited versions · restore to a new copy", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showProtectedSaves();
@@ -2950,6 +3594,12 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDocumentHistory();
         }), matchWrap());
+        TextView historyLimit = new TextView(this);
+        historyLimit.setText("Markdown and text files use UTF-8, up to 8 MiB. Current text files do not include private history. Uninstalling the app or clearing its storage can lose that history. Keep separate copies of text you need.");
+        historyLimit.setTextColor(this.palette.muted);
+        historyLimit.setTextSize(13.0f);
+        historyLimit.setPadding(dp(4), dp(8), dp(4), dp(12));
+        linearLayout.addView(historyLimit, matchWrap());
         List<RecentStore.Item> list = RecentStore.read(this);
         if (!list.isEmpty()) {
             TextView textView3 = new TextView(this);
@@ -3086,6 +3736,7 @@ public class MainActivity extends Activity {
         exportMenu.add(MODE_EDIT, MAX_TABS, 0, "Share Markdown");
         exportMenu.add(MODE_EDIT, 13, 1, "Share rendered HTML");
         exportMenu.add(MODE_EDIT, 14, 2, "Print / Save PDF");
+        exportMenu.add(MODE_EDIT, 17, 3, "Export DOCX");
 
         popupMenu.getMenu().add(MODE_EDIT, 8, 20, "Save as");
         popupMenu.getMenu().add(MODE_EDIT, 7, 21, "Guide and shortcuts");
@@ -3153,6 +3804,9 @@ public class MainActivity extends Activity {
             case 16:
                 showSplashGallery();
                 return true;
+            case 17:
+                startDocxExport();
+                return true;
             default:
                 return false;
         }
@@ -3214,7 +3868,7 @@ public class MainActivity extends Activity {
     }
 
     private void showCommandPalette() {
-        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
+        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF", "Export DOCX"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
             @Override // android.content.DialogInterface.OnClickListener
             public final void onClick(DialogInterface dialogInterface, int i) {
                 MainActivity.this.lambda$showCommandPalette$59(dialogInterface, i);
@@ -3273,6 +3927,9 @@ public class MainActivity extends Activity {
             case 15:
                 printDocument();
                 break;
+            case 16:
+                startDocxExport();
+                break;
         }
     }
 
@@ -3288,9 +3945,89 @@ public class MainActivity extends Activity {
         Button typewriterButton;
         Button splashButton;
         Button galleryButton;
+        TextView typographyHeading;
+        final String[] readerFamilyNames={"Serif","Sans serif","Monospace"};
+        final Button[] readerFamilyButtons=new Button[3], readerMinus=new Button[4], readerPlus=new Button[4];
+        final TextView[] readerLabels=new TextView[4];
         final String[] themeNames = {"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
         final Button[] themeButtons = new Button[9];
         final List<Button> buttons = new ArrayList<>();
+    }
+
+    private ReaderTypography readReaderTypography() {
+        Map<String,?> saved=this.preferences.getAll();
+        Object family=saved.get(PREF_READER_FAMILY), line=saved.get(PREF_READER_LINE), gap=saved.get(PREF_READER_GAP),
+                margin=saved.get(PREF_READER_MARGIN), measure=saved.get(PREF_READER_MEASURE);
+        return ReaderTypography.fromValues(family instanceof String?(String)family:null,
+                line instanceof Number?((Number)line).floatValue():Float.NaN,
+                gap instanceof Number?((Number)gap).floatValue():Float.NaN,
+                margin instanceof Integer?(Integer)margin:0, measure instanceof Integer?(Integer)measure:0);
+    }
+
+    private void updateReaderTypography(ReaderTypography value, AppearanceUi ui) {
+        this.readerTypography=value;
+        this.preferences.edit().putString(PREF_READER_FAMILY,value.family.name()).putFloat(PREF_READER_LINE,value.lineHeight)
+                .putFloat(PREF_READER_GAP,value.paragraphGapEm).putInt(PREF_READER_MARGIN,value.horizontalMarginPx)
+                .putInt(PREF_READER_MEASURE,value.measurePx).apply();
+        renderPreview();
+        refreshAppearance(ui);
+    }
+
+    private void adjustReaderTypography(int field, int delta, AppearanceUi ui) {
+        ReaderTypography next=this.readerTypography;
+        switch(field) {
+            case 0: next=next.withLineHeight(Math.max(1.2f,Math.min(2.2f,Math.round((next.lineHeight+delta*.1f)*100f)/100f)));break;
+            case 1: next=next.withParagraphGapEm(Math.max(.5f,Math.min(1.5f,Math.round((next.paragraphGapEm+delta*.1f)*100f)/100f)));break;
+            case 2: next=next.withHorizontalMarginPx(Math.max(12,Math.min(44,next.horizontalMarginPx+delta*4)));break;
+            case 3: next=next.withMeasurePx(Math.max(480,Math.min(960,next.measurePx+delta*40)));break;
+            default: return;
+        }
+        updateReaderTypography(next,ui);
+    }
+
+    private void addReaderTypographyControls(AppearanceUi ui, LinearLayout parent) {
+        ui.typographyHeading=new TextView(this);
+        ui.typographyHeading.setText("Reading layout");ui.typographyHeading.setTextSize(16f);
+        ui.typographyHeading.setPadding(dp(4),dp(16),dp(4),dp(4));parent.addView(ui.typographyHeading,matchWrap());
+        for(int n=0;n<ui.readerFamilyButtons.length;n++) {
+            final ReaderTypography.Family family=ReaderTypography.Family.values()[n];
+            ui.readerFamilyButtons[n]=appearanceButton(ui,ui.readerFamilyNames[n],ui.readerFamilyNames[n],
+                    view -> updateReaderTypography(readerTypography.withFamily(family),ui));
+            parent.addView(ui.readerFamilyButtons[n],matchWrap());
+        }
+        String[] names={"line spacing","paragraph spacing","side margins","width"};
+        for(int n=0;n<4;n++) {
+            final int field=n;ui.readerLabels[n]=new TextView(this);
+            ui.readerLabels[n].setPadding(dp(4),dp(10),dp(4),dp(4));parent.addView(ui.readerLabels[n],matchWrap());
+            LinearLayout row=new LinearLayout(this);row.setOrientation(MODE_EDIT);
+            ui.readerMinus[n]=appearanceButton(ui,"−","Decrease reading "+names[n],view -> adjustReaderTypography(field,-1,ui));
+            ui.readerPlus[n]=appearanceButton(ui,"+","Increase reading "+names[n],view -> adjustReaderTypography(field,1,ui));
+            row.addView(ui.readerMinus[n],new LinearLayout.LayoutParams(MODE_EDIT,dp(44),1f));
+            row.addView(ui.readerPlus[n],new LinearLayout.LayoutParams(MODE_EDIT,dp(44),1f));parent.addView(row,matchWrap());
+        }
+        parent.addView(appearanceButton(ui,"Reset reading layout","Reset reading layout to defaults",
+                view -> updateReaderTypography(ReaderTypography.defaults(),ui)),matchWrap());
+    }
+
+    private void refreshReaderTypography(AppearanceUi ui) {
+        ui.typographyHeading.setTextColor(this.palette.text);
+        for(int n=0;n<ui.readerFamilyButtons.length;n++) {
+            Button button=ui.readerFamilyButtons[n];boolean selected=this.readerTypography.family==ReaderTypography.Family.values()[n];
+            button.setText((selected?"●  ":"○  ")+ui.readerFamilyNames[n]);
+            setAppearanceSelection(button,ui.readerFamilyNames[n],selected);
+            button.setBackground(UiTheme.rounded(selected?this.palette.accentSoft:this.palette.surface,dp(13),selected?this.palette.accent:this.palette.border,1));
+        }
+        ui.readerLabels[0].setText(String.format(java.util.Locale.ROOT,"Line spacing · %.2f×",this.readerTypography.lineHeight));
+        ui.readerLabels[1].setText(String.format(java.util.Locale.ROOT,"Paragraph spacing · %.2f em",this.readerTypography.paragraphGapEm));
+        ui.readerLabels[2].setText("Side margins · "+this.readerTypography.horizontalMarginPx+" px");
+        ui.readerLabels[3].setText("Reading width · "+this.readerTypography.measurePx+" px");
+        boolean[] minus={readerTypography.lineHeight>1.2f,readerTypography.paragraphGapEm>.5f,readerTypography.horizontalMarginPx>12,readerTypography.measurePx>480};
+        boolean[] plus={readerTypography.lineHeight<2.2f,readerTypography.paragraphGapEm<1.5f,readerTypography.horizontalMarginPx<44,readerTypography.measurePx<960};
+        for(int n=0;n<4;n++) {
+            ui.readerLabels[n].setTextColor(this.palette.muted);
+            ui.readerMinus[n].setEnabled(minus[n]);ui.readerMinus[n].setAlpha(minus[n]?1f:.4f);
+            ui.readerPlus[n].setEnabled(plus[n]);ui.readerPlus[n].setAlpha(plus[n]?1f:.4f);
+        }
     }
 
     private Button appearanceButton(AppearanceUi ui, String label, View.OnClickListener listener) {
@@ -3352,6 +4089,7 @@ public class MainActivity extends Activity {
         setAppearanceSelection(ui.typewriterButton, "Typewriter mode", this.typewriterMode);
         setAppearanceSelection(ui.splashButton, "Show launch splash", this.launchSplashEnabled);
         ui.galleryButton.setText("⋯  Splash images (" + SplashStore.enabled(this).size() + " on)");
+        refreshReaderTypography(ui);
         if (ui.dialog != null && ui.dialog.isShowing()) {
             styleDialog(ui.dialog);
         }
@@ -3451,6 +4189,7 @@ public class MainActivity extends Activity {
             preferences.edit().putFloat(PREF_FONT, fontSp).putFloat(PREF_PREVIEW_FONT, previewFontSp).apply();
             sourceLabel.setText("Source text · 18 sp"); readLabel.setText("Reading text · 18 sp"); if (mode != MODE_EDIT) renderPreview();
         } }), matchWrap());
+        addReaderTypographyControls(ui,linearLayout);
         // Keep every setting reachable on cover displays, in landscape, and
         // with larger system fonts. Done stays outside scrolling content.
         ScrollView appearanceScroll = new ScrollView(this);
@@ -3568,7 +4307,7 @@ public class MainActivity extends Activity {
         intent.setType(z ? "text/html" : "text/markdown");
         intent.putExtra("android.intent.extra.SUBJECT", this.displayName);
         if (z) {
-            string = MarkdownRenderer.render(string, this.palette, this.previewFontSp);
+            string = MarkdownRenderer.render(string, this.palette, this.previewFontSp, this.readerTypography);
         }
         intent.putExtra("android.intent.extra.TEXT", string);
         try {
@@ -3578,9 +4317,197 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static final int REQUEST_DOCX_COPY = 1006;
+    private enum DocxPhase { GENERATING, OFFERED, AWAIT_PICKER, PUBLISHING, NOTICE }
+    private static final class DocxUi {
+        DocumentDocxExport.Ticket ticket;
+        AlertDialog dialog;
+        Object token;
+        String pickerNonce;
+        DocxPhase phase = DocxPhase.GENERATING;
+    }
+    private DocxUi docxUi;
+    private boolean docxInterruptedCopy;
+
+    private List<Uri> currentDocxUris() {
+        if (this.tabs.size() > MAX_TABS) throw new IllegalArgumentException("Too many open tabs");
+        List<Uri> uris = new ArrayList<>();
+        for (DocumentTab tab : this.tabs) {
+            if (tab.uri == null) continue;
+            Uri uri = Uri.parse(tab.uri);
+            if (tab.uri.length() > 4096 || !"content".equals(uri.getScheme())
+                    || uri.getAuthority() == null || uri.getAuthority().isEmpty())
+                throw new IllegalArgumentException("Invalid open document URI");
+            uris.add(uri);
+        }
+        return uris;
+    }
+
+    private boolean docxCurrent(DocxUi ui, AlertDialog dialog, Object token) {
+        return ui == this.docxUi && !isFinishing() && !isDestroyed()
+                && ui.dialog == dialog && ui.token == token && dialog != null && dialog.isShowing();
+    }
+
+    private void cancelDocxExport() {
+        DocxUi ui = this.docxUi;
+        this.docxUi = null;
+        if (ui == null) return;
+        AlertDialog dialog = ui.dialog;
+        DocumentDocxExport.Ticket ticket = ui.ticket;
+        ui.dialog = null; ui.token = null; ui.ticket = null; ui.pickerNonce = null;
+        if (dialog != null) dialog.dismiss();
+        if (ticket != null) ticket.cancel();
+    }
+
+    private void pauseDocxExport() {
+        if (this.docxUi == null || this.docxUi.phase == DocxPhase.AWAIT_PICKER) return;
+        if (this.docxUi.phase == DocxPhase.PUBLISHING) this.docxInterruptedCopy = true;
+        cancelDocxExport();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (this.docxInterruptedCopy) {
+            this.docxInterruptedCopy = false;
+            showDocxNotice("DOCX export interrupted", "DOCX cancellation was requested when the app left the screen. The provider may still be finishing, and the selected DOCX copy may be incomplete. Check it before using it. No automatic retry was made.");
+        }
+    }
+
+    private void presentDocxDialog(DocxUi ui, String title, String message, String positive, Runnable action) {
+        if (ui != this.docxUi || isFinishing() || isDestroyed()) return;
+        final Object token = new Object();
+        final AlertDialog[] owned = new AlertDialog[1];
+        AlertDialog.Builder builder = historyDialogBuilder(title).setMessage(message)
+                .setNegativeButton(ui.phase == DocxPhase.NOTICE ? "Close" : "Cancel", (ignored, which) -> {
+                    if (docxCurrent(ui, owned[0], token)) cancelDocxExport();
+                });
+        if (positive != null) builder.setPositiveButton(positive, (ignored, which) -> {
+            if (docxCurrent(ui, owned[0], token)) action.run();
+        });
+        owned[0] = builder.create();
+        AlertDialog previous = ui.dialog;
+        ui.dialog = owned[0]; ui.token = token;
+        if (previous != null) previous.dismiss();
+        owned[0].setOnDismissListener(ignored -> {
+            if (this.docxUi == ui && ui.dialog == owned[0] && ui.token == token) cancelDocxExport();
+        });
+        owned[0].setOnShowListener(ignored -> workspaceDialogShown(owned[0]));
+        owned[0].show();
+    }
+
+    private void showDocxNotice(String title, String message) {
+        cancelDocxExport();
+        if (isFinishing() || isDestroyed()) return;
+        DocxUi ui = new DocxUi(); ui.phase = DocxPhase.NOTICE;
+        this.docxUi = ui;
+        presentDocxDialog(ui, title, message, null, null);
+    }
+
+    private void startDocxExport() {
+        cancelDocxExport();
+        if (isFinishing() || isDestroyed()) return;
+        this.docxInterruptedCopy = false;
+        final DocxUi ui = new DocxUi();
+        this.docxUi = ui;
+        try {
+            ui.ticket = DocumentDocxExport.tryStart(getApplicationContext(),
+                    () -> new DocumentDocxExport.Capture(this.editor.getText(),
+                            this.displayName == null ? "Untitled.md" : this.displayName,
+                            this.currentUri, currentDocxUris()),
+                    offer -> {
+                        if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.GENERATING) offerDocx(ui, offer);
+                    }, failure -> {
+                        if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.GENERATING)
+                            showDocxNotice("DOCX export failed", docxFailureMessage(failure));
+                    });
+            if (ui.ticket == null) {
+                showDocxNotice("DOCX export busy", "DOCX export is busy finishing an earlier operation. Try again after it finishes. If an earlier close could not be confirmed, restart the app before a fresh attempt.");
+                return;
+            }
+            presentDocxDialog(ui, "Preparing DOCX", "Preparing a separate copy of the captured document. DOCX supports source up to 1 MiB of UTF-8; native Markdown and text files support up to 8 MiB. Your original document will not be changed.", null, null);
+        } catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The document could not be captured for DOCX. DOCX supports source up to 1 MiB of valid UTF-8 and bounded document structure and title; native Markdown and text files still support up to 8 MiB. Check the document and try again.");
+        }
+    }
+
+    private String docxWarnings(DocumentDocxExport.Offer offer) {
+        StringBuilder text = new StringBuilder();
+        for (java.util.Map.Entry<MarkdownDocx.Warning, Integer> entry : offer.warnings.entrySet()) {
+            String label;
+            switch (entry.getKey()) {
+                case IMAGE_NOT_INCLUDED: label = "Images replaced with alt text"; break;
+                case BLOCKED_LINK: label = "Unsupported links kept as labels"; break;
+                case AMBIGUOUS_TABLE: label = "Ambiguous tables kept as literal text"; break;
+                case AMBIGUOUS_LIST: label = "Ambiguous lists kept as literal text"; break;
+                case UNTERMINATED_FENCE: label = "Unclosed code fences"; break;
+                case UNSUPPORTED_INLINE: label = "Unsupported inline formatting kept literal"; break;
+                default: label = "Unsupported blocks kept literal"; break;
+            }
+            text.append("\n• ").append(label).append(": ").append(entry.getValue());
+        }
+        return text.toString();
+    }
+
+    private void offerDocx(DocxUi ui, DocumentDocxExport.Offer offer) {
+        ui.phase = DocxPhase.OFFERED;
+        presentDocxDialog(ui, "Export DOCX", "Captured document: " + offer.title + "\n\nChoose a new DOCX copy. Formatting uses a limited Markdown subset: images become alt text and unsupported syntax stays literal. No DOCX import or round-trip is promised.\n\nDOCX supports source up to 1 MiB of UTF-8; native Markdown and text files support up to 8 MiB.\n\n" + (offer.warnings.isEmpty() ? "No conversion warnings were reported." : "Conversion warnings:" + docxWarnings(offer)),
+                "Save new DOCX", () -> launchDocxPicker(ui, offer));
+    }
+
+    private void launchDocxPicker(DocxUi ui, DocumentDocxExport.Offer offer) {
+        if (!docxCurrent(ui, ui.dialog, ui.token) || ui.phase != DocxPhase.OFFERED || ui.ticket == null) return;
+        ui.phase = DocxPhase.AWAIT_PICKER;
+        AlertDialog previous = ui.dialog; ui.dialog = null; ui.token = null;
+        if (previous != null) previous.dismiss();
+        ui.pickerNonce = java.util.UUID.randomUUID().toString();
+        Intent picker = new Intent(this, DocxPickerActivity.class)
+                .putExtra(DocxPickerActivity.EXTRA_NONCE, ui.pickerNonce)
+                .putExtra("android.intent.extra.TITLE", offer.filename);
+        try { startActivityForResult(picker, REQUEST_DOCX_COPY); }
+        catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The document picker could not be opened. No verified DOCX copy is available. Try a fresh export when the picker is available.");
+        }
+    }
+
+    private void handleDocxResult(int result, Intent data) {
+        final DocxUi ui = this.docxUi;
+        String nonce = data == null ? null : data.getStringExtra(DocxPickerActivity.EXTRA_NONCE);
+        if (ui == null || !DocxPickerActivity.validNonce(nonce) || !nonce.equals(ui.pickerNonce)) return;
+        if (ui.phase != DocxPhase.AWAIT_PICKER || ui.ticket == null || isFinishing() || isDestroyed()) return;
+        if (result != -1 || data.getData() == null) { cancelDocxExport(); return; }
+        ui.pickerNonce = null;
+        ui.phase = DocxPhase.PUBLISHING;
+        try {
+            ui.ticket.publish(data.getData(), currentDocxUris(), completion -> {
+                if (docxCurrent(ui, ui.dialog, ui.token) && ui.phase == DocxPhase.PUBLISHING) finishDocx(ui, completion);
+            });
+            presentDocxDialog(ui, "Writing DOCX copy", "Writing and checking the new copy. Success is reported only after binary readback verifies the DOCX. Cancel may leave an incomplete copy at the selected destination.", null, null);
+        } catch (RuntimeException failure) {
+            showDocxNotice("DOCX export failed", "The selected destination could not be used safely. No verified DOCX copy is available. Choose a fresh new destination for a deliberate retry; no automatic retry was made.");
+        }
+    }
+
+    private String docxFailureMessage(DocumentDocxExport.Failure failure) {
+        String partial = failure.destinationMayContainPartialCopy ? " The selected copy may be incomplete; check it before using it." : " No verified DOCX copy was created.";
+        if (failure.problem == DocumentDocxExport.Problem.UNCERTAIN_IO)
+            return "A stream close could not be confirmed. DOCX export cannot safely restart in this running app; restart the app before a fresh attempt." + partial;
+        if (failure.problem == DocumentDocxExport.Problem.DESTINATION)
+            return "The destination was not accepted as a safe, empty new copy. Choose a fresh new destination for a deliberate retry." + partial;
+        if (failure.problem == DocumentDocxExport.Problem.GENERATION || failure.problem == DocumentDocxExport.Problem.STAGING)
+            return "The DOCX could not be prepared or its private staging could not be confirmed. DOCX has a 1 MiB UTF-8 source limit and bounded document structure; native text still supports up to 8 MiB. Check the document and storage before a fresh attempt." + partial;
+        return "DOCX export did not complete with verified binary readback. Choose a fresh new destination for a deliberate retry; no automatic retry was made." + partial;
+    }
+
+    private void finishDocx(DocxUi ui, DocumentDocxExport.Completion completion) {
+        if (ui != this.docxUi) return;
+        if (completion.verified) showDocxNotice("DOCX exported", "The new DOCX copy was verified by binary readback. The original document and its editing state are unchanged.");
+        else showDocxNotice("DOCX export failed", docxFailureMessage(completion.failure));
+    }
+
     private void printDocument() {
         DocumentPrint.start(this, () -> new DocumentPrint.Capture(this.editor.getText(), this.displayName,
-                this.palette, this.previewFontSp, this.utf8Bom), this::showError);
+                this.palette, this.previewFontSp, this.utf8Bom, this.readerTypography), this::showError);
     }
 
     private void styleDialog(AlertDialog alertDialog) {
@@ -3648,14 +4575,14 @@ public class MainActivity extends Activity {
         if (this.previewStopped || this.mode == MODE_EDIT || this.preview == null || this.editor == null) return;
         // Capture on main only, after debounce (or an explicit view/appearance render).
         this.previewWork.request(new LatestPreview.Request(previewDocumentId(), this.previewRevision,
-                this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode));
+                this.editor.getText().toString(), this.palette, this.previewFontSp, this.mode, this.readerTypography));
     }
 
     private void acceptPreview(LatestPreview.Result result) {
         LatestPreview.Request request = result.request;
         if (this.previewStopped || this.preview == null || this.editor == null || this.isFinishing()
                 || request.revision != this.previewRevision || !request.documentId.equals(previewDocumentId())
-                || request.palette != this.palette || Float.compare(request.fontSp, this.previewFontSp) != 0
+                || request.palette != this.palette || request.typography != this.readerTypography || Float.compare(request.fontSp, this.previewFontSp) != 0
                 || request.mode != this.mode || this.mode == MODE_EDIT) return;
         PreviewPage page = new PreviewPage(this.preview, request);
         this.previewPage = page;
@@ -3670,6 +4597,7 @@ public class MainActivity extends Activity {
         final UiTheme.Palette palette;
         final float fontSp;
         final int mode;
+        final ReaderTypography typography;
         boolean acknowledged;
 
         PreviewPage(WebView view, LatestPreview.Request request) {
@@ -3680,6 +4608,7 @@ public class MainActivity extends Activity {
             this.palette = request.palette;
             this.fontSp = request.fontSp;
             this.mode = request.mode;
+            this.typography=request.typography;
         }
     }
 
@@ -3696,7 +4625,7 @@ public class MainActivity extends Activity {
         return page != null && page == this.previewPage && page.view == this.preview
                 && !this.previewStopped && !isFinishing() && !isDestroyed()
                 && page.revision == this.previewRevision && page.documentId.equals(previewDocumentId())
-                && page.palette == this.palette && Float.compare(page.fontSp, this.previewFontSp) == 0
+                && page.palette == this.palette && page.typography == this.readerTypography && Float.compare(page.fontSp, this.previewFontSp) == 0
                 && page.mode == this.mode && this.mode != MODE_EDIT;
     }
 

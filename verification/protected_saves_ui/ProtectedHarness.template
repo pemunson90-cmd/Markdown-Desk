@@ -1,0 +1,29 @@
+package com.example.markdowndesk;
+import java.text.SimpleDateFormat;import android.content.*;import android.view.*;import android.widget.*;import android.os.*;import java.util.*;import java.util.concurrent.*;
+class ProtectedBase {protected void onPause(){}protected void onDestroy(){}}
+final class ProtectedHarness extends ProtectedBase {
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
+ static final int MODE_PREVIEW=1,RESULT_OK=-1;
+ interface DialogInterface {int BUTTON_POSITIVE=-1,BUTTON_NEGATIVE=-2,BUTTON_NEUTRAL=-3;interface Click{void clicked(DialogInterface d,int n);}interface Event{void event(DialogInterface d);}interface Key{boolean key(DialogInterface d,int key,KeyEvent event);}}
+ static class KeyEvent {static final int KEYCODE_BACK=4,ACTION_UP=1;final int action;KeyEvent(int action){this.action=action;}int getAction(){return action;}}
+ static class AlertDialog implements DialogInterface {
+  static AlertDialog last; boolean showing;String title,message;TextView customTitle,messageView;android.widget.ArrayAdapter<String> adapter;final Window window=new Window();String[] items;DialogInterface.Click item;DialogInterface.Event dismiss,show;DialogInterface.Key key;final Map<Integer,Button> buttons=new HashMap<>();
+  static class Window {Object background;void setBackgroundDrawable(Object value){background=value;}}
+  Window getWindow(){return window;}TextView findViewById(int id){return id==android.R.id.message?messageView:null;}
+  void show(){last=this;showing=true;if(show!=null)show.event(this);}void dismiss(){if(!showing)return;showing=false;if(dismiss!=null)dismiss.event(this);}boolean isShowing(){return showing;}void setTitle(String s){title=s;}Button getButton(int n){return buttons.get(n);}void setOnDismissListener(DialogInterface.Event e){dismiss=e;}void setOnShowListener(DialogInterface.Event e){show=e;}void setOnKeyListener(DialogInterface.Key e){key=e;}
+  void item(int index){item.clicked(this,index);dismiss();}void back(){if(key!=null){key.key(this,4,new KeyEvent(0));key.key(this,4,new KeyEvent(1));}else dismiss();}
+  static class Builder {final AlertDialog d=new AlertDialog();Builder(Object c){}Builder setTitle(String s){d.title=s;return this;}Builder setMessage(String s){d.message=s;d.messageView=new TextView(this);d.messageView.setText(s);return this;}Builder setCustomTitle(TextView title){d.customTitle=title;return this;}Builder setAdapter(android.widget.ArrayAdapter<String> adapter,DialogInterface.Click listener){d.adapter=adapter;d.items=adapter.values;d.item=listener;return this;}Builder setView(View v){return this;}Builder setItems(String[] s,DialogInterface.Click c){d.items=s;d.item=c;return this;}Builder button(int n,String s,DialogInterface.Click c){Button b=new Button(this);b.text=s;b.click=v->{if(c!=null)c.clicked(d,n);d.dismiss();};d.buttons.put(n,b);return this;}Builder setPositiveButton(String s,DialogInterface.Click c){return button(-1,s,c);}Builder setNegativeButton(String s,DialogInterface.Click c){return button(-2,s,c);}Builder setNeutralButton(String s,DialogInterface.Click c){return button(-3,s,c);}AlertDialog create(){return d;}}
+ }
+ static class ActivityNotFoundException extends RuntimeException{}
+ static class Queue extends AbstractExecutorService {final ArrayDeque<Runnable> tasks=new ArrayDeque<>();boolean closed;public void execute(Runnable r){if(closed)throw new RejectedExecutionException();tasks.add(r);}void drain(){while(!tasks.isEmpty())tasks.remove().run();}public void shutdown(){closed=true;}public List<Runnable> shutdownNow(){closed=true;return List.of();}public boolean isShutdown(){return closed;}public boolean isTerminated(){return closed;}public boolean awaitTermination(long n,TimeUnit t){return closed;}}
+ static class ProtectionStore {static class Snapshot {final String id,title,role;final long timestamp;Snapshot(int i){id="id-"+i;title="title-"+i+".md";role=i%2==0?"original":"attempted";timestamp=i;}}}
+ final class Store {int reads;RuntimeException failure;List<ProtectionStore.Snapshot> snapshots(){reads++;if(failure!=null)throw failure;return new ArrayList<>(inventory);}}
+ final List<ProtectionStore.Snapshot> inventory=new ArrayList<>();final Store store=new Store();Store getProtectionStore(){return store;}
+ final Queue io=new Queue();final Handler main=new Handler(Looper.getMainLooper());boolean finishing,destroyed,dirty,saveInProgress;String error,restoreSnapshotId;Intent picker;int pickerRequest,launches;UiTheme.Palette palette=UiTheme.palette(0,false);
+ boolean isFinishing(){return finishing;}boolean isDestroyed(){return destroyed;}int dp(int value){return value;}void showError(String value){error=value;}String message(Exception e){return e.getMessage();}String markdownName(String value){return value;}void startActivityForResult(Intent p,int request){picker=p;pickerRequest=request;launches++;}
+ static class DocumentPrint {static void cancel(Object a){}}static class Preview {void destroy(){}}final Preview preview=new Preview();
+ final List<String> trace=new ArrayList<>();void captureActiveTab(){trace.add("capture");}void writeRecoveryNow(){trace.add("recovery");io.execute(()->{});}void writeSessionNow(){trace.add("session");io.execute(()->{});}void cancelWorkspaceNavigation(){if(protectedSavesSession!=null)throw new AssertionError("Protected list must dispose before blocking cancellation");trace.add("cancel");}void stopStatistics(){}void stopPreview(){}
+ /* MEMBERS */
+ void load(){showProtectedSaves();}void settle(){io.drain();Handler.drain();}AlertDialog dialog(){return protectedSavesSession==null?null:protectedSavesSession.dialog;}void pause(){onPause();}void destroy(){onDestroy();destroyed=true;}Object session(){return protectedSavesSession;}boolean cleared(Object s){return ((ProtectedSavesSession)s).versions==null&&((ProtectedSavesSession)s).dialog==null&&((ProtectedSavesSession)s).token==null;}
+}

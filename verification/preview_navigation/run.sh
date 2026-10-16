@@ -17,5 +17,5 @@ if [[ "${1:-}" == "--print-hazards" ]]; then
     source="$out/PrintBaseline.java"; extract_args=(--print-only)
 fi
 java -cp "$out" ExtractNavigation "$source" verification/preview_navigation/MainActivity.template "$out/MainActivity.java" "${extract_args[@]}"
-javac --release 11 -d "$out" verification/stubs/android/graphics/drawable/GradientDrawable.java apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,MarkdownRenderer,LatestPreview}.java "$out/MainActivity.java" verification/preview_navigation/NavigationCheck.java
+javac --release 11 -d "$out" verification/stubs/android/graphics/drawable/GradientDrawable.java apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,ReaderTypography,MarkdownRenderer,LatestPreview}.java "$out/MainActivity.java" verification/preview_navigation/NavigationCheck.java
 java -Xmx128m -cp "$out" com.example.markdowndesk.NavigationCheck "${check_args[@]}" "$@"

@@ -1,3 +1,4 @@
+package com.example.markdowndesk;
 import java.util.*;
 final class AppearanceHarness {
     static class AccessibilityNodeInfo {
@@ -8,6 +9,8 @@ final class AppearanceHarness {
     static class View {
         boolean selected;
         String description;
+        boolean enabled;float alpha;
+        void setEnabled(boolean value){enabled=value;}void setAlpha(float value){alpha=value;}
         AccessibilityDelegate delegate;
         boolean isSelected() { return selected; }
         void setSelected(boolean value) { selected=value; }
@@ -40,6 +43,10 @@ final class AppearanceHarness {
     static class AppearanceUi {
         AlertDialog dialog=new AlertDialog();
         TextView title=new TextView(), description=new TextView(), sourceLabel=new TextView(), readLabel=new TextView();
+        TextView typographyHeading=new TextView();
+        final String[] readerFamilyNames={"Serif","Sans serif","Monospace"};
+        final Button[] readerFamilyButtons={new Button(),new Button(),new Button()},readerMinus={new Button(),new Button(),new Button(),new Button()},readerPlus={new Button(),new Button(),new Button(),new Button()};
+        final TextView[] readerLabels={new TextView(),new TextView(),new TextView(),new TextView()};
         Button linesButton=new Button(), typewriterButton=new Button(), splashButton=new Button(), galleryButton=new Button();
         final String[] themeNames={"Paper", "Midnight", "Sepia", "Forest", "Bubblegum", "Amethyst", "Black Rose", "Ocean", "Arcade"};
         final Button[] themeButtons=new Button[9];
@@ -52,6 +59,7 @@ final class AppearanceHarness {
     int themeId, styledDialogs;
     boolean lineNumbers, typewriterMode, launchSplashEnabled;
     float fontSp=18, previewFontSp=18;
+    ReaderTypography readerTypography=ReaderTypography.defaults();
     UiTheme.Palette palette=new UiTheme.Palette();
     int dp(int value) {return value;}
     void styleDialog(AlertDialog dialog) {styledDialogs++;}

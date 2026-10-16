@@ -12,6 +12,9 @@ import static com.example.markdowndesk.PrivateArchive.*;
 public final class ArchiveCheck {
     private static final byte[] MAGIC = "MDESKBACKUP\r\n\032\n".getBytes(StandardCharsets.US_ASCII);
     private static final int PREFIX = MAGIC.length + 4, RECORD = 58, TRAILER = 45;
+    // Explicit legacy surface: new portable-only enum members must never widen v1.
+    private static final Type[] V1_TYPES={Type.SNAPSHOT,Type.PREPARATION,Type.COMPLETION,Type.CHECKPOINT,
+        Type.IDENTITY,Type.SESSION_TAB,Type.RECOVERY,Type.PREFERENCES,Type.INDEX};
     private static int assertions;
     private interface Action { void run() throws Exception; }
     private static void check(boolean value, String detail) {
@@ -54,7 +57,7 @@ public final class ArchiveCheck {
     private static void roundTripAndOwnership() throws Exception {
         byte[] payload = "\ufeffsynthetic\r\n \tΩ🙂\n".getBytes(StandardCharsets.UTF_8);
         List<SourceEntry> entries = new ArrayList<>(); int[] opens = {0}, closes = {0};
-        for (Type type : Type.values()) entries.add(new SourceEntry(id(entries.size() + 1), type, payload.length, () -> {
+        for (Type type : V1_TYPES) entries.add(new SourceEntry(id(entries.size() + 1), type, payload.length, () -> {
             opens[0]++;
             return new ByteArrayInputStream(payload) { public void close() { closes[0]++; } };
         }));
@@ -71,15 +74,15 @@ public final class ArchiveCheck {
                 public synchronized void write(byte[] b, int o, int l) { super.write(b,o,l); received.add(Arrays.copyOfRange(b,o,o+l)); }
             }; return sink;
         });
-        check(written.entryCount == Type.values().length && read.entryCount == written.entryCount, "all typed categories roundtrip");
+        check(written.entryCount == V1_TYPES.length && read.entryCount == written.entryCount, "all typed categories roundtrip");
         check(written.byteCount == bytes.length && read.byteCount == bytes.length, "full archive length");
         check(written.sha256.equals(hex(digest(bytes))) && written.sha256.equals(read.sha256), "independent complete stream hash");
         check(opens[0] == entries.size() * 2 && opens[0] == closes[0], "owned streams close on both passes");
         for (int i = 0; i < delivered.size(); i++) {
-            Entry e = delivered.get(i); check(e.id.equals(id(i+1)) && e.type == Type.values()[i] && e.length == payload.length && e.sha256.equals(hex(digest(payload))), "typed descriptor fidelity");
+            Entry e = delivered.get(i); check(e.id.equals(id(i+1)) && e.type == V1_TYPES[i] && e.length == payload.length && e.sha256.equals(hex(digest(payload))), "typed descriptor fidelity");
         }
         ByteArrayOutputStream combined = new ByteArrayOutputStream(); for (byte[] fragment : received) combined.write(fragment);
-        ByteArrayOutputStream expected = new ByteArrayOutputStream(); for (Type ignored : Type.values()) expected.write(payload);
+        ByteArrayOutputStream expected = new ByteArrayOutputStream(); for (Type ignored : V1_TYPES) expected.write(payload);
         check(Arrays.equals(combined.toByteArray(), expected.toByteArray()), "exact encoding/payload bytes");
     }
     private static void corruptInputs() throws Exception {
@@ -90,6 +93,8 @@ public final class ArchiveCheck {
         byte[] bad = one.clone(); bad[0] ^= 1; rejects(() -> decode(bad), "unknown magic");
         rejects(() -> decode(raw(2, 1, id(1), 0, new byte[0], 1)), "unknown version");
         rejects(() -> decode(raw(1, 255, id(1), 0, new byte[0], 1)), "unknown type");
+        rejects(() -> decode(raw(1, 11, id(1), 0, new byte[0], 1)), "v1 rejects portable evidence type");
+        rejects(() -> encode(entry(id(1),Type.OPERATION_EVIDENCE,new byte[0])), "v1 writer rejects portable evidence");
         byte[] marker = one.clone(); marker[PREFIX] = 2; rejects(() -> decode(marker), "unknown frame marker");
         rejects(() -> decode(raw(1, 1, new UUID(0,0), 0, new byte[0], 1)), "nil/non-generated UUID");
         rejects(() -> decode(raw(1, 1, new UUID(0x123456789abc1000L,0x8000000000000001L),0,new byte[0],1)), "non-v4 UUID");

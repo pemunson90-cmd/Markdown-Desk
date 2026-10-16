@@ -1,0 +1,2 @@
+package android.content;import android.net.Uri;import android.database.Cursor;import android.os.CancellationSignal;import java.util.*;import java.io.*;
+public abstract class ContentResolver {public abstract Cursor query(Uri uri,String[] p,String s,String[] a,String o,CancellationSignal signal);public abstract List<UriPermission> getPersistedUriPermissions();public abstract void takePersistableUriPermission(Uri uri,int flags);public abstract InputStream openInputStream(Uri uri)throws FileNotFoundException;}

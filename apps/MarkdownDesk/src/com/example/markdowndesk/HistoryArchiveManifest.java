@@ -108,7 +108,7 @@ public final class HistoryArchiveManifest {
     /** Pure frozen evidence conversion, not atomic capture. Includes every graph record. */
     static HistoryArchiveManifest freeze(HistoryGraph.Graph graph,HistoryControlStore.Inspection control,
             IdSource ids)throws IOException {
-        if(graph==null||control==null||ids==null||!graph.complete||!graph.usageComplete||graph.pruneBlocked
+        if(graph==null||control==null||ids==null||!graph.complete||!graph.usageComplete||(graph.pruneBlocked&&!graph.historicalCancelledOnly)
                 ||!graph.diagnostics.isEmpty()||graph.effectivePolicy==null
                 ||control.state!=HistoryControlStore.State.VALIDATED||!control.chainComplete||!control.usageComplete
                 ||!control.diagnostics.isEmpty()||!control.stages.isEmpty()||control.hasMaintenance()

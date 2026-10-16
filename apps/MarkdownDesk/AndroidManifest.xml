@@ -47,6 +47,7 @@
                 <data android:mimeType="application/markdown"/>
             </intent-filter>
         </activity>
+        <activity android:name=".DocxPickerActivity" android:exported="false" android:launchMode="standard" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name=".SuiteEditorActivity" android:exported="true" android:resizeableActivity="true" android:windowSoftInputMode="adjustResize" />
         <provider android:name=".SuiteResultProvider" android:authorities="com.example.markdowndesk.suite" android:exported="false" android:grantUriPermissions="true"><grant-uri-permission android:pathPrefix="/session/" /></provider>
     </application>

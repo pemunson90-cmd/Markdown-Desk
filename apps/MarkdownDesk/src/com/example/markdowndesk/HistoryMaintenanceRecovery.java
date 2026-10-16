@@ -65,7 +65,7 @@ final class HistoryMaintenanceRecovery {
         HistoryControlStore.Inspection control=new HistoryControlStore(parent).inspect();
         if(retirement==null){if(HistoryPins.pruneBlocked(store.storageRoot(),control))throw new IOException("Maintenance blocked by operation pins");}
         else{HistoryPins.requireRetained(store.storageRoot(),control);if(!control.pins.valid||control.pins.active!=null||!control.pins.stages.isEmpty())throw new IOException("Terminal state blocked by operation pins");}
-        if(!control.chainComplete||!control.usageComplete||control.registration==null||control.latest==null||!control.stages.isEmpty()
+        if(!control.chainComplete||!control.usageComplete||!control.operations.ready||control.operations.pending||control.actualBytes>HistoryControlStore.MAX_BYTES-control.controlReservedBytes||control.actualEntries>HistoryControlStore.MAX_ENTRIES-control.controlReservedEntries||control.registration==null||control.latest==null||!control.stages.isEmpty()
                 ||control.intentStage!=null||(retirement==null?(control.committedIntent==null||control.committedIntent.intent==null):control.committedIntent!=null))
             throw new IOException("Incomplete maintenance authority");
         for(String diagnostic:control.diagnostics)if(!diagnostic.equals("control: retained maintenance"))throw new IOException("Invalid maintenance control inventory");
@@ -189,6 +189,7 @@ final class HistoryMaintenanceRecovery {
             // Valid removed groups are complete; outstanding reservations belong exclusively to survivors.
             for(ProtectionStore.Transaction transaction:graph.transactions)if(removed.contains("store/"+transaction.id+".transaction")&&!transaction.verified)throw new IOException("Cannot project unresolved reservation");
             out.writeLong(graph.reservedCompletionBytes);out.writeLong(graph.reservedCompletionSlots);
+            if(!graph.operationFingerprint.isEmpty()){text(out,"operation-ledger-binding-v1");text(out,graph.operationFingerprint);}
         }
         return HistoryStorage.hex(digest.digest());
     }

@@ -16,7 +16,7 @@ public final class HistoryPruner {
     public enum Mode { AUTOMATIC_FLOOR, AUTOMATIC_PRESSURE, SELECTED }
     public enum BlockedReason {
         INVALID_REQUEST, MISSING_POLICY, INCOMPLETE_GRAPH, UNKNOWN_EXTERNAL_PIN,
-        AUTOMATIC_DISABLED, UNKNOWN_CHECKPOINT, PARTIAL_CHECKPOINT_SELECTION,
+        AUTOMATIC_DISABLED, NO_WORK, UNKNOWN_CHECKPOINT, PARTIAL_CHECKPOINT_SELECTION,
         NEWEST_ANCHOR, PROTECTED_GROUP, CAPACITY_SHORTFALL, PLAN_LIMIT, ACCOUNTING_OVERFLOW
     }
     /** Complete directed closure of each removed/surviving group, using logical roles and UUIDs. */
@@ -183,6 +183,11 @@ public final class HistoryPruner {
         if(requiredBytes<0||requiredEntries<0)return unavailable(BlockedReason.INVALID_REQUEST,requiredBytes,requiredEntries);
         return plan(Mode.AUTOMATIC_FLOOR,requiredBytes,requiredEntries,Collections.emptySet());
     }
+    /** One oldest eligible unnamed group above each history's configured floor.
+     * Pure preview only: durable opt-in and mutation authority belong to the executor. */
+    public Result planAutomaticFloorBatch()throws IOException {
+        return plan(Mode.AUTOMATIC_FLOOR,0,0,Collections.emptySet(),true);
+    }
     /** Explicit quota-pressure preview: count is a desired target, while newest indexed pairs
      * remain fixed anchors. The caller supplies actual capacity demand; this pure plan does not
      * perform admission, acquire live pins, or authorize deletion. Count zero disables this mode. */
@@ -196,6 +201,9 @@ public final class HistoryPruner {
         return plan(Mode.SELECTED,0,0,selection);
     }
     private Result plan(Mode mode,long requiredBytes,long requiredEntries,Set<String> selection)throws IOException {
+        return plan(mode,requiredBytes,requiredEntries,selection,false);
+    }
+    private Result plan(Mode mode,long requiredBytes,long requiredEntries,Set<String> selection,boolean floorBatch)throws IOException {
         boolean automatic=mode!=Mode.SELECTED;
         HistoryGraph.Graph fresh;
         try{fresh=graph.scan();}catch(IOException invalid){return unavailable(BlockedReason.INCOMPLETE_GRAPH,requiredBytes,requiredEntries);}
@@ -234,9 +242,10 @@ public final class HistoryPruner {
             }
             eligible.sort(ORDER);Capacity available=new Capacity();for(Candidate c:eligible)available.add(c.capacity);
             if(available.bytes<requiredBytes||available.entries<requiredEntries)return result(null,BlockedReason.CAPACITY_SHORTFALL,requiredBytes,requiredEntries,available,fresh);
+            if(floorBatch&&eligible.isEmpty())return result(null,BlockedReason.NO_WORK,0,0,available,fresh);
             List<Candidate> chosen=new ArrayList<>();Capacity capacity=new Capacity();
             for(Candidate c:eligible){
-                if(automatic&&capacity.bytes>=requiredBytes&&capacity.entries>=requiredEntries)break;
+                if(floorBatch?!chosen.isEmpty():automatic&&capacity.bytes>=requiredBytes&&capacity.entries>=requiredEntries)break;
                 capacity.add(c.capacity);chosen.add(c);
                 if(capacity.entries>MAX_MEMBERS)return result(null,BlockedReason.PLAN_LIMIT,requiredBytes,requiredEntries,available,fresh);
             }
@@ -266,7 +275,7 @@ public final class HistoryPruner {
     private static Result unavailable(BlockedReason reason,long bytes,long entries){return new Result(null,reason,bytes,entries,new Capacity(),0,0);}
     private static Result result(DeletePlan plan,BlockedReason reason,long bytes,long entries,Capacity eligible,HistoryGraph.Graph graph){
         long protectedBytes=Math.subtractExact(graph.chargedBytes,eligible.bytes);
-        long protectedEntries=Math.subtractExact(Math.addExact(graph.records.size(),graph.reservedCompletionSlots),eligible.entries);
+        long protectedEntries=Math.subtractExact(Math.addExact(Math.addExact(graph.records.size(),graph.reservedCompletionSlots),Math.addExact(graph.operationOccupiedEntries,graph.operationReservedEntries)),eligible.entries);
         if(protectedBytes<0||protectedEntries<0)throw new ArithmeticException("Invalid capacity closure");
         return new Result(plan,reason,bytes,entries,eligible,protectedBytes,protectedEntries);
     }

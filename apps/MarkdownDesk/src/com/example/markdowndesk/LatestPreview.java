@@ -12,9 +12,16 @@ final class LatestPreview implements AutoCloseable {
         final UiTheme.Palette palette;
         final float fontSp;
         final int mode;
+        final ReaderTypography typography;
 
         Request(String documentId, long revision, String source, UiTheme.Palette palette,
                 float fontSp, int mode) {
+            this(documentId, revision, source, palette, fontSp, mode, ReaderTypography.defaults());
+        }
+
+        Request(String documentId, long revision, String source, UiTheme.Palette palette,
+                float fontSp, int mode, ReaderTypography typography) {
+            this.typography=typography==null?ReaderTypography.defaults():typography;
             this.documentId = documentId;
             this.revision = revision;
             this.source = source;
@@ -80,7 +87,7 @@ final class LatestPreview implements AutoCloseable {
             }
         }
         try {
-            html = MarkdownRenderer.render(request.source, request.palette, request.fontSp);
+            html = MarkdownRenderer.render(request.source, request.palette, request.fontSp, request.typography);
         } catch (RuntimeException failed) {
             // A malformed input must not permanently block the latest pending render.
         }

@@ -1,0 +1,1 @@
+package android.view;public class View {public boolean enabled=true;public String description;public interface OnClickListener{void onClick(View view);}public void setEnabled(boolean value){enabled=value;}}

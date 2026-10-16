@@ -130,6 +130,88 @@ public final class ProtectionStore {
             inspectSources(sources,false);sources.require(this);return sources.inventory;
         }
     }
+    /** Prepaid sequential reader allowance; retained visitor rows require separate funding. */
+    static final long PIN_NATIVE_WORKSPACE_BYTES=512L<<10;
+    interface PinNativeVisitor {
+        /** Synchronous borrowed metadata only; no durability/provider callbacks or write authority. */
+        void member(StoredRecord record,BasicFileAttributes identity)throws IOException;
+    }
+    static final class PinNativeWorkspace {
+        private final ProtectionStore owner;private final HistoryStorage.Budget budget;
+        private final byte[] scratch;private boolean active;
+        private PinNativeWorkspace(ProtectionStore owner,HistoryStorage.Budget budget){this.owner=owner;this.budget=budget;scratch=new byte[8192];}
+        static PinNativeWorkspace reserve(ProtectionStore owner,HistoryStorage.Budget budget)throws IOException {
+            if(owner==null||budget==null||owner.root.getPath().length()>4096)throw new IOException("Invalid native reader funding/path");
+            budget.charge(PIN_NATIVE_WORKSPACE_BYTES);return new PinNativeWorkspace(owner,budget);
+        }
+    }
+    static final class PinNativeTotals {
+        final long actualBytes,reservedCompletionBytes,reservedCompletionSlots;final int occupiedEntries;
+        private PinNativeTotals(long actual,long bytes,long slots,int entries){actualBytes=actual;reservedCompletionBytes=bytes;reservedCompletionSlots=slots;occupiedEntries=entries;}
+    }
+    private boolean pinNativeValidationActive; // guarded by the primary history monitor
+    /**
+     * Same native acceptance predicate as pinInventory's terminal consumer, without
+     * inventory/source maps. Re-read references directly; no payload capture, writes,
+     * callbacks or fresh budgets. Fixed funding covers bounded sequential temporaries,
+     * not cumulative allocation volume. Maximum individual reader buffer is 32 KiB.
+     */
+    PinNativeTotals validatePinNativeLocked(PinNativeWorkspace workspace,PinNativeVisitor visitor)throws IOException {
+        HistoryStorage.requireMutation(root);
+        if(!Thread.holdsLock(lock)||workspace==null||workspace.owner!=this||visitor==null)throw new IOException("Foreign/unlocked native reader");
+        if(pinNativeValidationActive)throw new IOException("Native store validation already active");
+        synchronized(workspace){if(workspace.active)throw new IOException("Native reader already active");workspace.active=true;}
+        pinNativeValidationActive=true;
+        try {
+            checkAncestors(root.toPath());if(!Files.isDirectory(root.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Missing protection directory");
+            BasicFileAttributes rootBefore=attributes(root);long generation=HistoryStorage.generation(root);
+            if(rootBefore.fileKey()==null)throw new IOException("Missing native directory key");
+            long actualBytes=0,reservedBytes=0,reservedSlots=0;int occupiedEntries=0;
+            try(java.nio.file.DirectoryStream<Path> paths=Files.newDirectoryStream(root.toPath())) {
+                for(Path path:paths) {
+                    if(occupiedEntries>=MAX_ENTRIES)throw new IOException("Protection entry limit");
+                    String name=path.getFileName().toString();
+                    if(name.length()>64)throw new IOException("Unknown native member");
+                    int dot=name.lastIndexOf('.');if(dot!=36)throw new IOException("Unknown native member");
+                    String id=name.substring(0,dot),kind=name.substring(dot+1);
+                    try{validateId(id);}catch(IllegalArgumentException invalid){throw new IOException("Unknown native member",invalid);}
+                    if(!Arrays.asList("snapshot","transaction","complete","completion-stage","stage").contains(kind))throw new IOException("Unknown native member");
+                    BasicFileAttributes before=attributes(path.toFile());long size=before.size();
+                    long limit=(kind.equals("transaction")||kind.equals("complete")||kind.equals("completion-stage"))?32768:MAX_ENVELOPE_BYTES;
+                    if(!before.isRegularFile()||before.fileKey()==null||size<0||size>limit)throw new IOException("Invalid native member");
+                    String hash=pinNativeHash(path,before,workspace.scratch);
+                    if(kind.equals("snapshot"))readSnapshot(id);
+                    else if(kind.equals("transaction")) {
+                        CompletionProof proof=pinNativeTransaction(id);
+                        reservedBytes=Math.addExact(reservedBytes,proof.bytes);
+                        reservedSlots=Math.addExact(reservedSlots,proof.entries);
+                    } else if(kind.equals("complete")||kind.equals("completion-stage"))pinNativeTransaction(id);
+                    requireUnchanged(path.toFile(),before);
+                    actualBytes=Math.addExact(actualBytes,size);occupiedEntries++;
+                    visitor.member(new StoredRecord("store",name,id,kind,size,hash),before);
+                    if(HistoryStorage.generation(root)!=generation)throw new IOException("Native visitor changed history generation");
+                    requireUnchanged(path.toFile(),before);
+                }
+            }catch(java.nio.file.DirectoryIteratorException|ArithmeticException failure){throw new IOException("Native accounting unavailable",failure);}
+            BasicFileAttributes rootAfter=attributes(root);
+            if(!rootAfter.isDirectory()||!Objects.equals(rootBefore.fileKey(),rootAfter.fileKey())||HistoryStorage.generation(root)!=generation)throw new IOException("Native directory/generation changed");
+            return new PinNativeTotals(actualBytes,reservedBytes,reservedSlots,occupiedEntries);
+        } finally {pinNativeValidationActive=false;synchronized(workspace){workspace.active=false;}}
+    }
+    private CompletionProof pinNativeTransaction(String id)throws IOException {
+        Transaction prepared=readTransaction(id,false);
+        boolean completed=Files.exists(file(id,".complete").toPath(),LinkOption.NOFOLLOW_LINKS);
+        if(completed&&!sameTransaction(prepared,readTransaction(id,true)))throw new IOException("Completion mismatch");
+        return completionProof(prepared,completed,transactionEnvelope(prepared,COMPLETE));
+    }
+    private String pinNativeHash(Path path,BasicFileAttributes before,byte[] scratch)throws IOException {
+        MessageDigest digest=shaDigest();long total=0;
+        try(SeekableByteChannel channel=Files.newByteChannel(path,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)) {
+            ByteBuffer buffer=ByteBuffer.wrap(scratch);
+            while(true){buffer.clear();int n=channel.read(buffer);if(n<0)break;if(n==0)throw new IOException("Native read stalled");total=Math.addExact(total,n);if(total>before.size())throw new IOException("Native member grew");digest.update(scratch,0,n);}
+        }
+        requireUnchanged(path.toFile(),before);if(total!=before.size())throw new IOException("Native member truncated");return hex(digest.digest());
+    }
     <T> T withValidatedSources(SourceOperation<T> operation)throws IOException {
         return withValidatedSources(new HistoryStorage.Budget(HistoryStorage.METADATA_BUDGET),operation);
     }
@@ -238,6 +320,7 @@ public final class ProtectionStore {
     public void complete(Transaction transaction) throws IOException {
         synchronized (lock) {try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(root,1)){
             if (transaction==null) throw new IOException("Missing transaction");
+            PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
             File stage=file(transaction.id,".completion-stage");
             if(!ACTIVE_COMPLETIONS.add(stage))throw new IOException("Recursive completion of the same stage");
             try {
@@ -249,18 +332,20 @@ public final class ProtectionStore {
                 byte[] envelope=transactionEnvelope(stored,COMPLETE);
                 CompletionProof proof=completionProof(stored,completed,envelope);
                 // Registered completion converts a freshly validated existing reservation at zero charged growth. Legacy constructor quotas remain unchanged.
-                if(completed){durability.syncDirectory(root);return;}
+                if(completed){durability.syncDirectory(root);HistoryStorage.verifyOperationWrite(root,operationBefore);return;}
                 if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admitCompletion(new CompletionConversion(this,stored.id,envelope.length,proof.stagedBytes));
                 else checkCapacity(0,0,0);
                 if(proof.stagedBytes>=0&&proof.stagedBytes!=envelope.length)
                     throw new IOException("Partial completion stage retained; retry blocked");
                 commitCompletion(stage,destination,envelope,proof.stagedBytes>=0);
                 readCompletion(stored);
+                HistoryStorage.verifyOperationWrite(root,operationBefore);
             }finally{ACTIVE_COMPLETIONS.remove(stage);}
         }}
     }
 
     private void commitCompletion(File stage,File destination,byte[] envelope,boolean reuse)throws IOException {
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable destination exists");
         HistoryStorage.changed(root);
         if(reuse){
@@ -283,10 +368,12 @@ public final class ProtectionStore {
         }
         // Revalidate through a nofollow channel immediately before moving the retained bytes.
         if(readCompletionStage(stage,envelope)!=envelope.length)throw new IOException("Partial completion stage retained");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination)))throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
 
     public Transaction validate(Transaction transaction) throws IOException {
@@ -359,6 +446,7 @@ public final class ProtectionStore {
 
     private void commit(String name, byte[] envelope) throws IOException {
         HistoryStorage.requireMutation(root);entries();
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         File stage=file(UUID.randomUUID().toString(),".stage");
         File destination=new File(root,name);
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Immutable destination exists");
@@ -370,10 +458,12 @@ public final class ProtectionStore {
             stream.flush();
             durability.syncFile(stream.getFD());
         }
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         if(!Arrays.equals(envelope,readEnvelopeBytes(destination))) throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
 
     public void setQuotaBytes(long quotaBytes)throws IOException {
@@ -524,6 +614,7 @@ public final class ProtectionStore {
 
     private void commitSnapshot(Snapshot snapshot,byte[] prefix,byte[] payload) throws IOException {
         HistoryStorage.requireMutation(root);entries();
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         MessageDigest checksum=shaDigest();checksum.update(prefix);checksum.update(payload);
         byte[] expectedChecksum=checksum.digest();
         File stage=file(UUID.randomUUID().toString(),".stage"),destination=file(snapshot.id,".snapshot");
@@ -533,12 +624,14 @@ public final class ProtectionStore {
         try(FileOutputStream out=new FileOutputStream(stage)) {
             out.write(prefix);out.write(payload);out.write(expectedChecksum);out.flush();durability.syncFile(out.getFD());
         }
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
         durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS)) throw new IOException("Atomic move did not consume stage");
         durability.syncDirectory(root);
         SnapshotData committed=readSnapshotData(snapshot.id,false);
         if(!sameSnapshot(snapshot,committed.snapshot) || !MessageDigest.isEqual(expectedChecksum,committed.checksum))
             throw new IOException("Committed envelope validation failed");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
     private byte[] transactionEnvelope(Transaction t,byte type) throws IOException {
         ByteArrayOutputStream body=new ByteArrayOutputStream();
@@ -559,11 +652,12 @@ public final class ProtectionStore {
         if(serialized.size()>MAX_ENVELOPE_BYTES) throw new IOException("Envelope byte limit exceeded");
         return serialized.toByteArray();
     }
-    private byte[] readEnvelopeBytes(File file) throws IOException {
+    private byte[] readEnvelopeBytes(File file) throws IOException {return readEnvelopeBytes(file,MAX_ENVELOPE_BYTES);}
+    private byte[] readEnvelopeBytes(File file,long maximum) throws IOException {
         checkAncestors(root.toPath());
         BasicFileAttributes before=attributes(file);
         long size=before.size();
-        if(!before.isRegularFile() || size<45 || size>MAX_ENVELOPE_BYTES) throw new IOException("Invalid envelope size");
+        if(!before.isRegularFile() || size<45 || size>maximum) throw new IOException("Invalid envelope size");
         ByteBuffer buffer=ByteBuffer.allocate((int)size);
         try(SeekableByteChannel channel=Files.newByteChannel(file.toPath(),StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)) {
             while(buffer.hasRemaining()) if(channel.read(buffer)<0) throw new IOException("Truncated envelope");
@@ -574,7 +668,7 @@ public final class ProtectionStore {
     }
     private DataInputStream readBody(File file,byte type) throws IOException {
         if(attributes(file).size()>32768) throw new IOException("Transaction envelope byte limit exceeded");
-        byte[] raw=readEnvelopeBytes(file);
+        byte[] raw=readEnvelopeBytes(file,32768);
         byte[] expected=Arrays.copyOfRange(raw,raw.length-32,raw.length);
         if(!MessageDigest.isEqual(expected,sha(Arrays.copyOf(raw,raw.length-32)))) throw new IOException("Envelope integrity mismatch");
         DataInputStream in=new DataInputStream(new ByteArrayInputStream(raw));

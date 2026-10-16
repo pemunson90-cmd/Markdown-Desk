@@ -4,6 +4,9 @@ import java.io.*;import java.nio.*;import java.nio.charset.*;import java.util.*;
 class DocumentPrint {static void cancel(Object activity){}}
 class HostActivity {protected void onPause(){}protected void onDestroy(){}}
 public final class MainActivity extends HostActivity {
+ void searchRestoreChanged() {}
+ void beginSearchRestoreText() {}
+ void endSearchRestoreText() {}
  static final int MODE_EDIT=0,MODE_PREVIEW=1;
  static final class Build {static final class VERSION {static int SDK_INT=28;}}
  static final class Typeface {static final Object MONOSPACE=new Object();}
@@ -38,4 +41,8 @@ public final class MainActivity extends HostActivity {
  void restore(String id,String history){restoreHistoryVersion(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,id);}
  void page(List<HistoryIndex.Version> v,String history){showHistoryPage(historyRequest,tabs.get(activeTab).id,tabs.get(activeTab).uri,history,v,0,null);}
  /* METHODS */
+    void invalidateProtectedSaves() {}
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
+    void cancelWorkspaceNavigation() {}
 }

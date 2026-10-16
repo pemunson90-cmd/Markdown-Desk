@@ -85,6 +85,7 @@ public final class HistoryIndex {
     public void recordVerified(String historyId,String transactionId)throws IOException {
         HistoryMetadataIO.id(historyId);HistoryMetadataIO.id(transactionId);
         synchronized(io.lock){try(HistoryStorage.MutationScope scope=HistoryStorage.mutation(io.root,4)){
+            PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(io.root);
             HistoryStorage.requireRole(store.storageRoot(),1);HistoryStorage.requireRole(catalog.storageRoot(),2);HistoryStorage.requireRole(identity.storageRoot(),3);
             Sources sources=sources();List<Ownership> records=readAll(sources);
             ProtectionStore.Transaction transaction=sources.groups.get(transactionId);
@@ -95,7 +96,7 @@ public final class HistoryIndex {
             for(Ownership record:records){
                 if(record.transactionId.equals(transactionId)){
                     if(!record.historyId.equals(historyId))throw new IOException("Transaction already owned by different history");
-                    return;
+                    HistoryStorage.verifyOperationWrite(io.root,operationBefore);return;
                 }max=Math.max(max,record.sequence);
             }
             if(max==Long.MAX_VALUE)throw new IOException("History sequence exhausted");
@@ -103,7 +104,7 @@ public final class HistoryIndex {
             byte[] bytes=io.encode(out->{HistoryMetadataIO.string(out,record.id);HistoryMetadataIO.string(out,record.historyId);
                 HistoryMetadataIO.string(out,record.transactionId);out.writeLong(record.sequence);record.original.write(out);record.attempted.write(out);});
             // Fresh source/identity/catalog validation immediately before optional publication.
-            io.commit(record.id,bytes,()->validate(record,sources()));readAll(sources());
+            io.commit(record.id,bytes,()->validate(record,sources()));readAll(sources());HistoryStorage.verifyOperationWrite(io.root,operationBefore);
         }}
     }
     /** Complete validated graph before filtering. Indexed order is persisted sequence; timestamps display only. */

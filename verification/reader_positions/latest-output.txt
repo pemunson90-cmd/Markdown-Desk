@@ -1,0 +1,2 @@
+Reader positions: 160 checks PASS
+Root: actual helper SDK37 --release11 compilation PASS; no APK

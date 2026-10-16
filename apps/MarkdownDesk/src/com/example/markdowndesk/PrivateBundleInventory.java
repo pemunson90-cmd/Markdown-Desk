@@ -22,26 +22,40 @@ public final class PrivateBundleInventory implements AutoCloseable {
     /** Shared by all simultaneously live codec, typed-validation and remapping metadata. */
     public static final class MetadataBudget {
         private final long limit;
+        private final Charge parent;
         private long used;
+        /** Debits the original lifetime owner; closing never refunds this parent. */
+        public interface Charge { void charge(long bytes) throws IOException; }
         public MetadataBudget() { this(MAX_METADATA_BYTES); }
-        public MetadataBudget(long limit) {
+        public MetadataBudget(long limit) { this(limit, null); }
+        public MetadataBudget(long limit, Charge parent) {
             if (limit < 0 || limit > MAX_METADATA_BYTES) throw new IllegalArgumentException("Metadata limit");
-            this.limit = limit;
+            this.limit = limit; this.parent = parent;
         }
         public synchronized long usedBytes() { return used; }
         public synchronized Reservation reserve(long bytes) throws IOException {
             if (bytes < 0 || bytes > limit - used) throw new IOException("Combined metadata limit exceeded");
             // Allocate the token before committing credit: allocation failure strands no charge.
             Reservation reservation = new Reservation(this, bytes);
-            used += bytes;
+            charge(bytes);
             return reservation;
+        }
+        private synchronized void charge(long bytes) throws IOException {
+            if (bytes < 0 || bytes > limit-used) throw new IOException("Combined metadata limit exceeded");
+            if (parent != null) parent.charge(bytes);
+            used += bytes;
         }
         private synchronized void release(long bytes) { used -= bytes; }
     }
     public static final class Reservation implements AutoCloseable {
         private MetadataBudget budget;
-        private final long bytes;
+        private long bytes;
         private Reservation(MetadataBudget budget, long bytes) { this.budget=budget; this.bytes=bytes; }
+        /** Grow one retained owner, without allocating a token per streamed row. */
+        public synchronized void grow(long amount) throws IOException {
+            if (budget == null) throw new IOException("Metadata reservation closed");
+            budget.charge(amount); bytes += amount;
+        }
         public synchronized void close() { if (budget != null) { budget.release(bytes); budget=null; } }
     }
     private static final class Account implements AutoCloseable {
@@ -51,7 +65,7 @@ public final class PrivateBundleInventory implements AutoCloseable {
         void add(long n) throws IOException {
             synchronized (budget) {
                 if (n < 0 || n > budget.limit-budget.used) throw new IOException("Combined metadata limit exceeded");
-                budget.used += n; bytes += n;
+                budget.charge(n); bytes += n;
             }
         }
         public void close() { budget.release(bytes); bytes=0; }
@@ -109,6 +123,7 @@ public final class PrivateBundleInventory implements AutoCloseable {
             this.coordinates=view(coordinates);
         }
     }
+    public final int schema;
     public final UUID preparationId, rootScopeId;
     public final long serializedLength, payloadBytes, archiveBytes;
     public final String sha256;
@@ -117,9 +132,9 @@ public final class PrivateBundleInventory implements AutoCloseable {
     private DirectoryEntry[] entries;
     private Origin[] origins;
     private Lineage[] lineages;
-    private PrivateBundleInventory(UUID prep,UUID root,long length,long payload,long archive,String hash,
+    private PrivateBundleInventory(int schema,UUID prep,UUID root,long length,long payload,long archive,String hash,
             Account account,Scope[] scopes,DirectoryEntry[] entries,Origin[] origins,Lineage[] lineages) {
-        preparationId=prep; rootScopeId=root; serializedLength=length; payloadBytes=payload; archiveBytes=archive;
+        this.schema=schema; preparationId=prep; rootScopeId=root; serializedLength=length; payloadBytes=payload; archiveBytes=archive;
         sha256=hash; this.account=account; this.scopes=scopes; this.entries=entries; this.origins=origins; this.lineages=lineages;
     }
     private static <T> List<T> view(T[] array) { return Collections.unmodifiableList(Arrays.asList(array)); }
@@ -132,13 +147,22 @@ public final class PrivateBundleInventory implements AutoCloseable {
 
     /** Streams and validates all inventory metadata before returning; does not close input. */
     public static PrivateBundleInventory read(InputStream input,MetadataBudget budget) throws IOException {
+        return readSchema(input,budget,1);
+    }
+
+    /** Explicit portable schema2; evidence remains inert and requires separate capsule validation. */
+    public static PrivateBundleInventory readSchema2(InputStream input,MetadataBudget budget) throws IOException {
+        return readSchema(input,budget,2);
+    }
+
+    private static PrivateBundleInventory readSchema(InputStream input,MetadataBudget budget,int schema) throws IOException {
         if (input==null || budget==null) throw new IOException("Missing inventory input/budget");
         Account account=new Account(budget);
         try {
             account.add(4096);
             Wire w=new Wire(input); DataInputStream in=new DataInputStream(w);
             byte[] magic=new byte[8]; in.readFully(magic);
-            require(Arrays.equals(magic,MAGIC)&&in.readInt()==1,"Unknown inventory format");
+            require(Arrays.equals(magic,MAGIC)&&in.readInt()==schema,"Unknown inventory format");
             int length=count(in,(int)MAX_METADATA_BYTES); require(length>=144,"Inventory length");
             w.limit=length-32;
             UUID prep=generated(in),root=generated(in);
@@ -171,9 +195,9 @@ public final class PrivateBundleInventory implements AutoCloseable {
             previous=null; long sum=0;
             for(int i=0;i<e;i++) {
                 UUID id=generated(in); ordered(previous,id); previous=id; UUID scope=generated(in);
-                int type=in.readUnsignedByte(); require(type>=1&&type<=9,"Directory type");
+                int type=in.readUnsignedByte(); require(validType(type,schema),"Directory type");
                 long n=positive(in.readLong()); require(n<=cap(type),"Directory payload cap"); sum+=n;
-                String hash=hash(in); UUID identity=privateType(type)?generated(in):uuid(in);
+                String hash=hash(in); UUID identity=generatedIdentity(type)?generated(in):uuid(in);
                 entries[i]=new DirectoryEntry(id,scope,type,n,hash,identity,refs(in,g,account,true));
             }
             previous=null;
@@ -185,7 +209,7 @@ public final class PrivateBundleInventory implements AutoCloseable {
             for(int i=0;i<g;i++) {
                 UUID id=generated(in); ordered(previous,id); previous=id;
                 UUID entry=generated(in),origin=generated(in); int type=in.readUnsignedByte();
-                require(type>=1&&type<=9,"Lineage type"); UUID identity=privateType(type)?generated(in):uuid(in);
+                require(validType(type,schema),"Lineage type"); UUID identity=generatedIdentity(type)?generated(in):uuid(in);
                 int n=count(in,2); Coordinate[] coords=new Coordinate[n]; int last=0;
                 for(int j=0;j<n;j++) {
                     int tag=in.readUnsignedByte(); require(tag>last,"Coordinate order"); last=tag;
@@ -200,7 +224,7 @@ public final class PrivateBundleInventory implements AutoCloseable {
             byte[] checksum=new byte[32]; in.readFully(checksum);
             require(MessageDigest.isEqual(expected,checksum),"Inventory checksum");
             require(input.read()==-1,"Trailing inventory bytes");
-            PrivateBundleInventory result=new PrivateBundleInventory(prep,root,length,payload,archive,hex(w.full.digest()),account,scopes,entries,origins,edges);
+            PrivateBundleInventory result=new PrivateBundleInventory(schema,prep,root,length,payload,archive,hex(w.full.digest()),account,scopes,entries,origins,edges);
             result.validate(); return result;
         } catch(IOException|RuntimeException|Error failure) { account.close(); throw failure; }
     }
@@ -293,7 +317,7 @@ public final class PrivateBundleInventory implements AutoCloseable {
             public void write(int b)throws IOException {output.write(b);hash.update((byte)b);}
             public void write(byte[] b,int off,int n)throws IOException {output.write(b,off,n);hash.update(b,off,n);}
         });
-        out.write(MAGIC);out.writeInt(1);out.writeInt((int)serializedLength);put(out,preparationId);put(out,rootScopeId);
+        out.write(MAGIC);out.writeInt(schema);out.writeInt((int)serializedLength);put(out,preparationId);put(out,rootScopeId);
         out.writeInt(scopes.length);out.writeInt(entries.length);out.writeInt(origins.length);out.writeInt(lineages.length);out.writeLong(payloadBytes);out.writeLong(archiveBytes);
         for(Scope s:scopes) {
             put(out,s.id);out.writeByte(s.kind);out.writeByte(s.flags);putRefs(out,s.origins);out.writeInt(s.entryCount);
@@ -344,7 +368,9 @@ public final class PrivateBundleInventory implements AutoCloseable {
     static int compare(UUID a,UUID b) {int c=Long.compareUnsigned(a.getMostSignificantBits(),b.getMostSignificantBits());return c!=0?c:Long.compareUnsigned(a.getLeastSignificantBits(),b.getLeastSignificantBits());}
     private static void ordered(UUID a,UUID b)throws IOException {require(a==null||compare(a,b)<0,"Noncanonical UUID order");}
     private static boolean privateType(int type){return type>=6&&type<=8;}
-    private static long cap(int type){return type==1||type==6||type==7?PrivateArchive.MAX_DOCUMENT_ENTRY_BYTES:PrivateArchive.MAX_METADATA_ENTRY_BYTES;}
+    private static boolean validType(int type,int schema){return type>=1&&type<=9||schema==2&&type==11;}
+    private static boolean generatedIdentity(int type){return privateType(type)||type==11;}
+    private static long cap(int type){return type==11?PrivateArchive.MAX_ARCHIVE_BYTES:type==1||type==6||type==7?PrivateArchive.MAX_DOCUMENT_ENTRY_BYTES:PrivateArchive.MAX_METADATA_ENTRY_BYTES;}
     private static String hash(DataInputStream in)throws IOException {byte[] b=new byte[32];in.readFully(b);return hex(b);}
     private static void require(boolean condition,String message)throws IOException {if(!condition)throw new IOException(message);}
     private static MessageDigest digest(){try{return MessageDigest.getInstance("SHA-256");}catch(NoSuchAlgorithmException ex){throw new AssertionError(ex);}}
