@@ -45,13 +45,13 @@ final class ReaderPositionStore {
             replace(rows,new DocumentState(exactUri,old==null?null:old.location,bookmarks,nextTouch(rows)));write(rows);return added;}
     }
     void removeBookmark(String exactUri,String id)throws IOException {
-        synchronized(LOCK){uri(exactUri);uuid(id);List<DocumentState> rows=load();DocumentState old=find(rows,exactUri);if(old==null)return;
+        synchronized(LOCK){uri(exactUri);uuid(id);List<DocumentState> rows=load();DocumentState old=find(rows,exactUri);if(old==null){write(rows);return;}
             List<Bookmark> bookmarks=new ArrayList<>();for(Bookmark bookmark:old.bookmarks)if(!bookmark.id.equals(id))bookmarks.add(bookmark);
-            if(bookmarks.size()==old.bookmarks.size())return;
+            if(bookmarks.size()==old.bookmarks.size()){write(rows);return;}
             long touch=nextTouch(rows);rows.remove(old);if(old.location!=null||!bookmarks.isEmpty())rows.add(new DocumentState(exactUri,old.location,bookmarks,touch));write(rows);}
     }
     void forget(String exactUri)throws IOException {
-        synchronized(LOCK){uri(exactUri);List<DocumentState> rows=load();DocumentState old=find(rows,exactUri);if(old!=null){rows.remove(old);write(rows);}}
+        synchronized(LOCK){uri(exactUri);List<DocumentState> rows=load();DocumentState old=find(rows,exactUri);if(old!=null)rows.remove(old);write(rows);}
     }
     private static DocumentState find(List<DocumentState> rows,String uri){for(DocumentState row:rows)if(row.uri.equals(uri))return row;return null;}
     private static long nextTouch(List<DocumentState> rows)throws IOException {long max=0;for(DocumentState row:rows)max=Math.max(max,row.touched);if(max==Long.MAX_VALUE)throw limit();return max+1;}

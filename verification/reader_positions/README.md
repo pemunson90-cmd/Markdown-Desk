@@ -7,7 +7,7 @@ No annotation, highlight, precise within-block DOM map or portable migration cla
 
 Run `PATH=/workspace/.command-library-env/jdk-17.0.16+8/bin:$PATH bash verification/reader_positions/run.sh`.
 Actual new production helpers compile with --release11, pinned Android JSON host jar
-and existing Context/SharedPreferences/Uri doubles; -Xmx64m. Latest result:151 checks
+and existing Context/SharedPreferences/Uri doubles; -Xmx64m. Latest result:160 checks
 PASS. Initial absent-source runner was RED before implementation. The later forged
 exact-hash/context/surrogate-end regression was RED before adding bounded exact
 context verification. No broad suite, APK, device, hosted or aggregate run.
@@ -135,3 +135,11 @@ preferences preserved and zero commits; adjacent valid ASCII escapes roundtrip.
 ReaderAnchor and its approved terminal-cancellation fix are unchanged. Final151
 focused checks and actual SDK37 helper compilation PASS; no broader tests, feature
 expansion, source format changes or commits. Root independent tiny-fix review pending.
+
+Removal retry correction: a commit(false) may remove a bookmark from process memory
+while disk still retains it. Explicit remove/forget retries now checked-commit even
+when the item is absent in memory, so later success cannot conceal resurrection on
+reopen. Three disk-versus-memory boundary cases observed RED before the narrow fix;
+final160 focused checks and actual SDK37 helper compile PASS in root runs. Independent
+scoped review approved. There is no automatic retry or rollback, and read stays
+nonmutating.

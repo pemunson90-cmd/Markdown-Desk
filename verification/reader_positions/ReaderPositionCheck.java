@@ -118,5 +118,23 @@ public class ReaderPositionCheck {
   for(Field field:ReaderPositionStore.DocumentState.class.getDeclaredFields())yes(Modifier.isFinal(field.getModifiers()),"state immutable");
   for(Field field:ReaderPositionStore.Bookmark.class.getDeclaredFields())yes(Modifier.isFinal(field.getModifiers()),"bookmark immutable");
  }
- public static void main(String[]args)throws Exception{anchors();moreAnchors();terminalCancellation();stores();moreStoreEdges();asciiEscapeRegression();System.out.println("Reader positions: "+checks+" checks PASS");}
+ static final class DiskPrefs implements SharedPreferences {
+  String memory,disk;boolean fail;int commits;
+  public String getString(String key,String fallback){return memory==null?fallback:memory;}
+  public Editor edit(){return new Editor(){String next;public Editor putString(String key,String value){next=value;return this;}public boolean commit(){commits++;memory=next;if(fail)return false;disk=next;return true;}};}
+  void reopen(){memory=disk;}
+ }
+ static void removalRetryDurability()throws Exception {
+  for(String mode:new String[]{"bookmark-with-location","bookmark-only","forget"}){
+   DiskPrefs prefs=new DiskPrefs();ReaderPositionStore saved=new ReaderPositionStore(new Context(prefs));String key=uri(987);
+   ReaderAnchor.Anchor place=anchor("keep private text",0);
+   if(mode.equals("bookmark-with-location"))saved.saveLocation(key,place);
+   ReaderPositionStore.Bookmark bookmark=saved.addBookmark(key,"kept until removal commits",place);
+   Work remove=()->{if(mode.equals("forget"))saved.forget(key);else saved.removeBookmark(key,bookmark.id);};
+   prefs.fail=true;no(remove);yes(prefs.memory!=null&&!prefs.memory.equals(prefs.disk),"failed removal changes memory but not disk");
+   prefs.fail=false;remove.run();prefs.reopen();ReaderPositionStore.DocumentState reopened=new ReaderPositionStore(new Context(prefs)).read(key);
+   yes(mode.equals("bookmark-with-location")?reopened!=null&&reopened.location!=null&&reopened.bookmarks.isEmpty():reopened==null,"successful removal retry remains removed on reopen: "+mode);
+  }
+ }
+ public static void main(String[]args)throws Exception{anchors();moreAnchors();terminalCancellation();stores();moreStoreEdges();asciiEscapeRegression();removalRetryDurability();System.out.println("Reader positions: "+checks+" checks PASS");}
 }

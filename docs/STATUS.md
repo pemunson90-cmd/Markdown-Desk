@@ -161,9 +161,10 @@ variant; no device downgrade/upgrade acceptance is claimed. Full retention remai
 open and needs reviewed execution/recovery/scheduling plus explicit user controls.
 
 Saved reading-place/bookmark helpers are implemented and independently approved,
-including terminal cancellation and strict ASCII JSON escape corrections: final151
-focused checks PASS in worker and root runs, actual SDK37 helper compile PASS in
-worker. Anchors use streaming strict UTF-8 hashes and unique bounded context matching;
+including terminal cancellation, strict ASCII JSON escapes and failed-removal retry
+corrections: final160 focused checks and actual SDK37 helper compile PASS in root
+runs. The removal fix was independently reviewed; explicit successful retry now
+persists removal even when a failed commit already changed process memory. Anchors use streaming strict UTF-8 hashes and unique bounded context matching;
 changed/ambiguous/deleted text refuses a guessed jump. The separate versioned store
 caps64 document records/16 bookmarks per document/128 total, never evicts bookmarks,
 preserves malformed state and checks commits. No current Activity reader/bookmark

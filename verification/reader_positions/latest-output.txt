@@ -1,3 +1,2 @@
-Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
-Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
-Reader positions: 151 checks PASS
+Reader positions: 160 checks PASS
+Root: actual helper SDK37 --release11 compilation PASS; no APK
