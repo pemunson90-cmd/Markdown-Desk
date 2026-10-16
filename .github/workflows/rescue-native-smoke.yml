@@ -161,7 +161,7 @@ jobs:
           labels=[]
           for page in pages:
               labels.extend(n.get("text","") for n in ET.parse(page).getroot().iter("node"))
-          expected=("Your writing desk","Favorites","Reading bookmarks","Protected storage status")
+          expected=("Your writing desk","Favorites","Go to bookmark","Protected storage status")
           for value in expected:
               if not any(value in label for label in labels):
                   raise SystemExit("Native Workspace UI missing after scroll: "+value)
@@ -201,7 +201,7 @@ jobs:
           }
           # The first-launch document is unsaved. Its bookmark action must
           # refuse to write positional metadata and provide an honest message.
-          tap_native_label "$RUNNER_TEMP/md-workspace-page-5.xml" "Reading bookmarks"
+          tap_native_label "$RUNNER_TEMP/md-workspace-page-5.xml" "Go to bookmark"
           dump_native_state "bookmark-unsaved"
           check_native_text "$RUNNER_TEMP/md-bookmark-unsaved.xml" "Open a saved document"
           "$ADB" shell input keyevent KEYCODE_BACK
@@ -210,7 +210,7 @@ jobs:
           dump_native_state "workspace-reopen"
           tap_native_label "$RUNNER_TEMP/md-workspace-reopen.xml" "Favorites"
           dump_native_state "favorites-empty"
-          check_native_text "$RUNNER_TEMP/md-favorites-empty.xml" "No favorites saved"
+          check_native_text "$RUNNER_TEMP/md-favorites-empty.xml" "No favorites yet"
           "$ADB" shell input keyevent KEYCODE_BACK
           sleep 1
           "$ADB" shell input tap $WORKSPACE_TAP
