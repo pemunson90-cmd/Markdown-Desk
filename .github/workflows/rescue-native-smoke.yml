@@ -1,0 +1,141 @@
+name: Markdown Desk isolated Android emulator smoke
+
+on:
+  push:
+    branches:
+      - 'rescue/md-unsigned-build-proof-*'
+    paths:
+      - 'apps/MarkdownDesk/**'
+      - 'shared/**'
+      - '.github/workflows/rescue-native-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: markdown-desk-native-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+
+      - name: Provision Android SDK and emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?Android SDK unavailable}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          test -x "$ANDROID_HOME/platform-tools/adb"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/apksigner"
+
+      - name: Build unsigned source candidate
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: '36.0.0'
+        run: bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-native-smoke-unsigned
+
+      - name: Generate disposable emulator-only test key and sign test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This temporary test identity is not the canonical release signer.
+          # Its generated key remains only in the ephemeral runner's temp directory.
+          KEY="$RUNNER_TEMP/emulator-only-debug.jks"
+          APK="apps/MarkdownDesk/build/MarkdownDesk-native-smoke-unsigned.apk"
+          OUT="$RUNNER_TEMP/MarkdownDesk-EMULATOR-ONLY.apk"
+          keytool -genkeypair -noprompt -storetype JKS -keystore "$KEY" -storepass android \
+            -alias smoke -keypass android -keyalg RSA -keysize 2048 -validity 1 \
+            -dname "CN=Ephemeral emulator smoke, O=Local verification"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$KEY" \
+            --ks-pass pass:android --key-pass pass:android --ks-key-alias smoke \
+            --out "$OUT" "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$OUT"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$OUT"
+          echo "SMOKE_APK=$OUT" >> "$GITHUB_ENV"
+          echo 'Ephemeral test signing only; not installable over the user release.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enable KVM and create isolated emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/md-smoke-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            --force -n md-smoke -p "$ANDROID_AVD_HOME/md-smoke.avd" \
+            -k "system-images;android-35;google_apis;x86_64"
+          nohup "$ANDROID_HOME/emulator/emulator" -avd md-smoke -no-window -no-audio \
+            -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel on \
+            > "$RUNNER_TEMP/md-emulator.log" 2>&1 &
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          timeout 150 "$ADB" wait-for-device
+          timeout 480 bash -c '
+            while [ "$("$1" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != "1" ]; do sleep 4; done
+          ' _ "$ADB"
+          "$ADB" shell getprop ro.build.version.sdk
+          "$ADB" shell settings put global window_animation_scale 0
+          "$ADB" shell settings put global transition_animation_scale 0
+          "$ADB" shell settings put global animator_duration_scale 0
+
+      - name: Install, launch, rotate and cold-relaunch genuine Android app
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          "$ADB" install --no-streaming "$SMOKE_APK"
+          "$ADB" shell pm path com.example.markdowndesk
+          "$ADB" shell am start -W -n com.example.markdowndesk/.MainActivity
+          sleep 5
+          "$ADB" shell pidof com.example.markdowndesk
+          "$ADB" shell screencap -p /sdcard/md-portrait.png
+          "$ADB" pull /sdcard/md-portrait.png "$RUNNER_TEMP/md-portrait.png" >/dev/null
+          "$ADB" shell settings put system accelerometer_rotation 0
+          "$ADB" shell settings put system user_rotation 1
+          sleep 3
+          "$ADB" shell pidof com.example.markdowndesk
+          "$ADB" shell screencap -p /sdcard/md-landscape.png
+          "$ADB" pull /sdcard/md-landscape.png "$RUNNER_TEMP/md-landscape.png" >/dev/null
+          "$ADB" shell settings put system user_rotation 0
+          "$ADB" shell am force-stop com.example.markdowndesk
+          "$ADB" shell am start -W -n com.example.markdowndesk/.MainActivity
+          sleep 3
+          "$ADB" shell pidof com.example.markdowndesk
+          "$ADB" shell uiautomator dump /sdcard/md-window.xml >/dev/null
+          "$ADB" pull /sdcard/md-window.xml "$RUNNER_TEMP/md-window.xml" >/dev/null
+          echo 'PASS: emulator installed/test-signed candidate, launched, survived rotation and cold relaunch.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NOT RUN: Fold7, user data migration, Android SAF third-party providers, TalkBack, release certificate/signing.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain emulator evidence only (no distributable APK)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: markdown-desk-native-smoke-evidence-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/md-emulator.log
+            ${{ runner.temp }}/md-portrait.png
+            ${{ runner.temp }}/md-landscape.png
+            ${{ runner.temp }}/md-window.xml
+          if-no-files-found: ignore
+          retention-days: 7
