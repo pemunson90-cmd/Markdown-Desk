@@ -82,6 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           bash verification/workspace_favorites/run.sh
+          bash verification/reader_positions/run.sh
           bash verification/workspace_ui/run.sh
           bash verification/workspace_search_ui/run.sh
           bash verification/document_io/run.sh
