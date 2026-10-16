@@ -55,6 +55,8 @@ public final class DocumentIOCheck {
         byte[] stored;
         boolean nullInput, nullOutput, revoked, descriptorThrows, inputClosed, outputClosed;
         boolean inputFails, flushFails, outputCloseFails, queryFails, corruptWrite;
+        boolean rejectNonStandardProjection;
+        int metadataQueries;
         int failAfter = -1, inputOpens, outputOpens, descriptorOpens;
         String outputMode, descriptorMode;
         Row row;
@@ -107,7 +109,13 @@ public final class DocumentIOCheck {
             catch (IOException e) { throw new FileNotFoundException(e.toString()); }
         }
         public Cursor query(Uri uri, String[] projection, String selection, String[] args, String order) {
-            grant(); if (queryFails) throw new IllegalStateException("simulated query failure"); return row;
+            grant(); metadataQueries++;
+            if (queryFails) throw new IllegalStateException("simulated query failure");
+            if (rejectNonStandardProjection && projection != null)
+                for (String column : projection)
+                    if (!"_display_name".equals(column) && !"_size".equals(column))
+                        throw new IllegalArgumentException("Provider supports only standard OpenableColumns");
+            return row;
         }
     }
     private static void roundTrip(String text, boolean withBom) throws Exception {
@@ -256,6 +264,23 @@ public final class DocumentIOCheck {
             DocumentIO.Metadata m = DocumentIO.metadata(p, URI);
             require("Café.md".equals(m.displayName) && m.size == 19L && m.lastModified == 123L && m.writable, "metadata changed");
             require(p.row.closed && p.descriptorOpens == 0, "metadata cursor leaked or redundant descriptor");
+        });
+        test("external VIEW provider rejects optional columns but preserves original title", () -> {
+            Provider provider = new Provider(utf8("# Untouched file\\n"));
+            byte[] before = provider.stored.clone();
+            provider.rejectNonStandardProjection = true;
+            provider.descriptorThrows = true;
+            provider.row = new Row(Map.of("_display_name", "Original title — résumé.md", "_size", (long)before.length));
+            DocumentIO.Metadata metadata = DocumentIO.metadata(provider,
+                    Uri.parse("content://external.file.provider/opaque/8277"));
+            require("Original title — résumé.md".equals(metadata.displayName),
+                    "external file intent must not show generic or Untitled.md title");
+            require(metadata.size == before.length && !metadata.writable,
+                    "independent filename inspection must retain safe read-only authority");
+            require(provider.metadataQueries == 2 && provider.row.closed,
+                    "standard OpenableColumns first and optional metadata separately, cursor closed");
+            bytes(before, provider.stored);
+            require(provider.outputOpens == 0,"filename inspection must never write or rename provider file");
         });
         test("metadata absent null columns defaults with denied descriptor", () -> {
             Provider p = new Provider(new byte[0]); p.descriptorThrows = true;

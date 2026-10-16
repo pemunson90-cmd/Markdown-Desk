@@ -184,68 +184,50 @@ public final class DocumentIO {
         }
     }
 
+    /**
+     * Android providers are only required to support OpenableColumns (display
+     * name and size). Other columns are optional and may make a combined
+     * projection fail. Preserve the user-facing name independently of them.
+     * Metadata inspection is read-only; it must never rename or write a file.
+     */
     public static Metadata metadata(ContentResolver contentResolver, Uri uri) {
         Metadata metadata = new Metadata();
-        try {
-            Cursor cursorQuery = contentResolver.query(uri, new String[]{"_display_name", "_size", "last_modified", "flags"}, null, null, null);
-            if (cursorQuery != null) {
-                try {
-                    if (cursorQuery.moveToFirst()) {
-                        int columnIndex = cursorQuery.getColumnIndex("_display_name");
-                        int columnIndex2 = cursorQuery.getColumnIndex("_size");
-                        int columnIndex3 = cursorQuery.getColumnIndex("last_modified");
-                        int columnIndex4 = cursorQuery.getColumnIndex("flags");
-                        if (columnIndex >= 0 && !cursorQuery.isNull(columnIndex)) {
-                            metadata.displayName = cursorQuery.getString(columnIndex);
-                        }
-                        if (columnIndex2 >= 0 && !cursorQuery.isNull(columnIndex2)) {
-                            metadata.size = cursorQuery.getLong(columnIndex2);
-                        }
-                        if (columnIndex3 >= 0 && !cursorQuery.isNull(columnIndex3)) {
-                            metadata.lastModified = cursorQuery.getLong(columnIndex3);
-                        }
-                        if (columnIndex4 >= 0 && !cursorQuery.isNull(columnIndex4)) {
-                            metadata.writable = (cursorQuery.getInt(columnIndex4) & 2) != 0;
-                        }
-                    }
-                } catch (Throwable th) {
-                    if (cursorQuery != null) {
-                        try {
-                            cursorQuery.close();
-                        } catch (Throwable th2) {
-                            th.addSuppressed(th2);
-                        }
-                    }
-                    throw th;
+        try (Cursor cursor = contentResolver.query(uri, new String[]{"_display_name", "_size"}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int name = cursor.getColumnIndex("_display_name");
+                int size = cursor.getColumnIndex("_size");
+                if (name >= 0 && !cursor.isNull(name)) {
+                    String reported = cursor.getString(name);
+                    if (reported != null && !reported.trim().isEmpty()) metadata.displayName = reported;
                 }
+                if (size >= 0 && !cursor.isNull(size)) metadata.size = cursor.getLong(size);
             }
-            if (cursorQuery != null) {
-                cursorQuery.close();
+        } catch (Exception unavailable) {
+            // The URI's provider may have revoked its grant or rejected inspection.
+            // We must not claim that the content has been renamed.
+        }
+        // Optional provider capabilities are queried separately. An unsupported
+        // projection must not wipe out the filename obtained above.
+        try (Cursor cursor = contentResolver.query(uri, new String[]{"last_modified", "flags"}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int changed = cursor.getColumnIndex("last_modified");
+                int flags = cursor.getColumnIndex("flags");
+                if (changed >= 0 && !cursor.isNull(changed)) metadata.lastModified = cursor.getLong(changed);
+                if (flags >= 0 && !cursor.isNull(flags))
+                    metadata.writable = (cursor.getInt(flags) & 2) != 0;
             }
-        } catch (Exception e) {
+        } catch (Exception unavailable) {
+            // Files/MediaStore/share providers need not implement these columns.
         }
         if (!metadata.writable) {
-            try {
-                ParcelFileDescriptor parcelFileDescriptorOpenFileDescriptor = contentResolver.openFileDescriptor(uri, "rw");
-                try {
-                    metadata.writable = parcelFileDescriptorOpenFileDescriptor != null;
-                    if (parcelFileDescriptorOpenFileDescriptor != null) {
-                        parcelFileDescriptorOpenFileDescriptor.close();
-                    }
-                } catch (Throwable th3) {
-                    if (parcelFileDescriptorOpenFileDescriptor != null) {
-                        try {
-                            parcelFileDescriptorOpenFileDescriptor.close();
-                        } catch (Throwable th4) {
-                            th3.addSuppressed(th4);
-                        }
-                    }
-                    throw th3;
-                }
-            } catch (Exception e2) {
+            // Existing non-truncating, read-write capability probe; never writes.
+            try (ParcelFileDescriptor descriptor = contentResolver.openFileDescriptor(uri, "rw")) {
+                metadata.writable = descriptor != null;
+            } catch (Exception unavailable) {
                 metadata.writable = false;
             }
         }
         return metadata;
     }
+
 }
