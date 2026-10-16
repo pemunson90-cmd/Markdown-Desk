@@ -43,7 +43,8 @@ public final class MainActivity extends HostActivity {
  /* METHODS */
     void invalidateProtectedSaves() {}
     void cancelWorkspaceFavorites() {} // Unrelated UI; retained production lifecycle elsewhere
-    void invalidateReaderActions() {} // Reading action teardown is owned separately
+    void invalidateReaderActions() {}
+    void invalidateProtectionStatus() {} // Reading action teardown is owned separately
     void pauseDocxExport() {}
     void cancelDocxExport() {}
     void cancelWorkspaceNavigation() {}
