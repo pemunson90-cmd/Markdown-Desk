@@ -132,7 +132,7 @@ jobs:
           matches=[n for n in root.iter("node") if n.get("text")=="M"]
           if len(matches)!=1: raise SystemExit("Workspace entrypoint absent or ambiguous")
           bounds=matches[0].get("bounds","")
-          groups=re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]",bounds)
+          groups=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",bounds)
           if groups is None: raise SystemExit("Workspace bounds unavailable")
           a,b,c,d=map(int,groups.groups())
           print((a+c)//2,(b+d)//2)
