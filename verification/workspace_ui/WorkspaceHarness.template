@@ -30,6 +30,7 @@ final class WorkspaceHarness extends WorkspaceBase {
     void invalidateProtectedSaves() {}
     static class WorkspaceFavoritesStore {enum Kind {DOCUMENT,TREE}}
     void cancelWorkspaceFavorites() {}
+    void invalidateReaderActions() {} // Reader bookmark lifecycle is tested separately
     void showWorkspaceFavorites() {}
     void pinWorkspaceFavorite(Uri uri,String label,WorkspaceFavoritesStore.Kind kind) {}
  void add(){LinearLayout actions=new LinearLayout(this);addWorkspaceFolderActions(actions);((Button)actions.children.get(0)).tap();}void result(int code,Intent data){activityResult(1005,code,data);}
