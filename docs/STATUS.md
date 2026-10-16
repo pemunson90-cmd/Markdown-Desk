@@ -94,9 +94,23 @@ native inventory loading remains unchanged; pagination is not a whole-inventory
 memory bound. Missing lifecycle fixture boundaries exposed during integration were
 repaired without removing the original safety assertions.
 
-Next current-phone work: implement reviewed DOCX staging/verified binary new-copy
-publication, then serial Activity controls. Continue workspace search/favorites and
-other dependency-ready M2–M7 work.
+DOCX private staging and guarded binary new-copy publication are implemented and
+independently approved after resource/error-phase fixes. Final focused runner176
+assertions plus independent provider ZIP/XML/CRC PASS; SDK37 source compilation
+passed in the worker run. Stage/channel Error paths preserve close uncertainty;
+unproven disposal holds only DOCX admission until process restart. Actual URI/ID
+alias checks, empty-destination preflight, one output-open attempt and binary hash/
+length readback preserve the native editor/save state. Generic provider alias/race
+limits remain explicit. No DOCX action/picker UI is wired yet.
+
+Folder-search engine review found a blocking cursor-close ownership gap in the
+existing reader-to-consumer boundary; correction is in progress before search UI
+integration. A read-only local-protection usage projection is also in progress;
+policy changes and automatic pruning are not implemented by that packet.
+
+Next current-phone work: serial DOCX Activity controls, reviewed search resource
+ownership and actual search UI, then workspace favorites and other dependency-ready
+M2–M7 work.
 Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
 and focused independent reviews. Portable export/import remains deferred.
 Use focused existing production-path tests, not another portable accounting proof.
