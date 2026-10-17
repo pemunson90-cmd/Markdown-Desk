@@ -1661,6 +1661,7 @@ public class MainActivity extends Activity {
         for (int tabIndex = MODE_EDIT; tabIndex < this.tabs.size(); tabIndex += MODE_PREVIEW) {
             final int i = tabIndex;
             DocumentTab documentTab = this.tabs.get(i);
+            final String exactTabId = documentTab.id;
             String fullName = documentTab.displayName == null ? "Untitled" : documentTab.displayName;
             String str = fullName;
             if (str.length() > 22) {
@@ -1684,7 +1685,7 @@ public class MainActivity extends Activity {
             buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda66
                 @Override // android.view.View.OnLongClickListener
                 public final boolean onLongClick(View view) {
-                    return MainActivity.this.lambda$updateTabsUi$24(i, view);
+                    return MainActivity.this.lambda$updateTabsUi$24(exactTabId, view);
                 }
             });
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(48));
@@ -1719,12 +1720,53 @@ public class MainActivity extends Activity {
     }
 
     /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ boolean lambda$updateTabsUi$24(int i, View view) {
-        if (i != this.activeTab) {
-            switchToTab(i, false);
-        }
-        closeCurrentTab();
+    public /* synthetic */ boolean lambda$updateTabsUi$24(String exactTabId, View view) {
+        // Never switch/restack the editor or remove the gesture's own View
+        // during Android's long-click dispatch. Bind identity, not the tab index:
+        // indices may change before this deferred action runs.
+        view.post(() -> requestCloseTab(exactTabId));
         return true;
+    }
+
+    private void requestCloseTab(String exactTabId) {
+        final int index = findTabById(exactTabId);
+        if (index < 0 || isFinishing() || isDestroyed()) return;
+        if (index == this.activeTab) {
+            // Save/discard actions may finish asynchronously. Never close whichever
+            // unrelated tab happens to be active after that callback.
+            confirmUnsaved(() -> {
+                if (this.activeTab >= 0 && this.activeTab < this.tabs.size()
+                        && exactTabId.equals(this.tabs.get(this.activeTab).id))
+                    removeActiveTab();
+            });
+            return;
+        }
+        final DocumentTab target = this.tabs.get(index);
+        if (target.dirty) {
+            new AlertDialog.Builder(this)
+                .setTitle("Unsaved changes · " + target.displayName)
+                .setMessage("This tab contains changes that have not been saved. Open it to save, or explicitly discard those changes before closing.")
+                .setPositiveButton("Open to save", (dialog, which) -> {
+                    int current = findTabById(exactTabId);
+                    if (current >= 0) switchToTab(current, false);
+                })
+                .setNegativeButton("Discard and close", (dialog, which) -> removeInactiveTab(exactTabId))
+                .setNeutralButton("Cancel", null).show();
+            return;
+        }
+        removeInactiveTab(exactTabId);
+    }
+
+    private void removeInactiveTab(String exactTabId) {
+        final int index = findTabById(exactTabId);
+        // No mutation of the active editor, and no stale dialog closes a newly
+        // selected tab. The session is saved after the exact removal.
+        if (index < 0 || index == this.activeTab || this.activeTab < 0
+                || this.activeTab >= this.tabs.size()) return;
+        this.tabs.remove(index);
+        if (index < this.activeTab) this.activeTab--;
+        updateTabsUi();
+        scheduleSession();
     }
 
     /* JADX INFO: Access modifiers changed from: private */
