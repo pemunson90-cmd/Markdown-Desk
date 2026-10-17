@@ -1,6 +1,6 @@
 # Markdown Desk — approved UX overhaul continuation
 
-Date: 2026-10-16. **Status:** staged plan; compact Files navigation and RC3 already implemented, responsive expanded pane not yet implemented. Owner approved the overall editor/navigation direction; this document is an implementation map, not a request for reapproval.
+Date: 2026-10-16. **Status:** compact Files navigation in frozen RC3; post-RC3 responsive expanded rail source staged at `48d9e6f` and undergoing test. Neither source stage is a newly signed release. Owner approved the overall editor/navigation direction; this document is an implementation map, not a request for reapproval.
 
 ## Product target and constraints
 Keep the existing Java/Views app, nine themes, Write/Read/Split, Focus, tabs, editing and recovery semantics, and the current-phone signed identity. The editor owns the screen until navigation is requested. Do not invent a second rendering/editor state machine or rewrite SAF/history. Avoid permanent bottom chrome, giant dashboards, and new migration/backup work. Keep exact source bytes, unsaved drafts, cursor, tab/scroll, selected folder and protected recovery unaffected by navigation.
@@ -17,7 +17,7 @@ Keep the existing Java/Views app, nine themes, Write/Read/Split, Focus, tabs, ed
 ### A. Reusable Files destination without duplicate logic
 Extract the *rendering/interaction of file destinations* from `showFilesNavigator` into a reusable view/container builder. Preserve all original action callbacks and file permission behavior. The existing compact dialog must still own its dismiss lifecycle; the expanded host must never dismiss an unrelated AlertDialog. Dynamic recents/favorites/folder badges refresh only when returning to Files or on known changes, rather than polling or querying provider trees on the UI thread. Use existing asynchronous workspace generation/cancellation mechanisms. Add an Activity test for compact Files -> recent/favorite/open -> editor, dismiss/Back and no draft/cursor loss.
 
-### B. Width-responsive expandable left navigation
+### B. Width-responsive expandable left navigation (initial source implemented; native/Fold acceptance pending)
 At **expanded usable window width (roughly >=840dp)**, make the Files header action toggle a collapsible left browser beside the existing editor body. Build the shared shell once; retain the exact editor and WebView instances across show/hide and configuration changes. At compact/medium widths, use the existing Files dialog; do not force a rail into the keyboard viewport or move permanent formatting rows. In Focus mode, hide the rail without modifying its logical selection. Use width, not a Fold7 model check. Show concise document/folder rows with clear selection; a selected file opens through the existing safe document path.
 
 ### C. Adaptive browser depth and search
