@@ -36,6 +36,26 @@ final class WorkspaceFavoritesStore {
             write(saved);return favorite;
         }
     }
+    /** Atomic document-shortcut toggle; neither operation touches provider contents. */
+    boolean toggleDocument(Uri exactUri,String label)throws IOException {
+        synchronized(LOCK){
+            validate(exactUri,label,Kind.DOCUMENT);
+            List<Favorite> saved=load();
+            for(Iterator<Favorite> it=saved.iterator();it.hasNext();){
+                Favorite item=it.next();
+                if(item.uri.toString().equals(exactUri.toString())){
+                    if(item.kind!=Kind.DOCUMENT)throw invalid();
+                    it.remove();
+                    write(saved);
+                    return false;
+                }
+            }
+            if(saved.size()==MAX_RECORDS)throw limit();
+            saved.add(new Favorite(exactUri,label,Kind.DOCUMENT));
+            write(saved);
+            return true;
+        }
+    }
     void unpin(Uri exactUri)throws IOException {
         synchronized(LOCK){
             uri(exactUri);List<Favorite> saved=load();
