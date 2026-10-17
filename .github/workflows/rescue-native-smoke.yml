@@ -192,7 +192,8 @@ jobs:
             coordinates="$(python3 - "$xml" "$text" <<'PY'
           import re,sys,xml.etree.ElementTree as ET
           root=ET.parse(sys.argv[1]).getroot();phrase=sys.argv[2]
-          items=[n for n in root.iter("node") if phrase in n.get("text","")]
+          items=[n for n in root.iter("node") if phrase in n.get("text","")
+                 and (phrase!="Favorites" or "One tap to reopen" in n.get("content-desc",""))]
           if len(items)!=1:raise SystemExit("Visible clickable label missing/ambiguous: "+phrase)
           pattern=r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"
           match=re.fullmatch(pattern,items[0].get("bounds",""))
