@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="21"
-    android:versionName="2.2.6-rc3"
+    android:versionCode="22"
+    android:versionName="2.2.7-ux"
     package="com.example.markdowndesk">
     <uses-sdk
         android:minSdkVersion="26"
