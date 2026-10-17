@@ -3,6 +3,13 @@
 **Historical RC3 handoff:** The Files-wrap report below applies to RC3; consolidated working source corrects it. See the current UI completion checkpoint below.
 
 
+## Latest code22 UI verification — October 16
+
+- Unsigned Android build plus focused source regression **PASS** on [38994409789](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994409789), source `f71bb9c8edb7545a8cf0d3290f7d9c1180bc11a2` (code22).
+- Native Android emulator compact Files/Favorites, Read A-/A+ labels, expanded Files rail and Back **PASS** on [38994420562](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994420562), source `f918567c9b7a4e2ecb2b99984e6a3eaeb97116a7` (workflow-only change from code22 app source). Screenshots and actual hierarchy retained as test artifacts.
+- Complete current-phone host regression run [38994409881](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994409881) was **IN PROGRESS** at this checkpoint; check live result before changing status. Portable cross-installation app-state tests remain separately deferred.
+- The private original release signing material has not been located in the accessible Library. An unsigned APK exists as a build proof only. An actual phone-installable in-place update requires canonical private signing; do not distribute unsigned or emulator-signed binaries for installation.
+
 ## UI completion candidate 2.2.7-ux / versionCode 22
 
 Owner authorized finishing the whole approved UI redesign before the next signed APK, then testing it personally. This is narrower than the remaining Professional M0-M7 backlog.
