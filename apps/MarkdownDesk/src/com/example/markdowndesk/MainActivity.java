@@ -1322,7 +1322,7 @@ public class MainActivity extends Activity {
         this.body.removeAllViews();
         int i = getResources().getConfiguration().screenWidthDp;
         int i2 = MODE_EDIT;
-        this.body.setOrientation((this.mode == MODE_SPLIT && i >= 600) ? MODE_EDIT : MODE_PREVIEW);
+        this.body.setOrientation((this.mode == MODE_SPLIT && (i-((this.filesRailRequested&&!this.focusMode&&i>=840)?281:0)) >= 600) ? MODE_EDIT : MODE_PREVIEW);
         if (this.mode == 0) {
             this.body.addView(this.editor, paneParams());
         } else if (this.mode == MODE_PREVIEW) {
@@ -4414,6 +4414,7 @@ public class MainActivity extends Activity {
         if (!this.focusMode && getResources().getConfiguration().screenWidthDp >= 840) {
             this.filesRailRequested = !this.filesRailRequested;
             refreshFilesRail();
+            rebuildBody();
             return;
         }
         if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
@@ -5176,6 +5177,7 @@ public class MainActivity extends Activity {
         if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((!this.focusMode && this.mode == MODE_PREVIEW) ? View.VISIBLE : View.GONE);
         this.header.setPadding(dp(14), this.focusMode ? dp(4) : dp(8), dp(14), this.focusMode ? dp(4) : dp(8));
         refreshFilesRail();
+        rebuildBody();
         updateModeChrome();
         Toast.makeText(this, this.focusMode ? "Focus mode" : "Focus mode off", MODE_EDIT).show();
     }
