@@ -29,5 +29,5 @@ assert 'ScrollView scroll=buildFilesNavigatorView();' in text
 assert 'captureActiveTab();\n        rebuildBody();\n        applyResponsiveChrome();' in text
 assert len(list((a/'assets/splash').glob('*.webp')))==25
 manifest=ET.parse(a/'AndroidManifest.xml').getroot();ns='{http://schemas.android.com/apk/res/android}'
-assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3')}, 'Unexpected application release identity'
+assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3'),('22','2.2.7-ux')}, 'Unexpected application release identity'
 print('PASS static layout guards: scrolling Appearance, all nine themes, external Done, existing scrolling gallery, centered utility icons, compact Files single-line layout and current guide, configuration callbacks, 25 splash assets, allowlisted baseline/test-candidate identity')
