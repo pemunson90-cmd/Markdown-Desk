@@ -1690,12 +1690,16 @@ public class MainActivity extends Activity {
             buttonCreatePillButton.setOnTouchListener((view, event) -> {
                 int action = event.getActionMasked();
                 if (action == MotionEvent.ACTION_DOWN) tabTouchActive[0] = true;
-                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                if (action == MotionEvent.ACTION_UP) {
                     tabTouchActive[0] = false;
                     if (closeOnRelease[0]) {
                         closeOnRelease[0] = false;
                         view.post(() -> requestCloseTab(exactTabId));
                     }
+                } else if (action == MotionEvent.ACTION_CANCEL) {
+                    // Android aborted the gesture; do not close a document.
+                    tabTouchActive[0] = false;
+                    closeOnRelease[0] = false;
                 }
                 return false; // Let Button handle normal clicks and long-clicks.
             });
