@@ -34,7 +34,8 @@ class MainActivity {
  Resources getResources(){return new Resources(){Configuration getConfiguration(){Configuration c=new Configuration();c.screenWidthDp=widthDp;return c;}};}
  Palette palette=new Palette(); List<DocumentTab> tabs=new ArrayList<>();List<Button> buttons=new ArrayList<>(),tabButtons=new ArrayList<>();
  LinearLayout body=new LinearLayout(),tabsRow=new LinearLayout(); View editor=new View(),preview=new View(),formatScroll=new View(),readToolsScroll=new View(),tabsScroll=new View();
- String pendingLongPressedTabId;void requestCloseTabById(String id){}\n int mode=MODE_SPLIT,activeTab=0,widthDp=800;float splitRatio=.5f;boolean focusMode,filesRailRequested;int favoriteRefreshes;Preferences preferences=new Preferences();
+ String pendingLongPressedTabId;void requestCloseTabById(String id){}
+ int mode=MODE_SPLIT,activeTab=0,widthDp=800;float splitRatio=.5f;boolean focusMode,filesRailRequested;int favoriteRefreshes;Preferences preferences=new Preferences();
  int dp(int i){return i;} void detach(View v){} void updateFormatAvailability(){} void renderPreview(){} void invalidatePreview(){} void updateModeChrome(){}
  LinearLayout.LayoutParams paneParams(){return new LinearLayout.LayoutParams(.5f);} LinearLayout.LayoutParams paneParams(float f){return new LinearLayout.LayoutParams(f);}
  Button createPillButton(String text,String name,View.OnClickListener l){Button b=new Button();b.text=text;b.description=name;b.tooltip=name;b.click=l;buttons.add(b);return b;}
