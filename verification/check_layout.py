@@ -16,6 +16,11 @@ assert 'this.filesButton.setSingleLine(true);' in text
 assert 'this.filesButton.setEllipsize(TextUtils.TruncateAt.END);' in text
 assert 'this.helpButton.setVisibility(compact ? View.GONE : View.VISIBLE);' in text
 assert 'Tap the M button' not in text
+assert 'this.editorShell.addView(this.body, new LinearLayout.LayoutParams(MODE_EDIT, -1, 1.0f));' in text
+assert 'this.filesRailRequested = !this.filesRailRequested;' in text
+assert 'getResources().getConfiguration().screenWidthDp < 840' in text
+assert 'this.filesRailRequested = false;' in text
+assert 'ScrollView scroll=buildFilesNavigatorView();' in text
 assert 'captureActiveTab();\n        rebuildBody();\n        applyResponsiveChrome();' in text
 assert len(list((a/'assets/splash').glob('*.webp')))==25
 manifest=ET.parse(a/'AndroidManifest.xml').getroot();ns='{http://schemas.android.com/apk/res/android}'

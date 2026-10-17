@@ -152,6 +152,11 @@ public class MainActivity extends Activity {
     private boolean readOnly;
     private Runnable recoveryRunnable;
     private LinearLayout root;
+    // The existing editor/preview instances stay mounted in this shell when Files opens.
+    private LinearLayout editorShell;
+    private ScrollView filesRail;
+    private View filesRailDivider;
+    private boolean filesRailRequested;
     private String saveAsTabId;
     private Button filesButton;
     private Button helpButton;
@@ -247,6 +252,7 @@ public class MainActivity extends Activity {
         captureActiveTab();
         rebuildBody();
         applyResponsiveChrome();
+        refreshFilesRail();
     }
 
     @Override // android.app.Activity
@@ -297,6 +303,10 @@ public class MainActivity extends Activity {
             dismissLaunchSplash();
         } else if (this.focusMode) {
             toggleFocusMode();
+        } else if (this.filesRail != null) {
+            // Back closes expanded navigation before considering an unsaved-document exit.
+            this.filesRailRequested = false;
+            refreshFilesRail();
         } else {
             confirmUnsaved(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda59
                 @Override // java.lang.Runnable
@@ -530,8 +540,11 @@ public class MainActivity extends Activity {
                 MainActivity.this.lambda$buildInterface$7(view, i, i2, i3, i4);
             }
         });
+        this.editorShell = new LinearLayout(this);
+        this.editorShell.setOrientation(LinearLayout.HORIZONTAL);
+        this.root.addView(this.editorShell, new LinearLayout.LayoutParams(-1, MODE_EDIT, 1.0f));
         this.body = new LinearLayout(this);
-        this.root.addView(this.body, new LinearLayout.LayoutParams(-1, MODE_EDIT, 1.0f));
+        this.editorShell.addView(this.body, new LinearLayout.LayoutParams(MODE_EDIT, -1, 1.0f));
         this.formatScroll = new HorizontalScrollView(this);
         this.formatScroll.setHorizontalScrollBarEnabled(false);
         this.formats = new LinearLayout(this);
@@ -1435,6 +1448,7 @@ public class MainActivity extends Activity {
         if (this.readTools != null) this.readTools.setBackgroundColor(this.palette.surface);
         this.statusView.setBackgroundColor(this.palette.surface);
         this.body.setBackgroundColor(this.palette.canvas);
+        refreshFilesRail();
         this.titleView.setTextColor(this.palette.text);
         this.eyebrowView.setTextColor(UiTheme.readableForeground(this.palette.accent, this.palette.surface));
         this.statusView.setTextColor(this.palette.muted);
@@ -4074,9 +4088,7 @@ public class MainActivity extends Activity {
     /** Compact file destination; document editing and recovery tools stay in More.
      * Reuses the existing picker, recent-store and SAF folder flow without changing
      * their permissions, tabs, history or save behavior. */
-    private void showFilesNavigator() {
-        if(isFinishing()||isDestroyed())return;
-        if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+    private ScrollView buildFilesNavigatorView() {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=new LinearLayout(this);
         content.setOrientation(MODE_PREVIEW);
@@ -4127,6 +4139,42 @@ public class MainActivity extends Activity {
             }),matchWrap());
         }
         scroll.addView(content,matchWrap());
+        return scroll;
+    }
+
+    private void refreshFilesRail() {
+        if (this.editorShell == null) return;
+        if (this.filesRail != null) {
+            this.editorShell.removeView(this.filesRail);
+            this.filesRail = null;
+        }
+        if (this.filesRailDivider != null) {
+            this.editorShell.removeView(this.filesRailDivider);
+            this.filesRailDivider = null;
+        }
+        // Use available window width, never the phone model. Focus keeps editing full width.
+        if (!this.filesRailRequested || this.focusMode
+                || getResources().getConfiguration().screenWidthDp < 840) return;
+        this.filesRail = buildFilesNavigatorView();
+        this.filesRail.setBackgroundColor(this.palette.surface);
+        this.filesRail.setContentDescription("Files navigation");
+        this.editorShell.addView(this.filesRail, 0,
+                new LinearLayout.LayoutParams(dp(280), -1));
+        this.filesRailDivider = new View(this);
+        this.filesRailDivider.setBackgroundColor(this.palette.border);
+        this.editorShell.addView(this.filesRailDivider, 1,
+                new LinearLayout.LayoutParams(dp(1), -1));
+    }
+
+    private void showFilesNavigator() {
+        if(isFinishing()||isDestroyed())return;
+        if (!this.focusMode && getResources().getConfiguration().screenWidthDp >= 840) {
+            this.filesRailRequested = !this.filesRailRequested;
+            refreshFilesRail();
+            return;
+        }
+        if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+        ScrollView scroll=buildFilesNavigatorView();
         final AlertDialog dialog=historyDialogBuilder("Files")
             .setView(scroll)
             .setNegativeButton("Back to editor",null).create();
@@ -4263,6 +4311,8 @@ public class MainActivity extends Activity {
         buttonCreateButton.setPadding(dp(16), dp(8), dp(16), dp(8));
         buttonCreateButton.setMinHeight(dp(64));
         styleButton(buttonCreateButton, false, false);
+        // Ephemeral Files/dialog rows should not accumulate in the persistent toolbar registry.
+        this.buttons.remove(buttonCreateButton);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-1, -2);
         layoutParams.setMargins(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(8));
         buttonCreateButton.setLayoutParams(layoutParams);
@@ -4864,6 +4914,7 @@ public class MainActivity extends Activity {
         this.formatScroll.setVisibility((this.focusMode || this.mode == MODE_PREVIEW) ? View.GONE : View.VISIBLE);
         if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((!this.focusMode && this.mode == MODE_PREVIEW) ? View.VISIBLE : View.GONE);
         this.header.setPadding(dp(14), this.focusMode ? dp(4) : dp(8), dp(14), this.focusMode ? dp(4) : dp(8));
+        refreshFilesRail();
         updateModeChrome();
         Toast.makeText(this, this.focusMode ? "Focus mode" : "Focus mode off", MODE_EDIT).show();
     }
