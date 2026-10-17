@@ -33,5 +33,5 @@ for name, dark, fields in records:
         score=contrast(fg,bg)
         assert score>=4.5, (name,label,score)
 manifest=ET.parse(root/'apps/MarkdownDesk/AndroidManifest.xml').getroot();ns='{http://schemas.android.com/apk/res/android}'
-assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3'),('22','2.2.7-ux')}, 'Unexpected manifest identity'
+assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3'),('22','2.2.7-ux'),('23','2.2.8-tabfix1')}, 'Unexpected manifest identity'
 print('PASS live Appearance regression guards: all 9 theme/title/control redraw paths, retained scroll, 4.5:1+ text contrast, explicitly allowlisted baseline/rc1 identity')
