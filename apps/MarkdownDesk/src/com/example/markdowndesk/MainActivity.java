@@ -4300,10 +4300,28 @@ public class MainActivity extends Activity {
         description.setTextColor(this.palette.muted);
         description.setPadding(dp(4),dp(4),dp(4),dp(12));
         content.addView(description,matchWrap());
+        LinearLayout quick=new LinearLayout(this);
+        quick.setOrientation(LinearLayout.HORIZONTAL);
+        String[] sections={"Recent","Favorites","Folders"};
+        String[] anchors={"filesRecent","filesFavorites","filesFolders"};
+        for(int i=0;i<sections.length;i++){
+            final String tag=anchors[i];
+            Button shortcut=filesAction(sections[i],"Jump to "+sections[i],v->{
+                View target=content.findViewWithTag(tag);
+                if(target!=null)scroll.post(()->scroll.smoothScrollTo(0,target.getTop()));
+            });
+            shortcut.setTextSize(12.0f);
+            shortcut.setPadding(dp(2),0,dp(2),0);
+            shortcut.setGravity(Gravity.CENTER);
+            quick.addView(shortcut,new LinearLayout.LayoutParams(0,dp(48),1.0f));
+        }
+        content.addView(quick,matchWrap());
+
         final List<RecentStore.Item> recent=RecentStore.read(this);
         if(!recent.isEmpty()){
             TextView label=new TextView(this);
             label.setText("RECENT DOCUMENTS · tap to open");
+            label.setTag("filesRecent");
             label.setTextSize(12.0f);
             label.setLetterSpacing(0.12f);
             label.setTextColor(this.palette.muted);
@@ -4324,6 +4342,7 @@ public class MainActivity extends Activity {
 
         TextView pinnedTitle=workspaceTitle("FAVORITES");
         pinnedTitle.setTextSize(12.0f);
+        pinnedTitle.setTag("filesFavorites");
         content.addView(pinnedTitle,matchWrap());
         LinearLayout pinnedRows=new LinearLayout(this);
         pinnedRows.setOrientation(MODE_PREVIEW);
@@ -4331,6 +4350,7 @@ public class MainActivity extends Activity {
         fillFilesFavorites(pinnedRows);
         TextView folderTitle=workspaceTitle("SAVED FOLDERS");
         folderTitle.setTextSize(12.0f);
+        folderTitle.setTag("filesFolders");
         content.addView(folderTitle,matchWrap());
         LinearLayout folderRows=new LinearLayout(this);
         folderRows.setOrientation(MODE_PREVIEW);
@@ -4403,7 +4423,13 @@ public class MainActivity extends Activity {
             .setNegativeButton("Back to editor",null).create();
         this.workspaceDialog=dialog;
         dialog.setOnDismissListener(ignored->{if(this.workspaceDialog==dialog)this.workspaceDialog=null;});
-        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+        dialog.setOnShowListener(ignored->{
+            workspaceDialogShown(dialog);
+            if(dialog.getWindow()!=null){
+                int available=getResources().getDisplayMetrics().heightPixels-dp(36);
+                dialog.getWindow().setLayout(-1,Math.max(dp(180),available));
+            }
+        });
         dialog.show();
     }
 
