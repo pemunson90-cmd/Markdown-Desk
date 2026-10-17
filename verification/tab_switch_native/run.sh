@@ -38,6 +38,16 @@ PY
 )"
   "$ADB" shell input tap $xy
   sleep .3
+  if [[ "$id" == "Switch to "* ]]; then
+    dump "after-tab-$step"
+    python3 - "$DEST/last.xml" "$id" <<'PY'
+import sys,xml.etree.ElementTree as ET
+nodes=[x for x in ET.parse(sys.argv[1]).getroot().iter("node")
+       if x.get("content-desc")==sys.argv[2]]
+if len(nodes)!=1 or nodes[0].get("selected")!="true":
+    raise SystemExit("Tab click did not select "+repr(sys.argv[2]))
+PY
+  fi
 }
 for template in "Project README" "Daily journal" "Checklist"; do
   tap "New document" content-desc
@@ -53,14 +63,21 @@ sleep 3
 "$ADB" shell am start -W -n com.example.markdowndesk/.MainActivity
 sleep 6
 dump after-relaunch
-python3 - "$DEST/after-relaunch.xml" <<'PY'
+# The horizontal tab strip clips offscreen buttons from UIAutomator; inspect
+# both the rightmost and leftmost viewports, not just one screenshot.
+"$ADB" shell input swipe 55 115 335 115 500
+sleep 1
+dump after-relaunch-left
+python3 - "$DEST/after-relaunch.xml" "$DEST/after-relaunch-left.xml" <<'PY'
 import sys,xml.etree.ElementTree as ET
-nodes=list(ET.parse(sys.argv[1]).getroot().iter("node"))
-descs={x.get("content-desc","") for x in nodes}
+descs=set()
+for path in sys.argv[1:]:
+    descs.update(x.get("content-desc","") for x in ET.parse(path).getroot().iter("node"))
 for label in ("Switch to project-readme.md","Switch to daily-journal.md","Switch to checklist.md"):
-    if label not in descs: raise SystemExit("Restored tab missing: "+label)
-print("PASS: 27 native tab switches and three restored tabs after relaunch")
+    if label not in descs: raise SystemExit("Restored tab not found across horizontal strip: "+label)
+print("PASS: 27 selected native tab switches and three restored tabs after relaunch")
 PY
+
 tap "Switch to project-readme.md" content-desc
 dump responsive-after-relaunch
 "$ADB" logcat -d -t 1200 > "$DEST/logcat.txt" || true
