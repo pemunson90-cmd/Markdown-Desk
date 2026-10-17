@@ -1682,11 +1682,30 @@ public class MainActivity extends Activity {
             }
             styleButton(buttonCreatePillButton, z, false);
             buttonCreatePillButton.setSelected(z);
-            buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda66
-                @Override // android.view.View.OnLongClickListener
-                public final boolean onLongClick(View view) {
-                    return MainActivity.this.lambda$updateTabsUi$24(exactTabId, view);
+            // A long-click is dispatched while the finger is STILL DOWN. Queue
+            // closure until ACTION_UP/CANCEL, so we never detach the pressed
+            // Button while Android is handling its gesture.
+            final boolean[] tabTouchActive = {false};
+            final boolean[] closeOnRelease = {false};
+            buttonCreatePillButton.setOnTouchListener((view, event) -> {
+                int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_DOWN) tabTouchActive[0] = true;
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    tabTouchActive[0] = false;
+                    if (closeOnRelease[0]) {
+                        closeOnRelease[0] = false;
+                        view.post(() -> requestCloseTab(exactTabId));
+                    }
                 }
+                return false; // Let Button handle normal clicks and long-clicks.
+            });
+            buttonCreatePillButton.setOnLongClickListener(view -> {
+                if (tabTouchActive[0]) {
+                    closeOnRelease[0] = true;
+                    return true;
+                }
+                // TalkBack/accessibility long-clicks have no touch-down sequence.
+                return MainActivity.this.lambda$updateTabsUi$24(exactTabId, view);
             });
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(48));
             layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
@@ -1721,9 +1740,8 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ boolean lambda$updateTabsUi$24(String exactTabId, View view) {
-        // Never switch/restack the editor or remove the gesture's own View
-        // during Android's long-click dispatch. Bind identity, not the tab index:
-        // indices may change before this deferred action runs.
+        // Accessibility can invoke long-click without a pointer. Defer that
+        // action too, and always bind immutable identity rather than tab index.
         view.post(() -> requestCloseTab(exactTabId));
         return true;
     }
