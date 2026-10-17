@@ -19,6 +19,9 @@ public final class UiTest {
    d.delegate.performAccessibilityAction(d,16,null);near(a.splitRatio,.5f,"accessible midpoint");a.splitRatio=.72f;d.key.onKey(d,122,new MainActivity.KeyEvent(0));near(a.splitRatio,.5f,"home midpoint");check(!d.key.onKey(d,99,new MainActivity.KeyEvent(0)),"unrelated key ignored");check(!d.delegate.performAccessibilityAction(d,99,null),"unrelated action delegated");
   }
   int writes=a.preferences.writes;d.touch.onTouch(d,new MainActivity.MotionEvent(0,0));near(a.splitRatio,.28f,"drag lower clamp");check(a.preferences.writes==writes,"drag not persisted early");d.touch.onTouch(d,new MainActivity.MotionEvent(2,2000));near(a.splitRatio,.72f,"drag upper clamp");d.touch.onTouch(d,new MainActivity.MotionEvent(1,2000));check(a.preferences.writes==writes+1,"release persisted");d.touch.onTouch(d,new MainActivity.MotionEvent(3,2000));check(a.preferences.writes==writes+2,"cancel persistence preserved");
+  a.widthDp=840;a.filesRailRequested=true;a.rebuildBody();check(a.body.getOrientation()==1,"rail constrains Split width");
+  a.widthDp=1000;a.rebuildBody();check(a.body.getOrientation()==0,"wide rail Split horizontal");
+  a.filesRailRequested=false;
   a.widthDp=400;a.rebuildBody();check(a.body.children.size()==2,"compact split retains vertical two panes");check(a.body.getOrientation()==1,"compact vertical orientation");
   a.widthDp=800;a.mode=0;a.rebuildBody();check(a.body.children.size()==1&&a.body.children.get(0)==a.editor,"Write retains single source pane");a.mode=1;a.rebuildBody();check(a.body.children.size()==1&&a.body.children.get(0)==a.preview,"Read retains single preview pane");
   a.tabs.clear();for(int i=0;i<12;i++)a.tabs.add(new MainActivity.DocumentTab("Document "+i,false));a.activeTab=11;a.updateTabsUi();check(a.tabButtons.size()==13,"all twelve tabs and new action retained");check(a.tabButtons.get(11).selected&&!a.tabButtons.get(12).selected,"last document selection and new-action state");
