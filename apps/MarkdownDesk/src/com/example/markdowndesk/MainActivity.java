@@ -1482,6 +1482,7 @@ public class MainActivity extends Activity {
         this.saveButton.setBackground(UiTheme.rounded(this.palette.accent, dp(13), this.palette.accent, MODE_EDIT));
         updateModeChrome();
         updateTabsUi();
+        updateFavoriteButtons(this.favoriteIndicatorPinned);
         getWindow().setStatusBarColor(this.palette.surface);
         getWindow().setNavigationBarColor(this.palette.surface);
         if (!this.palette.dark) {
@@ -3462,6 +3463,43 @@ public class MainActivity extends Activity {
             }catch(Exception failure){
                 this.main.post(()->{if(favoriteCurrent(request))showError("Favorite could not be saved. No documents were changed.\n\n"+message(failure));});
             }
+        });
+    }
+
+    private void updateFavoriteButtons(boolean pinned) {
+        for(Button button:new Button[]{this.writeFavoriteButton,this.readFavoriteButton}){
+            if(button==null)continue;
+            button.setText(pinned?"★":"☆");
+            button.setSelected(pinned);
+            button.setContentDescription(pinned?
+                "Remove current document from Favorites (file stays intact)":
+                "Add current document to Favorites");
+            if(this.palette!=null)styleButton(button,pinned,false);
+        }
+    }
+    private void refreshFavoriteIndicators() {
+        final String uri=this.currentUri==null?null:this.currentUri.toString();
+        if(java.util.Objects.equals(uri,this.favoriteIndicatorUri))return;
+        this.favoriteIndicatorUri=uri;
+        final long generation=++this.favoriteIndicatorGeneration;
+        this.favoriteIndicatorPinned=false;
+        updateFavoriteButtons(false);
+        if(uri==null)return;
+        final android.content.Context app=getApplicationContext();
+        this.io.execute(()->{
+            try{
+                boolean pinned=false;
+                for(WorkspaceFavoritesStore.Favorite item:new WorkspaceFavoritesStore(app).read())
+                    if(item.kind==WorkspaceFavoritesStore.Kind.DOCUMENT &&
+                       item.uri.toString().equals(uri)){pinned=true;break;}
+                final boolean selected=pinned;
+                this.main.post(()->{
+                    if(generation!=this.favoriteIndicatorGeneration||isFinishing()||isDestroyed())return;
+                    if(this.currentUri==null||!uri.equals(this.currentUri.toString()))return;
+                    this.favoriteIndicatorPinned=selected;
+                    updateFavoriteButtons(selected);
+                });
+            }catch(Exception ignored){ /* Never misreport a failed read as a changed shortcut. */ }
         });
     }
 
