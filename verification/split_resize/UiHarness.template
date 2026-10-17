@@ -27,7 +27,7 @@ class MainActivity {
   static class LayoutParams {float weight; LayoutParams(int w,int h){} LayoutParams(float f){weight=f;} void setMargins(int a,int b,int c,int d){} }
   void setOrientation(int i){orientation=i;} int getOrientation(){return orientation;} void addView(View v,LayoutParams p){v.layoutParams=p;children.add(v);} void removeAllViews(){children.clear();} void getLocationOnScreen(int[] p){p[0]=100;} int getWidth(){return width;}
  }
- static class DocumentTab {String displayName;boolean dirty;DocumentTab(String n,boolean d){displayName=n;dirty=d;}}
+ static class DocumentTab {String id,displayName;boolean dirty;DocumentTab(String n,boolean d){displayName=n;id=n;dirty=d;}}
  static class Palette {int border;}
  static class Preferences {int writes;float value; Preferences edit(){return this;} Preferences putFloat(String k,float v){value=v;return this;} void apply(){writes++;}}
  static class Resources {Configuration getConfiguration(){return new Configuration();}} static class Configuration {int screenWidthDp=800;}
@@ -39,7 +39,7 @@ class MainActivity {
  LinearLayout.LayoutParams paneParams(){return new LinearLayout.LayoutParams(.5f);} LinearLayout.LayoutParams paneParams(float f){return new LinearLayout.LayoutParams(f);}
  Button createPillButton(String text,String name,View.OnClickListener l){Button b=new Button();b.text=text;b.description=name;b.tooltip=name;b.click=l;buttons.add(b);return b;}
  void refreshFavoriteIndicators(){favoriteRefreshes++;}
- void styleButton(Button b,boolean selected,boolean other){} void lambda$updateTabsUi$23(int i,View v){} boolean lambda$updateTabsUi$24(int i,View v){return true;} void lambda$updateTabsUi$25(View v){} void lambda$updateTabsUi$26(){}
+ void styleButton(Button b,boolean selected,boolean other){} void lambda$updateTabsUi$23(int i,View v){} boolean lambda$updateTabsUi$24(String id,View v){return true;} void requestCloseTab(String id){} void lambda$updateTabsUi$25(View v){} void lambda$updateTabsUi$26(){}
  static class Item {String label;Item(String s){label=s;}} Button gallery(String name){Item item=new Item(name);Button remove=new Button();/* GALLERY */return remove;}
  /* METHODS */
 }
