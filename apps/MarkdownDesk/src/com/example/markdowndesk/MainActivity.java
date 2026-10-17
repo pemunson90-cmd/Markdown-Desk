@@ -205,6 +205,7 @@ public class MainActivity extends Activity {
     private boolean statisticsStopped;
     private final List<Button> buttons = new ArrayList();
     private final List<Button> tabButtons = new ArrayList();
+    private String pendingLongPressedTabId;
     private final List<Button> modeButtons = new ArrayList();
     private final List<DocumentTab> tabs = new ArrayList();
     private String displayName = "Untitled.md";
@@ -1681,11 +1682,24 @@ public class MainActivity extends Activity {
             }
             styleButton(buttonCreatePillButton, z, false);
             buttonCreatePillButton.setSelected(z);
-            buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda66
+            buttonCreatePillButton.setOnLongClickListener(new View.OnLongClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda66
                 @Override // android.view.View.OnLongClickListener
                 public final boolean onLongClick(View view) {
                     return MainActivity.this.lambda$updateTabsUi$24(i, view);
                 }
+            });
+            final String longPressId = documentTab.id;
+            buttonCreatePillButton.setOnTouchListener((pressedView, event) -> {
+                int action = event.getActionMasked();
+                if ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)
+                        && longPressId.equals(this.pendingLongPressedTabId)) {
+                    this.pendingLongPressedTabId = null;
+                    // Never detach the target button while a finger is still down.
+                    // The post executes once this ACTION_UP dispatch has returned.
+                    if (action == MotionEvent.ACTION_UP)
+                        this.tabsScroll.post(() -> requestCloseTabById(longPressId));
+                }
+                return false;
             });
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(48));
             layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
@@ -1722,10 +1736,11 @@ public class MainActivity extends Activity {
     public /* synthetic */ boolean lambda$updateTabsUi$24(int i, View view) {
         if (i < 0 || i >= this.tabs.size()) return true;
         final String tabId = this.tabs.get(i).id;
-        // A long click is dispatched while the pressed button is still attached.
-        // Never replace that button or the whole editor during its touch callback.
-        // Capture the identity now; positions can change before the posted action.
-        this.tabsScroll.post(() -> requestCloseTabById(tabId));
+        // A long click may arrive while the finger remains on the original button.
+        // Wait for ACTION_UP before any view removal. Accessibility-generated
+        // long-clicks have no pressed touch gesture, so dispatch those directly.
+        if (view.isPressed()) this.pendingLongPressedTabId = tabId;
+        else this.tabsScroll.post(() -> requestCloseTabById(tabId));
         return true;
     }
 
