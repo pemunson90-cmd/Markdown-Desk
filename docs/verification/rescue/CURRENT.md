@@ -1,7 +1,19 @@
 # Markdown Desk rescue continuation — 2026-10-16
 
-**Long-chat continuity / latest owner UX report:** Start at [CHAT_HANDOFF_2026-10-16.md](CHAT_HANDOFF_2026-10-16.md) and its complementary Library mirror at `/Markdown Desk/MarkdownDesk_CHAT_HANDOFF_2026-10-16.md`. New **unfixed minor** Fold7 issue: compact **Files** header is cramped, showing **File** with the final **s** on the second line; batch with other UI polish, preserve tap target/accessibility. Signed code21 RC3 has focused + native emulator PASS; owner RC3 install/acceptance not yet verified. The chat reached a user-reported maximum-length banner; do not depend on further history being available.
+**Historical RC3 handoff:** The Files-wrap report below applies to RC3; consolidated working source corrects it. See the current UI completion checkpoint below.
 
+
+## UI completion candidate 2.2.7-ux / versionCode 22
+
+Owner authorized finishing the whole approved UI redesign before the next signed APK, then testing it personally. This is narrower than the remaining Professional M0-M7 backlog.
+
+Post-RC3 source now includes direct Recent/Favorites/Folders/Search in Files, single-line Files header, compact full-height navigator, expandable rail and remaining-width-aware Split mode, named Read font controls (A-/A+ retain correct actions/labels), one-tap persistent Favorite toggle with filled-star state, 48dp controls, reorganized More actions, current guide, and preserved external filename metadata repair. Original Java editor, history, recovery, nine themes, 25 splashes and SAF save protections are retained.
+
+Manifest is 2.2.7-ux code22, package com.example.markdowndesk, higher than the frozen signed RC3/code21. No phone-installable signed 2.2.7 APK has been produced. Original private signing bundle / MarkdownDesk-release.p12 could not be accessed in the current Library. Never rekey, publish private credentials, or recommend uninstalling; canonical signer SHA-256 remains a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01.
+
+Verified exact source unsigned build and focused host PASS: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38993920135 . Earlier native RED was old test ambiguity between Favorites quick jump and Favorites row (run 38993920108; fixed by 0b833cc). Earlier current-phone full-suite RED was stale extracted Split/Favorite harness (run 38993920091; corrected in ea9c5e8/e85c12b). Latest retests must be checked before declaring full suite or native PASS.
+
+Open gates: latest complete current-phone host suite, native Android compact/expanded/read-mode smoke, real Fold7/IME/TalkBack/provider acceptance, original-certificate signing and in-place upgrade. Eighteen explicitly deferred portable-app-state export/import test families remain NOT RUN.
 
 ## Post-RC3 UX continuation — source staged, not device accepted
 
