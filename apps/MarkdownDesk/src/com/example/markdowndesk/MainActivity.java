@@ -4589,29 +4589,32 @@ public class MainActivity extends Activity {
     /* JADX INFO: Access modifiers changed from: private */
     public void showOverflow(View view) {
         PopupMenu popupMenu = new PopupMenu(this, view);
-        popupMenu.getMenu().add(MODE_EDIT, MODE_PREVIEW, MODE_EDIT, "New document");
-        popupMenu.getMenu().add(MODE_EDIT, MODE_SPLIT, MODE_PREVIEW, "Open file");
-        popupMenu.getMenu().add(MODE_EDIT, 3, MODE_SPLIT, "Recent files");
-        popupMenu.getMenu().add(MODE_EDIT, 4, 3, "Document outline");
-        popupMenu.getMenu().add(MODE_EDIT, 5, 4, "Find and replace");
-        popupMenu.getMenu().add(MODE_EDIT, 6, 5, "Command palette");
+        SubMenu editing=popupMenu.getMenu().addSubMenu("Editing tools");
+        editing.add(MODE_EDIT,4,0,"Document outline");
+        editing.add(MODE_EDIT,5,1,"Find in document / Replace");
+        editing.add(MODE_EDIT,6,2,"Command palette");
+        popupMenu.getMenu().add(MODE_EDIT,8,0,"Save as new file");
 
-        SubMenu viewMenu = popupMenu.getMenu().addSubMenu("View and appearance");
-        viewMenu.add(MODE_EDIT, 9, 0, this.focusMode ? "Exit focus mode" : "Focus mode");
-        viewMenu.add(MODE_EDIT, 10, 1, "Appearance");
-        viewMenu.add(MODE_EDIT, 16, 2, "Splash images");
-        viewMenu.add(MODE_EDIT, 11, 3, "Writing goal");
+        SubMenu viewMenu=popupMenu.getMenu().addSubMenu("View and appearance");
+        viewMenu.add(MODE_EDIT,9,0,this.focusMode?"Exit focus mode":"Focus mode");
+        viewMenu.add(MODE_EDIT,10,1,"Appearance and themes");
+        viewMenu.add(MODE_EDIT,16,2,"Splash images");
+        viewMenu.add(MODE_EDIT,11,3,"Writing goal");
 
-        SubMenu exportMenu = popupMenu.getMenu().addSubMenu("Share and export");
-        exportMenu.add(MODE_EDIT, MAX_TABS, 0, "Share Markdown");
-        exportMenu.add(MODE_EDIT, 13, 1, "Share rendered HTML");
-        exportMenu.add(MODE_EDIT, 14, 2, "Print / Save PDF");
-        exportMenu.add(MODE_EDIT, 17, 3, "Export DOCX");
+        SubMenu exportMenu=popupMenu.getMenu().addSubMenu("Share and export");
+        exportMenu.add(MODE_EDIT,MAX_TABS,0,"Share Markdown");
+        exportMenu.add(MODE_EDIT,13,1,"Share rendered HTML");
+        exportMenu.add(MODE_EDIT,14,2,"Print / Save PDF");
+        exportMenu.add(MODE_EDIT,17,3,"Export DOCX");
 
-        popupMenu.getMenu().add(MODE_EDIT, 18, 19, "Tools and recovery");
-        popupMenu.getMenu().add(MODE_EDIT, 8, 20, "Save as");
-        popupMenu.getMenu().add(MODE_EDIT, 7, 21, "Guide and shortcuts");
-        popupMenu.getMenu().add(MODE_EDIT, 15, 22, "Close document");
+        SubMenu historyMenu=popupMenu.getMenu().addSubMenu("History and recovery");
+        historyMenu.add(MODE_EDIT,19,0,"History for this document");
+        historyMenu.add(MODE_EDIT,20,1,"Protected saves / Restore");
+        historyMenu.add(MODE_EDIT,21,2,"Protected storage status");
+        historyMenu.add(MODE_EDIT,18,3,"Other advanced tools");
+
+        popupMenu.getMenu().add(MODE_EDIT,7,20,"Guide and shortcuts");
+        popupMenu.getMenu().add(MODE_EDIT,15,21,"Close document");
         popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override public boolean onMenuItemClick(MenuItem menuItem) {
                 return MainActivity.this.lambda$showOverflow$56(menuItem);
@@ -4680,6 +4683,15 @@ public class MainActivity extends Activity {
                 return true;
             case 18:
                 showWorkspace();
+                return true;
+            case 19:
+                showDocumentHistory();
+                return true;
+            case 20:
+                showProtectedSaves();
+                return true;
+            case 21:
+                showProtectionUsage();
                 return true;
             default:
                 return false;
