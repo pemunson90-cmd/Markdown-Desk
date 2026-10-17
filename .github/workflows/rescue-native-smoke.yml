@@ -193,7 +193,7 @@ jobs:
           import re,sys,xml.etree.ElementTree as ET
           root=ET.parse(sys.argv[1]).getroot();phrase=sys.argv[2]
           items=[n for n in root.iter("node") if phrase in n.get("text","")
-                 and (phrase!="Favorites" or "One tap to reopen" in n.get("content-desc",""))]
+                 and (phrase!="Manage favorites" or "Browse or remove" in n.get("content-desc",""))]
           if len(items)!=1:raise SystemExit("Visible clickable label missing/ambiguous: "+phrase)
           pattern=r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]"
           match=re.fullmatch(pattern,items[0].get("bounds",""))
@@ -225,7 +225,7 @@ jobs:
           sleep 1
           "$ADB" shell input tap $WORKSPACE_TAP
           dump_native_state "workspace-reopen"
-          tap_native_label "$RUNNER_TEMP/md-workspace-reopen.xml" "Favorites"
+          tap_native_label "$RUNNER_TEMP/md-workspace-reopen.xml" "Manage favorites"
           dump_native_state "favorites-empty"
           check_native_text "$RUNNER_TEMP/md-favorites-empty.xml" "No favorites yet"
           echo "PASS native Files chooser and Favorites destination; source file untouched." >> "$GITHUB_STEP_SUMMARY"
