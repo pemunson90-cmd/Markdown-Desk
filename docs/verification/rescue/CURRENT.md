@@ -3,6 +3,14 @@
 **Historical RC3 handoff:** The Files-wrap report below applies to RC3; consolidated working source corrects it. See the current UI completion checkpoint below.
 
 
+## Signed 2.2.7-ux update prepared — owner installation pending
+
+- The exact root Library file `/MarkdownDesk-2.1.0-Full-Build-Bundle.zip` was found using **paginated filename listing** and materialized privately. Earlier statements that the canonical signer was inaccessible are **superseded**. Its release PKCS#12 key's certificate fingerprint matched the canonical `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01` before signing.
+- Source `f71bb9c8edb7545a8cf0d3290f7d9c1180bc11a2` (2.2.7-ux/code22) unsigned artifact was downloaded from **PASS** run [38994409789](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994409789), signed with the original PKCS#12 identity entirely in the private working container, and verified with Android APK Signature Scheme v2/v3. No key/password was put in repository or hosted CI. Private temporary signing material was cleaned.
+- Finished signed APK: `MarkdownDesk-2.2.7-ux-Fold7-signed.apk`, SHA-256 `5ebc75a2ab4a802c9b712bb028da1060bf5ed206ad03f7965c047b84459c7a1d`. Provided to owner via conversation artifact, with SHA256SUMS, release notes and fallback ZIP.
+- Full current-phone host regression [38994409881](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994409881) **PASS** and native Android emulator [38994420562](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994420562) **PASS**. No later source mutation was made after the unsigned application source commit; subsequent rescue changes were only workflow/tests/docs.
+- **Still owner pending:** install over existing app without uninstall/clear; existing documents/settings/history; Fold7 cover/unfold keyboard, provider external Open With filename, DOCX/export and desired UI feedback. Deferred cross-phone private-state transfer remains NOT RUN, by prior owner decision. This is UX-scope completion, not full separate M0–M7 Professional feature acceptance.
+
 ## Latest code22 UI verification — October 16
 
 - Unsigned Android build plus focused source regression **PASS** on [38994409789](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/38994409789), source `f71bb9c8edb7545a8cf0d3290f7d9c1180bc11a2` (code22).
