@@ -1577,7 +1577,7 @@ public class MainActivity extends Activity {
             button.setTextSize(compact ? 13.0f : 14.0f);
             button.setPadding(dp(compact ? 7 : 13), MODE_EDIT, dp(compact ? 7 : 13), MODE_EDIT);
         }
-        if (this.splitModeButton != null) this.splitModeButton.setVisibility(compact ? View.GONE : View.VISIBLE);
+        if (this.splitModeButton != null) this.splitModeButton.setVisibility(View.VISIBLE);
         if (this.focusButton != null) {
             ViewGroup.LayoutParams p = this.focusButton.getLayoutParams();
             if (p != null) { p.width = dp(48); p.height = dp(48); this.focusButton.setLayoutParams(p); }
