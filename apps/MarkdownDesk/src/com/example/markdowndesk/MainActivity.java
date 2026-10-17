@@ -1229,7 +1229,7 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams utilityModeParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(40));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(48));
         params.setMargins(dp(4), 0, 0, 0);
         return params;
     }
@@ -1259,7 +1259,7 @@ public class MainActivity extends Activity {
             }
         });
         this.modeButtons.add(buttonCreatePillButton);
-        this.modeBar.addView(buttonCreatePillButton, new LinearLayout.LayoutParams(MODE_EDIT, dp(38), 1.0f));
+        this.modeBar.addView(buttonCreatePillButton, new LinearLayout.LayoutParams(MODE_EDIT, dp(48), 1.0f));
         return buttonCreatePillButton;
     }
 
@@ -1287,7 +1287,7 @@ public class MainActivity extends Activity {
 
     private Button addFormat(String str, String str2, View.OnClickListener onClickListener) {
         Button buttonCreatePillButton = createPillButton(str, str2, onClickListener);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(42));
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(48));
         layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
         this.formats.addView(buttonCreatePillButton, layoutParams);
         return buttonCreatePillButton;
@@ -1295,7 +1295,7 @@ public class MainActivity extends Activity {
 
     private Button addReadTool(String label, String description, View.OnClickListener listener) {
         Button button = createPillButton(label, description, listener);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(42));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(48));
         params.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
         this.readTools.addView(button, params);
         return button;
@@ -1687,7 +1687,7 @@ public class MainActivity extends Activity {
                     return MainActivity.this.lambda$updateTabsUi$24(i, view);
                 }
             });
-            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(38));
+            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(48));
             layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
             this.tabsRow.addView(buttonCreatePillButton, layoutParams);
             this.tabButtons.add(buttonCreatePillButton);
@@ -1700,7 +1700,7 @@ public class MainActivity extends Activity {
         });
         buttonCreatePillButton2.setTextSize(18.0f);
         styleButton(buttonCreatePillButton2, false, false);
-        this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(44), dp(38)));
+        this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(48), dp(48)));
         this.tabButtons.add(buttonCreatePillButton2);
         refreshFavoriteIndicators();
         if (this.activeTab >= 0) {
