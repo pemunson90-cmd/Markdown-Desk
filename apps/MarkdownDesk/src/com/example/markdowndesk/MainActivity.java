@@ -1869,7 +1869,11 @@ public class MainActivity extends Activity {
         this.previewReady = false;
         applyEditorLockState(false);
         rebuildBody();
-        applyColors();
+        // The palette does not change when switching tabs. Repainting the whole
+        // Activity also rebuilt the Files rail, queued folder/favorite reads,
+        // recreated tab chrome, and requested duplicate preview work.
+        // Theme changes still call applyColors() explicitly.
+        scheduleHighlight();
         updateStatus();
         this.editor.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda86
             @Override // java.lang.Runnable
