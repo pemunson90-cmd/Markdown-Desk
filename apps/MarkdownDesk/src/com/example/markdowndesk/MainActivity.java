@@ -4185,6 +4185,44 @@ public class MainActivity extends Activity {
         });
     }
 
+    private long filesFoldersRequest;
+    private void fillFilesFolders(LinearLayout rows) {
+        final long request=++this.filesFoldersRequest;
+        final android.content.Context app=getApplicationContext();
+        this.io.execute(()->{
+            try {
+                final List<WorkspaceRootStore.RootState> items=
+                    new WorkspaceRootStore(app).list(app.getContentResolver());
+                this.main.post(()->{
+                    if(request!=this.filesFoldersRequest||isFinishing()||isDestroyed())return;
+                    rows.removeAllViews();
+                    if(items.isEmpty())rows.addView(filesAction("＋  Add saved folder",
+                        "Use Android's folder picker",v->{
+                            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                            launchWorkspaceFolderPicker();
+                        }),matchWrap());
+                    for(int n=0;n<Math.min(7,items.size());n++){
+                        WorkspaceRootStore.RootState item=items.get(n);
+                        boolean granted=item.access==WorkspaceRootStore.Access.CURRENT;
+                        rows.addView(filesAction("▣  "+item.root.label+
+                            (granted?"":" · Access needed"),"Browse saved folder",v->{
+                            if(request!=this.filesFoldersRequest)return;
+                            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                            if(granted)openWorkspaceRoot(item.root);
+                            else showWorkspaceRootOptions(item.root,true);
+                        }),matchWrap());
+                    }
+                });
+            }catch(Exception error){this.main.post(()->{
+                if(request==this.filesFoldersRequest&&!isFinishing()&&!isDestroyed()){
+                    rows.removeAllViews();
+                    rows.addView(filesAction("Saved folders unavailable",
+                        "No source files were changed",v->showWorkspaceFolders()),matchWrap());
+                }
+            });}
+        });
+    }
+
     private ScrollView buildFilesNavigatorView() {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=new LinearLayout(this);
@@ -4225,6 +4263,13 @@ public class MainActivity extends Activity {
         pinnedRows.setOrientation(MODE_PREVIEW);
         content.addView(pinnedRows,matchWrap());
         fillFilesFavorites(pinnedRows);
+        TextView folderTitle=workspaceTitle("SAVED FOLDERS");
+        folderTitle.setTextSize(12.0f);
+        content.addView(folderTitle,matchWrap());
+        LinearLayout folderRows=new LinearLayout(this);
+        folderRows.setOrientation(MODE_PREVIEW);
+        content.addView(folderRows,matchWrap());
+        fillFilesFolders(folderRows);
         TextView destinations=workspaceTitle("BROWSE & CREATE");
         destinations.setTextSize(12.0f);
         destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
