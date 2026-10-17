@@ -4089,6 +4089,49 @@ public class MainActivity extends Activity {
     /** Compact file destination; document editing and recovery tools stay in More.
      * Reuses the existing picker, recent-store and SAF folder flow without changing
      * their permissions, tabs, history or save behavior. */
+
+    private long filesSearchPickerRequest;
+    private void showFilesSearchRootPicker() {
+        if(isFinishing()||isDestroyed())return;
+        if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+        final long request=++this.filesSearchPickerRequest;
+        final android.content.Context application=getApplicationContext();
+        this.io.execute(()->{
+            try {
+                final List<WorkspaceRootStore.RootState> roots=
+                    new WorkspaceRootStore(application).list(application.getContentResolver());
+                this.main.post(()->{
+                    if(request!=this.filesSearchPickerRequest||isFinishing()||isDestroyed())return;
+                    if(roots.isEmpty()){
+                        showError("Add a saved folder under Files before searching across documents.");
+                        return;
+                    }
+                    String[] labels=new String[roots.size()];
+                    for(int i=0;i<roots.size();i++){
+                        WorkspaceRootStore.RootState item=roots.get(i);
+                        labels[i]=item.root.label+(item.access==WorkspaceRootStore.Access.CURRENT
+                            ?"":" · Access needed");
+                    }
+                    AlertDialog chooser=historyDialogBuilder("Search files · choose a folder")
+                        .setItems(labels,(d,index)->{
+                            if(request!=this.filesSearchPickerRequest)return;
+                            WorkspaceRootStore.RootState selected=roots.get(index);
+                            if(selected.access==WorkspaceRootStore.Access.CURRENT)
+                                showWorkspaceSearch(selected.root,"");
+                            else showWorkspaceRootOptions(selected.root,true);
+                        }).setNegativeButton("Cancel",null).create();
+                    chooser.setOnShowListener(d->workspaceDialogShown(chooser));
+                    chooser.show();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{
+                    if(request==this.filesSearchPickerRequest&&!isFinishing()&&!isDestroyed())
+                        showError("Could not inspect saved folders; no document was changed.");
+                });
+            }
+        });
+    }
+
     private ScrollView buildFilesNavigatorView() {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=new LinearLayout(this);
@@ -4114,6 +4157,9 @@ public class MainActivity extends Activity {
         }),matchWrap());
         content.addView(workspaceAction("Folders","Browse saved folders or search inside a folder",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+        content.addView(workspaceAction("Search files","Choose a saved folder, then search its text",view->{
+            showFilesSearchRootPicker();
         }),matchWrap());
         content.addView(workspaceAction("Add folder","Use Android's folder picker to remember a folder",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
