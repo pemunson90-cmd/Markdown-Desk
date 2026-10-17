@@ -3643,7 +3643,7 @@ public class MainActivity extends Activity {
                             if(favoriteCurrent(request))pinCurrentDocumentFavorite();
                         })
                         .setNegativeButton("Close",null);
-                    if(saved.isEmpty())builder.setMessage("No favorites yet. Use ☆ Favorite current document in the Workspace for one-tap saving.");
+                    if(saved.isEmpty())builder.setMessage("No favorites yet. Tap ☆ on a saved document in the editor or Files to add a shortcut.");
                     else {
                         builder.setItems(names,(d,index)->{
                             if(favoriteCurrent(request))openWorkspaceFavorite(saved.get(index));
@@ -4319,15 +4319,16 @@ public class MainActivity extends Activity {
         content.addView(quick,matchWrap());
 
         final List<RecentStore.Item> recent=RecentStore.read(this);
-        if(!recent.isEmpty()){
+        {
             TextView label=new TextView(this);
-            label.setText("RECENT DOCUMENTS · tap to open");
+            label.setText(recent.isEmpty()?"RECENT DOCUMENTS":"RECENT DOCUMENTS · tap to open");
             label.setTag("filesRecent");
             label.setTextSize(12.0f);
             label.setLetterSpacing(0.12f);
             label.setTextColor(this.palette.muted);
             label.setPadding(dp(4),dp(14),dp(4),dp(6));
             content.addView(label,matchWrap());
+            if(recent.isEmpty())content.addView(filesAction("Open your first document","Use Android\u0027s document picker",view->launchOpen()),matchWrap());
             final int shown=Math.min(8,recent.size());
             for(int i=0;i<shown;i++){
                 final RecentStore.Item item=recent.get(i);
@@ -4370,10 +4371,10 @@ public class MainActivity extends Activity {
         content.addView(filesAction("Open tabs","Switch to a document already open",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
         }),matchWrap());
-        content.addView(filesAction("Favorites","One tap to reopen saved documents or folders",view->{
+        content.addView(filesAction("Manage favorites","Browse or remove saved shortcuts",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
         }),matchWrap());
-        content.addView(filesAction("Folders","Browse saved folders or search inside a folder",view->{
+        content.addView(filesAction("Manage folders","Edit saved folder shortcuts",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
         }),matchWrap());
         content.addView(filesAction("Search files","Choose a saved folder, then search its text",view->{
