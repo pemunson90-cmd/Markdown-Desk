@@ -1747,7 +1747,6 @@ public class MainActivity extends Activity {
         documentTab.mode = MODE_EDIT;
         this.tabs.add(documentTab);
         switchToTab(this.tabs.size() - MODE_PREVIEW, z);
-        updateTabsUi();
         scheduleSession();
     }
 
@@ -1806,7 +1805,6 @@ public class MainActivity extends Activity {
         } else {
             this.activeTab = Math.min(this.activeTab, this.tabs.size() - 1);
             restoreActiveTab(false);
-            updateTabsUi();
             scheduleSession();
         }
     }
@@ -1839,7 +1837,6 @@ public class MainActivity extends Activity {
         captureActiveTab();
         this.activeTab = i;
         restoreActiveTab(z);
-        updateTabsUi();
         scheduleSession();
     }
 
@@ -1874,6 +1871,8 @@ public class MainActivity extends Activity {
         // recreated tab chrome, and requested duplicate preview work.
         // Theme changes still call applyColors() explicitly.
         scheduleHighlight();
+        // Tab buttons belong to document restoration, not global recoloring.
+        updateTabsUi();
         updateStatus();
         this.editor.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda86
             @Override // java.lang.Runnable
@@ -4615,7 +4614,6 @@ public class MainActivity extends Activity {
         this.tabs.add(documentTab);
         this.activeTab = this.tabs.size() - MODE_PREVIEW;
         restoreActiveTab(true);
-        updateTabsUi();
         scheduleSession();
     }
 
