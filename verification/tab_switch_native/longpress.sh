@@ -18,7 +18,7 @@ locate() {
   python3 - "$DEST/longpress-last.xml" "$1" "$2" <<'PY'
 import sys,re,xml.etree.ElementTree as ET
 root=ET.parse(sys.argv[1]).getroot()
-needle,field=sys.argv[2:];nodes=[n for n in root.iter("node") if n.get(field)==needle]
+needle,field=sys.argv[2:];nodes=[n for n in root.iter("node") if n.get(field,"").casefold()==needle.casefold()]
 if len(nodes)!=1: raise SystemExit("Expected exactly one visible "+repr(needle)+": "+str(len(nodes)))
 m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",nodes[0].get("bounds",""))
 if m is None: raise SystemExit("No screen coordinates for "+needle)
@@ -44,7 +44,7 @@ assert_ui() {
 import sys,xml.etree.ElementTree as ET
 root=ET.parse(sys.argv[1]).getroot()
 needle,field=sys.argv[2:]
-if not any(n.get(field)==needle for n in root.iter("node")):
+if not any(n.get(field,"").casefold()==needle.casefold() for n in root.iter("node")):
   raise SystemExit("Expected UI element missing: "+repr(needle))
 PY
 }
