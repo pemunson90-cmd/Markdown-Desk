@@ -14,7 +14,7 @@ Development branch: `rescue/md-unsigned-build-proof-20261017-tab-freeze`; origin
 - Full current-phone host suite **PASS** on same app source: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39067515308 .
 - Focused host build and source tests **PASS** for code23: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39068341580 .
 - Native emulator 27 selected tab switches plus force-stop/relaunch **PASS**, code23: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39068274655 .
-- The exact code23 final full host rerun: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39068341581 . Check completion before describing it as PASS; it was still in progress at this checkpoint.
+- Exact code23 final full host suite **PASSED**: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39068341581 . All 18 expressly deferred portable cross-install test families remain NOT RUN.
 - Cross-phone portable-state families remain explicitly owner-deferred. Real Fold7 and original saved-tab workload, thermal behavior, IME/SAF acceptance remain NOT RUN and need owner feedback.
 
 ## Private signing artifacts
