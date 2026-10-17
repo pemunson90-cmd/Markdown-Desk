@@ -3,6 +3,12 @@
 **Long-chat continuity / latest owner UX report:** Start at [CHAT_HANDOFF_2026-10-16.md](CHAT_HANDOFF_2026-10-16.md) and its complementary Library mirror at `/Markdown Desk/MarkdownDesk_CHAT_HANDOFF_2026-10-16.md`. New **unfixed minor** Fold7 issue: compact **Files** header is cramped, showing **File** with the final **s** on the second line; batch with other UI polish, preserve tap target/accessibility. Signed code21 RC3 has focused + native emulator PASS; owner RC3 install/acceptance not yet verified. The chat reached a user-reported maximum-length banner; do not depend on further history being available.
 
 
+## Post-RC3 UX continuation — source staged, not device accepted
+
+- At source commit [2728021](https://github.com/pemunson90-cmd/Markdown-Desk/commit/272802100b00afa72eeee1e74c4eec405ff64054), compact header Files is forced to one line and assigned a text-measured width within a document-title budget; its 48dp height remains. The guide shortcut now hides only in compact widths, where **More > Guide and shortcuts** remains available. The guide no longer instructs users to press M. Static layout guards were added.
+- This is **post-RC3 working source**, not the signed RC3 build. No new signed APK, owner install, Fold7 screenshot/hierarchy, external My Files retest, full regression or release acceptance is implied. GitHub unsigned-build and native-emulator workflows were triggered by the application-source push; check their exact commit verdict before calling them passing.
+- Continue approved [responsive workspace stages](../../ux/2026-10-16-approved-overhaul-continuation.md). First next slice: share Files destination content across compact dialog and opt-in expanded rail without recreating the editor or changing source/SAF identity; run focused Activity/Android tests. Do not reopen draft PR24's deferred portable export/import work.
+
 ## Scope and source
 - User-approved continuation without Codex usage, on isolated branch `rescue/md-unsigned-build-proof-20261016`. Do not overwrite, reset, or merge the original draft PR #24 branch `codex/operation-data-capture` without separate integration review. Original production baseline is 2.2.5/versionCode 18, package `com.example.markdowndesk`.
 - Rescue branch began at original development commit `1a17223a74acc4f465edc1209c59db2674affbf1`.
