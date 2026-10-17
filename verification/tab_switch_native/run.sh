@@ -80,5 +80,79 @@ PY
 
 tap "Switch to project-readme.md" content-desc
 dump responsive-after-relaunch
+
+# Reproduce a real long-press on a *different*, unsaved document while another
+# document is selected. The action must never navigate away just to ask about
+# closing; Cancel must keep original selection, and Discard must close exactly
+# the targeted tab.
+tap "Switch to daily-journal.md" content-desc
+"$ADB" shell input swipe 55 115 335 115 400
+sleep 1
+dump before-longpress
+xy="$(python3 - "$DEST/last.xml" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+nodes=[x for x in ET.parse(sys.argv[1]).getroot().iter("node")
+       if x.get("content-desc")=="Switch to project-readme.md"]
+if len(nodes)!=1:raise SystemExit("Offscreen long-press tab: "+str(len(nodes)))
+m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",nodes[0].get("bounds",""))
+if not m:raise SystemExit("Cannot long-press tab without bounds")
+a,b,c,d=map(int,m.groups());print((a+c)//2,(b+d)//2)
+PY
+)"
+set -- $xy
+"$ADB" shell input swipe "$1" "$2" "$1" "$2" 1050
+sleep 1
+dump close-dialog
+python3 - "$DEST/last.xml" <<'PY'
+import sys,xml.etree.ElementTree as ET
+nodes=list(ET.parse(sys.argv[1]).getroot().iter("node"))
+texts={x.get("text","") for x in nodes}
+if "Unsaved changes" not in texts:raise SystemExit("Long-press did not show guarded Unsaved changes dialog")
+PY
+tap "Cancel" text
+dump after-close-cancel
+python3 - "$DEST/last.xml" <<'PY'
+import sys,xml.etree.ElementTree as ET
+nodes=list(ET.parse(sys.argv[1]).getroot().iter("node"))
+d={x.get("content-desc",""):x.get("selected") for x in nodes}
+if d.get("Switch to daily-journal.md")!="true":
+    raise SystemExit("BUG: long-press Cancel changed the active document")
+if "Switch to project-readme.md" not in d:
+    raise SystemExit("Cancel incorrectly removed targeted tab")
+print("PASS: long-press Cancel keeps active document and targeted tab")
+PY
+# Repeat and discard only the target; no intermediate switches are allowed.
+"$ADB" shell input swipe "$1" "$2" "$1" "$2" 1050
+sleep 1
+dump before-close-discard
+tap "Discard" text
+dump after-close-discard
+python3 - "$DEST/last.xml" <<'PY'
+import sys,xml.etree.ElementTree as ET
+d={x.get("content-desc",""):x.get("selected") for x in ET.parse(sys.argv[1]).getroot().iter("node")}
+if d.get("Switch to daily-journal.md")!="true":raise SystemExit("Long-press Discard changed active document")
+if "Switch to project-readme.md" in d:raise SystemExit("Long-press Discard retained targeted tab")
+print("PASS: long-press Discard removes only original target without switching")
+PY
+tap "New document" content-desc
+tap "Blank document" text
+dump before-clean-close
+xy="$(python3 - "$DEST/last.xml" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+nodes=[x for x in ET.parse(sys.argv[1]).getroot().iter("node")
+       if x.get("content-desc")=="Switch to Untitled.md" and x.get("selected")=="true"]
+if len(nodes)!=1:raise SystemExit("Cannot find selected clean new tab")
+m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",nodes[0].get("bounds",""))
+a,b,c,d=map(int,m.groups());print((a+c)//2,(b+d)//2)
+PY
+)"
+set -- $xy
+"$ADB" shell input swipe "$1" "$2" "$1" "$2" 1050
+sleep 1
+dump clean-closed
+"$ADB" shell input tap 180 60
+dump still-responsive
+echo 'PASS: native long-press targeted dirty tab Cancel/Discard, clean close, and touch responsiveness.' >> "$GITHUB_STEP_SUMMARY"
+
 "$ADB" logcat -d -t 1200 > "$DEST/logcat.txt" || true
 echo 'PASS native repeated tab switches and cold relaunch; owner Fold7 and large documents NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
