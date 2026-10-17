@@ -116,6 +116,11 @@ public class MainActivity extends Activity {
     private LinearLayout formats;
     private HorizontalScrollView readToolsScroll;
     private LinearLayout readTools;
+    private Button writeFavoriteButton;
+    private Button readFavoriteButton;
+    private String favoriteIndicatorUri;
+    private boolean favoriteIndicatorPinned;
+    private long favoriteIndicatorGeneration;
     private Button readOutlineButton;
     private Button readAppearanceButton;
     private LinearLayout header;
@@ -561,7 +566,7 @@ public class MainActivity extends Activity {
         this.readTools.setPadding(dp(MAX_TABS), dp(7), dp(MAX_TABS), dp(7));
         this.readToolsScroll.addView(this.readTools, wrapWrap());
         this.root.addView(this.readToolsScroll, matchWrap());
-        addReadTool("☆", "Favorite current document in one tap", new View.OnClickListener() {
+        this.readFavoriteButton = addReadTool("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
         });
         addReadTool("↪", "Go to saved bookmark", new View.OnClickListener() {
@@ -572,7 +577,7 @@ public class MainActivity extends Activity {
         this.readOutlineButton = addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
         configureEditorHistoryActions();
-        addFormat("☆", "Favorite current document in one tap", new View.OnClickListener() {
+        this.writeFavoriteButton = addFormat("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
         });
         addFormat("Mark", "Bookmark the current cursor position", new View.OnClickListener() {
@@ -1280,11 +1285,12 @@ public class MainActivity extends Activity {
         finally {this.smartEditing=previousSmartEditing;}
     }
 
-    private void addFormat(String str, String str2, View.OnClickListener onClickListener) {
+    private Button addFormat(String str, String str2, View.OnClickListener onClickListener) {
         Button buttonCreatePillButton = createPillButton(str, str2, onClickListener);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-2, dp(42));
         layoutParams.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
         this.formats.addView(buttonCreatePillButton, layoutParams);
+        return buttonCreatePillButton;
     }
 
     private Button addReadTool(String label, String description, View.OnClickListener listener) {
@@ -1695,6 +1701,7 @@ public class MainActivity extends Activity {
         styleButton(buttonCreatePillButton2, false, false);
         this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(44), dp(38)));
         this.tabButtons.add(buttonCreatePillButton2);
+        refreshFavoriteIndicators();
         if (this.activeTab >= 0) {
             this.tabsScroll.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda68
                 @Override // java.lang.Runnable
@@ -3478,6 +3485,7 @@ public class MainActivity extends Activity {
                     if(!favoriteCurrent(request))return;
                     Toast.makeText(this,pinned?"Added to Favorites":
                         "Favorite removed; original file kept",Toast.LENGTH_SHORT).show();
+                    this.favoriteIndicatorUri=null;
                     refreshFavoriteIndicators();
                 });
             }catch(Exception failure){
