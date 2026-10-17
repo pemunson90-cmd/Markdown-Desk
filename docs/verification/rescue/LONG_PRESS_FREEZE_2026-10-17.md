@@ -17,7 +17,7 @@ On `2.2.8-tabfix1`, long-pressing **project-readme.md** while **daily-journal.md
 - RED old path: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39070161305
 - GREEN corrected native Android test on code24 app source: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39070165383 — 27 normal switches, cold relaunch, inactive dirty long press Cancel/Discard, clean close and post-close UI responsiveness PASS.
 - Exact unsigned code24 build PASS https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39069893111
-- Full current-phone host regression: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39070481125 — inspect final status before release; was still IN PROGRESS at checkpoint.
+- Full current-phone host regression **PASS**: https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39070481125 . Includes all current-phone safety checks; eighteen explicitly owner-deferred portable cross-installation test families remain NOT RUN.
 - The eighteen portable cross-install tests remain owner-deferred. Real Fold7 thermal/input acceptance remains NOT RUN.
 
 ## Private signing
