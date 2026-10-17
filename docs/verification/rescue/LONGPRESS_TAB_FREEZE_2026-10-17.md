@@ -1,5 +1,19 @@
 # Markdown Desk long-press tab freeze hotfix — 2026-10-17
 
+## Final audited code24 checkpoint — all automated gates PASS
+
+This section supersedes the older signed `66ee8c5` candidate and the earlier pending-check statements.
+
+**Application source:** `645d2e504f0735b2993dac5d0a61ce66671c260e`; final test fixture commit `1b3a057fb23824a8da0ff96790e8b1bbb857c976` (no subsequent production code modifications).
+
+- Focused unsigned APK and source checks: **PASS**, https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39072511456
+- Full owner-scoped current-phone host regression, including actual extracted long-click/cancel/new-DOWN assertions: **PASS**, https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39072511524
+- Native Android emulator ordinary taps, physical long-press, dirty/clean inactive and active tab closure, cancel and cold relaunch: **PASS**, https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/39072490955
+
+**Private original-signer signed APK:** `MarkdownDesk-2.2.9-tabfix2-audited-Fold7-signed.apk`; SHA-256 `3a3cecf16e0c4ce8a585624dc3eab01d52a9b9d455693ee785747ada16c3f687`; v2/v3 signatures, original cert fingerprint and unsigned source ZIP entries independently verified. Distributed only as a conversation artifact, not GitHub. Companion `MarkdownDesk-2.2.9-tabfix2-audited-package.zip` includes notes, checksums and the separate GPT/Reddit audit report (no secrets).
+
+**Not established:** whether the reported physical Galaxy Z Fold7 UI freezes/heat are resolved; original Fold7 real data/IME/provider behavior NOT RUN. Eighteen explicitly owner-deferred cross-phone portable state tests NOT RUN. If symptoms continue, capture a redacted Android bug report/ANR trace instead of claiming source inspection proved the cause. Keep existing app data; in-place update from 2.2.8/code23 only.
+
 ## Post-audit correction — supersedes older release-ready interpretation
 
 An additional GPT-code/Android/Reddit review found two real bugs in the first code24 long-press fix:
