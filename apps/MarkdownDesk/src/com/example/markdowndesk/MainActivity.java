@@ -4132,6 +4132,21 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    private Button filesAction(String label,String description,View.OnClickListener listener) {
+        Button row=createPillButton(label,description,listener);
+        this.buttons.remove(row);
+        row.setTextSize(15.0f);
+        row.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        row.setSingleLine(true);
+        row.setMaxLines(1);
+        row.setEllipsize(TextUtils.TruncateAt.END);
+        row.setPadding(dp(14),0,dp(10),0);
+        row.setMinHeight(dp(48));
+        styleButton(row,false,false);
+        return row;
+    }
+
     private ScrollView buildFilesNavigatorView() {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=new LinearLayout(this);
@@ -4143,48 +4158,53 @@ public class MainActivity extends Activity {
         description.setTextColor(this.palette.muted);
         description.setPadding(dp(4),dp(4),dp(4),dp(12));
         content.addView(description,matchWrap());
-        content.addView(workspaceAction("Open a file","Choose a Markdown or text document",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchOpen();
-        }),matchWrap());
-        content.addView(workspaceAction("New document","Start writing a new document",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
-        }),matchWrap());
-        content.addView(workspaceAction("Open tabs","Switch to a document already open",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
-        }),matchWrap());
-        content.addView(workspaceAction("Favorites","One tap to reopen saved documents or folders",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
-        }),matchWrap());
-        content.addView(workspaceAction("Folders","Browse saved folders or search inside a folder",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
-        }),matchWrap());
-        content.addView(workspaceAction("Search files","Choose a saved folder, then search its text",view->{
-            showFilesSearchRootPicker();
-        }),matchWrap());
-        content.addView(workspaceAction("Add folder","Use Android's folder picker to remember a folder",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
-        }),matchWrap());
         final List<RecentStore.Item> recent=RecentStore.read(this);
         if(!recent.isEmpty()){
             TextView label=new TextView(this);
-            label.setText("RECENT DOCUMENTS");
+            label.setText("RECENT DOCUMENTS · tap to open");
             label.setTextSize(12.0f);
             label.setLetterSpacing(0.12f);
             label.setTextColor(this.palette.muted);
             label.setPadding(dp(4),dp(14),dp(4),dp(6));
             content.addView(label,matchWrap());
-            final int shown=Math.min(5,recent.size());
+            final int shown=Math.min(8,recent.size());
             for(int i=0;i<shown;i++){
                 final RecentStore.Item item=recent.get(i);
-                content.addView(workspaceAction(item.name,"Open recent document",view->{
+                content.addView(filesAction(item.name,"Open recent document",view->{
                     if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
                     openDocument(Uri.parse(item.uri),3,true);
                 }),matchWrap());
             }
-            if(recent.size()>shown)content.addView(workspaceAction("All recent documents","Browse every recent document",view->{
+            if(recent.size()>shown)content.addView(filesAction("All recent documents","Browse every recent document",view->{
                 if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showRecents();
             }),matchWrap());
         }
+
+        TextView destinations=workspaceTitle("BROWSE & CREATE");
+        destinations.setTextSize(12.0f);
+        destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
+        content.addView(destinations,matchWrap());
+        content.addView(filesAction("Open a file","Choose a Markdown or text document",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchOpen();
+        }),matchWrap());
+        content.addView(filesAction("New document","Start writing a new document",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
+        }),matchWrap());
+        content.addView(filesAction("Open tabs","Switch to a document already open",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
+        }),matchWrap());
+        content.addView(filesAction("Favorites","One tap to reopen saved documents or folders",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
+        }),matchWrap());
+        content.addView(filesAction("Folders","Browse saved folders or search inside a folder",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
+        }),matchWrap());
+        content.addView(filesAction("Search files","Choose a saved folder, then search its text",view->{
+            showFilesSearchRootPicker();
+        }),matchWrap());
+        content.addView(filesAction("Add folder","Use Android's folder picker to remember a folder",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
+        }),matchWrap());
         scroll.addView(content,matchWrap());
         return scroll;
     }
