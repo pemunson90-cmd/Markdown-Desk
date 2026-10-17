@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disposable Android emulator only; do not run on the owner's installed app.
+# Disposable Android emulator only; RED baseline for inactive-tab long-press closure.
 set -euo pipefail
 ADB="$ANDROID_HOME/platform-tools/adb"
 DEST="$RUNNER_TEMP/md-tab-switch"
