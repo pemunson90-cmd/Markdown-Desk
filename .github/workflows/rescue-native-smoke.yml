@@ -330,6 +330,10 @@ jobs:
         shell: bash
         run: bash verification/tab_switch_native/run.sh
 
+      - name: Reproduce long-press tab closing without switching or losing unsaved work
+        shell: bash
+        run: bash verification/tab_switch_native/longpress.sh
+
       - name: Retain emulator evidence only (no distributable APK)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -339,6 +343,8 @@ jobs:
             ${{ runner.temp }}/md-emulator.log
             ${{ runner.temp }}/md-tab-switch/*.xml
             ${{ runner.temp }}/md-tab-switch/logcat.txt
+            ${{ runner.temp }}/md-tab-switch/longpress-*.xml
+            ${{ runner.temp }}/md-tab-switch/longpress-logcat.txt
             ${{ runner.temp }}/md-portrait.png
             ${{ runner.temp }}/md-portrait-check.png
             ${{ runner.temp }}/md-landscape.png
