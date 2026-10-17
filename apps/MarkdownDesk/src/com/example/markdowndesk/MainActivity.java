@@ -4147,6 +4147,44 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    private long filesRowsRequest;
+    private void fillFilesFavorites(LinearLayout rows) {
+        final long request=++this.filesRowsRequest;
+        final android.content.Context app=getApplicationContext();
+        this.io.execute(()->{
+            try {
+                final List<WorkspaceFavoritesStore.Favorite> items=
+                    new WorkspaceFavoritesStore(app).read();
+                this.main.post(()->{
+                    if(request!=this.filesRowsRequest||isFinishing()||isDestroyed())return;
+                    rows.removeAllViews();
+                    if(items.isEmpty()){
+                        rows.addView(filesAction("☆  Add current document",
+                            "Save a favorite shortcut",v->{
+                                if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                                pinCurrentDocumentFavorite();
+                            }),matchWrap());
+                    }
+                    for(int n=0;n<Math.min(7,items.size());n++){
+                        WorkspaceFavoritesStore.Favorite item=items.get(n);
+                        rows.addView(filesAction("★  "+item.label,"Open saved shortcut",v->{
+                            if(request!=this.filesRowsRequest)return;
+                            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                            cancelWorkspaceFavorites();
+                            openWorkspaceFavorite(item);
+                        }),matchWrap());
+                    }
+                });
+            }catch(Exception error){this.main.post(()->{
+                if(request==this.filesRowsRequest&&!isFinishing()&&!isDestroyed()){
+                    rows.removeAllViews();
+                    rows.addView(filesAction("Favorites unavailable",
+                        "Stored shortcuts remain protected",v->showWorkspaceFavorites()),matchWrap());
+                }
+            });}
+        });
+    }
+
     private ScrollView buildFilesNavigatorView() {
         ScrollView scroll=new ScrollView(this);
         LinearLayout content=new LinearLayout(this);
@@ -4180,6 +4218,13 @@ public class MainActivity extends Activity {
             }),matchWrap());
         }
 
+        TextView pinnedTitle=workspaceTitle("FAVORITES");
+        pinnedTitle.setTextSize(12.0f);
+        content.addView(pinnedTitle,matchWrap());
+        LinearLayout pinnedRows=new LinearLayout(this);
+        pinnedRows.setOrientation(MODE_PREVIEW);
+        content.addView(pinnedRows,matchWrap());
+        fillFilesFavorites(pinnedRows);
         TextView destinations=workspaceTitle("BROWSE & CREATE");
         destinations.setTextSize(12.0f);
         destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
