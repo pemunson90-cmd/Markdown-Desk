@@ -60,6 +60,15 @@ public final class WorkspaceFavoritesUiCheck {
         h.tapWorkspaceAction("☆ Favorite current document");settle(h);
         yes(current(h)==null,"single-tap pin leaves no surprising Favorites dialog");
         yes(android.widget.Toast.latest.contains("Added to Favorites"),"one-tap pin confirms via toast");
+        h.tapWorkspaceAction("☆ Favorite current document");settle(h);
+        yes(new WorkspaceFavoritesStore(h.application).read().isEmpty(),
+            "second star tap removes only the shortcut");
+        yes(android.widget.Toast.latest.contains("Favorite removed"),
+            "remove sends nonblocking feedback");
+        h.tapWorkspaceAction("☆ Favorite current document");settle(h);
+        yes(new WorkspaceFavoritesStore(h.application).read().size()==1,
+            "third star tap restores the same shortcut");
+
         show(h);settle(h);
         WorkspaceHarness.AlertDialog list=dialog(h);
         yes(list.items.length==1&&list.items[0].contains("A real document.md"),"document pin shown in UI");
