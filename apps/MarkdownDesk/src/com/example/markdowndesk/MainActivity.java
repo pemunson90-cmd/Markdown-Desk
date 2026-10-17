@@ -116,6 +116,8 @@ public class MainActivity extends Activity {
     private LinearLayout formats;
     private HorizontalScrollView readToolsScroll;
     private LinearLayout readTools;
+    private Button readOutlineButton;
+    private Button readAppearanceButton;
     private LinearLayout header;
     private Runnable highlightRunnable;
     private final MarkdownSyntaxHighlighter.State syntaxHighlight = new MarkdownSyntaxHighlighter.State();
@@ -408,20 +410,20 @@ public class MainActivity extends Activity {
         this.saveButton.setSingleLine(true);
         this.saveButton.setMaxLines(1);
         this.saveButton.setPadding(dp(6), MODE_EDIT, dp(6), MODE_EDIT);
-        this.topBar.addView(this.saveButton, new LinearLayout.LayoutParams(dp(68), dp(44)));
+        this.topBar.addView(this.saveButton, new LinearLayout.LayoutParams(dp(68), dp(48)));
         this.helpButton = createTopButton("?", "Guide and shortcuts", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda39
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.lambda$buildInterface$3(view);
             }
         });
-        this.topBar.addView(this.helpButton, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        this.topBar.addView(this.helpButton, new LinearLayout.LayoutParams(dp(48), dp(48)));
         this.topBar.addView(createTopButton("•••", "More actions", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda40
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.showOverflow(view);
             }
-        }), new LinearLayout.LayoutParams(dp(48), dp(44)));
+        }), new LinearLayout.LayoutParams(dp(48), dp(48)));
         this.header.addView(this.topBar, matchWrap());
         this.tabsScroll = new HorizontalScrollView(this);
         this.tabsScroll.setHorizontalScrollBarEnabled(false);
@@ -567,8 +569,8 @@ public class MainActivity extends Activity {
         });
         addReadTool("A−", "Decrease reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); } });
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
-        addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
-        addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        this.readOutlineButton = addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
+        this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
         configureEditorHistoryActions();
         addFormat("☆", "Favorite current document in one tap", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
@@ -1285,11 +1287,12 @@ public class MainActivity extends Activity {
         this.formats.addView(buttonCreatePillButton, layoutParams);
     }
 
-    private void addReadTool(String label, String description, View.OnClickListener listener) {
+    private Button addReadTool(String label, String description, View.OnClickListener listener) {
         Button button = createPillButton(label, description, listener);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(42));
         params.setMargins(MODE_EDIT, MODE_EDIT, dp(7), MODE_EDIT);
         this.readTools.addView(button, params);
+        return button;
     }
 
     private void updateFormatAvailability() {
@@ -1558,6 +1561,7 @@ public class MainActivity extends Activity {
         ViewGroup.LayoutParams saveParams = this.saveButton.getLayoutParams();
         if (saveParams != null) {
             saveParams.width = dp(compact ? 62 : 68);
+            saveParams.height = dp(48);
             this.saveButton.setLayoutParams(saveParams);
         }
         for (Button button : this.modeButtons) {
@@ -1569,18 +1573,15 @@ public class MainActivity extends Activity {
         if (this.splitModeButton != null) this.splitModeButton.setVisibility(compact ? View.GONE : View.VISIBLE);
         if (this.focusButton != null) {
             ViewGroup.LayoutParams p = this.focusButton.getLayoutParams();
-            if (p != null) { p.width = dp(48); p.height = dp(40); this.focusButton.setLayoutParams(p); }
+            if (p != null) { p.width = dp(48); p.height = dp(48); this.focusButton.setLayoutParams(p); }
         }
         if (this.lockButton != null) {
             ViewGroup.LayoutParams p = this.lockButton.getLayoutParams();
-            if (p != null) { p.width = dp(48); p.height = dp(40); this.lockButton.setLayoutParams(p); }
+            if (p != null) { p.width = dp(48); p.height = dp(48); this.lockButton.setLayoutParams(p); }
         }
-        if (this.readTools != null && this.readTools.getChildCount() >= 4) {
-            View outline = this.readTools.getChildAt(2);
-            View appearance = this.readTools.getChildAt(3);
-            if (outline instanceof Button) ((Button) outline).setText(compact ? "Outline" : "Outline");
-            if (appearance instanceof Button) ((Button) appearance).setText(compact ? "Style" : "Appearance");
-        }
+        // Never identify actions by child index: Favorites/Go and font buttons precede these.
+        if (this.readOutlineButton != null) this.readOutlineButton.setText("Outline");
+        if (this.readAppearanceButton != null) this.readAppearanceButton.setText(compact ? "Style" : "Appearance");
     }
 
     private void toggleEditorLock() {

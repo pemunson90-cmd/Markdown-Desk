@@ -13,6 +13,11 @@ assert 'i >= strArr.length' in method
 assert 'scrollView.addView(column, matchWrap())' in text
 assert text.count('button.setForegroundGravity(Gravity.CENTER)') == 1
 assert 'this.filesButton.setSingleLine(true);' in text
+assert 'this.readOutlineButton = addReadTool("Outline"' in text
+assert 'this.readAppearanceButton = addReadTool("Appearance"' in text
+assert 'this.readTools.getChildAt(2)' not in text
+assert 'this.readTools.getChildAt(3)' not in text
+assert 'p.width = dp(48); p.height = dp(48)' in text
 assert 'this.filesButton.setEllipsize(TextUtils.TruncateAt.END);' in text
 assert 'this.helpButton.setVisibility(compact ? View.GONE : View.VISIBLE);' in text
 assert 'Tap the M button' not in text
