@@ -3,6 +3,8 @@ import java.io.*;import android.content.*;import android.view.*;import android.w
 class WorkspaceBase {protected void onPause(){}protected void onDestroy(){}}
 final class WorkspaceHarness extends WorkspaceBase {
  void cancelWorkspaceSearch() {}
+ void refreshFavoriteIndicators() { favoriteRefreshes++; }
+ int favoriteRefreshes;
  void showWorkspaceSearch(WorkspaceRootStore.Root root,String literal){throw new AssertionError("Search UI belongs to actual workspace_search_ui fixture");}
     void pauseDocxExport() {}
     void cancelDocxExport() {}

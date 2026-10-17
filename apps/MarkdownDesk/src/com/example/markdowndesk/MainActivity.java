@@ -3466,7 +3466,27 @@ public class MainActivity extends Activity {
         String name=tab.displayName;
         if(name==null||name.isEmpty())name=this.currentUri.getLastPathSegment();
         if(name==null||name.isEmpty())name="Saved document";
-        pinWorkspaceFavorite(this.currentUri,name,WorkspaceFavoritesStore.Kind.DOCUMENT);
+        cancelWorkspaceFavorites();
+        final long request=this.favoriteRequest;
+        final Uri exactUri=this.currentUri;
+        final String label=name;
+        final android.content.Context app=getApplicationContext();
+        this.io.execute(()->{
+            try {
+                final boolean pinned=new WorkspaceFavoritesStore(app).toggleDocument(exactUri,label);
+                this.main.post(()->{
+                    if(!favoriteCurrent(request))return;
+                    Toast.makeText(this,pinned?"Added to Favorites":
+                        "Favorite removed; original file kept",Toast.LENGTH_SHORT).show();
+                    refreshFavoriteIndicators();
+                });
+            }catch(Exception failure){
+                this.main.post(()->{
+                    if(favoriteCurrent(request))showError(
+                        "Favorite could not be saved or removed. No documents were changed.\n\n"+message(failure));
+                });
+            }
+        });
     }
 
     private void removeWorkspaceFavorite(WorkspaceFavoritesStore.Favorite favorite) {
