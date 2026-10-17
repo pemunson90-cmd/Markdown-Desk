@@ -153,6 +153,8 @@ public class MainActivity extends Activity {
     private Runnable recoveryRunnable;
     private LinearLayout root;
     private String saveAsTabId;
+    private Button filesButton;
+    private Button helpButton;
     private Button saveButton;
     private boolean saveInProgress;
     private String savingTabId;
@@ -361,12 +363,17 @@ public class MainActivity extends Activity {
         this.topBar = new LinearLayout(this);
         this.topBar.setOrientation(MODE_EDIT);
         this.topBar.setGravity(16);
-        this.topBar.addView(createTopButton("Files", "Browse files, recent documents and favorites", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda27
+        this.filesButton = createTopButton("Files", "Browse files, recent documents and favorites", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda27
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.lambda$buildInterface$1(view);
             }
-        }), new LinearLayout.LayoutParams(dp(56), dp(48)));
+        });
+        this.filesButton.setSingleLine(true);
+        this.filesButton.setMaxLines(1);
+        this.filesButton.setEllipsize(TextUtils.TruncateAt.END);
+        this.filesButton.setPadding(dp(6), MODE_EDIT, dp(6), MODE_EDIT);
+        this.topBar.addView(this.filesButton, new LinearLayout.LayoutParams(dp(72), dp(48)));
         LinearLayout linearLayout = new LinearLayout(this);
         linearLayout.setOrientation(MODE_PREVIEW);
         linearLayout.setPadding(dp(MAX_TABS), MODE_EDIT, dp(8), MODE_EDIT);
@@ -392,12 +399,13 @@ public class MainActivity extends Activity {
         this.saveButton.setMaxLines(1);
         this.saveButton.setPadding(dp(6), MODE_EDIT, dp(6), MODE_EDIT);
         this.topBar.addView(this.saveButton, new LinearLayout.LayoutParams(dp(68), dp(44)));
-        this.topBar.addView(createTopButton("?", "Guide and shortcuts", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda39
+        this.helpButton = createTopButton("?", "Guide and shortcuts", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda39
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.lambda$buildInterface$3(view);
             }
-        }), new LinearLayout.LayoutParams(dp(44), dp(44)));
+        });
+        this.topBar.addView(this.helpButton, new LinearLayout.LayoutParams(dp(44), dp(44)));
         this.topBar.addView(createTopButton("•••", "More actions", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda40
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
@@ -1508,7 +1516,28 @@ public class MainActivity extends Activity {
         if (this.modeBar == null || this.saveButton == null) {
             return;
         }
-        boolean compact = getResources().getConfiguration().screenWidthDp < 500;
+        int widthDp = getResources().getConfiguration().screenWidthDp;
+        boolean compact = widthDp > 0 && widthDp < 500;
+        // Reserve space for Save, More, filename and header margins. The guide is in More
+        // on compact widths so Files remains readable without growing the top bar.
+        if (this.helpButton != null) this.helpButton.setVisibility(compact ? View.GONE : View.VISIBLE);
+        if (this.filesButton != null) {
+            this.filesButton.setSingleLine(true);
+            this.filesButton.setMaxLines(1);
+            this.filesButton.setEllipsize(TextUtils.TruncateAt.END);
+            this.filesButton.setTextSize(compact ? 12.0f : 13.0f);
+            int reservedDp = compact ? 28 + 62 + 48 + 56 : 28 + 68 + 44 + 48 + 64;
+            int maximumDp = widthDp > 0 ? Math.max(72, widthDp - reservedDp) : 96;
+            int labelWidth = (int) Math.ceil(this.filesButton.getPaint().measureText("Files"));
+            int desiredWidth = labelWidth + this.filesButton.getPaddingLeft()
+                    + this.filesButton.getPaddingRight() + dp(10);
+            ViewGroup.LayoutParams fileParams = this.filesButton.getLayoutParams();
+            if (fileParams != null) {
+                fileParams.width = Math.max(dp(72), Math.min(dp(maximumDp), desiredWidth));
+                fileParams.height = dp(48);
+                this.filesButton.setLayoutParams(fileParams);
+            }
+        }
         this.saveButton.setSingleLine(true);
         this.saveButton.setMaxLines(1);
         this.saveButton.setTextSize(compact ? 10.0f : 11.0f);
@@ -4404,8 +4433,8 @@ public class MainActivity extends Activity {
 
     private void showTutorialPanel() {
         String[] strArr = {"The writing desk", "Tabs and documents", "Formatting buttons", "Write, Read, and Split", "Outline and search", "Focus, typewriter, and text size", "Saving and recovery", "Sharing and PDF", "Keyboard shortcuts", "Splash images"};
-        String[] strArr2 = {"Tap the M button to open your writing desk. From there you can start from a template, open a file, or return to a recent document. SAVE changes its label to show whether the document is saved, dirty, read-only, or currently saving.", "Every open document appears in the tab strip. Tap a tab to switch to it. A dot marks unsaved changes. Long-press a tab to close it. The + tab creates a new document, and the app restores each tab's cursor, scroll position, mode, and dirty state after a restart.", "The bottom dock inserts Markdown without changing how your source is stored. H1 creates a heading; B, I, and S wrap selected text; •, ☐, and ❯ start lists, tasks, and quotes; ↗ inserts a link; </> inserts inline or fenced code; ▦ creates a table; — creates a divider; Today inserts the date.", "Write shows the source editor. Read shows the rendered page. Split shows both and keeps their positions synchronized. Tap a paragraph in Read or Split to jump to its source. Ordinary web links still open in your browser.", "Outline lists every real Markdown heading and jumps to the selected section. Find supports ordinary, case-sensitive, whole-word, and regular-expression searches. Matches highlight live in the document; Replace and Replace all support regex capture groups.", "Focus removes secondary chrome so the page can breathe. Typewriter mode keeps the active line near the center. Source and Read keep separate text sizes. Pinch in the editor to change source size, or pinch in Read to change reading size. Read also has A− and A+ controls, and Appearance exposes both sizes. Each choice is remembered.", "The app preserves UTF-8, Unicode, line endings, trailing whitespace, and an existing BOM. Saves are read back and verified. If another app changes the file, Markdown Desk stops before overwriting it. Dirty drafts and open tabs are recovered after interruption or restart.", "Share Markdown sends the original source. Share rendered HTML sends the styled document. Print / Save PDF opens Android's print service, where you can print or choose Save as PDF.", "Ctrl+S saves · Ctrl+O opens · Ctrl+N creates · Ctrl+F finds · Ctrl+P toggles Read · Ctrl+Shift+P opens the command palette · Ctrl+B bolds · Ctrl+I italicizes · Ctrl+K inserts a link.", "The app opens with a splash image drawn at random from the ones that are switched on, and it avoids repeating the last one you saw. Splash images under Appearance, or Splash images in the ••• menu, lists every image: tap one to switch it on or off, use ✕ to remove it, and Add image… to bring in your own from anywhere on your device. Imported images are copied into the app, so they keep working after the original moves. Images that came with the app can be brought back with Restore removed app images. Show launch splash under Appearance still turns the whole thing off."};
-        StringBuilder sb = new StringBuilder("Everything in one place. You can reopen this guide any time from the ? button.\n\n");
+        String[] strArr2 = {"Tap Files to browse recent documents, Favorites and saved folders, open a file, or switch tabs. New document offers writing templates. SAVE changes its label to show whether the document is saved, dirty, read-only, or currently saving.", "Every open document appears in the tab strip. Tap a tab to switch to it. A dot marks unsaved changes. Long-press a tab to close it. The + tab creates a new document, and the app restores each tab's cursor, scroll position, mode, and dirty state after a restart.", "The bottom dock inserts Markdown without changing how your source is stored. H1 creates a heading; B, I, and S wrap selected text; •, ☐, and ❯ start lists, tasks, and quotes; ↗ inserts a link; </> inserts inline or fenced code; ▦ creates a table; — creates a divider; Today inserts the date.", "Write shows the source editor. Read shows the rendered page. Split shows both and keeps their positions synchronized. Tap a paragraph in Read or Split to jump to its source. Ordinary web links still open in your browser.", "Outline lists every real Markdown heading and jumps to the selected section. Find supports ordinary, case-sensitive, whole-word, and regular-expression searches. Matches highlight live in the document; Replace and Replace all support regex capture groups.", "Focus removes secondary chrome so the page can breathe. Typewriter mode keeps the active line near the center. Source and Read keep separate text sizes. Pinch in the editor to change source size, or pinch in Read to change reading size. Read also has A− and A+ controls, and Appearance exposes both sizes. Each choice is remembered.", "The app preserves UTF-8, Unicode, line endings, trailing whitespace, and an existing BOM. Saves are read back and verified. If another app changes the file, Markdown Desk stops before overwriting it. Dirty drafts and open tabs are recovered after interruption or restart.", "Share Markdown sends the original source. Share rendered HTML sends the styled document. Print / Save PDF opens Android's print service, where you can print or choose Save as PDF.", "Ctrl+S saves · Ctrl+O opens · Ctrl+N creates · Ctrl+F finds · Ctrl+P toggles Read · Ctrl+Shift+P opens the command palette · Ctrl+B bolds · Ctrl+I italicizes · Ctrl+K inserts a link.", "The app opens with a splash image drawn at random from the ones that are switched on, and it avoids repeating the last one you saw. Splash images under Appearance, or Splash images in the ••• menu, lists every image: tap one to switch it on or off, use ✕ to remove it, and Add image… to bring in your own from anywhere on your device. Imported images are copied into the app, so they keep working after the original moves. Images that came with the app can be brought back with Restore removed app images. Show launch splash under Appearance still turns the whole thing off."};
+        StringBuilder sb = new StringBuilder("Everything in one place. You can reopen this guide from More > Guide and shortcuts.\n\n");
         int i = MODE_EDIT;
         while (i < strArr.length) {
             sb.append(strArr[i]).append("\n").append(strArr2[i]);
