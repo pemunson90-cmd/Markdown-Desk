@@ -15,7 +15,7 @@ public final class ExtractUi {
    for(Tree decl:unit.getTypeDecls()) if(decl instanceof ClassTree && ((ClassTree)decl).getSimpleName().contentEquals("MainActivity"))
     for(Tree member:((ClassTree)decl).getMembers()) if(member instanceof MethodTree) {
      MethodTree method=(MethodTree)member;
-     if(List.of("updateTabsUi","rebuildBody","adjustSplitRatio").contains(method.getName().toString()))
+     if(List.of("updateTabsUi","rebuildBody","adjustSplitRatio","lambda$updateTabsUi$24").contains(method.getName().toString()))
       methods.append(source.substring((int)pos.getStartPosition(unit,member),(int)pos.getEndPosition(unit,member))).append('\n');
      if(method.getName().toString().equals("buildSplashRow")) new TreeScanner<Void,Void>() {
       public Void visitExpressionStatement(ExpressionStatementTree statement,Void ignored) {
