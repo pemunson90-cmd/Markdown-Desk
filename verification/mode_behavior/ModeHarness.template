@@ -70,6 +70,8 @@ public final class ModeHarness {
     void scheduleSession() { sessions++; }
     void hideKeyboard() { hideKeyboardCalls++; }
     void showKeyboard(Editor target) { showKeyboardCalls++; }
+    int filesRailRefreshes;
+    void refreshFilesRail() { filesRailRefreshes++; }
     void applyResponsiveChrome() { responsiveUpdates++; }
     void updateFormatAvailability() { formatUpdates++; }
     void styleButton(Button button, boolean active, boolean ignored) { button.styledActive=active; button.textColor=active?palette.accent:palette.text; chromeStyleCalls++; }
