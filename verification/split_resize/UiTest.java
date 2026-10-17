@@ -7,6 +7,30 @@ public final class UiTest {
   MainActivity a=new MainActivity();String full="A very long complete document name.md";
   a.tabs.add(new MainActivity.DocumentTab(full,true));a.tabs.add(new MainActivity.DocumentTab(null,false));a.updateTabsUi();
   check(a.tabButtons.get(0).description.equals("Switch to "+full),"full tab action name");check(a.tabButtons.get(0).selected,"active tab selected");check(!a.tabButtons.get(1).selected,"inactive unselected");check(a.tabButtons.get(1).description.equals("Switch to Untitled"),"null name fallback");check(a.tabButtons.get(0).text.startsWith("●  ") && a.tabButtons.get(0).text.contains("…"),"visual dirty/truncation preserved");
+  // Production tab-view long-click / onTouch callbacks are extracted from
+  // MainActivity. A canceled gesture MUST NOT close a tab (Android contract).
+  MainActivity.Button held=a.tabButtons.get(0);
+  check(held.touch!=null&&held.longClick!=null,"tab exposes touch and long-click handlers");
+  check(!held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0)),
+      "DOWN is not consumed by listener");
+  check(held.longClick.onLongClick(held),"long-click handled");
+  check(a.requestedCloses.isEmpty(),"still-held finger does not close tab");
+  check(!held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_CANCEL,0)),
+      "cancel not consumed");
+  check(a.requestedCloses.isEmpty(),"CANCEL aborts tab close");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(a.requestedCloses.isEmpty(),"UP after CANCEL does not close tab");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
+  check(held.longClick.onLongClick(held),"second long-click handled");
+  check(a.requestedCloses.isEmpty(),"no premature close before UP");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(a.requestedCloses.size()==1 && full.equals(a.requestedCloses.get(0)),
+      "only completed long-press closes exact stable tab ID");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(a.requestedCloses.size()==1,"duplicate UP does not duplicate close");
+  check(held.longClick.onLongClick(held),"accessibility long click handled without DOWN");
+  check(a.requestedCloses.size()==2 && full.equals(a.requestedCloses.get(1)),
+      "accessibility long-click queues exact tab");
   a.activeTab=1;a.updateTabsUi();check(!a.tabButtons.get(0).selected && a.tabButtons.get(1).selected,"selection refresh");check(a.gallery("Blue sunset").description!=null && a.gallery("Blue sunset").description.equals("Remove Blue sunset"),"gallery contextual name");
   a.rebuildBody();MainActivity.View d=a.body.children.get(1);check(d.focusable,"divider keyboard focus");check(d.important==1,"divider accessibility inclusion");check(d.delegate!=null,"divider accessible adjustment");check(d.key!=null,"divider keyboard adjustment");
   if(d.delegate!=null && d.key!=null){
