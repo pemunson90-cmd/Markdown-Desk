@@ -1720,11 +1720,74 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ boolean lambda$updateTabsUi$24(int i, View view) {
-        if (i != this.activeTab) {
-            switchToTab(i, false);
-        }
-        closeCurrentTab();
+        if (i < 0 || i >= this.tabs.size()) return true;
+        final String tabId = this.tabs.get(i).id;
+        // A long click is dispatched while the pressed button is still attached.
+        // Never replace that button or the whole editor during its touch callback.
+        // Capture the identity now; positions can change before the posted action.
+        this.tabsScroll.post(() -> requestCloseTabById(tabId));
         return true;
+    }
+
+    private void requestCloseTabById(final String tabId) {
+        if (isFinishing() || isDestroyed()) return;
+        int index = findTabById(tabId);
+        if (index < 0) return;
+        if (index == this.activeTab) {
+            closeCurrentTab(); // Existing active-document Save / Discard / Cancel.
+            return;
+        }
+        final DocumentTab target = this.tabs.get(index);
+        if (!target.dirty) {
+            removeInactiveTabById(tabId);
+            return;
+        }
+        // Closing another dirty tab must NOT switch the editor before consent.
+        new AlertDialog.Builder(this).setTitle("Unsaved changes")
+                .setMessage("Save changes to " + target.displayName + " before closing?")
+                .setPositiveButton("Save", (dialog, which) -> {
+                    int current = findTabById(tabId);
+                    if (current < 0 || this.saveInProgress) return;
+                    if (current != this.activeTab) switchToTab(current, false);
+                    if (!this.dirty) {
+                        // It may have been saved elsewhere while the dialog was open.
+                        removeActiveTab();
+                        return;
+                    }
+                    this.pendingAfterSave = () -> {
+                        int selected = this.activeTab;
+                        if (selected >= 0 && selected < this.tabs.size()
+                                && tabId.equals(this.tabs.get(selected).id) && !this.dirty)
+                            removeActiveTab();
+                    };
+                    saveDocument();
+                })
+                .setNegativeButton("Discard", (dialog, which) -> {
+                    int current = findTabById(tabId);
+                    if (current < 0) return;
+                    if (current == this.activeTab) {
+                        // Explicit consent is bound to this exact tab identity.
+                        this.dirty = false;
+                        this.tabs.get(current).dirty = false;
+                        this.pendingAfterSave = null;
+                        clearRecoveryAsync();
+                        removeActiveTab();
+                    } else {
+                        removeInactiveTabById(tabId);
+                    }
+                })
+                .setNeutralButton("Cancel", (DialogInterface.OnClickListener) null)
+                .show();
+    }
+
+    private void removeInactiveTabById(String tabId) {
+        int index = findTabById(tabId);
+        if (index < 0 || index == this.activeTab) return;
+        // No text set, preview render, editor restore, or active recovery mutation.
+        this.tabs.remove(index);
+        if (index < this.activeTab) this.activeTab--;
+        updateTabsUi();
+        scheduleSession();
     }
 
     /* JADX INFO: Access modifiers changed from: private */
