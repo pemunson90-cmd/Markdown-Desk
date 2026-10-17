@@ -28,7 +28,7 @@ root=ET.parse(sys.argv[1]).getroot()
 needle,field=sys.argv[2:]
 # Android's AlertDialog rows often expose their text on a non-clickable TextView;
 # tapping that TextView's bounds still activates its clickable row parent.
-nodes=[x for x in root.iter("node") if x.get(field)==needle and (field=="text" or x.get("clickable")=="true")]
+nodes=[x for x in root.iter("node") if (x.get(field,"").casefold()==needle.casefold() if field=="text" else x.get(field)==needle) and (field=="text" or x.get("clickable")=="true")]
 if len(nodes)!=1: raise SystemExit("Ambiguous/missing tap "+repr(needle)+": "+str(len(nodes)))
 m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",nodes[0].get("bounds",""))
 if not m: raise SystemExit("No bounds for "+needle)
