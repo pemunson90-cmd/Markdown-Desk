@@ -4302,11 +4302,12 @@ public class MainActivity extends Activity {
         content.addView(description,matchWrap());
         LinearLayout quick=new LinearLayout(this);
         quick.setOrientation(LinearLayout.HORIZONTAL);
-        String[] sections={"Recent","Favorites","Folders"};
-        String[] anchors={"filesRecent","filesFavorites","filesFolders"};
+        String[] sections={"Recent","Favorites","Folders","Search"};
+        String[] anchors={"filesRecent","filesFavorites","filesFolders","filesSearch"};
         for(int i=0;i<sections.length;i++){
             final String tag=anchors[i];
             Button shortcut=filesAction(sections[i],"Jump to "+sections[i],v->{
+                if("filesSearch".equals(tag)){showFilesSearchRootPicker();return;}
                 View target=content.findViewWithTag(tag);
                 if(target!=null)scroll.post(()->scroll.smoothScrollTo(0,target.getTop()));
             });
