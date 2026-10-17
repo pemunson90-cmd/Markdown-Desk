@@ -1689,7 +1689,12 @@ public class MainActivity extends Activity {
             final boolean[] closeOnRelease = {false};
             buttonCreatePillButton.setOnTouchListener((view, event) -> {
                 int action = event.getActionMasked();
-                if (action == MotionEvent.ACTION_DOWN) tabTouchActive[0] = true;
+                if (action == MotionEvent.ACTION_DOWN) {
+                    // A prior gesture may have been interrupted without UP or
+                    // CANCEL. Never carry an old close request into a new touch.
+                    tabTouchActive[0] = true;
+                    closeOnRelease[0] = false;
+                }
                 if (action == MotionEvent.ACTION_UP) {
                     tabTouchActive[0] = false;
                     if (closeOnRelease[0]) {
