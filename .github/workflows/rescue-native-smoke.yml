@@ -233,6 +233,65 @@ jobs:
           echo 'PASS: native Files hub and Favorites destination available on portrait Android.' >> "$GITHUB_STEP_SUMMARY"
           echo 'NOT RUN: Fold7, user data migration, Android SAF third-party providers, TalkBack, release certificate/signing.' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify expanded Files rail and Back without replacing editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          # Close any focused dialog; this is a disposable emulator with no user files.
+          "$ADB" shell input keyevent KEYCODE_BACK
+          "$ADB" shell wm density 160
+          "$ADB" shell wm size 1280x960
+          "$ADB" shell am force-stop com.example.markdowndesk
+          "$ADB" shell am start -W -n com.example.markdowndesk/.MainActivity
+          sleep 5
+          "$ADB" shell pidof com.example.markdowndesk
+          "$ADB" shell uiautomator dump /sdcard/md-expanded-before.xml >/dev/null
+          "$ADB" pull /sdcard/md-expanded-before.xml "$RUNNER_TEMP/md-expanded-before.xml" >/dev/null
+          FILES_TAP="$(python3 - "$RUNNER_TEMP/md-expanded-before.xml" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          nodes=[n for n in ET.parse(sys.argv[1]).getroot().iter("node") if n.get("text")=="Files"]
+          if len(nodes)!=1: raise SystemExit("Expanded Files entrypoint missing/ambiguous")
+          match=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",nodes[0].get("bounds",""))
+          if not match: raise SystemExit("No expanded Files button bounds")
+          x1,y1,x2,y2=map(int,match.groups());print((x1+x2)//2,(y1+y2)//2)
+          PY
+          )"
+          "$ADB" shell input tap $FILES_TAP
+          sleep 2
+          "$ADB" shell uiautomator dump /sdcard/md-expanded-rail.xml >/dev/null
+          "$ADB" pull /sdcard/md-expanded-rail.xml "$RUNNER_TEMP/md-expanded-rail.xml" >/dev/null
+          "$ADB" shell screencap -p /sdcard/md-expanded-rail.png
+          "$ADB" pull /sdcard/md-expanded-rail.png "$RUNNER_TEMP/md-expanded-rail.png" >/dev/null
+          python3 - "$RUNNER_TEMP/md-expanded-rail.xml" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          nodes=list(ET.parse(sys.argv[1]).getroot().iter("node"))
+          labels=[n.get("text","") for n in nodes]
+          for expected in ("Open a file","New document","Favorites","Folders"):
+              matches=[n for n in nodes if expected in n.get("text","")]
+              if len(matches)!=1: raise SystemExit("Expanded Files rail item missing/ambiguous: "+expected)
+              bounds=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",matches[0].get("bounds",""))
+              if not bounds or int(bounds.group(3))>400:
+                  raise SystemExit("Files destination is not contained in left rail: "+expected)
+          if any("Back to editor" in label for label in labels):
+              raise SystemExit("Expanded Files opened compact dialog instead of rail")
+          print("PASS expanded real Android Files rail on left beside editor")
+          PY
+          "$ADB" shell input keyevent KEYCODE_BACK
+          sleep 2
+          "$ADB" shell pidof com.example.markdowndesk
+          "$ADB" shell uiautomator dump /sdcard/md-expanded-back.xml >/dev/null
+          "$ADB" pull /sdcard/md-expanded-back.xml "$RUNNER_TEMP/md-expanded-back.xml" >/dev/null
+          python3 - "$RUNNER_TEMP/md-expanded-back.xml" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          labels=[n.get("text","") for n in ET.parse(sys.argv[1]).getroot().iter("node")]
+          if any("Open a file" in label for label in labels):
+              raise SystemExit("Back did not close expanded Files rail")
+          if labels.count("Files")!=1: raise SystemExit("Back lost the editor's Files control")
+          print("PASS Back closes expanded Files rail without exiting app")
+          PY
+          echo 'PASS: expanded Android width Files rail and Back; actual Fold7 still NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Retain emulator evidence only (no distributable APK)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -243,6 +302,10 @@ jobs:
             ${{ runner.temp }}/md-portrait.png
             ${{ runner.temp }}/md-portrait-check.png
             ${{ runner.temp }}/md-landscape.png
+            ${{ runner.temp }}/md-expanded-before.xml
+            ${{ runner.temp }}/md-expanded-rail.xml
+            ${{ runner.temp }}/md-expanded-back.xml
+            ${{ runner.temp }}/md-expanded-rail.png
             ${{ runner.temp }}/md-window.xml
             ${{ runner.temp }}/md-workspace.xml
             ${{ runner.temp }}/md-workspace.png
