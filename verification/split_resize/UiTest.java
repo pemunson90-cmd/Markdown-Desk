@@ -21,6 +21,11 @@ public final class UiTest {
   held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
   check(a.requestedCloses.isEmpty(),"UP after CANCEL does not close tab");
   held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
+  check(held.longClick.onLongClick(held),"interrupted long-click handled");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(a.requestedCloses.isEmpty(),"new DOWN clears stale held-close after lost terminal event");
+  held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
   check(held.longClick.onLongClick(held),"second long-click handled");
   check(a.requestedCloses.isEmpty(),"no premature close before UP");
   held.touch.onTouch(held,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
