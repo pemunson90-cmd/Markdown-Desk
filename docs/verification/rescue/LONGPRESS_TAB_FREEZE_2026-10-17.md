@@ -1,5 +1,17 @@
 # Markdown Desk long-press tab freeze hotfix — 2026-10-17
 
+## Post-audit correction — supersedes older release-ready interpretation
+
+An additional GPT-code/Android/Reddit review found two real bugs in the first code24 long-press fix:
+- `ACTION_CANCEL` wrongly closed the requested tab. Android documents cancellation as an aborted gesture. Corrected in commit `4491723a7cecd15fe03a6202cb1a806fa50e7b1e`: only `ACTION_UP` commits.
+- A missing terminal event could leave a stale close pending for the next gesture. Corrected in `645d2e504f0735b2993dac5d0a61ce66671c260e` by resetting the intent on every `ACTION_DOWN`.
+
+The `verification/split_resize` harness now extracts production long-click callbacks and checks cancel, interrupted event streams, release, and accessibility long-press. Final test fixture commit `1b3a057fb23824a8da0ff96790e8b1bbb857c976` uses production code from `645d2e5`.
+
+**DO NOT distribute the earlier signed code24 artifact from `66ee8c5` as the audited fix.** The revised exact source has been privately signed with the canonical key as `MarkdownDesk-2.2.9-tabfix2-audited-Fold7-signed.apk`, SHA-256 `3a3cecf16e0c4ce8a585624dc3eab01d52a9b9d455693ee785747ada16c3f687`; unsigned member bytes match the package, v2/v3 signatures and signer fingerprint match original. Its full host regression and native Android long-press retest were still underway when this addendum was authored, so they must be checked for final verdict.
+
+External references: Android MotionEvent (https://developer.android.com/reference/android/view/MotionEvent.html), ANR diagnosis (https://developer.android.com/topic/performance/anrs/diagnose-and-fix-anrs), and related but non-causal Reddit report (https://www.reddit.com/r/androiddev/comments/1gpwpb6).
+
 ## User-reported failure
 Physical Galaxy Z Fold7, original-signed code23 / 2.2.8-tabfix1: apparent UI-thread freeze and substantial heat while long-pressing tabs to close. Splash itself dismissed normally. Earlier emulator stress checked ordinary taps only and missed the long-press code path. DO NOT uninstall or clear app data. Owner workaround: select a tab with an ordinary tap then More -> Close document, save beforehand.
 
