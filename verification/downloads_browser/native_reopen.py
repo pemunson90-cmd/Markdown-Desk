@@ -25,11 +25,14 @@ def ui():
 
 def nodes(phrase, *, exact=False):
     root = ui()
-    return [n for n in root.iter("node")
-            if n.attrib.get("clickable") == "true" and (
-                (n.attrib.get("text", "") == phrase or n.attrib.get("content-desc", "") == phrase)
-                if exact else (phrase in n.attrib.get("text", "")
-                               or phrase in n.attrib.get("content-desc", "")))]
+    matches = [n for n in root.iter("node")
+               if ((n.attrib.get("text", "") == phrase or n.attrib.get("content-desc", "") == phrase)
+                   if exact else (phrase in n.attrib.get("text", "")
+                                  or phrase in n.attrib.get("content-desc", "")))]
+    clickable = [n for n in matches if n.attrib.get("clickable") == "true"]
+    # Android AlertDialog list labels are frequently non-clickable TextView children
+    # of a clickable row. Their bounds still designate the intended list selection.
+    return clickable or matches
 
 def click(phrase, *, exact=False, scroll=False):
     for step in range(12 if scroll else 4):
