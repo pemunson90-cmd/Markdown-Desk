@@ -174,6 +174,8 @@ public class MainActivity extends Activity {
     private boolean utf8Bom;
     private int wordGoal;
     private AlertDialog workspaceDialog;
+    private long downloadsGeneration;
+    private boolean pendingDownloadsSettings;
     private long downloadsRequest;
     private boolean pendingDownloadsSettings;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -239,6 +241,14 @@ public class MainActivity extends Activity {
         super.onResume();
         if (this.pendingDownloadsSettings) {
             this.pendingDownloadsSettings = false;
+            if (DownloadsAccess.granted()) showDownloadsFolder("");
+        }
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (pendingDownloadsSettings) {
+            pendingDownloadsSettings = false;
             if (DownloadsAccess.granted()) showDownloadsFolder("");
         }
     }
@@ -3649,6 +3659,78 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void requestDownloadsAccess() {
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            showError("Direct Downloads browsing requires Android 11 or newer.");
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Downloads access")
+                .setMessage("Enable All files access for Markdown Desk to browse and reopen downloaded documents without individual picker prompts. Optional; revoke it anytime in Android Settings.")
+                .setPositiveButton("Settings", (dialog, which) -> {
+                    pendingDownloadsSettings = true;
+                    Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    settings.setData(Uri.parse("package:" + getPackageName()));
+                    try { startActivity(settings); }
+                    catch (ActivityNotFoundException unsupported) {
+                        try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }
+                        catch (ActivityNotFoundException absent) {
+                            pendingDownloadsSettings = false;
+                            showError("Downloads access settings are unavailable.");
+                        }
+                    }
+                }).setNegativeButton("Cancel", null).show();
+    }
+
+    private void showDownloadsFolder(final String relative) {
+        if (isFinishing() || isDestroyed()) return;
+        if (!DownloadsAccess.granted()) { requestDownloadsAccess(); return; }
+        final long generation = ++downloadsGeneration;
+        try {
+            io.execute(() -> {
+                try {
+                    final List<DownloadsPaths.Entry> entries = DownloadsAccess.list(relative);
+                    main.post(() -> {
+                        if (generation != downloadsGeneration || isFinishing() || isDestroyed()) return;
+                        ArrayList<String> labels = new ArrayList<>();
+                        if (!relative.isEmpty()) labels.add("..  Up one folder");
+                        for (DownloadsPaths.Entry item : entries)
+                            labels.add(item.directory ? "[Folder] " + item.name : item.name);
+                        if (labels.isEmpty()) labels.add("(No supported text files)");
+                        AlertDialog d = new AlertDialog.Builder(this)
+                                .setTitle(relative.isEmpty() ? "Downloads" : "Downloads / " + relative)
+                                .setItems(labels.toArray(new String[0]), (ignored, index) -> {
+                                    if (generation != downloadsGeneration || isFinishing() || isDestroyed()) return;
+                                    if (!relative.isEmpty() && index == 0) {
+                                        showDownloadsFolder(DownloadsPaths.parent(relative)); return;
+                                    }
+                                    int pos = index - (relative.isEmpty() ? 0 : 1);
+                                    if (pos < 0 || pos >= entries.size()) return;
+                                    DownloadsPaths.Entry selected = entries.get(pos);
+                                    if (selected.directory) showDownloadsFolder(selected.relative);
+                                    else {
+                                        try {
+                                            File file = DownloadsPaths.document(DownloadsAccess.root(), selected.relative);
+                                            openDocument(DownloadsAccess.uri(file), 3, false);
+                                        } catch (Exception ex) {
+                                            showError("Cannot open downloaded document.\\n\\n" + message(ex));
+                                        }
+                                    }
+                                }).setPositiveButton("Refresh", (ignored, which) -> showDownloadsFolder(relative))
+                                .setNegativeButton("Close", null).create();
+                        d.show(); styleDialog(d);
+                    });
+                } catch (Exception error) {
+                    main.post(() -> {
+                        if (generation == downloadsGeneration && !isFinishing() && !isDestroyed())
+                            showError("Cannot list Downloads. No files changed.\\n\\n" + message(error));
+                    });
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException closing) {
+            showError("Downloads browser unavailable while closing.");
+        }
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -3680,6 +3762,11 @@ public class MainActivity extends Activity {
             }
         }), matchWrap());
         addWorkspaceFolderActions(linearLayout);
+        linearLayout.addView(workspaceAction("Downloads",
+                "Browse Markdown and text directly from Downloads", view -> {
+                    if (workspaceDialog != null) workspaceDialog.dismiss();
+                    showDownloadsFolder("");
+                }), matchWrap());
         linearLayout.addView(workspaceAction("Downloads", "Browse downloaded Markdown and text files without picking each one", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDownloadsFolder("");
