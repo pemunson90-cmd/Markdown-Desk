@@ -4,6 +4,8 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 import time
 import xml.etree.ElementTree as ET
 
@@ -61,7 +63,10 @@ def assert_no_error():
 def main():
     run("shell", "wm", "size", "360x800")
     run("shell", "mkdir", "-p", "/sdcard/Download")
-    run("shell", "sh", "-c", "printf '# Downloads entry point proof\\n\\nSaved file.\\n' > " + SOURCE)
+    with tempfile.TemporaryDirectory(prefix="md-downloads-native-") as temp:
+        local = Path(temp) / TITLE
+        local.write_text("# Downloads entry point proof\\n\\nSaved file.\\n", encoding="utf-8")
+        run("push", str(local), SOURCE)
     run("shell", "appops", "set", PACKAGE, "MANAGE_EXTERNAL_STORAGE", "allow")
     run("shell", "am", "force-stop", PACKAGE)
     run("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
