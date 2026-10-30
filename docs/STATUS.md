@@ -1,5 +1,18 @@
 # Current project status
 
+## 2026-10-30: Downloads readability follow-up, code26 signed candidate (THIS BRANCH)
+
+**User evidence:** Pat installed the canonically signed code25 Downloads build and reported its file list as too dark/low-contrast. Separate old `content://downloads/all_downloads/*` Recents entries still fail due to invalid DownloadProvider grants; new Downloads browser path-backed Recents passed real emulator tests in the code25 wave. Don't imply stale ID-only entries can be identified automatically.
+
+**Change:** [PR #29](https://github.com/pemunson90-cmd/Markdown-Desk/pull/29), branch `fix/downloads-contrast-20261030` from the exact reviewed Downloads code25 PR #26 source. `MainActivity.showDownloadsFolder()` now creates explicitly palette-styled `ArrayAdapter` rows with readableForeground contrast against a matching raised surface, 16sp multi-line labels, >=48dp touch-height, and the existing native click/focus behavior. No Favorites, permission, save, reader, provider or tab behavior was rewritten. New manifest `2.2.11-downloads-contrast1` / versionCode **26**, compatible with an in-place signed upgrade over code25.
+
+**Verification:** [CI run 41132930650](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41132930650) **PASS**: actual SDK37/JDK17 compilation and unsigned app package; palette readability gate, Downloads path tests, existing Favorites store checks, source route assertion. The unsigned artifact ZIP SHA-256 is `a3a22f980c7bcfd149c663b41c237612e3cbe5ead76b9fbc188cb23b4a494e8b`. Its APK was privately signed with the original release identity outside GitHub; v2/v3 verification PASS, original 36 application members unchanged, certificate fingerprint `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Signed code26 APK SHA-256: `95f9653cf9ef1fb19d96a4bae026d7d3a51d5f64c4c8a7d363b99e0e107671cb`. Signed APK and checksums are attached in the originating ChatGPT conversation; no secrets or private signing inputs were uploaded to the repository or CI. Temporary signing files were destroyed after use.
+
+**Open gates:** physical Fold7 visual contrast and preserved-data in-place upgrade confirmation; preexisting unrelated full host history-budget failure remains outstanding and was not called green. New signed APK is a **verified candidate**, not device-accepted production release. Don't uninstall or clear application data.
+
+---
+
+
 ## 2026-10-30: Downloads / Recents repair, code25 candidate (this branch)
 
 **Source:** the actual user-installed `v2.2.9-tabfix2` source, immutable commit `10c6d68f0a7fe31cb5455bcbc996c266f8764005` (code24). Previous Favorites-implementation assumptions based on the October 16 `codex/operation-data-capture` branch were incorrect for the installed app. Pat verified that Favorites works and supplied a screenshot showing `DownloadProvider` denied a stale `content://downloads/all_downloads/3624` Recent entry. This repair never rewrites Favorites or the canonical release key.
