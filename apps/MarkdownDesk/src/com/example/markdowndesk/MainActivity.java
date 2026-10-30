@@ -4614,7 +4614,14 @@ public class MainActivity extends Activity {
                                 })
                                 .setPositiveButton("Refresh", (ignored, which) -> showDownloadsFolder(relative))
                                 .setNegativeButton("Close", null).create();
-                        dialog.setOnShowListener(ignored -> workspaceDialogShown(dialog));
+                        dialog.setOnShowListener(ignored -> {
+                            workspaceDialogShown(dialog);
+                            // Match the exact background used by readableForeground above.
+                            // Preserve each row's native pressed/focus indicator.
+                            if (dialog.getListView() != null) {
+                                dialog.getListView().setBackgroundColor(palette.raised);
+                            }
+                        });
                         dialog.show();
                     });
                 } catch (Exception failed) {
