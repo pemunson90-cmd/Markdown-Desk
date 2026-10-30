@@ -4569,9 +4569,30 @@ public class MainActivity extends Activity {
                             rows.add(item.directory ? "[Folder] " + item.name : item.name);
                         }
                         if (rows.isEmpty()) rows.add("(No Markdown or text documents here)");
+                        // This list previously inherited platform-default dark text even
+                        // when the dialog window was styled using a dark custom palette.
+                        // Theme the actual rows and preserve the native list's click/ripple.
+                        android.widget.ArrayAdapter<String> adapter =
+                                new android.widget.ArrayAdapter<String>(
+                                        this, android.R.layout.simple_list_item_1, rows) {
+                                    @Override public View getView(int position, View convertView, ViewGroup parent) {
+                                        View row = super.getView(position, convertView, parent);
+                                        TextView label = row.findViewById(android.R.id.text1);
+                                        if (label != null) {
+                                            label.setTextColor(UiTheme.readableForeground(
+                                                    palette.text, palette.raised));
+                                            label.setTextSize(16.0f);
+                                            label.setMinHeight(dp(48));
+                                            label.setPadding(dp(20), dp(12), dp(16), dp(12));
+                                            label.setSingleLine(false);
+                                            label.setMaxLines(3);
+                                        }
+                                        return row;
+                                    }
+                                };
                         AlertDialog dialog = historyDialogBuilder(
                                     relative.isEmpty() ? "Downloads" : "Downloads / " + relative)
-                                .setItems(rows.toArray(new String[0]), (ignored, index) -> {
+                                .setAdapter(adapter, (ignored, index) -> {
                                     if (request != this.downloadsRequest || isFinishing() || isDestroyed()) return;
                                     if (!relative.isEmpty() && index == 0) {
                                         showDownloadsFolder(DownloadsPaths.parent(relative));
