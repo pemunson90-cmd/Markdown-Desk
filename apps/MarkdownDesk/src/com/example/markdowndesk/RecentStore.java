@@ -45,7 +45,7 @@ public final class RecentStore {
                 }
             }
         } catch (JSONException e) {
-            sharedPreferences.edit().remove(KEY).apply();
+            // Preserve the stored record for recovery instead of silently clearing history.
         }
         return arrayList;
     }
