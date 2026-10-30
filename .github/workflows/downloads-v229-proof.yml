@@ -1,0 +1,80 @@
+name: Downloads / Recents v2.2.9 exact-source verification
+on:
+  push:
+    branches:
+      - fix/downloads-recents-v229-source-20261030
+    paths:
+      - 'apps/MarkdownDesk/**'
+      - 'verification/downloads_paths/**'
+      - 'verification/run_host_checks.sh'
+      - '.github/workflows/downloads-v229-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: md-downloads-v229-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compile-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact v2.2.9-descendant source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: Install actual Android SDK build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?Android SDK unavailable on runner}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;36.0.0"
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+      - name: Bootstrap host prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          bash verification/setup_host_deps.sh
+      - name: Targeted production-path tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash verification/downloads_paths/run.sh
+          bash verification/document_io/run.sh
+          bash verification/workspace_favorites/run.sh
+          bash verification/workspace_ui/run.sh
+          bash verification/save_lifecycle/run.sh --safety
+      - name: Compile and package full app (unsigned only)
+        shell: bash
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: '36.0.0'
+        run: |
+          set -euo pipefail
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-downloads-verification
+          APK=apps/MarkdownDesk/build/MarkdownDesk-downloads-verification.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
+          sha256sum "$APK"
+          echo 'Unsigned build: not a usable upgrade. Signing key intentionally unavailable in CI.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep bounded unsigned test artifact
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: markdown-desk-downloads-v229-unsigned-${{ github.sha }}
+          path: apps/MarkdownDesk/build/MarkdownDesk-downloads-verification.apk
+          if-no-files-found: error
+          retention-days: 5
