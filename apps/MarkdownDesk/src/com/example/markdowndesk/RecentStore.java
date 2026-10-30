@@ -45,7 +45,7 @@ public final class RecentStore {
                 }
             }
         } catch (JSONException e) {
-            sharedPreferences.edit().remove(KEY).apply();
+            // Preserve damaged records for recovery/diagnosis; never silently erase history.
         }
         return arrayList;
     }
