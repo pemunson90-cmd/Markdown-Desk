@@ -1,3 +1,13 @@
+# Current candidate — 2.2.10-downloads1, October 30, 2026
+
+- **Actual user-reported installed build:** 2.2.9-tabfix2, versionCode24, on a Fold7. Favorites works and is preserved; selecting a recent DownloadsProvider document fails with `SecurityException` for `content://downloads/all_downloads/3624`. This is not a generic file-picker failure.
+- **Correct implementation base:** `rescue/md-longpress-tab-freeze-20261017`, commit `40a422af781b055289a483c2fdee176d023de9d9`, which contains 2.2.9-tabfix2, **not** the older PR #24 branch.
+- **Current fix branch:** `fix/downloads-recents-tabfix2-20261030`, review [PR #28](https://github.com/pemunson90-cmd/Markdown-Desk/pull/28), tracked under [issue #25](https://github.com/pemunson90-cmd/Markdown-Desk/issues/25). New internal Downloads file bridge, explicit optional All files access, Workspace browser, bounded path checks, and legacy Recent recovery via Downloads browsing.
+- **Release status:** source candidate only until independent host/SDK build, signing identity verification, user data-preserving in-place upgrade and actual Downloads/restart/reboot/Favorites device acceptance are recorded. Do not confuse PR checkout with a released APK. Exact canonical signing material is private and must never enter Git/CI.
+- **Original current-phone checkpoint below is historical for 2.2.9 work and remains intact.** Further newer code or tests must be compared against this actual source branch, not reintroduced from October 16 planning summaries.
+
+---
+
 # Current project status
 
 ## Current owner checkpoint — local safety and current-phone features, 2026-10-16
