@@ -278,8 +278,13 @@ public class MainActivity extends Activity {
         invalidateReaderActions();
         invalidateProtectionStatus();
         cancelWorkspaceNavigation();
-        ++this.downloadsRequest;
         super.onPause();
+    }
+
+    @Override // android.app.Activity
+    protected void onStop() {
+        ++this.downloadsRequest;
+        super.onStop();
     }
 
     @Override // android.app.Activity
