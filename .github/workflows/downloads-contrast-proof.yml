@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           bash verification/contrast/run.sh --gate
           bash verification/downloads_browser/run.sh
+          bash verification/setup_host_deps.sh
           bash verification/workspace_favorites/run.sh
       - name: Verify actual Downloads list routes through theme-aware adapter
         shell: bash
