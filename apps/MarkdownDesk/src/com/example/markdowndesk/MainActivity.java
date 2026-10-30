@@ -188,6 +188,8 @@ public class MainActivity extends Activity {
     private boolean utf8Bom;
     private int wordGoal;
     private AlertDialog workspaceDialog;
+    private long downloadsRequest;
+    private boolean pendingDownloadsSettings;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService renderIo = Executors.newSingleThreadExecutor();
@@ -277,6 +279,12 @@ public class MainActivity extends Activity {
         invalidateProtectionStatus();
         cancelWorkspaceNavigation();
         super.onPause();
+    }
+
+    @Override // android.app.Activity
+    protected void onStop() {
+        ++this.downloadsRequest;
+        super.onStop();
     }
 
     @Override // android.app.Activity
@@ -4443,6 +4451,10 @@ public class MainActivity extends Activity {
         destinations.setTextSize(12.0f);
         destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
         content.addView(destinations,matchWrap());
+        content.addView(filesAction("Downloads", "Browse the Downloads inbox with one-time access", view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            showDownloadsFolder("");
+        }), matchWrap());
         content.addView(filesAction("Open a file","Choose a Markdown or text document",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchOpen();
         }),matchWrap());
@@ -4517,6 +4529,85 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    /** Explicit opt-in to shared storage for this file/document-manager workflow. */
+    private void requestDownloadsAccess() {
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            showError("Direct Downloads browsing requires Android 11 or newer. Use Open file on this device.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Allow Downloads access")
+                .setMessage("Enable All files access for Markdown Desk to browse and reopen downloaded documents without selecting each one. You can disable this permission at any time in Android Settings.")
+                .setPositiveButton("Open settings", (dialog, which) -> {
+                    this.pendingDownloadsSettings = true;
+                    Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    settings.setData(Uri.parse("package:" + getPackageName()));
+                    try { startActivity(settings); }
+                    catch (ActivityNotFoundException missing) {
+                        try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }
+                        catch (ActivityNotFoundException unavailable) {
+                            this.pendingDownloadsSettings = false;
+                            showError("Android's All files access settings are unavailable.");
+                        }
+                    }
+                }).setNegativeButton("Not now",null).show();
+    }
+
+    private void showDownloadsFolder(final String relative) {
+        if (isFinishing() || isDestroyed()) return;
+        if (!DownloadsAccess.granted()) { requestDownloadsAccess(); return; }
+        final long request = ++this.downloadsRequest;
+        try {
+            this.io.execute(() -> {
+                try {
+                    final List<DownloadsPaths.Entry> entries = DownloadsAccess.list(relative);
+                    this.main.post(() -> {
+                        if (request != this.downloadsRequest || isFinishing() || isDestroyed()) return;
+                        ArrayList<String> rows = new ArrayList<>();
+                        if (!relative.isEmpty()) rows.add("..  Up one folder");
+                        for (DownloadsPaths.Entry item : entries) {
+                            rows.add(item.directory ? "[Folder] " + item.name : item.name);
+                        }
+                        if (rows.isEmpty()) rows.add("(No Markdown or text documents here)");
+                        AlertDialog dialog = historyDialogBuilder(
+                                    relative.isEmpty() ? "Downloads" : "Downloads / " + relative)
+                                .setItems(rows.toArray(new String[0]), (ignored, index) -> {
+                                    if (request != this.downloadsRequest || isFinishing() || isDestroyed()) return;
+                                    if (!relative.isEmpty() && index == 0) {
+                                        showDownloadsFolder(DownloadsPaths.parent(relative));
+                                        return;
+                                    }
+                                    int offset = index - (relative.isEmpty() ? 0 : 1);
+                                    if (offset < 0 || offset >= entries.size()) return;
+                                    DownloadsPaths.Entry selected = entries.get(offset);
+                                    if (selected.directory) {
+                                        showDownloadsFolder(selected.relative);
+                                    } else {
+                                        try {
+                                            File file = DownloadsPaths.document(DownloadsAccess.root(), selected.relative);
+                                            openDocument(DownloadsAccess.uri(file), 3, false);
+                                        } catch (Exception failed) {
+                                            showError("Downloaded document could not be opened.\n\n" + message(failed));
+                                        }
+                                    }
+                                })
+                                .setPositiveButton("Refresh", (ignored, which) -> showDownloadsFolder(relative))
+                                .setNegativeButton("Close", null).create();
+                        dialog.setOnShowListener(ignored -> workspaceDialogShown(dialog));
+                        dialog.show();
+                    });
+                } catch (Exception failed) {
+                    this.main.post(() -> {
+                        if (request == this.downloadsRequest && !isFinishing() && !isDestroyed())
+                            showError("Downloads could not be listed; no files were changed.\n\n" + message(failed));
+                    });
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException unavailable) {
+            showError("Downloads browser is unavailable while the editor is closing.");
+        }
+    }
+
     private void showWorkspace() {
         ScrollView scrollView = new ScrollView(this);
         LinearLayout linearLayout = new LinearLayout(this);
@@ -4548,6 +4639,10 @@ public class MainActivity extends Activity {
             }
         }), matchWrap());
         addWorkspaceFolderActions(linearLayout);
+        linearLayout.addView(workspaceAction("Downloads", "Browse Markdown and text files without picking each one", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            showDownloadsFolder("");
+        }), matchWrap());
         linearLayout.addView(workspaceAction("Export this document as DOCX", "New copy · DOCX source up to 1 MiB; native text up to 8 MiB", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             startDocxExport();
@@ -5363,6 +5458,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (this.pendingDownloadsSettings) {
+            this.pendingDownloadsSettings = false;
+            if (DownloadsAccess.granted()) showDownloadsFolder("");
+        }
+    }
+
+    @Override // android.app.Activity
     protected void onResume() {
         super.onResume();
         if (this.docxInterruptedCopy) {
@@ -5520,12 +5624,16 @@ public class MainActivity extends Activity {
     }
 
     private void showRecentFailure(final Uri uri, Exception exc) {
-        new AlertDialog.Builder(this).setTitle("Could not open recent file").setMessage(message(exc) + "\n\nIts permission may have been revoked, or the file may have moved.").setPositiveButton("Remove from recents", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda48
+        AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle("Could not open recent file").setMessage(message(exc) + "\n\nIts permission may have been revoked, or the file may have moved.").setPositiveButton("Remove from recents", new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda48
             @Override // android.content.DialogInterface.OnClickListener
             public final void onClick(DialogInterface dialogInterface, int i) {
                 MainActivity.this.lambda$showRecentFailure$68(uri, dialogInterface, i);
             }
-        }).setNegativeButton("Keep", (DialogInterface.OnClickListener) null).show();
+        }).setNegativeButton("Keep", (DialogInterface.OnClickListener) null);
+        if (uri != null && "downloads".equals(uri.getAuthority())) {
+            builder.setNeutralButton("Browse Downloads", (ignored, which) -> showDownloadsFolder(""));
+        }
+        builder.show();
     }
 
     /* JADX INFO: Access modifiers changed from: private */

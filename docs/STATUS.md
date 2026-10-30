@@ -1,5 +1,22 @@
 # Current project status
 
+## 2026-10-30: Downloads / Recents repair, code25 candidate (this branch)
+
+**Source:** the actual user-installed `v2.2.9-tabfix2` source, immutable commit `10c6d68f0a7fe31cb5455bcbc996c266f8764005` (code24). Previous Favorites-implementation assumptions based on the October 16 `codex/operation-data-capture` branch were incorrect for the installed app. Pat verified that Favorites works and supplied a screenshot showing `DownloadProvider` denied a stale `content://downloads/all_downloads/3624` Recent entry. This repair never rewrites Favorites or the canonical release key.
+
+**Work:** [issue #25](https://github.com/pemunson90-cmd/Markdown-Desk/issues/25), [PR #26](https://github.com/pemunson90-cmd/Markdown-Desk/pull/26), branch `fix/downloads-recents-v229-20261030` based on frozen `baseline/v2.2.9-tabfix2-code24`. Current app manifest is `2.2.10-downloads1` / code25. A standalone Files/Workspace Downloads browser accepts one explicitly enabled Android All files access grant, recursively browses within the canonical shared Downloads root, and opens supported Markdown/text files through a nonexported app-private content provider and the existing protected document save/open pipeline. Successful opens receive a path-backed durable Recent entry. The old inaccessible provider URI is preserved, with **Browse Downloads** offered as recovery; no broad provider URI grant, filename guessing or auto-deletion. `ACCESS_ALL_DOWNLOADS` is not requested.
+
+**Verification — current code25 app source (2026-10-30):**
+- [Unsigned proof 41128925242](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41128925242) **PASS**: SDK37/JDK17 compiled and packaged the Android application; focused DocumentIO/Workspace/Favorites and DownloadsPaths tests passed. Favorites store 107 assertions; DownloadsPaths 19 conditions.
+- [Native Android emulator 41128925158](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41128925158) **PASS**: opens an actual new downloaded Markdown file from the new Downloads UI, reopens it via Recents after force-stop, and on revoked All files access offers consent rather than bypass. Disposable emulator-only signing was separate from the release certificate.
+- Private canonical signing performed **outside GitHub**, from that exact code25 unsigned CI artifact, same certificate fingerprint `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, v2/v3 signature verification PASS, all 36 original app ZIP members unchanged. Signed APK SHA-256: `3ff84860b7ade0170e10338700a74039d37417ad3ae79319546c5ff4ba65fbe0`. Signing secrets never entered repository/CI and transient local key copies were deleted.
+- [Comprehensive host run 41129388180](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41129388180): **NOT GREEN**. It passed many existing production and history suites, then stopped at `PrivateFrameCopyCheck.guardsAndBudget()` with `HistoryStorage.BudgetExceeded` (line 103). Both the test and `HistoryStorage.java`, including their Git blob SHA-1, are *identical* to the installed code24 base. This is an unrelated preserved history-budget test failure, **not fixed or waived**. Broad host acceptance remains open.
+- Physical Galaxy Fold7, user-data-preserving installation/upgrade, third-party provider behavior and canonical signed APK on Pat's own phone: **NOT RUN**. The APK is a verified-signer candidate, not a claim of physical acceptance.
+
+**Integration:** keep this branch/PR separate from stale main and other workers' source. No automatic merge or installation. The historical October 16 development checkpoint below remains valid *for that older workstream* and is not a statement about the installed code24 release.
+
+---
+
 ## Current owner checkpoint — local safety and current-phone features, 2026-10-16
 
 [Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)

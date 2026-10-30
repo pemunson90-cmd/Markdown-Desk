@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rescue/md-unsigned-build-proof-20261016
+      - 'fix/downloads-recents-v229-*'
     paths:
       - .github/workflows/rescue-apksigner-utility.yml
 

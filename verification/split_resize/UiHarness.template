@@ -27,12 +27,14 @@ class MainActivity {
   static class LayoutParams {float weight; LayoutParams(int w,int h){} LayoutParams(float f){weight=f;} void setMargins(int a,int b,int c,int d){} }
   void setOrientation(int i){orientation=i;} int getOrientation(){return orientation;} void addView(View v,LayoutParams p){v.layoutParams=p;children.add(v);} void removeAllViews(){children.clear();} void getLocationOnScreen(int[] p){p[0]=100;} int getWidth(){return width;}
  }
- static class DocumentTab {String displayName;boolean dirty;DocumentTab(String n,boolean d){displayName=n;dirty=d;}}
+ static class DocumentTab {final String id=java.util.UUID.randomUUID().toString();String displayName;boolean dirty;DocumentTab(String n,boolean d){displayName=n;dirty=d;}}
  static class Palette {int border;}
  static class Preferences {int writes;float value; Preferences edit(){return this;} Preferences putFloat(String k,float v){value=v;return this;} void apply(){writes++;}}
  static class Resources {Configuration getConfiguration(){return new Configuration();}} static class Configuration {int screenWidthDp=800;}
  Resources getResources(){return new Resources(){Configuration getConfiguration(){Configuration c=new Configuration();c.screenWidthDp=widthDp;return c;}};}
  Palette palette=new Palette(); List<DocumentTab> tabs=new ArrayList<>();List<Button> buttons=new ArrayList<>(),tabButtons=new ArrayList<>();
+ String pendingLongPressedTabId;
+ void requestCloseTabById(String id){throw new AssertionError("Tab-close behavior belongs to the separate native regression, not the split-layout stub.");}
  LinearLayout body=new LinearLayout(),tabsRow=new LinearLayout(); View editor=new View(),preview=new View(),formatScroll=new View(),readToolsScroll=new View(),tabsScroll=new View();
  int mode=MODE_SPLIT,activeTab=0,widthDp=800;float splitRatio=.5f;boolean focusMode,filesRailRequested;int favoriteRefreshes;Preferences preferences=new Preferences();
  int dp(int i){return i;} void detach(View v){} void updateFormatAvailability(){} void renderPreview(){} void invalidatePreview(){} void updateModeChrome(){}
