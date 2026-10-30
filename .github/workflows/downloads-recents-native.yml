@@ -74,11 +74,10 @@ jobs:
           "$ANDROID_HOME/platform-tools/adb" shell settings put global animator_duration_scale 0
       - name: Test native browse, persistent Recents and revoke
         shell: bash
-        env:
-          ADB: ${{ env.ANDROID_HOME }}/platform-tools/adb
         run: |
           set -euo pipefail
-          "$ANDROID_HOME/platform-tools/adb" install --no-streaming "$SMOKE_APK"
+          export ADB="$ANDROID_HOME/platform-tools/adb"
+          "$ADB" install --no-streaming "$SMOKE_APK"
           python3 verification/downloads_browser/native_reopen.py
           echo 'Native Android Downloads browse/restart/revoke PASS (test-signed emulator only).' >> "$GITHUB_STEP_SUMMARY"
           echo 'Canonical signing, original data upgrade and physical Fold7 NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
