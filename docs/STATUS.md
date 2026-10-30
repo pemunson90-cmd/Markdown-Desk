@@ -1,5 +1,17 @@
 # Current project status
 
+## 2026-10-30: Downloads / Recents repair, code25 candidate (this branch)
+
+**Source:** the actual user-installed `v2.2.9-tabfix2` source, immutable commit `10c6d68f0a7fe31cb5455bcbc996c266f8764005` (code24). Previous Favorites-implementation assumptions based on the October 16 `codex/operation-data-capture` branch were incorrect for the installed app. Pat verified that Favorites works and supplied a screenshot showing `DownloadProvider` denied a stale `content://downloads/all_downloads/3624` Recent entry. This repair never rewrites Favorites or the canonical release key.
+
+**Work:** [issue #25](https://github.com/pemunson90-cmd/Markdown-Desk/issues/25), [PR #26](https://github.com/pemunson90-cmd/Markdown-Desk/pull/26), branch `fix/downloads-recents-v229-20261030` based on frozen `baseline/v2.2.9-tabfix2-code24`. Current app manifest is `2.2.10-downloads1` / code25. A standalone Files/Workspace Downloads browser accepts one explicitly enabled Android All files access grant, recursively browses within the canonical shared Downloads root, and opens supported Markdown/text files through a nonexported app-private content provider and the existing protected document save/open pipeline. Successful opens receive a path-backed durable Recent entry. The old inaccessible provider URI is preserved, with **Browse Downloads** offered as recovery; no broad provider URI grant, filename guessing or auto-deletion. `ACCESS_ALL_DOWNLOADS` is not requested.
+
+**Verification as of setup:** GitHub Actions [unsigned proof 41127785110](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41127785110) compiled and packaged the SDK37 candidate and passed the focused host tests, including existing Favorites 107 assertions and DownloadsPaths 19 checks. An isolated private signing operation produced an APK with the documented original certificate fingerprint `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, v2/v3 signatures verified, and application ZIP entries unchanged from the unsigned CI artifact. **No keystores or passwords were committed or sent to CI.** Full protected host suite and native Android reopen tests were started separately; their final outcomes must be consulted before declaring device acceptance. Physical Fold7 and in-place upgrade with existing user data have NOT RUN.
+
+**Integration:** keep this branch/PR separate from stale main and other workers' source. No automatic merge or installation. The historical October 16 development checkpoint below remains valid *for that older workstream* and is not a statement about the installed code24 release.
+
+---
+
 ## Current owner checkpoint — local safety and current-phone features, 2026-10-16
 
 [Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
