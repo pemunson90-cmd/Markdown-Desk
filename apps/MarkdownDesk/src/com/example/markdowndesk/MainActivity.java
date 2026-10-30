@@ -5458,12 +5458,17 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
+    protected void onStart() {
+        super.onStart();
         if (this.pendingDownloadsSettings) {
             this.pendingDownloadsSettings = false;
             if (DownloadsAccess.granted()) showDownloadsFolder("");
         }
+    }
+
+    @Override // android.app.Activity
+    protected void onResume() {
+        super.onResume();
         if (this.docxInterruptedCopy) {
             this.docxInterruptedCopy = false;
             showDocxNotice("DOCX export interrupted", "DOCX cancellation was requested when the app left the screen. The provider may still be finishing, and the selected DOCX copy may be incomplete. Check it before using it. No automatic retry was made.");
