@@ -1,0 +1,84 @@
+name: Downloads list theme contrast (v2.2.10)
+on:
+  push:
+    branches:
+      - fix/downloads-contrast-20261030
+    paths:
+      - 'apps/MarkdownDesk/**'
+      - 'verification/contrast/**'
+      - '.github/workflows/downloads-contrast-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: downloads-contrast-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: Install pre-existing Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?Missing SDK on runner}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKM"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;36.0.0"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+      - name: Test production palette contrast + Downloads paths
+        run: |
+          set -euo pipefail
+          bash verification/contrast/run.sh --gate
+          bash verification/downloads_browser/run.sh
+          bash verification/setup_host_deps.sh
+          bash verification/workspace_favorites/run.sh
+      - name: Verify actual Downloads list routes through theme-aware adapter
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path("apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java").read_text()
+          a=text.index("private void showDownloadsFolder(")
+          b=text.index("private void showWorkspace()",a)
+          method=text[a:b]
+          for token in ("setAdapter(adapter", "UiTheme.readableForeground(",
+                        "palette.text, palette.raised", "setBackgroundColor(palette.raised)",
+                        "setMinHeight(dp(48))"):
+              assert token in method, token
+          assert ".setItems(rows.toArray" not in method, "unstyled platform list regression"
+          assert method.count("getView(int position") == 1
+          print("Downloads list rows use palette-aware AA foreground, matching background and 48dp minimum")
+          PY
+      - name: Build full unsigned app with Android SDK37
+        shell: bash
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: '36.0.0'
+        run: |
+          set -euo pipefail
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-contrast-UNSIGNED
+          APK=apps/MarkdownDesk/build/MarkdownDesk-contrast-UNSIGNED.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
+          sha256sum "$APK"
+      - name: Retain unsigned proof, never signing inputs
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: markdown-desk-downloads-contrast-unsigned-${{ github.sha }}
+          path: apps/MarkdownDesk/build/MarkdownDesk-contrast-UNSIGNED.apk
+          retention-days: 5
+          if-no-files-found: error
