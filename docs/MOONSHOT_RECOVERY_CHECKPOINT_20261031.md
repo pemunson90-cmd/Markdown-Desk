@@ -1,3 +1,17 @@
+## 2026-10-31: code28 recovered and Android verified
+
+The previously lost navigation source was reconstructed and committed on the isolated Moonshot branch at `250428de`. `NavigationChoices.filter` initially crashed on Android's regex engine when a non-empty query used `(?U)\\s+`. Actual emulator crash logs identified `PatternSyntaxException` at NavigationChoices.java:55. Production code now splits Unicode whitespace by code point without regex (commit `6e278010`); the model's 25 focused assertions pass, including NBSP/em-space cases.
+
+Native API35 emulator run [41209880849](https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41209880849) **PASS** on exact application tree `46223067fce5570c2eb57450896ab0ad7e105487`: Quick Downloads, search/duplicate-heading selection, keyboard commands, native Browse Files, duplicate-name Recents reopened after force-stop, dialog teardown on stop and rotation, large-font navigation, and revoked Downloads access consent. Earlier runs exposed test-harness misselection of an identically named search input and unstable interaction immediately after system font-scale changes; those harness issues were corrected without modifying app behavior.
+
+Local focused checks PASS: NavigationChoices 25, actual MainActivity navigation 52, DownloadsPaths 19, Favorites 107, session/recovery 13 cases / 568 assertions. The current-phone hosted suite passed on the pre-regex-fix code28 source, and the updated app's targeted checks and whole-package SDK37/JDK17 compile passed; a fresh complete full-host run on the final code28 source is not claimed.
+
+The CI unsigned APK is byte-identical across native runs, and the same bytes were privately signed using the original canonical certificate. Version `2.3.0-navigation1`, code 28, package `com.example.markdowndesk`, APK SHA-256 `93988783b1fb76643ab18c9ec25dd9a42d9da64f097c9f1c8cd6eadcead3d476`, certificate `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`. Signature and ZIP integrity verified locally. No key entered GitHub. Physical Fold7 upgrade and interaction acceptance remain owner gates.
+
+The separate M0–M7 Moonshot campaign remains in progress. This is one usable navigation release, not completion of the entire product program.
+
+---
+
 # Moonshot recovery checkpoint — October 31, 2026
 
 ## Verified durable state
