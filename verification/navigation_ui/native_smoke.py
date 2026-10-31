@@ -58,7 +58,13 @@ def commands(query=''):
 
 def search(hint,value):
     tap(hint,exact=True)
+    (OUT/'before-input-activity.txt').write_text(run('shell','dumpsys','activity','activities'))
+    (OUT/'before-input-process.txt').write_text(run('shell','pidof',PACKAGE))
     run('shell','input','text',value.replace(' ','%s'));time.sleep(.6)
+    (OUT/'after-input-activity.txt').write_text(run('shell','dumpsys','activity','activities'))
+    (OUT/'after-input-process.txt').write_text(run('shell','pidof',PACKAGE))
+    (OUT/'after-input-crash.txt').write_text(run('logcat','-d','-b','crash',timeout=60))
+    (OUT/'after-input-events.txt').write_text(run('logcat','-d','-b','events','-t','800',timeout=60))
 
 def quick_downloads():
     tap('Files',exact=True);tap('Quick Downloads (list)',scroll=True)
@@ -78,6 +84,7 @@ def main():
     run('shell','appops','set','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE','allow')
     run('shell','am','force-stop',PACKAGE)
     (OUT/'storage-grant.txt').write_text(run('shell','appops','get','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE'))
+    run('logcat','-c')
     launch();quick_downloads();tap('moonshot-navigation.md');no_error()
     print('PASS unchanged Quick Downloads opens file',flush=True)
     commands();present('22 of 22');capture('commands-dark-portrait')
@@ -116,6 +123,6 @@ if __name__=='__main__':
     except BaseException:
         try:capture('failure')
         except Exception:pass
-        try:(OUT/'logcat.txt').write_text(run('logcat','-d','-t','500'))
+        try:(OUT/'logcat.txt').write_text(run('logcat','-d','-b','main','-b','system','-b','crash','-t','8000'))
         except Exception:pass
         raise
