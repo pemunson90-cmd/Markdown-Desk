@@ -1,8 +1,9 @@
-name: Downloads list theme contrast (v2.2.10)
+name: Markdown Desk native-picker and Downloads candidate proof
 on:
   push:
     branches:
       - fix/downloads-contrast-20261030
+      - fix/native-picker-primary-20261030
     paths:
       - 'apps/MarkdownDesk/**'
       - 'verification/contrast/**'
