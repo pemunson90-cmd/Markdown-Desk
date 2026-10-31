@@ -4407,6 +4407,13 @@ public class MainActivity extends Activity {
         }
         content.addView(quick,matchWrap());
 
+        // Primary file navigation uses the system DocumentsUI picker.
+        // The existing REQUEST_OPEN result path retains persistent URI grants and Recents.
+        content.addView(filesAction("Browse files", "Android Files · folders, Downloads, search and providers", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            launchOpen();
+        }), matchWrap());
+
         final List<RecentStore.Item> recent=RecentStore.read(this);
         {
             TextView label=new TextView(this);
@@ -4451,13 +4458,11 @@ public class MainActivity extends Activity {
         destinations.setTextSize(12.0f);
         destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
         content.addView(destinations,matchWrap());
-        content.addView(filesAction("Downloads", "Browse the Downloads inbox with one-time access", view -> {
+        content.addView(filesAction("Quick Downloads (list)", "Optional built-in Downloads folder list", view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
             showDownloadsFolder("");
         }), matchWrap());
-        content.addView(filesAction("Open a file","Choose a Markdown or text document",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchOpen();
-        }),matchWrap());
+
         content.addView(filesAction("New document","Start writing a new document",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
         }),matchWrap());
@@ -4667,7 +4672,7 @@ public class MainActivity extends Activity {
             }
         }), matchWrap());
         addWorkspaceFolderActions(linearLayout);
-        linearLayout.addView(workspaceAction("Downloads", "Browse Markdown and text files without picking each one", view -> {
+        linearLayout.addView(workspaceAction("Quick Downloads (list)", "Optional built-in Downloads folder list", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             showDownloadsFolder("");
         }), matchWrap());
