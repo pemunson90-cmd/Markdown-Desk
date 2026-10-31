@@ -259,6 +259,7 @@ public class MainActivity extends Activity {
     @Override // android.app.Activity, android.content.ComponentCallbacks
     public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
+        dismissNavigationPicker();
         captureActiveTab();
         rebuildBody();
         applyResponsiveChrome();
@@ -283,6 +284,7 @@ public class MainActivity extends Activity {
 
     @Override // android.app.Activity
     protected void onStop() {
+        dismissNavigationPicker();
         ++this.downloadsRequest;
         super.onStop();
     }
@@ -2868,21 +2870,17 @@ public class MainActivity extends Activity {
 
     private void showRecents() {
         final List<RecentStore.Item> list = RecentStore.read(this);
-        boolean zIsEmpty = list.isEmpty();
-        if (zIsEmpty) {
+        if (list.isEmpty()) {
             Toast.makeText(this, "No recent documents", MODE_EDIT).show();
             return;
         }
-        String[] strArr = new String[list.size()];
-        for (int i = MODE_EDIT; i < list.size(); i += MODE_PREVIEW) {
-            strArr[i] = list.get(i).name;
+        List<NavigationChoices.Row> rows = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            RecentStore.Item item = list.get(i);
+            rows.add(new NavigationChoices.Row(i, item.name, Uri.decode(item.uri)));
         }
-        new AlertDialog.Builder(this).setTitle("Recent documents").setItems(strArr, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda61
-            @Override // android.content.DialogInterface.OnClickListener
-            public final void onClick(DialogInterface dialogInterface, int i2) {
-                MainActivity.this.lambda$showRecents$50(list, dialogInterface, i2);
-            }
-        }).setNegativeButton("Cancel", (DialogInterface.OnClickListener) null).show();
+        showNavigationPicker("Recent documents", "Search names or locations", rows,
+                index -> lambda$showRecents$50(list, null, index));
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -4990,13 +4988,33 @@ public class MainActivity extends Activity {
         styleDialog(alertDialog);
     }
 
+    private NavigationPicker navigationPicker;
+
+    private void dismissNavigationPicker() {
+        NavigationPicker previous = this.navigationPicker;
+        this.navigationPicker = null;
+        if (previous != null) previous.dismiss();
+    }
+
+    private void showNavigationPicker(String title, String hint, List<NavigationChoices.Row> rows,
+                                      java.util.function.IntConsumer selection) {
+        dismissNavigationPicker();
+        if (isFinishing() || isDestroyed()) return;
+        this.navigationPicker = NavigationPicker.show(this, this.palette, title, hint, rows, index -> {
+            this.navigationPicker = null;
+            if (!isFinishing() && !isDestroyed()) selection.accept(index);
+        });
+    }
+
     private void showCommandPalette() {
-        new AlertDialog.Builder(this).setTitle("Command palette").setItems(new String[]{"New document", "Open file", "Save", "Switch document", "Document outline", "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance", "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF", "Export DOCX"}, new DialogInterface.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda76
-            @Override // android.content.DialogInterface.OnClickListener
-            public final void onClick(DialogInterface dialogInterface, int i) {
-                MainActivity.this.lambda$showCommandPalette$59(dialogInterface, i);
-            }
-        }).setNegativeButton("Close", (DialogInterface.OnClickListener) null).show();
+        String[] commands = {"New document", "Open file", "Save", "Switch document", "Document outline",
+                "Find and replace", "Write mode", "Read mode", "Split mode", "Focus mode", "Appearance",
+                "Splash images", "Increase text size", "Decrease text size", "Insert table", "Print / Save PDF",
+                "Export DOCX", "Undo", "Redo", "Recent documents", "Reading bookmarks", "Files and workspace"};
+        List<NavigationChoices.Row> rows = new ArrayList<>();
+        for (int i = 0; i < commands.length; i++) rows.add(new NavigationChoices.Row(i, commands[i], ""));
+        showNavigationPicker("Command palette", "Search commands", rows,
+                index -> lambda$showCommandPalette$59(null, index));
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -5052,6 +5070,21 @@ public class MainActivity extends Activity {
                 break;
             case 16:
                 startDocxExport();
+                break;
+            case 17:
+                runEditorHistoryAction(android.R.id.undo);
+                break;
+            case 18:
+                runEditorHistoryAction(android.R.id.redo);
+                break;
+            case 19:
+                showRecents();
+                break;
+            case 20:
+                showReaderPlaces();
+                break;
+            case 21:
+                showFilesNavigator();
                 break;
         }
     }
@@ -6038,39 +6071,17 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "No headings in this document", MODE_EDIT).show();
             return;
         }
-        final AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Document outline").setNegativeButton("Close", null).create();
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(10), dp(4), dp(10), dp(72));
-        for (final MarkdownStructure.Heading heading : headings) {
-            TextView row = new TextView(this);
-            row.setText(heading.text + "   ·   L" + heading.line);
-            row.setTextColor(this.palette.text);
-            row.setTextSize(heading.level == 1 ? 17.0f : heading.level == 2 ? 15.5f : 14.0f);
-            row.setTypeface(Typeface.DEFAULT, heading.level <= 2 ? Typeface.BOLD : Typeface.NORMAL);
-            row.setPadding(dp(10 + Math.max(0, heading.level - 1) * 16), dp(10), dp(8), dp(10));
-            row.setBackground(UiTheme.rounded(0, dp(8), this.palette.border, 0));
-            row.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    int offset = heading.offset;
-                    dialog.dismiss();
-                    if (!isCurrentSourceNavigation(context)) return;
-                    if (mode == MODE_PREVIEW) scrollPreviewToSourceOffset(offset);
-                    else jumpToSourceOffset(offset);
-                }
-            });
-            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
-            rp.setMargins(0, 0, 0, dp(3));
-            column.addView(row, rp);
+        List<NavigationChoices.Row> rows = new ArrayList<>();
+        for (int i = 0; i < headings.size(); i++) {
+            MarkdownStructure.Heading heading = headings.get(i);
+            rows.add(new NavigationChoices.Row(i, heading.text, "H" + heading.level + " · line " + heading.line));
         }
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.addView(column, matchWrap());
-        dialog.setView(scroll);
-        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override public void onShow(DialogInterface d) { styleDialog(dialog); }
+        showNavigationPicker("Document outline", "Search headings or line numbers", rows, index -> {
+            if (!isCurrentSourceNavigation(context)) return;
+            int offset = headings.get(index).offset;
+            if (mode == MODE_PREVIEW) scrollPreviewToSourceOffset(offset);
+            else jumpToSourceOffset(offset);
         });
-        dialog.show();
     }
 
     /* JADX INFO: Access modifiers changed from: private */
