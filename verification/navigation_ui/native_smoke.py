@@ -24,7 +24,10 @@ def tap(phrase,exact=False,scroll=False):
     for _ in range(12 if scroll else 4):
         root=ui(); found=matches(root,phrase,exact)
         if found:
-            candidates=[n for n in found if n.get('clickable')=='true'] or found
+            # A query may exactly equal a result label. Prefer the result row
+            # over the clickable search EditText in that case.
+            visible=[n for n in found if n.get('class')!='android.widget.EditText'] or found
+            candidates=[n for n in visible if n.get('clickable')=='true'] or visible
             x1,y1,x2,y2=map(int,re.findall(r'\d+',candidates[0].get('bounds','')))
             if x2>x1 and y2>y1:
                 run('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.8);return
