@@ -47,12 +47,29 @@ final class NavigationChoices {
     private static String normalize(String value) {
         return Normalizer.normalize(value, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
     }
+    // Android's ICU regex engine does not accept Java's (?U) pattern flag.
+    // Split by Unicode code points instead, including non-breaking spaces.
+    private static String[] splitTerms(String query) {
+        ArrayList<String> terms = new ArrayList<>();
+        int start = 0;
+        for (int index = 0; index < query.length();) {
+            int codePoint = query.codePointAt(index);
+            int next = index + Character.charCount(codePoint);
+            if (Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint)) {
+                if (start < index) terms.add(query.substring(start, index));
+                start = next;
+            }
+            index = next;
+        }
+        if (start < query.length()) terms.add(query.substring(start));
+        return terms.toArray(new String[0]);
+    }
     Snapshot filter(String query) {
         long next = ++revision;
         List<Row> matches = new ArrayList<>();
         if (!closed) {
-            String normalized = normalize(query == null ? "" : query).trim();
-            String[] terms = normalized.isEmpty() ? new String[0] : normalized.split("(?U)\\s+");
+            String normalized = normalize(query == null ? "" : query);
+            String[] terms = splitTerms(normalized);
             for (int i = 0; i < all.size(); i++) {
                 boolean include = true;
                 for (String term : terms) if (!searchable.get(i).contains(term)) { include = false; break; }
