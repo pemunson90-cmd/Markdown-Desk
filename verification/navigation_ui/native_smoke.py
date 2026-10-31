@@ -65,6 +65,7 @@ def quick_downloads():
 
 def main():
     run('shell','wm','size','1080x2400')
+    run('shell','wm','density','420')
     run('shell','settings','put','system','font_scale','1.0')
     run('shell','mkdir','-p','/sdcard/Download/second')
     with tempfile.TemporaryDirectory() as temp:
@@ -72,7 +73,11 @@ def main():
         p.write_text('# Start\n\nbody\n## Target\nfirst target\n\ntext\n\n## Target\nsecond target\n',encoding='utf-8')
         run('push',str(p),'/sdcard/Download/moonshot-navigation.md')
         run('push',str(p),'/sdcard/Download/second/moonshot-navigation.md')
-    run('shell','appops','set',PACKAGE,'MANAGE_EXTERNAL_STORAGE','allow')
+    # Android's documented testing command applies to the UID, not a package-only override.
+    # https://developer.android.com/training/data-storage/manage-all-files
+    run('shell','appops','set','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE','allow')
+    run('shell','am','force-stop',PACKAGE)
+    (OUT/'storage-grant.txt').write_text(run('shell','appops','get','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE'))
     launch();quick_downloads();tap('moonshot-navigation.md');no_error()
     print('PASS unchanged Quick Downloads opens file',flush=True)
     commands();present('22 of 22');capture('commands-dark-portrait')
@@ -102,7 +107,7 @@ def main():
     run('shell','settings','put','system','user_rotation','0');time.sleep(2)
     print('PASS configuration change retires navigation dialog',flush=True)
     run('shell','settings','put','system','font_scale','1.3');time.sleep(2);commands('outline');present('Document outline');capture('large-font-command-search');tap('Close',exact=True)
-    run('shell','appops','set',PACKAGE,'MANAGE_EXTERNAL_STORAGE','deny');run('shell','am','force-stop',PACKAGE);launch();quick_downloads();present('Allow Downloads access')
+    run('shell','appops','set','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE','deny');run('shell','am','force-stop',PACKAGE);launch();quick_downloads();present('Allow Downloads access')
     print('PASS revoked Downloads access still requests consent',flush=True)
     print('NATIVE NAVIGATION SMOKE PASS — API35 emulator; physical Fold7 not tested',flush=True)
 
