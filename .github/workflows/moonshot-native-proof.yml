@@ -2,7 +2,7 @@ name: Moonshot native interaction proof
 on:
   push:
     branches: [moonshot/professional-upgrade-20261031]
-    paths: ['.github/workflows/moonshot-native-proof.yml', 'verification/navigation_ui/native_smoke.py']
+    paths: ['.github/workflows/moonshot-native-proof.yml', 'verification/navigation_ui/native_smoke.py', 'verification/navigation_choices/**', 'apps/MarkdownDesk/src/com/example/markdowndesk/NavigationChoices.java']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +23,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17.0.16+8'
+      - name: Run Unicode navigation model regression
+        run: bash verification/navigation_choices/run.sh
       - name: SDK and disposable emulator inputs
         shell: bash
         run: |
