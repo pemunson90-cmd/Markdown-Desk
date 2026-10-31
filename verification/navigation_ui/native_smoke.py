@@ -116,7 +116,9 @@ def main():
     commands();run('shell','settings','put','system','accelerometer_rotation','0');run('shell','settings','put','system','user_rotation','1');time.sleep(2);absent('Search commands');capture('landscape-after-rotation')
     run('shell','settings','put','system','user_rotation','0');time.sleep(2)
     print('PASS configuration change retires navigation dialog',flush=True)
-    run('shell','settings','put','system','font_scale','1.3');time.sleep(2);commands('outline');present('Document outline');capture('large-font-command-search');tap('Close',exact=True)
+    run('shell','settings','put','system','font_scale','1.3');time.sleep(2)
+    run('shell','am','force-stop',PACKAGE);launch()  # Restart after system font-scale recreation before interacting.
+    commands('outline');present('Document outline');capture('large-font-command-search');tap('Close',exact=True)
     run('shell','appops','set','--uid',PACKAGE,'MANAGE_EXTERNAL_STORAGE','deny');run('shell','am','force-stop',PACKAGE);launch();quick_downloads();present('Allow Downloads access')
     print('PASS revoked Downloads access still requests consent',flush=True)
     print('NATIVE NAVIGATION SMOKE PASS — API35 emulator; physical Fold7 not tested',flush=True)
