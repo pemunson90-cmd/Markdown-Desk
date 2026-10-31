@@ -18,7 +18,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Bind to recovered application source
-        run: test "$(git rev-parse HEAD:apps/MarkdownDesk)" = 8457b064ebddcaebbfd4360116d99a11d1533585
+        run: test "$(git rev-parse HEAD:apps/MarkdownDesk)" = 46223067fce5570c2eb57450896ab0ad7e105487
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
