@@ -29,17 +29,74 @@ public final class MarkdownRenderer {
         return render(str, palette, f, ReaderTypography.defaults());
     }
 
+    private static final Pattern FOOTNOTE_DEF = Pattern.compile("^\\[\\^([^\\s\\]]+)]:[ \\t]*(.*)$");
+    private static final Pattern FOOTNOTE_REF = Pattern.compile("\\[\\^([^\\s\\]]+)]");
+    private static final ThreadLocal<Footnotes> FOOTNOTES = new ThreadLocal<Footnotes>();
+
+    private static final class Footnotes {
+        final java.util.HashMap<String, String[]> defs = new java.util.HashMap<String, String[]>();
+        final java.util.HashSet<Integer> defLines = new java.util.HashSet<Integer>();
+        final java.util.HashMap<String, Integer> numbers = new java.util.HashMap<String, Integer>();
+        final ArrayList<String> order = new ArrayList<String>();
+    }
+
+    private static Footnotes scanFootnotes(String[] lines, int[] offsets) {
+        Footnotes fn = new Footnotes();
+        String fence = null;
+        for (int i = 0; i < lines.length; i++) {
+            String line = cr(lines[i]);
+            if (fence != null) {
+                if (line.trim().startsWith(fence)) fence = null;
+                continue;
+            }
+            Matcher f = FENCE.matcher(line);
+            if (f.matches()) {
+                fence = f.group(1);
+                continue;
+            }
+            Matcher m = FOOTNOTE_DEF.matcher(line);
+            if (m.matches()) {
+                fn.defLines.add(i);
+                if (!fn.defs.containsKey(m.group(1))) {
+                    fn.defs.put(m.group(1), new String[] {m.group(2), String.valueOf(offsets[i])});
+                }
+            }
+        }
+        return fn;
+    }
+
+    private static String footnoteSection(Footnotes fn) {
+        if (fn.order.isEmpty()) return "";
+        StringBuilder out = new StringBuilder("<section class=\"footnotes\"><ol>");
+        for (int k = 0; k < fn.order.size(); k++) {
+            String[] def = fn.defs.get(fn.order.get(k));
+            out.append("<li data-source-offset=\"").append(def[1]).append("\">").append(inline(def[0])).append("</li>");
+        }
+        return out.append("</ol></section>").toString();
+    }
+
     static String render(String str, UiTheme.Palette palette, float f, ReaderTypography typography) {
+        FOOTNOTES.remove();
+        try {
+            return renderDocument(str, palette, f, typography);
+        } finally {
+            FOOTNOTES.remove();
+        }
+    }
+
+    private static String renderDocument(String str, UiTheme.Palette palette, float f, ReaderTypography typography) {
         ReaderTypography type = typography == null ? ReaderTypography.defaults() : typography;
         boolean z = palette.dark;
         String str3 = str == null ? "" : str;
         String[] strArrSplit = str3.split("\\n", -1);
         int[] iArrLineOffsets = lineOffsets(strArrSplit);
+        Footnotes footnotes = scanFootnotes(strArrSplit, iArrLineOffsets);
+        if (!footnotes.defs.isEmpty()) FOOTNOTES.set(footnotes);
         StringBuilder sb = new StringBuilder(Math.max(256, str3.length() + 256));
         int i = 0;
         while (i < strArrSplit.length) {
             String strCr = cr(strArrSplit[i]);
-            if (strCr.trim().isEmpty()) {
+            if (strCr.trim().isEmpty() || footnotes.defLines.contains(i)) {
                 i++;
             } else {
                 int i2 = iArrLineOffsets[i];
@@ -158,7 +215,7 @@ public final class MarkdownRenderer {
                                 StringBuilder sb3 = new StringBuilder();
                                 while (i < strArrSplit.length) {
                                     String strCr3 = cr(strArrSplit[i]);
-                                    if (strCr3.trim().isEmpty() || (sb3.length() > 0 && startsBlock(strArrSplit, i))) {
+                                    if (strCr3.trim().isEmpty() || (sb3.length() > 0 && (startsBlock(strArrSplit, i) || footnotes.defLines.contains(i)))) {
                                         break;
                                     }
                                     if (sb3.length() > 0) {
@@ -174,6 +231,8 @@ public final class MarkdownRenderer {
                 }
             }
         }
+        String footnoteHtml = footnoteSection(footnotes);
+        sb.append(footnoteHtml);
         String strCss = css(palette.canvas);
         String strCss2 = css(palette.text);
         String strCss3 = css(palette.muted);
@@ -187,7 +246,7 @@ public final class MarkdownRenderer {
         float h1 = Math.max(28.0f, Math.min(fMax * 1.36f, 34.0f));
         float h2 = Math.max(24.0f, Math.min(fMax * 1.22f, 29.0f));
         float h3 = Math.max(21.0f, Math.min(fMax * 1.12f, 25.0f));
-        return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>html{color-scheme:" + (z ? "dark" : "light") + ";scroll-behavior:auto;background:" + strCss + ";-webkit-text-size-adjust:100%}body{box-sizing:border-box;max-width:" + type.measurePx + "px;margin:0 auto;padding:38px " + type.horizontalMarginPx + "px 28px;background:" + strCss + ";color:" + strCss2 + ";font-family:" + type.family.css + ";font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(fMax)) + "px;line-height:" + ReaderTypography.cssNumber(type.lineHeight) + ";overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}[data-source-offset]{scroll-margin-top:24px;border-radius:5px;transition:background .15s ease}h1,h2,h3,h4,h5,h6{font-family:system-ui,sans-serif;letter-spacing:-.018em;line-height:1.16;margin:1.6em 0 .55em}h1{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h1)) + "px;margin-top:.35em}h2{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h2)) + "px;border-bottom:1px solid " + strCss5 + ";padding-bottom:.28em}h3{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h3)) + "px}p{margin:" + (type.paragraphGapEm == .9f ? ".9" : ReaderTypography.cssNumber(type.paragraphGapEm)) + "em 0}a,.link{color:" + strCss7 + "}blockquote{margin:1em 0;padding:.15em 1em;border-left:4px solid " + strCss6 + ";color:" + strCss3 + "}pre{background:" + strCss4 + ";padding:18px;border:1px solid " + strCss5 + ";border-radius:14px;overflow-x:auto;white-space:pre;line-height:1.5}code{font-family:'SFMono-Regular',Consolas,monospace;background:" + strCss4 + ";padding:.12em .34em;border-radius:5px;font-size:.9em}pre code{padding:0}blockquote code{color:" + strCss9 + "}th a,th .link,a code,.link code{color:" + strCss8 + "}table{border-collapse:separate;border-spacing:0;min-width:100%;border:1px solid " + strCss5 + ";border-radius:12px;overflow:hidden}th,td{border-right:1px solid " + strCss5 + ";border-bottom:1px solid " + strCss5 + ";padding:10px 12px;text-align:left;white-space:nowrap}th{background:" + strCss4 + ";font-family:system-ui,sans-serif}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}.table-scroll{overflow-x:auto;margin:1.2em 0}ul,ol{padding-left:1.5em}li{margin:.25em 0}hr{border:0;border-top:1px solid " + strCss5 + ";margin:1.6em 0}.blocked-image{color:" + strCss3 + ";font-style:italic}th .blocked-image{color:" + strCss9 + "}</style></head><body>" + String.valueOf(sb) + syncScript() + "</body></html>";
+        return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><style>html{color-scheme:" + (z ? "dark" : "light") + ";scroll-behavior:auto;background:" + strCss + ";-webkit-text-size-adjust:100%}body{box-sizing:border-box;max-width:" + type.measurePx + "px;margin:0 auto;padding:38px " + type.horizontalMarginPx + "px 28px;background:" + strCss + ";color:" + strCss2 + ";font-family:" + type.family.css + ";font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(fMax)) + "px;line-height:" + ReaderTypography.cssNumber(type.lineHeight) + ";overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}[data-source-offset]{scroll-margin-top:24px;border-radius:5px;transition:background .15s ease}h1,h2,h3,h4,h5,h6{font-family:system-ui,sans-serif;letter-spacing:-.018em;line-height:1.16;margin:1.6em 0 .55em}h1{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h1)) + "px;margin-top:.35em}h2{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h2)) + "px;border-bottom:1px solid " + strCss5 + ";padding-bottom:.28em}h3{font-size:" + String.format(Locale.ROOT, "%.1f", Float.valueOf(h3)) + "px}p{margin:" + (type.paragraphGapEm == .9f ? ".9" : ReaderTypography.cssNumber(type.paragraphGapEm)) + "em 0}a,.link{color:" + strCss7 + "}blockquote{margin:1em 0;padding:.15em 1em;border-left:4px solid " + strCss6 + ";color:" + strCss3 + "}pre{background:" + strCss4 + ";padding:18px;border:1px solid " + strCss5 + ";border-radius:14px;overflow-x:auto;white-space:pre;line-height:1.5}code{font-family:'SFMono-Regular',Consolas,monospace;background:" + strCss4 + ";padding:.12em .34em;border-radius:5px;font-size:.9em}pre code{padding:0}blockquote code{color:" + strCss9 + "}th a,th .link,a code,.link code{color:" + strCss8 + "}table{border-collapse:separate;border-spacing:0;min-width:100%;border:1px solid " + strCss5 + ";border-radius:12px;overflow:hidden}th,td{border-right:1px solid " + strCss5 + ";border-bottom:1px solid " + strCss5 + ";padding:10px 12px;text-align:left;white-space:nowrap}th{background:" + strCss4 + ";font-family:system-ui,sans-serif}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}.table-scroll{overflow-x:auto;margin:1.2em 0}ul,ol{padding-left:1.5em}li{margin:.25em 0}hr{border:0;border-top:1px solid " + strCss5 + ";margin:1.6em 0}.blocked-image{color:" + strCss3 + ";font-style:italic}th .blocked-image{color:" + strCss9 + "}" + (footnoteHtml.isEmpty() ? "" : "sup.footnote-ref{font-size:.75em;line-height:0;color:" + strCss7 + "}.footnotes{margin-top:2.2em;padding-top:.7em;border-top:1px solid " + strCss5 + ";font-size:.85em;color:" + strCss3 + "}.footnotes ol{margin:.4em 0;padding-left:1.6em}.footnotes li{margin:.35em 0}") + "</style></head><body>" + String.valueOf(sb) + syncScript() + "</body></html>";
     }
 
     private static final class ListFrame {
@@ -335,6 +394,27 @@ public final class MarkdownRenderer {
             code.appendReplacement(codeBuffer, Matcher.quoteReplacement("\u0001CODE" + index + "\u0002"));
         }
         code.appendTail(codeBuffer);
+        Footnotes fn = FOOTNOTES.get();
+        if (fn != null && codeBuffer.indexOf("[^") >= 0) {
+            Matcher ref = FOOTNOTE_REF.matcher(codeBuffer.toString());
+            StringBuffer refBuffer = new StringBuffer();
+            while (ref.find()) {
+                String label = ref.group(1);
+                if (!fn.defs.containsKey(label)) {
+                    ref.appendReplacement(refBuffer, Matcher.quoteReplacement(ref.group()));
+                    continue;
+                }
+                Integer number = fn.numbers.get(label);
+                if (number == null) {
+                    fn.order.add(label);
+                    number = fn.order.size();
+                    fn.numbers.put(label, number);
+                }
+                ref.appendReplacement(refBuffer, Matcher.quoteReplacement("\u0001FN" + number + "\u0002"));
+            }
+            ref.appendTail(refBuffer);
+            codeBuffer = refBuffer;
+        }
 
         Matcher image = IMAGE.matcher(escape(codeBuffer.toString()));
         StringBuffer imageBuffer = new StringBuffer();
@@ -366,6 +446,9 @@ public final class MarkdownRenderer {
 
         for (int i = 0; i < codeFragments.size(); i++) {
             rendered = rendered.replace("\u0001CODE" + i + "\u0002", codeFragments.get(i));
+        }
+        if (fn != null) {
+            rendered = Pattern.compile("\u0001FN(\\d+)\u0002").matcher(rendered).replaceAll("<sup class=\"footnote-ref\">$1</sup>");
         }
         for (int i = 0; i < protectedFragments.size(); i++) {
             rendered = rendered.replace("\u0001ESC" + i + "\u0002", protectedFragments.get(i));
