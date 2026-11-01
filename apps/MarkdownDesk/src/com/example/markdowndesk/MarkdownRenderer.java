@@ -18,8 +18,8 @@ public final class MarkdownRenderer {
     private static final Pattern IMAGE = Pattern.compile("!\\[([^]\\n]*)]\\(([^)\\n]*)\\)");
     private static final Pattern LINK = Pattern.compile("(?<!!)\\[([^]\\n]+)]\\(([^)\\n]+)\\)");
     private static final Pattern AUTOLINK = Pattern.compile(
-            "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|<([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@"
-            + "[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>"
+            "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|<([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]++@"
+            + "[a-zA-Z0-9.-]++)>"
             + "|(?<![\\p{L}\\p{N}])https?://[^\\s<>\\u0001\\u0002]+");
     private static final java.util.concurrent.atomic.AtomicLong AUTOLINK_NONCE = new java.util.concurrent.atomic.AtomicLong(System.nanoTime() ^ 0x5DEECE66DL);
 
@@ -511,6 +511,7 @@ public final class MarkdownRenderer {
             String url;
             int end;
             if (m.group(2) != null) {
+                if (!validEmailDomain(m.group(2))) continue;
                 String addr = escape(m.group(2));
                 int index = autolinks.size();
                 autolinks.add("<a href=\"mailto:" + addr + "\">" + addr + "</a>");
@@ -534,6 +535,23 @@ public final class MarkdownRenderer {
             last = end;
         }
         return out.append(text, last, text.length());
+    }
+
+    /** Flat, non-recursive check of the domain part of an email autolink (labels of 1-63 alnum/hyphen, no edge hyphens). */
+    private static boolean validEmailDomain(String addr) {
+        int i = addr.indexOf('@') + 1;
+        int n = addr.length();
+        if (i <= 0 || i >= n) return false;
+        int labelStart = i;
+        for (int k = i; k <= n; k++) {
+            if (k == n || addr.charAt(k) == '.') {
+                int len = k - labelStart;
+                if (len < 1 || len > 63) return false;
+                if (addr.charAt(labelStart) == '-' || addr.charAt(k - 1) == '-') return false;
+                labelStart = k + 1;
+            }
+        }
+        return true;
     }
 
     private static String trimAutolink(String url) {
