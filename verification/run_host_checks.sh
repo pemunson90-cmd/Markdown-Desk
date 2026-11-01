@@ -29,6 +29,7 @@ bash verification/document_io/run.sh
 bash verification/session_recovery/run.sh
 bash verification/renderer_golden/run.sh
 bash verification/footnotes/run.sh
+bash verification/autolinks/run.sh
 bash verification/reader_typography/run.sh
 bash verification/reader_positions/run.sh
 bash verification/reader_typography_ui/run.sh
