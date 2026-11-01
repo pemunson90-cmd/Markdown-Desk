@@ -1,7 +1,7 @@
 name: Moonshot native interaction proof
 on:
   push:
-    branches: [moonshot/professional-upgrade-20261031, release/2.3.1-readerlinks]
+    branches: [moonshot/professional-upgrade-20261031, release/2.3.1-readerlinks, release/2.3.2-emaillinks]
     paths: ['.github/workflows/moonshot-native-proof.yml', 'verification/navigation_ui/native_smoke.py', 'verification/navigation_choices/**', 'apps/MarkdownDesk/src/com/example/markdowndesk/NavigationChoices.java', 'verification/navigation_ui/reader_links_smoke.py']
   workflow_dispatch:
 permissions:
@@ -18,7 +18,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Bind to recovered application source
-        run: test "$(git rev-parse HEAD:apps/MarkdownDesk)" = 3813b46328d4a67fa6057d5bf26d4a4709f96001
+        run: test "$(git rev-parse HEAD:apps/MarkdownDesk)" = fd23a77932b14d578db88a37614117e4d0205a0d
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
@@ -39,9 +39,9 @@ jobs:
           ANDROID_BUILD_TOOLS: '36.0.0'
         run: |
           set -euo pipefail
-          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.1-UNSIGNED
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.2-UNSIGNED
           mkdir -p "$RUNNER_TEMP/android-proof"
-          cp apps/MarkdownDesk/build/MarkdownDesk-2.3.1-UNSIGNED.apk "$RUNNER_TEMP/android-proof/"
+          cp apps/MarkdownDesk/build/MarkdownDesk-2.3.2-UNSIGNED.apk "$RUNNER_TEMP/android-proof/"
           git rev-parse HEAD > "$RUNNER_TEMP/android-proof/SOURCE_COMMIT.txt"
           git rev-parse HEAD:apps/MarkdownDesk > "$RUNNER_TEMP/android-proof/APPLICATION_TREE.txt"
           sha256sum "$RUNNER_TEMP/android-proof/"*.apk > "$RUNNER_TEMP/android-proof/UNSIGNED-SHA256.txt"
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           keytool -genkeypair -noprompt -storetype JKS -keystore "$RUNNER_TEMP/test-only.jks" -storepass android -alias smoke -keypass android -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=Disposable navigation fixture'
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$RUNNER_TEMP/test-only.jks" --ks-pass pass:android --key-pass pass:android --ks-key-alias smoke --out "$RUNNER_TEMP/test-only.apk" apps/MarkdownDesk/build/MarkdownDesk-2.3.1-UNSIGNED.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$RUNNER_TEMP/test-only.jks" --ks-pass pass:android --key-pass pass:android --ks-key-alias smoke --out "$RUNNER_TEMP/test-only.apk" apps/MarkdownDesk/build/MarkdownDesk-2.3.2-UNSIGNED.apk
       - name: Start isolated API35 Android
         shell: bash
         run: |
