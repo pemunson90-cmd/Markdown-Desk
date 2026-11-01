@@ -134,6 +134,32 @@ public final class AutolinkGolden {
             lacks("theme " + t + " CR", bb, "\r");
         }
 
+        // 9. Robustness (independent review of Foundry release 262a79be): literal placeholder
+        //    control characters in user text must never crash or duplicate links.
+        String[] hostile = {"x \u0001AL7\u0002 https://a.example", "x \u0001AL99999999999\u0002 https://a.example",
+                "x \u0001AL0\u0002 https://a.example", "\u0001AL0\u0002\u0001AL1\u0002 <https://b.example> https://c.example"};
+        for (int h = 0; h < hostile.length; h++) {
+            String out;
+            try {
+                out = body(hostile[h] + "\n");
+            } catch (RuntimeException ex) {
+                throw new AssertionError("hostile placeholder input " + h + " crashed: " + ex);
+            }
+            ok("hostile " + h + " anchors not duplicated", count(out, "<a href=\"https://a.example\">") <= 1
+                    && count(out, "<a href=\"https://b.example\">") <= 1 && count(out, "<a href=\"https://c.example\">") <= 1);
+            ok("hostile " + h + " real link kept", out.contains("https://"));
+        }
+
+        // 10. Trailing ')' trimming is linear: 100k closing parens render quickly (baseline ~20 ms).
+        StringBuilder parens = new StringBuilder("https://p.example/x");
+        for (int i = 0; i < 100_000; i++) parens.append(')');
+        body(parens + "\n");  // warm up
+        long t0 = System.nanoTime();
+        String pb = body(parens + "\n");
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        ok("100k trailing parens took " + ms + " ms (limit 750)", ms < 750);
+        has("parens trimmed", pb, "<a href=\"https://p.example/x\">https://p.example/x</a>)");
+
         System.out.println("AutolinkGolden: " + checks + " checks PASS");
     }
 }
