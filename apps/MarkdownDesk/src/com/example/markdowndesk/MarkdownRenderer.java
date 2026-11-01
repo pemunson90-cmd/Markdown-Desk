@@ -17,6 +17,9 @@ public final class MarkdownRenderer {
     private static final Pattern CODE_SPAN = Pattern.compile("`([^`\\n]+)`");
     private static final Pattern IMAGE = Pattern.compile("!\\[([^]\\n]*)]\\(([^)\\n]*)\\)");
     private static final Pattern LINK = Pattern.compile("(?<!!)\\[([^]\\n]+)]\\(([^)\\n]+)\\)");
+    private static final Pattern AUTOLINK = Pattern.compile(
+            "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|(?<![\\p{L}\\p{N}])https?://[^\\s<>\\u0001\\u0002]+");
+    private static final Pattern AUTOLINK_MARK = Pattern.compile("\u0001AL(\\d+)\u0002");
 
     private MarkdownRenderer() {
     }
@@ -421,6 +424,9 @@ public final class MarkdownRenderer {
             codeBuffer = refBuffer;
         }
 
+        ArrayList<String> autolinks = new ArrayList<String>();
+        codeBuffer = protectAutolinks(codeBuffer.toString(), autolinks);
+
         Matcher image = IMAGE.matcher(escape(codeBuffer.toString()));
         StringBuffer imageBuffer = new StringBuffer();
         while (image.find()) {
@@ -449,6 +455,15 @@ public final class MarkdownRenderer {
                 .replaceAll("(?<!\\*)\\*([^*\\n]+)\\*(?!\\*)", "<em>$1</em>")
                 .replaceAll("(?<![\\p{L}\\p{N}_])_([^_\\n]+)_(?![\\p{L}\\p{N}_])", "<em>$1</em>");
 
+        if (!autolinks.isEmpty()) {
+            Matcher mark = AUTOLINK_MARK.matcher(rendered);
+            StringBuffer markBuffer = new StringBuffer();
+            while (mark.find()) {
+                mark.appendReplacement(markBuffer, Matcher.quoteReplacement(autolinks.get(Integer.parseInt(mark.group(1)))));
+            }
+            mark.appendTail(markBuffer);
+            rendered = markBuffer.toString();
+        }
         for (int i = 0; i < codeFragments.size(); i++) {
             rendered = rendered.replace("\u0001CODE" + i + "\u0002", codeFragments.get(i));
         }
@@ -459,6 +474,69 @@ public final class MarkdownRenderer {
             rendered = rendered.replace("\u0001ESC" + i + "\u0002", protectedFragments.get(i));
         }
         return rendered;
+    }
+
+    /**
+     * GFM-style autolinks: bare http(s) URLs and angle-bracket http(s)/mailto autolinks become
+     * placeholders holding safe, escaped anchors. Explicit links/images are left untouched.
+     */
+    private static StringBuffer protectAutolinks(String text, List<String> autolinks) {
+        StringBuffer out = new StringBuffer(text.length());
+        if (text.indexOf("http") < 0 && text.indexOf("mailto:") < 0) return out.append(text);
+        ArrayList<int[]> skip = new ArrayList<int[]>();
+        for (Pattern p : new Pattern[] {IMAGE, LINK}) {
+            Matcher m = p.matcher(text);
+            while (m.find()) skip.add(new int[] {m.start(), m.end()});
+        }
+        Matcher m = AUTOLINK.matcher(text);
+        int last = 0;
+        while (m.find()) {
+            int start = m.start();
+            boolean inside = false;
+            for (int[] r : skip) {
+                if (start >= r[0] && start < r[1]) { inside = true; break; }
+            }
+            if (inside) continue;
+            String url;
+            int end;
+            if (m.group(1) != null) {
+                url = m.group(1);
+                end = m.end();
+                if (url.endsWith("://") || url.equals("mailto:")) continue;
+            } else {
+                url = trimAutolink(m.group());
+                if (url.length() <= url.indexOf("://") + 3) continue;
+                end = start + url.length();
+            }
+            String safe = escape(url);
+            int index = autolinks.size();
+            autolinks.add("<a href=\"" + safe + "\">" + safe + "</a>");
+            out.append(text, last, start).append('\u0001').append("AL").append(index).append('\u0002');
+            last = end;
+        }
+        return out.append(text, last, text.length());
+    }
+
+    private static String trimAutolink(String url) {
+        int end = url.length();
+        while (end > 0) {
+            char c = url.charAt(end - 1);
+            if ("?!.,:;*_~'\"".indexOf(c) >= 0) {
+                end--;
+            } else if (c == ')') {
+                int open = 0, close = 0;
+                for (int i = 0; i < end; i++) {
+                    char x = url.charAt(i);
+                    if (x == '(') open++;
+                    else if (x == ')') close++;
+                }
+                if (close > open) end--;
+                else break;
+            } else {
+                break;
+            }
+        }
+        return url.substring(0, end);
     }
 
     private static String protectBackslashEscapes(String source, List<String> protectedFragments) {
