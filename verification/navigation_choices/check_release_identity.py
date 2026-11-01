@@ -10,6 +10,7 @@ class ReleaseIdentity(unittest.TestCase):
             with self.subTest(gate=name):
                 self.assertIn(('27','2.2.12-native-picker1'),allowed)
                 self.assertIn(('28','2.3.0-navigation1'),allowed)
+                self.assertIn(('29','2.3.1-readerlinks1'),allowed)
                 self.assertNotIn(('28','2.2.12-native-picker1'),allowed)
                 self.assertNotIn(('999','arbitrary'),allowed)
 if __name__=='__main__': unittest.main()
