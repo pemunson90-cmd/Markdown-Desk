@@ -129,6 +129,12 @@ public final class FootnoteGolden {
         has("escaped def", e, "&lt;script&gt;");
         lacks("no raw script", e, "<script>alert");
 
+        // 6b. A definition containing '|' directly after a table is a definition, not a table row.
+        String tp = body("| a | b |\n|---|---|\n| x[^1] | y |\n[^1]: note a|b\n");
+        has("pipe def listed", tp, "note a|b</li>");
+        lacks("pipe def not a row", tp, ": note a</td>");
+        ok("pipe def one ref", count(tp, "<sup class=\"footnote-ref\">") == 1);
+
         // 7. Works in every theme and with CRLF line endings.
         String crlf = "Text[^1].\r\n\r\n[^1]: Windows note.\r\n";
         for (int t = 0; t < 9; t++) {
