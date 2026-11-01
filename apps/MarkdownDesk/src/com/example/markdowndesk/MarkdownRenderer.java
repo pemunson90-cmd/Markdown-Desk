@@ -19,7 +19,7 @@ public final class MarkdownRenderer {
     private static final Pattern LINK = Pattern.compile("(?<!!)\\[([^]\\n]+)]\\(([^)\\n]+)\\)");
     private static final Pattern AUTOLINK = Pattern.compile(
             "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|(?<![\\p{L}\\p{N}])https?://[^\\s<>\\u0001\\u0002]+");
-    private static final Pattern AUTOLINK_MARK = Pattern.compile("\u0001AL(\\d+)\u0002");
+    private static final java.util.concurrent.atomic.AtomicLong AUTOLINK_NONCE = new java.util.concurrent.atomic.AtomicLong(System.nanoTime() ^ 0x5DEECE66DL);
 
     private MarkdownRenderer() {
     }
@@ -425,7 +425,16 @@ public final class MarkdownRenderer {
         }
 
         ArrayList<String> autolinks = new ArrayList<String>();
-        codeBuffer = protectAutolinks(codeBuffer.toString(), autolinks);
+        // Per-render unforgeable placeholder prefix: author text cannot guess or contain it.
+        String autolinkPrefix = null;
+        if (codeBuffer.indexOf("http") >= 0 || codeBuffer.indexOf("mailto:") >= 0) {
+            do {
+                long n = AUTOLINK_NONCE.addAndGet(0x9E3779B97F4A7C15L);
+                n ^= (n >>> 29) * 0xBF58476D1CE4E5B9L;
+                autolinkPrefix = "\u0001AL" + Long.toHexString(n) + "x";
+            } while (codeBuffer.indexOf(autolinkPrefix) >= 0);
+        }
+        codeBuffer = protectAutolinks(codeBuffer.toString(), autolinks, autolinkPrefix);
 
         Matcher image = IMAGE.matcher(escape(codeBuffer.toString()));
         StringBuffer imageBuffer = new StringBuffer();
@@ -456,7 +465,7 @@ public final class MarkdownRenderer {
                 .replaceAll("(?<![\\p{L}\\p{N}_])_([^_\\n]+)_(?![\\p{L}\\p{N}_])", "<em>$1</em>");
 
         if (!autolinks.isEmpty()) {
-            Matcher mark = AUTOLINK_MARK.matcher(rendered);
+            Matcher mark = Pattern.compile(Pattern.quote(autolinkPrefix) + "(\\d+)\u0002").matcher(rendered);
             StringBuffer markBuffer = new StringBuffer();
             while (mark.find()) {
                 mark.appendReplacement(markBuffer, Matcher.quoteReplacement(autolinks.get(Integer.parseInt(mark.group(1)))));
@@ -480,7 +489,7 @@ public final class MarkdownRenderer {
      * GFM-style autolinks: bare http(s) URLs and angle-bracket http(s)/mailto autolinks become
      * placeholders holding safe, escaped anchors. Explicit links/images are left untouched.
      */
-    private static StringBuffer protectAutolinks(String text, List<String> autolinks) {
+    private static StringBuffer protectAutolinks(String text, List<String> autolinks, String prefix) {
         StringBuffer out = new StringBuffer(text.length());
         if (text.indexOf("http") < 0 && text.indexOf("mailto:") < 0) return out.append(text);
         ArrayList<int[]> skip = new ArrayList<int[]>();
@@ -511,7 +520,7 @@ public final class MarkdownRenderer {
             String safe = escape(url);
             int index = autolinks.size();
             autolinks.add("<a href=\"" + safe + "\">" + safe + "</a>");
-            out.append(text, last, start).append('\u0001').append("AL").append(index).append('\u0002');
+            out.append(text, last, start).append(prefix).append(index).append('\u0002');
             last = end;
         }
         return out.append(text, last, text.length());
@@ -519,18 +528,22 @@ public final class MarkdownRenderer {
 
     private static String trimAutolink(String url) {
         int end = url.length();
+        int open = 0, close = 0;
+        boolean countsReady = false;
         while (end > 0) {
             char c = url.charAt(end - 1);
             if ("?!.,:;*_~'\"".indexOf(c) >= 0) {
                 end--;
             } else if (c == ')') {
-                int open = 0, close = 0;
-                for (int i = 0; i < end; i++) {
-                    char x = url.charAt(i);
-                    if (x == '(') open++;
-                    else if (x == ')') close++;
+                if (!countsReady) {
+                    for (int i = 0; i < end; i++) {
+                        char x = url.charAt(i);
+                        if (x == '(') open++;
+                        else if (x == ')') close++;
+                    }
+                    countsReady = true;
                 }
-                if (close > open) end--;
+                if (close > open) { end--; close--; }
                 else break;
             } else {
                 break;
