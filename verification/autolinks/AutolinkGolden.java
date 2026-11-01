@@ -160,6 +160,27 @@ public final class AutolinkGolden {
         ok("100k trailing parens took " + ms + " ms (limit 750)", ms < 750);
         has("parens trimmed", pb, "<a href=\"https://p.example/x\">https://p.example/x</a>)");
 
+        // 11. CommonMark email autolinks (owner Fold7 check of 2.3.1: <someone@example.com> showed as
+        //     literal text). <local@domain> becomes a mailto: link whose visible text is the address.
+        has("email", body("Email <someone@example.com> now\n"),
+                "Email <a href=\"mailto:someone@example.com\">someone@example.com</a> now");
+        has("email plus subdomain", body("<a.b+tag@sub.example.co>\n"),
+                "<a href=\"mailto:a.b+tag@sub.example.co\">a.b+tag@sub.example.co</a>");
+        lacks("email brackets gone", body("<someone@example.com>\n"), "&lt;someone");
+        has("email ampersand escaped", body("<a&b@c.example>\n"), "<a href=\"mailto:a&amp;b@c.example\">a&amp;b@c.example</a>");
+        has("email in table", body("| a | b |\n|---|---|\n| <t@t.example> | y |\n"),
+                "<td><a href=\"mailto:t@t.example\">t@t.example</a></td>");
+        has("email in footnote", body("Note[^1].\n\n[^1]: Ask <f@f.example>.\n"),
+                "Ask <a href=\"mailto:f@f.example\">f@f.example</a>.</li>");
+        String ec = body("`<c@code.example>` and\n\n```\n<f@fence.example>\n```\n");
+        lacks("email not linked in code", ec, "mailto:");
+        for (String bad : new String[] {"<foo@>", "<@bar.example>", "<a b@c.example>", "<x@-bad.example>",
+                "<x@bad-.example>", "<x@y..example>", "<mailto:>"}) {
+            lacks("invalid email " + bad, body("x " + bad + " y\n"), "<a ");
+        }
+        has("explicit mailto untouched", body("[m](mailto:a@b.co)\n"), "<a href=\"mailto:a@b.co\">m</a>");
+        ok("explicit mailto not doubled", count(body("[m](mailto:a@b.co)\n"), "<a href=") == 1);
+
         System.out.println("AutolinkGolden: " + checks + " checks PASS");
     }
 }
