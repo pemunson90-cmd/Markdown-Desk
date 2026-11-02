@@ -15,6 +15,7 @@ import re
 DOC = ('# Reader links\n\n'
        'A sourced claim[^src] and a second one[^two].\n\n'
        'Visit https://autolink.example/path_a?x=1 today.\n\n'
+       'Write to <help@autolink.example> please.\n\n'
        '[^src]: Primary source note.\n'
        '[^two]: Secondary note text.\n')
 
@@ -50,6 +51,20 @@ def main():
     if not view and not toast:
         raise AssertionError('Tapping the autolink produced no ACTION_VIEW for autolink.example')
     print('PASS tapped autolink dispatched ACTION_VIEW ' + ('(activity start logged)' if view else '(no handler installed; app toast shown)'), flush=True)
+    run('shell', 'input', 'keyevent', 'KEYCODE_BACK'); time.sleep(1.5)
+    if not matches(ui(), 'help@autolink.example'):
+        run('shell', 'am', 'start', '-n', PACKAGE + '/.MainActivity'); time.sleep(2)
+    absent('<help@autolink.example>')
+    m = node_with('help@autolink.example')
+    run('logcat', '-c')
+    x1, y1, x2, y2 = map(int, re.findall(r'\d+', m.get('bounds', '')))
+    run('shell', 'input', 'tap', str((x1 + x2) // 2), str((y1 + y2) // 2)); time.sleep(2.5)
+    log = run('logcat', '-d', '-b', 'main', '-b', 'system', '-t', '3000', timeout=60)
+    mail = [l for l in log.splitlines() if 'android.intent.action.VIEW' in l and 'mailto' in l]
+    toast = matches(ui(), 'No app can open this link')
+    if not mail and not toast:
+        raise AssertionError('Tapping the email autolink produced no ACTION_VIEW for mailto:')
+    print('PASS tapped email autolink dispatched ACTION_VIEW mailto ' + ('(activity start logged)' if mail else '(no handler installed; app toast shown)'), flush=True)
     run('shell', 'input', 'keyevent', 'KEYCODE_BACK'); time.sleep(1)
     print('READER LINKS NATIVE SMOKE PASS: API35 emulator; physical Fold7 not tested', flush=True)
 

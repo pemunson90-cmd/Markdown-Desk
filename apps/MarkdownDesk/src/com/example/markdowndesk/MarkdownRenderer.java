@@ -18,7 +18,9 @@ public final class MarkdownRenderer {
     private static final Pattern IMAGE = Pattern.compile("!\\[([^]\\n]*)]\\(([^)\\n]*)\\)");
     private static final Pattern LINK = Pattern.compile("(?<!!)\\[([^]\\n]+)]\\(([^)\\n]+)\\)");
     private static final Pattern AUTOLINK = Pattern.compile(
-            "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|(?<![\\p{L}\\p{N}])https?://[^\\s<>\\u0001\\u0002]+");
+            "<((?:https?://|mailto:)[^\\s<>\\u0001\\u0002]+)>|<([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]++@"
+            + "[a-zA-Z0-9.-]++)>"
+            + "|(?<![\\p{L}\\p{N}])https?://[^\\s<>\\u0001\\u0002]+");
     private static final java.util.concurrent.atomic.AtomicLong AUTOLINK_NONCE = new java.util.concurrent.atomic.AtomicLong(System.nanoTime() ^ 0x5DEECE66DL);
 
     private MarkdownRenderer() {
@@ -427,7 +429,7 @@ public final class MarkdownRenderer {
         ArrayList<String> autolinks = new ArrayList<String>();
         // Per-render unforgeable placeholder prefix: author text cannot guess or contain it.
         String autolinkPrefix = null;
-        if (codeBuffer.indexOf("http") >= 0 || codeBuffer.indexOf("mailto:") >= 0) {
+        if (codeBuffer.indexOf("http") >= 0 || codeBuffer.indexOf("mailto:") >= 0 || codeBuffer.indexOf("@") >= 0) {
             do {
                 long n = AUTOLINK_NONCE.addAndGet(0x9E3779B97F4A7C15L);
                 n ^= (n >>> 29) * 0xBF58476D1CE4E5B9L;
@@ -491,7 +493,7 @@ public final class MarkdownRenderer {
      */
     private static StringBuffer protectAutolinks(String text, List<String> autolinks, String prefix) {
         StringBuffer out = new StringBuffer(text.length());
-        if (text.indexOf("http") < 0 && text.indexOf("mailto:") < 0) return out.append(text);
+        if (text.indexOf("http") < 0 && text.indexOf("mailto:") < 0 && text.indexOf('@') < 0) return out.append(text);
         ArrayList<int[]> skip = new ArrayList<int[]>();
         for (Pattern p : new Pattern[] {IMAGE, LINK}) {
             Matcher m = p.matcher(text);
@@ -508,6 +510,15 @@ public final class MarkdownRenderer {
             if (inside) continue;
             String url;
             int end;
+            if (m.group(2) != null) {
+                if (!validEmailDomain(m.group(2))) continue;
+                String addr = escape(m.group(2));
+                int index = autolinks.size();
+                autolinks.add("<a href=\"mailto:" + addr + "\">" + addr + "</a>");
+                out.append(text, last, start).append(prefix).append(index).append('\u0002');
+                last = m.end();
+                continue;
+            }
             if (m.group(1) != null) {
                 url = m.group(1);
                 end = m.end();
@@ -524,6 +535,23 @@ public final class MarkdownRenderer {
             last = end;
         }
         return out.append(text, last, text.length());
+    }
+
+    /** Flat, non-recursive check of the domain part of an email autolink (labels of 1-63 alnum/hyphen, no edge hyphens). */
+    private static boolean validEmailDomain(String addr) {
+        int i = addr.indexOf('@') + 1;
+        int n = addr.length();
+        if (i <= 0 || i >= n) return false;
+        int labelStart = i;
+        for (int k = i; k <= n; k++) {
+            if (k == n || addr.charAt(k) == '.') {
+                int len = k - labelStart;
+                if (len < 1 || len > 63) return false;
+                if (addr.charAt(labelStart) == '-' || addr.charAt(k - 1) == '-') return false;
+                labelStart = k + 1;
+            }
+        }
+        return true;
     }
 
     private static String trimAutolink(String url) {

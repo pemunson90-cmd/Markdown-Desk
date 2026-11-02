@@ -160,6 +160,53 @@ public final class AutolinkGolden {
         ok("100k trailing parens took " + ms + " ms (limit 750)", ms < 750);
         has("parens trimmed", pb, "<a href=\"https://p.example/x\">https://p.example/x</a>)");
 
+        // 11. CommonMark email autolinks (owner Fold7 check of 2.3.1: <someone@example.com> showed as
+        //     literal text). <local@domain> becomes a mailto: link whose visible text is the address.
+        has("email", body("Email <someone@example.com> now\n"),
+                "Email <a href=\"mailto:someone@example.com\">someone@example.com</a> now");
+        has("email plus subdomain", body("<a.b+tag@sub.example.co>\n"),
+                "<a href=\"mailto:a.b+tag@sub.example.co\">a.b+tag@sub.example.co</a>");
+        lacks("email brackets gone", body("<someone@example.com>\n"), "&lt;someone");
+        has("email ampersand escaped", body("<a&b@c.example>\n"), "<a href=\"mailto:a&amp;b@c.example\">a&amp;b@c.example</a>");
+        has("email in table", body("| a | b |\n|---|---|\n| <t@t.example> | y |\n"),
+                "<td><a href=\"mailto:t@t.example\">t@t.example</a></td>");
+        has("email in footnote", body("Note[^1].\n\n[^1]: Ask <f@f.example>.\n"),
+                "Ask <a href=\"mailto:f@f.example\">f@f.example</a>.</li>");
+        String ec = body("`<c@code.example>` and\n\n```\n<f@fence.example>\n```\n");
+        lacks("email not linked in code", ec, "mailto:");
+        for (String bad : new String[] {"<foo@>", "<@bar.example>", "<a b@c.example>", "<x@-bad.example>",
+                "<x@bad-.example>", "<x@y..example>", "<mailto:>"}) {
+            lacks("invalid email " + bad, body("x " + bad + " y\n"), "<a ");
+        }
+        has("explicit mailto untouched", body("[m](mailto:a@b.co)\n"), "<a href=\"mailto:a@b.co\">m</a>");
+        ok("explicit mailto not doubled", count(body("[m](mailto:a@b.co)\n"), "<a href=") == 1);
+
+        // 12. Robustness (operator review of Foundry release 5a7ba589): long dotted domains in
+        //     email-autolink candidates must never overflow the stack. 2.3.1 renders 20k labels in
+        //     ~11 ms; the candidate threw StackOverflowError from ~1000 labels. Run on a 512 KB
+        //     thread to model Android's smaller non-main thread stacks.
+        final String[] deep = new String[4];
+        StringBuilder u = new StringBuilder("<a@"), v = new StringBuilder("<a@");
+        for (int i = 0; i < 20000; i++) { u.append("a-b."); v.append("ab."); }
+        deep[0] = "x " + u + " y\n";                       // unclosed candidate
+        deep[1] = "x " + v + "ab> y\n";                    // syntactically valid, very long
+        deep[2] = "| a |\n|---|\n| " + v + "ab> |\n";       // inside a table cell
+        deep[3] = "Note[^1].\n\n[^1]: " + u + "\n";          // inside a footnote definition
+        final String[] deepOut = new String[deep.length];
+        final Throwable[] deepErr = new Throwable[1];
+        Thread small = new Thread(null, () -> {
+            try { for (int i = 0; i < deep.length; i++) deepOut[i] = body(deep[i]); }
+            catch (Throwable ex) { deepErr[0] = ex; }
+        }, "small-stack", 512 * 1024);
+        long d0 = System.nanoTime();
+        small.start();
+        small.join();
+        long dms = (System.nanoTime() - d0) / 1_000_000;
+        ok("long dotted domain crashed: " + deepErr[0], deepErr[0] == null);
+        for (int i = 0; i < deep.length; i++) ok("long domain " + i + " text kept", deepOut[i].contains("a-b.a-b.") || deepOut[i].contains("ab.ab."));
+        ok("long dotted domains took " + dms + " ms (limit 1500)", dms < 1500);
+        has("short email still linked on small stack path", body("<q@q.example>\n"), "<a href=\"mailto:q@q.example\">q@q.example</a>");
+
         System.out.println("AutolinkGolden: " + checks + " checks PASS");
     }
 }
