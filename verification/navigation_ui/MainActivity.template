@@ -1,0 +1,45 @@
+package com.example.markdowndesk;
+import java.util.*;
+import java.util.function.IntConsumer;
+class ActivityBase {void onStop(){} public void onConfigurationChanged(MainActivity.Configuration c){}}
+final class MainActivity extends ActivityBase {
+ static final int MODE_EDIT=0,MODE_PREVIEW=1,MODE_SPLIT=2,MAX_TABS=12;
+ static class android {static class R {static class id {static final int undo=1,redo=2;}}}
+ static final class Configuration {}
+ interface DialogInterface {}
+ static final class Uri {String value;Uri(String v){value=v;}static Uri parse(String v){return new Uri(v);}static String decode(String v){return v;}}
+ static final class RecentStore {
+  static final class Item {final String name,uri;Item(String n,String u){name=n;uri=u;}}
+  static List<Item> read(MainActivity a){return new ArrayList<>(a.recents);}
+ }
+ static final class Toast {static Toast makeText(MainActivity a,String text,int i){a.toasts.add(text);return new Toast();}void show(){}}
+ static final class Editor {String text="# One\nbody\n## Two\nmore\n# One\n";CharSequence getText(){return text;}}
+ final class SourceNavigation {final int revisionAt=revision;final int modeAt=mode;SourceNavigation(int offset){}}
+ boolean isCurrentSourceNavigation(SourceNavigation n){return n.revisionAt==revision&&n.modeAt==mode;}
+ final Editor editor=new Editor(); final List<RecentStore.Item> recents=new ArrayList<>();
+ final List<String> calls=new ArrayList<>(),toasts=new ArrayList<>();
+ UiTheme.Palette palette=UiTheme.palette(1,true); int mode=0,revision=0;long downloadsRequest;boolean finishing,destroyed;
+ boolean isFinishing(){return finishing;}boolean isDestroyed(){return destroyed;}
+ void record(String s){calls.add(s);}
+ void showNewDocumentMenu(){record("new");}void launchOpen(){record("open");}void saveDocument(){record("save");}
+ void showTabs(){record("tabs");}void showFindReplace(){record("find");}
+ void setMode(int m,boolean b){record("mode:"+m+":"+b);mode=m;}void toggleFocusMode(){record("focus");}
+ void showAppearance(){record("appearance");}void showSplashGallery(){record("splash");}
+ void changeActiveFont(int n){record("font:"+n);}void insertTable(){record("table");}void printDocument(){record("print");}void startDocxExport(){record("docx");}
+ boolean runEditorHistoryAction(int n){record(n==1?"undo":"redo");return true;}void showReaderPlaces(){record("bookmarks");}void showFilesNavigator(){record("files");}
+ void openDocument(Uri u,int flags,boolean recent){record("uri:"+u.value+":"+flags+":"+recent);}
+ void jumpToSourceOffset(int offset){record("source:"+offset);}void scrollPreviewToSourceOffset(int offset){record("preview:"+offset);}
+ void captureActiveTab(){record("capture");}void rebuildBody(){record("body");}void applyResponsiveChrome(){record("chrome");}void refreshFilesRail(){record("rail");}
+ void commands(){showCommandPalette();}void recent(){showRecents();}void outline(){showOutline();}
+ /* EXACT_MEMBERS */
+}
+/** Only Android picker boundary is modeled; choices and Activity methods are production. */
+final class NavigationPicker {
+ static NavigationPicker latest;
+ final NavigationChoices choices; NavigationChoices.Snapshot displayed;
+ final String title; IntConsumer callback;boolean closed;
+ NavigationPicker(String t,List<NavigationChoices.Row> rows,IntConsumer c){title=t;choices=new NavigationChoices(rows);displayed=choices.filter("");callback=c;}
+ static NavigationPicker show(MainActivity a,UiTheme.Palette p,String t,String h,List<NavigationChoices.Row> rows,IntConsumer c){return latest=new NavigationPicker(t,rows,c);}
+ void filter(String s){displayed=choices.filter(s);}void click(int index){NavigationChoices.Row r=choices.choose(displayed,index);if(r==null)return;IntConsumer c=callback;dismiss();if(c!=null)c.accept(r.id);}
+ void dismiss(){closed=true;choices.cancel();callback=null;}
+}

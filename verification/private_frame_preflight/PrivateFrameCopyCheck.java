@@ -98,10 +98,17 @@ public final class PrivateFrameCopyCheck {
             };
             final Throwable[] failed={null};Thread foreign=new Thread(()->{try{a.run();failed[0]=new AssertionError("foreign run accepted");}catch(IOException correct){}catch(Throwable problem){failed[0]=problem;}});foreign.start();foreign.join();check(failed[0]==null,"foreign run rejects without poisoning owner");a.run();f.owner.freeze();f.claim();cases++;
         }
-        try(F f=new F()){
+        long copyAdmission=PrivateFramePreflight.ATTEMPT_BYTES+PrivateFramePreflight.COPY_EXTRA_BYTES;
+        for(long available:new long[]{copyAdmission-1,copyAdmission})try(F f=new F()){
             PrivateFramePreflight.ClosedFrame expected=expected(f,tabFrame());PrivateFramePreflight.Workspace workspace=f.workspace();Sink sink=new Sink(f.parent.resolve("unopened"),new ArrayList<>());
-            long owner=2048L+f.root.getPath().length()*2L;f.budget.charge(HistoryStorage.METADATA_BUDGET-owner-2*PrivateFramePreflight.WORKSPACE_BYTES-PrivateFramePreflight.ATTEMPT_BYTES-512-3000);
-            int[] opens={0};rejects(()->workspace.copyAttempt(expected,()->{opens[0]++;return null;},sink),"copy extra metadata reservation before allocation/open");check(opens[0]==0&&!Files.exists(sink.path),"rejected copy opens no resources");cases++;
+            long owner=2048L+f.root.getPath().length()*2L;
+            long scalar=PrivateStateCodec.scalarCommitmentCharge(PrivateStateCodec.Kind.SESSION_TAB,tab(true,0),null,null);
+            long used=owner+2*PrivateFramePreflight.WORKSPACE_BYTES+PrivateFramePreflight.ATTEMPT_BYTES+512+scalar;
+            f.budget.charge(HistoryStorage.METADATA_BUDGET-used-available);
+            int[] opens={0};
+            if(available<copyAdmission)rejects(()->workspace.copyAttempt(expected,()->{opens[0]++;return null;},sink),"one-byte-short copy admission");
+            else check(workspace.copyAttempt(expected,()->{opens[0]++;return null;},sink)!=null,"exact copy admission succeeds");
+            check(opens[0]==0&&!Files.exists(sink.path),"copy admission does not open resources");cases++;
         }
     }
     static void large()throws Exception {

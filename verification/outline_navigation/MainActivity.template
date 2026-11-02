@@ -135,5 +135,18 @@ final class MainActivity {
     final TextWatcher watcher=/* WATCHER */;
     void changed(String text,boolean suppressed){editor.text=text;suppressChanges=suppressed;watcher.onTextChanged(text,0,0,text.length());suppressChanges=false;}
     int pendingIntents(){return pendingOutlineNavigation==null?0:1;}long sourceRevision(){return sourceNavigationRevision;}
+    // Model the native chooser boundary; source/revision navigation remains extracted production code.
+    void showNavigationPicker(String title,String hint,List<NavigationChoices.Row> rows,java.util.function.IntConsumer callback){
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(title).create();
+        LinearLayout column=new LinearLayout(this);
+        NavigationChoices choices=new NavigationChoices(rows);
+        NavigationChoices.Snapshot snapshot=choices.filter("");
+        for(int index=0;index<rows.size();index++){
+            final int position=index;TextView row=new TextView(this);row.setText(rows.get(index).title);
+            row.setOnClickListener(v->{NavigationChoices.Row selected=choices.choose(snapshot,position);if(selected==null)return;dialog.dismiss();callback.accept(selected.id);});
+            column.addView(row,null);
+        }
+        ScrollView scroll=new ScrollView(this);scroll.addView(column,null);dialog.setView(scroll);dialog.show();
+    }
     /* EXACT_MEMBERS */
 }
