@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-10-31",
+  "purpose": "Foundry enrollment and machine-paced product delivery; evidence inventory not an autonomous-service claim",
+  "product": {
+    "id": "markdown-desk",
+    "repo": "pemunson90-cmd/Markdown-Desk",
+    "android_package": "com.example.markdowndesk",
+    "product_charter": "docs/ROADMAP.md",
+    "source_instruction": "AGENTS.md"
+  },
+  "user_observed_baseline": {
+    "version_name": "2.2.12-native-picker1",
+    "version_code": 27,
+    "source_branch": "fix/native-picker-primary-20261030",
+    "source_commit": "877facadce54247f38aa29d8b7c1cb5f055f813b",
+    "evidence": "User confirmed install worked and previously inaccessible old Recent Files reopened; mechanism not independently established",
+    "physical_signer_fingerprint": "a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01",
+    "status": "user-observed"
+  },
+  "development_candidate": {
+    "version_name": "2.3.0-navigation1",
+    "version_code": 28,
+    "source_branch": "moonshot/professional-upgrade-20261031",
+    "head_commit": "911a439282a426fbe56b1192935a5fc8a311003c",
+    "review": "https://github.com/pemunson90-cmd/Markdown-Desk/pull/31",
+    "review_state": "draft-unmerged",
+    "android_native_evidence": "https://github.com/pemunson90-cmd/Markdown-Desk/actions/runs/41209880849",
+    "physical_fold7_acceptance": "not-observed",
+    "status": "signed-candidate-not-device-accepted"
+  },
+  "repo_state": {
+    "default_branch": "main",
+    "default_head": "fdb7bd66c0078cf7b88b53924ee3a16c24d194e3",
+    "warning": "main does not represent the actual code27 device baseline; do not use as an integration base",
+    "open_prs": [
+      {
+        "number": 24,
+        "head": "codex/operation-data-capture",
+        "intent": "separate current-phone safety/portable foundations, deferred private cross-install import/export",
+        "state": "draft"
+      },
+      {
+        "number": 26,
+        "head": "fix/downloads-recents-v229-20261030",
+        "state": "open"
+      },
+      {
+        "number": 29,
+        "head": "fix/downloads-contrast-20261030",
+        "state": "draft"
+      },
+      {
+        "number": 30,
+        "head": "fix/native-picker-primary-20261030",
+        "state": "draft"
+      },
+      {
+        "number": 31,
+        "head": "moonshot/professional-upgrade-20261031",
+        "state": "draft"
+      }
+    ]
+  },
+  "foundry": {
+    "version": "0.2.0",
+    "source_repository": "pemunson90-cmd/PNB2026",
+    "source_branch": "foundry/standalone-20261027",
+    "runtime_sha256": "6cfc75e425d481f2d1c69f96fe426553ac8232bf9c83d82af7708d7d12e5c26b",
+    "source_status": "reviewed-runtime",
+    "live_codex_bounded_demo": "previously-reported",
+    "actual_operational_markdown_worker": "not-demonstrated",
+    "local_bootstrap_20261031": {
+      "source": "code27 local complete-history Git bundle",
+      "project_id": "markdown-desk",
+      "audit": "passed",
+      "tests": {
+        "verification/downloads_browser/run.sh": "19 checked conditions passed",
+        "verification/workspace_favorites/run.sh": "107 assertions passed"
+      },
+      "backup": "MarkdownDesk-Foundry-G0-bootstrap.zip",
+      "state_recovery": "archive created and verified; state contains sandbox-specific checkout paths; relocation requires re-enrollment or path reconciliation",
+      "persistence": "Current-turn artifact, not a resident WSL2 Foundry service"
+    }
+  },
+  "toolchain": {
+    "language": "Java 11 target",
+    "build_method": "aapt2+javac+D8+zipalign, no Gradle requirement",
+    "android_platform": "android-37.0",
+    "build_tools": "36.0.0",
+    "original_signing_keys": "private, excluded from repo/CI"
+  },
+  "invariants": [
+    "User-owned .md/.txt is canonical and offline",
+    "No destructive save before recoverability under ADR-001",
+    "Keep nine themes and 25 splash assets",
+    "Retain native file picker as primary and Quick Downloads optional",
+    "Do not regress old Recent Files reopening",
+    "Do not uninstall existing app to upgrade",
+    "Defer cross-install private state export/import until new authorization and complete safety gates",
+    "Keep signing credentials outside GitHub and model workers",
+    "No automatic merge to stale main"
+  ],
+  "work_queue": [
+    {
+      "id": "G0",
+      "status": "partially-verified",
+      "next": "Reconcile exact candidate source and owner accepted install proof, active workers and M0-M7 map"
+    },
+    {
+      "id": "G1",
+      "status": "enrollment-validated-local-only",
+      "next": "On user's WSL2 Ubuntu host verify native Codex CLI access, register real product, run one real worker with independent Android validation and durable recovery"
+    },
+    {
+      "id": "G2",
+      "status": "not-started",
+      "next": "Measure real missing/failing high-value Markdown Desk journey; obsolete Favorites pilot must not be rerun"
+    },
+    {
+      "id": "G3",
+      "status": "not-started",
+      "next": "Canonical sign and device-accept first independently produced Foundry candidate"
+    },
+    {
+      "id": "G4",
+      "status": "not-started",
+      "next": "Kill and resume orchestrator, then autonomously select and deliver a second improvement"
+    }
+  ],
+  "sources": [
+    "https://github.com/pemunson90-cmd/Markdown-Desk/pull/31",
+    "https://github.com/pemunson90-cmd/Markdown-Desk/pull/30",
+    "https://github.com/pemunson90-cmd/Markdown-Desk/pull/24",
+    "https://github.com/pemunson90-cmd/PNB2026/blob/foundry/standalone-20261027/docs/ACTIVE_PLAN.md"
+  ]
+}
