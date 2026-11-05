@@ -1,5 +1,17 @@
 # Build, test, and release gates
 
+## Current-phone acceptance scope
+
+The [2026-10-15 owner decision](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
+defers cross-installation private-state export/import. Its unfinished capture/funding/
+adoption stack is not a current-phone release gate and must not be enabled as a
+partial backup feature. Local save/history/draft recovery, all other roadmap features,
+non-destructive in-place upgrade, original certificate and Fold/device gates below
+remain required. Explain in the app that copying `.md`/`.txt` transfers current text,
+not private history, and clearing/uninstalling app storage can lose private history.
+Future Export App Data / Import App Data must pass full validation/staging/provenance
+gates before claiming portable private-state recovery.
+
 ## Every PR
 - Source diff reviewed for behavioral scope, migration and data safety.
 - Host tests pass from a clean checkout, including real functional tests for touched components.

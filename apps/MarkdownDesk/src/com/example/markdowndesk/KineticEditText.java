@@ -28,6 +28,23 @@ public class KineticEditText extends EditText {
     private boolean typewriter;
     private LogicalLineIndex logicalLineStarts;
 
+    interface HistoryActionListener {boolean onHistoryAction(int actionId);}
+    private HistoryActionListener historyActionListener;
+
+    void setHistoryActionListener(HistoryActionListener listener) {historyActionListener=listener;}
+
+    boolean performNativeHistoryAction(int actionId) {
+        if(actionId!=android.R.id.undo&&actionId!=android.R.id.redo)return false;
+        return super.onTextContextMenuItem(actionId);
+    }
+
+    @Override
+    public boolean onTextContextMenuItem(int actionId) {
+        if((actionId==android.R.id.undo||actionId==android.R.id.redo)&&historyActionListener!=null)
+            return historyActionListener.onHistoryAction(actionId);
+        return super.onTextContextMenuItem(actionId);
+    }
+
     public interface OnTextScaleListener {
         void onTextScale(float f);
     }

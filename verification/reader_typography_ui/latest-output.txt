@@ -1,0 +1,141 @@
+Reader UI/capture/share
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Reader typography UI: 40 checks PASS; actual extracted control callbacks, persistence and live labels
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Reader preview capture: 6 checks PASS
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Reader HTML share: 3 checks PASS on actual extracted action
+
+Actual preview scheduler/delivery
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Preview production watcher/scheduler + helper: 450 checks PASS
+
+Navigation
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 46 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE native scroll from unacknowledged DOM preserves new tab state
+CASE native capture cannot persist old DOM coordinate in pending tab
+CASE outgoing acknowledged page preserves scroll on option changes
+CASE current load and real renderer control
+CASE old finish while latest render waits
+CASE same URL callbacks have no accepted-load identity
+CASE old reset cannot end newer scroll suppression
+CASE duplicate current finish preserves user scroll
+CASE same-page older scroll reset cannot release newer operation
+CASE preview-to-editor deferred last hop rejects changed tab
+CASE late finish after shutdown cannot revive readiness
+CASE readiness requires complete DOM and exact JSON identity
+CASE global physical probe remains bounded across page replacement
+CASE held old probe cannot block or acknowledge newer page
+CASE coalesced current finish retries after older DOM response
+CASE probe delivery checks live document options and shutdown
+CASE duplicate current completion never adds another probe
+CASE old same-page JS reply cannot clear newer operation
+PASS preview-navigation: 18 cases, 66 assertions, 0 failures
+
+Outline
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted 54 exact production members (including WebViewClient)
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+CASE current outline Read jump control
+CASE current outline Write and Split source controls
+CASE one pending request completes when same document becomes ready
+CASE source link jump Read to Write control
+CASE existing guarded sync rejects replacement DOM control
+CASE current search keeps selected match range control
+CASE same-source render and appearance preserve final editor intent control
+CASE old outline row rejects same-source mode ABA
+CASE deferred editor effect rejects same-source mode ABA
+CASE pending outline cannot retarget another tab
+CASE pending outline cannot retarget edited same tab
+CASE pending outline cannot survive A to B to A
+CASE pending Read jump canceled on hidden Write mode
+CASE retired preview cannot keep retry chain alive
+CASE repeated outline choices retain one latest pending intent
+CASE stale outline row rejects changed source context
+CASE emitted jump cannot affect replacement DOM
+CASE source editor last hop rejects changed tab
+CASE source editor last hop rejects changed revision
+CASE older preview response cannot override newer Split outline choice
+CASE sync started after explicit request cannot override final effect
+CASE scheduled old sync retired before explicit final effect
+CASE dequeued old preview editor effect cannot override explicit jump
+CASE dequeued old explicit effect cannot override newest choice
+CASE pending Read intent survives debounce and appearance rendering
+CASE suppressed identical-text load retires dequeued explicit effect
+CASE same-text A to B to A rejects old pending source intent
+CASE lost readiness leaves one intent and zero polling
+CASE dequeued explicit effect after shutdown cannot scroll
+CASE Split synchronization resumes from final explicit viewport
+CASE missing editor layout must not scroll Split preview to zero
+CASE successive ready Read jumps preserve final choice control
+PASS outline navigation: 32 cases, 74 assertions, 0 failures
+
+Mode/labels/live Appearance
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Extracted five parsed MainActivity methods from apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 43 host assertions on actual label helpers and four AST-extracted Appearance control statements
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 126 host assertions on five AST-extracted MainActivity methods
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS 4963 host assertions on AST-extracted Appearance refresh/selection
+
+Affected print action call
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS captured source/title, isolated DOM, unchanged modes
+PASS captured reader typography is immutable and defaults stay compatible
+PASS global admission before capture and queued destroy handoff
+PASS Activity handler removal cannot lose render completion
+PASS absolute deadline checked before earlier queued completion
+PASS one readiness probe, strict nonce, nonextending deadline
+PASS duplicate old probe cannot retire newer physical callback
+PASS slow capture uses original absolute timer deadline
+PASS reentrant capture cancellation keeps global reservation
+PASS missing service and failed main-frame load preserve mode
+PASS pre-exposure platform faults release only after successful disposal
+PASS lost probe expires; stale callback cannot affect replacement
+PASS framework arguments forwarded unchanged; finish owns disposal
+PASS recursive start/finish flags precede delegate
+PASS null or throwing submission retains exposed owner
+PASS reentrant destroy cancels late returned job
+PASS synchronous finish and stale return cannot clear new owner
+PASS delegate/callback exceptions do not fabricate completion
+PASS throwing finish/disposal retain bounded ownership
+PASS strict scalar byte count and pre-copy length boundary
+PASS print ownership: 20 cases, 134 checks
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+PASS print controlled renderer: 18 checks
+
+Actual Android source compile
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djava.io.tmpdir=/workspace/.command-library-env/tmp
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.

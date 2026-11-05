@@ -1,0 +1,1 @@
+package android.os;import java.util.*;public final class Bundle {private final Map<String,Boolean> values=new HashMap<>();public boolean getBoolean(String key,boolean fallback){return values.getOrDefault(key,fallback);}public void putBoolean(String key,boolean value){values.put(key,value);}}

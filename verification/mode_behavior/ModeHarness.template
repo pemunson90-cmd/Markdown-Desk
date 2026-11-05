@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ModeHarness {
+ void cancelSearchLocation() {}
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
     static class View {
         static final int VISIBLE = 0, GONE = 8;

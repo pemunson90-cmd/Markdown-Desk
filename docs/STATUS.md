@@ -1,147 +1,498 @@
 # Current project status
 
-## Current checkpoint — protected capture and scoped private backup, 2026-10-15
+## Current owner checkpoint — local safety and current-phone features, 2026-10-16
+
+[Owner decision6204593523](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24#issuecomment-6204593523)
+controls: portable private-state export/import is deferred, not a current-phone
+release blocker. Stop extending portable funding/capture/adoption solely for that
+future enhancement. Existing implemented work and all private/untracked files stay
+preserved; PR #24 stays draft. Local safe save, revision history, restore-to-new-copy,
+draft/session recovery, M2–M7 and all final signing/Fold gates remain required.
+
+Current pushed checkpoint is `20e5414` on `codex/operation-data-capture`, draft
+PR #24. It includes the current-phone feature checkpoints below and the preserved
+portable foundations through `4f80b49`, including independently approved writer
+snapshot closure `9c2353c` (87 publication assertions,7 copy cases,11 completion
+cases,52 scope checks PASS). No newer full suite/APK/hosted/device gate is claimed.
+The existing Activity already wires protected saves, document history, comparison,
+named revisions and restore-to-new-copy. Fresh focused host checks PASS: history UI
+integration84 assertions, save lifecycle40 cases/323 assertions, and session/recovery
+13 cases/568 assertions. These use production logic with modeled Android boundaries;
+they do not establish device/provider/process-death acceptance.
+No new local data-loss defect is established by this scope change.
+
+Reader typography model/renderer `463aab0` is independently approved:80 focused
+assertions PASS; default HTML is byte-identical across nine captured themes. Existing
+renderer golden467, nested-list12 and table-divider14,020 assertions PASS in the
+worker’s affected run. Appearance controls/persistence, captured async previews,
+HTML sharing and print input are now implemented and independently approved:
+40 UI/typed-preference/control checks,6 immutable-request checks,3 HTML-share checks;
+affected preview450, navigation18 cases/66 checks, outline32 cases/74 checks,
+mode43/126/4963 and print20 cases/134 plus18 controlled checks PASS. Changed Android
+sources compile against SDK37/JDK17. Current style identity joins the existing
+revision/document/page guards. Visual WebView/TalkBack/Fold acceptance remains open;
+reader anchors/bookmarks/annotations and other M4 obligations are not complete.
+
+Native Undo/Redo and the Workspace local-history limitation are implemented and
+independently approved. New routing32 checks PASS; affected mode126, labels43,
+Appearance4963, line-index46,564 and8 memory checks PASS. Changed Android sources
+compile against SDK37 using JDK17 (no APK). Native history is for the current editing
+visit; tab loading resets it. Android IME/native undo/selection acceptance is unrun.
+
+The read-only WorkspaceTreeReader helper is independently approved after exact-text
+budget and encoded-URI fixture repairs:47 focused assertions and actual SDK37
+source compile PASS at that checkpoint. Folder grants/navigation are now wired as
+recorded below; recursive search remains in progress and M3 is not complete. The
+helper reports partial/cancelled/failed listings
+explicitly and makes no provider-pagination or whole-process heap guarantee.
+
+Print-only paged layout is independently approved:13 framing checks,15 real host
+Chromium PDFs and8 inspected page rasters PASS (tables/code/oversized rows/themes;
+A4/Letter). Existing print20 cases/134 checks plus18 controlled-render checks PASS.
+The original admission/security/lifecycle contract stays intact; immutable reader
+style is captured for rendering. Android WebView/print spooler and print-dialog
+margin behavior remain NOT RUN. The required aggregate registers Java-only checks;
+actual PDFs remain an explicit tool-dependent runner, not an aggregate claim.
+
+Saved-folder registry is independently approved after a bounded-parser repair:
+61 focused assertions and actual SDK37 compile PASS. Exact persisted read grants
+are checked, writes verify commit success, malformed records are preserved, and
+neither remembering nor removing roots takes/releases provider permissions. The
+registry alone does not establish a user-visible folder browser.
+
+Process-wide folder-query admission is independently approved:87 focused checks
+plus3 fresh-JVM worker-rejection checks and SDK37 compile PASS. One physical query
+or undelivered Page holds admission; cancellation drops UI references immediately
+but never releases ignored/blocked provider work early. It is isolated from save/
+session I/O. Integration must use an application resolver and a static main Handler
+whose delivery messages survive Activity cleanup.
+
+The DOCX export core is independently approved after resource/fidelity fixes:
+184 Java checks,14 review regressions,86 independent ZIP/XML/list checks, ZIP CRC,
+and a fresh isolated LibreOffice/PDF11-check journey PASS. Actual SDK bootclasspath
+compile PASS. Original maximum-line regex stack-overflow probes now pass; XML output
+checks budgets before encoding and cancellation is periodic. See the
+[explicit fidelity matrix](DOCX_EXPORT_FIDELITY.md). The guarded SAF adapter is now
+implemented with Activity controls as recorded below. DOCX export is wired; no
+importer or round-trip is claimed.
+
+The actual Add folder → saved roots → nested browser → normal document open journey
+is implemented and independently approved (final Activity blob `ec749864`).120 focused
+checks PASS, including real store/reader/broker integration, exact grant handling,
+stale confirmations, all-nine-palette/recycled rows and blocked-cancel pause ordering.
+Existing DocumentIO42, save40 cases/323 and preview450 checks passed during this
+integration; final changed Activity source compiles against SDK37. Pause queues
+local recovery/session writes before potentially blocking folder cancellation; this
+is queue-order evidence, not physical durability. The Workspace also exposes the
+existing UTF-8/8 MiB native file policy. No recursive search, favorites or file
+rename/move/duplicate is claimed. Physical picker/grant restart/provider/Fold gates
+remain open; legacy Back retains the manifest's explicit predictive-Back opt-out.
+
+The fallback Protected saves UI is independently approved (Activity blob `30fd424`):
+100-row pages, all-nine-theme/recycled rows, exact showing-dialog/session/generation
+checks, lifecycle cleanup and unchanged selected-ID restore-to-new-copy routing.
+82 focused checks PASS; affected save40/323, workspace120, preview450, history84,
+status57 and print20/134+18 PASS; final Android source compile PASS. Existing complete
+native inventory loading remains unchanged; pagination is not a whole-inventory
+memory bound. Missing lifecycle fixture boundaries exposed during integration were
+repaired without removing the original safety assertions.
+
+DOCX private staging and guarded binary new-copy publication are implemented and
+independently approved after resource/error-phase fixes. Final focused runner176
+assertions plus independent provider ZIP/XML/CRC PASS; SDK37 source compilation
+passed in the worker run. Both independent correction re-reviews approved the
+exact frozen sources, and the root reran the full focused runner before commit.
+Stage/channel Error paths preserve close uncertainty;
+unproven disposal holds only DOCX admission until process restart. Actual URI/ID
+alias checks, empty-destination preflight, one output-open attempt and binary hash/
+length readback preserve the native editor/save state. Generic provider alias/race
+limits remain explicit.
+
+Actual DOCX controls and the private picker proxy are independently approved:
+72 actual UI checks plus23 actual proxy/manifest checks PASS in worker, reviewer
+and root runs; an additional independent proxy-to-parent stale-result probe PASS.
+Per-launch canonical nonce binding prevents old success/cancel results from publishing
+or cancelling a newer export. Both picker-launch denial paths retire safely. The
+UI preserves only expected AWAIT_PICKER pauses; other pause/destroy paths retire
+callbacks after local recovery/session scheduling. Worker affected save40/323,
+workspace120 and final Main/proxy SDK37 compilation PASS; earlier affected protected82,
+preview450/history84/status57/print20/134+18 evidence retained. Source remains native
+and dirty/history/baseline state unchanged. Folder uncertainty messages now distinguish
+unconfirmed closure from ordinary provider failure. Physical Android picker/provider/
+Word acceptance remains NOT RUN. Bounded DOCX import feasibility is documented in
+the fidelity matrix; no importer or round-trip promise is added.
+
+Selected-folder literal search engine and cursor ownership corrections are
+independently approved. Pre-owned one-use Listing/Attempt receipts retain actual
+unknown cursor/stream disposal through fatal errors; folder admission fails closed
+until process restart without retaining UI callbacks. Search stops before further
+query/open on uncertain close and reports skipped types. Terminal cursor-close
+cancellation now has CANCELLED precedence while preserving resource uncertainty.
+Root focused runs: reader52, directory admission123 and final search66 PASS; author
+also ran existing workspace UI120 and SDK37 compilation of all three sources.
+Limits remain128 directories/512 files/4096 rows/depth16,16 MiB total input/8 MiB per
+file,100 matches with strict UTF-8, original-byte hashes and EOF/close validation.
+The dedicated background search broker is now independently approved:87 focused
+checks PASS in worker and root runs; actual SDK37 compile PASS in the worker run.
+It retains one physical/queued owner, clears UI before cancellation, and distinguishes
+closed failure from unknown resource disposal without tying up save/session workers.
+Actual selected-saved-folder search/results and guarded normal-open jumps are now
+implemented and independently approved (Main blob490ac5fb):104 actual UI checks PASS
+in worker and root runs. Independent restore4 plus same-URI/hash A→B→A stale-result
+probe PASS. Queries retain intentional spaces and case sensitivity; results expose
+partial/limited/revoked/cancelled states and skipped types without false not-found.
+A process-wide bounded grant preflight and displayed-text verifier hold admission
+through physical/queued work. Normal open/dedup/failure/tab-limit paths remain in use;
+one-use intended restore/setText exemptions preserve actual content-generation checks.
+Hash/byteLength/URI/tab/load/content/BOM and exact match range are checked before
+navigation; dirty tabs are never reloaded to fit a result. New query/results/notices
+use all nine palettes. Worker affected DocumentIO42/save40/323/workspace120/preview450,
+history84/status57/outline32/74/navigation18/66/mode43+126+4963/engine66 and final
+SDK37 Main compilation PASS. Physical provider/picker/TalkBack/Fold acceptance remains
+NOT RUN. Existing folder UI
+now reports uncertainty explicitly and explains process restart without promising
+that retry can dispose the resource.
+
+Read-only local-protection usage projection is independently approved:40 new
+actual-store checks PASS in both author and root runs; existing history UI123,
+capture-race and6 fresh-process checks passed in the author run. It samples current
+installed authority, policy and generation coherently, preserves actual/reserved
+accounting, emits bounded issue enums and performs no registration/reconciliation/
+policy writes. No usage dialog is wired yet; settings and automatic pruning remain
+open. This is visibility groundwork, not configurable-retention completion.
+
+Durable automatic-retention consent metadata is implemented and independently
+reviewed (root review of separate worker changes):81 focused checks PASS in worker
+and root runs; worker affected codec209/policy49/admission61/control-bounds30 PASS.
+Legacy registrations/policies keep exact bytes and mean disabled; new strict chained
+policy variant adds explicit opt-in, with unchanged shared control accounting and
+uncertain-publication handling. Old setter remains legacy and disables consent;
+explicit triple no-op still requires fresh valid authority. No runtime cleanup,
+policy UI, automatic execution or deletion is enabled. Old binaries reject the new
+variant; no device downgrade/upgrade acceptance is claimed. Full retention remains
+open and needs reviewed execution/recovery/scheduling plus explicit user controls.
+
+Saved reading-place/bookmark helpers are implemented and independently approved,
+including terminal cancellation, strict ASCII JSON escapes and failed-removal retry
+corrections: final160 focused checks and actual SDK37 helper compile PASS in root
+runs. The removal fix was independently reviewed; explicit successful retry now
+persists removal even when a failed commit already changed process memory. Anchors use streaming strict UTF-8 hashes and unique bounded context matching;
+changed/ambiguous/deleted text refuses a guessed jump. The separate versioned store
+caps64 document records/16 bookmarks per document/128 total, never evicts bookmarks,
+preserves malformed state and checks commits. No current Activity reader/bookmark
+journey is wired yet; this helper checkpoint does not complete saved places or M4.
+
+Workspace favorites store is independently approved:107 focused checks PASS in
+worker and root runs; SDK37 compile PASS in worker. It retains up to64 exact-URI
+shortcuts with stable order, explicit document/tree kinds, no silent eviction,
+strict bounded JSON and checked commits; corrupted values remain intact. Favorites
+never grant access, query providers or change recents/saved roots. Add/list/remove/
+open favorites controls are not wired yet and remain the next actual UI packet.
+
+Selected-hit displayed-text verification is independently approved:76 focused
+checks PASS in worker and root runs, actual DocumentIO UTF-8/BOM encoding oracles
+included; SDK37 compile PASS in worker. One process-wide owner is admitted before
+copying the displayed text and survives cancellation through actual hash work and
+queued delivery. Streaming fixed-buffer hashing avoids a whole encoded-byte clone;
+UI must still bind the authentic hit to exact tab/URI/load/content generation/BOM
+before jumping. The classfile-only NIO compatibility concern was withdrawn after
+root and reviewer independently verified canonical D8 rewrites the invocation to
+the Android-compatible descriptor in a tiny isolated DEX probe (no APK). This is
+not device/minSdk-wide acceptance or a whole-app heap claim.
+
+Local-protection policy controller bridge is independently approved:41 new
+actual-store policy checks PASS in worker and root runs; affected status41 and
+history UI123/capture-race/6 fresh-process checks PASS in worker. Updates require
+fresh installed authority and exact expected root/bundle/generation/control hash,
+validate supported values and publish once; unchanged policies still require fresh
+complete unblocked accounting. Uncertain post-append outcomes never trigger rollback
+or automatic retry. This bridge does not register, reconcile, schedule or delete.
+No settings/automatic-cleanup UI is enabled yet.
+
+Opt-in automatic-retention planner/execution/replay backend is independently
+approved. Root ran261 finite checks plus2 maximum-document/live-memory checks PASS;
+worker final same-source38 SIGKILL boundaries/76 fresh-JVM reopens PASS. Affected
+existing selected executor747 finite/22 memory/44 restart fixtures/88 reopens and
+planner94+6 passed in worker runs without repeating unrelated portable tests.
+One batch removes at most one eligible unnamed group above the per-history floor;
+current durable consent and exact policy/intent/native identities are revalidated
+before destructive boundaries. Selected authorization remains distinct, including
+retained in-memory retirement; pressure cleanup stays excluded. Cancellation cuts
+off before publication, with a committed attempt finished or retained for exact
+recovery. Fresh-process post-intent-unlink recovery does not invent cleanup authority.
+No runtime scheduling, startup bridge or enabled cleanup UI is wired yet. Existing
+scan bounds remain; this is not a whole-job heap ceiling or device performance claim.
+
+Next current-phone work: actual workspace favorites controls, reading places/
+bookmarks, retention scheduling/settings integration and other
+dependency-ready M2–M7 work.
+Keep Activity ownership serial; proceed with remaining dependency-ready M2–M7 work
+and focused independent reviews. Portable export/import remains deferred.
+Use focused existing production-path tests, not another portable accounting proof.
+Physical process death/provider/Fold7/in-place signed-upgrade acceptance remains
+NOT RUN and is batched for the coherent candidate.
+
+## Retained portable implementation evidence — paused by owner decision
+
+Portable next-step statements in this retained section describe deferred work only.
+They do not gate ordinary local editing/history or M2–M7. Preserve their safety
+contracts if optional Export App Data / Import App Data is resumed later.
 
 The [whole-roadmap campaign plan](superpowers/plans/2026-10-15-professional-campaign.md)
-maps retained M0–M7 obligations to source, evidence, dependencies and next packets.
-Lead self-review is complete; new independent plan review is NOT RUN. Worker
-execution reached an account usage limit and no child remains active; lead
-continues supported ready work inline, without changing spending or waiving review.
+maps retained M0–M7 obligations and dependencies. Independent substantive campaign
+plan review is approved at `73372f50db109c378235406a75ca7abbf4cd85a6` against
+ROADMAP and RELEASE_GATES; reviewed plan blob `029269ba83b6897d4e0148c797db63311ddddda2`.
+Main/origin main remains
+`fdb7bd66c0078cf7b88b53924ee3a16c24d194e3` (PR #23 merged). The active branch is
+`codex/operation-data-capture`, draft [PR #24](https://github.com/pemunson90-cmd/Markdown-Desk/pull/24);
+Reviewed A1 portable wire codecs are integrated at `88fb149` on the active draft
+PR #24; earlier writer/copy approvals retain their exact-artifact scope.
 
-Main is `b5796ba9061c365538d3192acdea8f69bb204029`: [PR #22](https://github.com/pemunson90-cmd/Markdown-Desk/pull/22) merged reviewed head `7a13ac5` after required hosted
-run38664300293/job116192539275 passed. Draft38664276730 was skipped, not passing
-evidence. Previous main `50f3a75` came from [PR #21](https://github.com/pemunson90-cmd/Markdown-Desk/pull/21) merged at reviewed
-head `b9bc16e` after required hosted run38661739767 and its production-recoverability
-job passed. Draft run38661714638 was skipped, not passing evidence. PR #20 guarded
-history and earlier exact-source/protected-save foundations remain merged.
+The last full clean integration gate is **PASS** at `8dcbea538e67e5bfb588f81d895457aa3a85a472`.
+It ran the required host suite once and audited two fresh unsigned builds, both
+SHA-256 `eea09f21460790581908dd38b0971226b00fa9475dc3202ad5a2d2973a975bb8`.
+Evidence includes 3434 operation-data assertions, operation48 fault fixtures/96
+reopens, pins20 kill fixtures/42 reopens and executor44/88. Identity/assets,
+alignment and unsigned audits passed. This gate predates the later C2 sources and
+does not cover them. No newer full suite, build or hosted run is claimed.
 
-Latest clean integration gate **PASS** at `ed4cba7051891114b1088ad8d115040b86f8e0f0`:
-`python3 verification/check_clean_rebuild.py` completed the required host suite
-once from a fresh committed checkout, then audited two fresh unsigned builds.
-Both match SHA-256
-`7c5132f285ecfe2c1b950819edf52f82e58f7dc6d508a111549f77a2a3702545`.
-The gate includes reviewed outline/codec source, actual production recoverability,
-capacity, pins, operation48 fault fixtures/96 reopens and executor44/88.
-No dependency downloads or signing credentials; package2.2.5/code18/min26/target35,
-exact25 owner-cleared assets and unsigned/alignment audits pass. Scoped477 tracked
-files: zero credential-pattern matches/signing-container paths (not exhaustive/history).
-[PR #23](https://github.com/pemunson90-cmd/Markdown-Desk/pull/23) contains this
-outline/codec candidate and campaign plan; required hosted verification is next.
-Unapproved storage/capture source remains excluded in its separate worktree.
+Native fingerprint `a4cb514` and source ownership/budget `e331477` have scoped
+independent approvals and are integrated. Private-frame preflight `c3177b8` has
+independent approval (8 groups; worker30 scenarios), is integrated at `2f1d14b`,
+and its runner passed30 cases. These approvals apply to those exact artifacts.
+Private capture plan `a89b284` also has scoped independent approval (9 groups;
+worker29 groups) and normal merge `16280fc`. It requires fresh matches for both
+original C0 control and L0 ledger hashes before P. A legacy PIN BEGIN→CANCELLED
+CLOSED can change C0/fullGraph while leaving L0 unchanged; this counterprobe
+reproduced and requires a guard. Plan authority alone does not authorize P.
 
-Historical printing clean gate05e74ca produced identical unsigned SHA-256
-`7c52d713859a0824e7034667362735adf3f1b8f9596b05d8386d46e9b5719914`.
-Its subsequent launcher correction7a13ac5 passed final hosted run38664300293.
-Earlier run38663648484 failed for unavailable `rg`; core `find` fixed the launcher
-and clean no-rg checks passed. That portability issue is resolved, not a current
-product failure. No signed release is claimed.
+PrivateCaptureWriter exact commit `92e41bb5827cf7d1d553bbe720744f20f239538e` is
+independently APPROVED. Its targeted runner passed 87 assertions; independent review
+passed 4 scenarios. Review found and fixed a cached installed-capacity/readiness bug
+with a narrow provenance getter and fresh identity/readiness checks after each
+callback. Approval remains scoped to this exact writer; the production sink,
+BEGIN/LINK, handoff, recovery and whole-heap proof are excluded.
 
-Verified merged behavior:
+Completion/handoff commit `1fe3c464e3e3f7ceb48dcceba34989dc9b0dc695` is
+independently APPROVED after 4 groups. Worker results pass: 87 publication
+assertions, 7 copy cases and 11 completion cases, including fresh-child JVM checks.
+It implements exact BEGIN204/LINK173/CLOSE credit126, typed-stage allowance,
+preadmitted retained maps and one-use old-owner-claim handoff. Earlier writer `92e41bb`,
+copy helper `b4bd0c9` and private sink `d71dae2` approvals remain point-in-time and
+scoped to those artifacts; none approves the complete current source.
 
-- Guarded per-document history has paged lists, captured named revisions, bounded
-  exact comparison and restore-to-new-copy. Mandatory saves and recovery protection
-  require acknowledged shared startup; independent recovery reads remain available.
-  Captured Save As provenance survives conflict consent, while optional history
-  failure preserves actual verified provider success and newer dirty edits.
-- Operation source `cf0bf818` enforces shared tracked consumer ownership, freeze/drain
-  capabilities and append-only canonical CLOSE recovery. Prefix1658, coordinator59,
-  terminal5 and 48 fault fixtures/96 fresh-JVM reopens passed in the clean gate;
-  24 independent backend probes approved the final source. Whole bulk transfer and
-  in-flight callback scheduling stay counted. Fresh RELEASED needs the original
-  manifest; historical committed CLOSED audits remain source-independent.
-- Operation identity binds canonical role paths, bundle/registration/BEGIN and
-  process epoch, with fresh terminal-entry inode stability. No cross-discovery
-  inode-preservation or fresh-process arbitrary-evidence-loss anchor is promised.
-  Partial BEGIN, conflicting evidence and uncertain ownership remain blocked.
-- Preview `6ebe563` binds DOM readiness, deferred scroll and viewport capture to the
-  current page/document/options. One physical readiness probe spans replacements;
-  a lost response stalls acknowledgment until return or Activity replacement.
-  Existing scroll JavaScript is not all globally bounded. Navigation18/66,
-  preview438, save40/323 and history actions84 passed in the clean gate;
-  20 independent navigation checks approved the source.
-- SELECTED-only retention has durable intent, per-victim proofs and shared retirement
-  recovery. Existing capacity, pin, maintenance and executor suites all passed the
-  gate, including executor44 crash/write-limit fixtures/88 reopens. No runtime
-  deletion caller or automatic retention is enabled. Private-state and archive
-  codecs/manifests remain foundations, not complete backup/import features.
+Same-process activation and tracked declared-source read/drain/CLOSE are implemented
+at exact `4795c3cdaeacea5a7ef134284929cdecba1c269f`; scoped independent review is
+APPROVED. Worker evidence: 6 focused groups PASS after the retention RED repair.
+The earlier activation coordinator59 checkpoint remains historical; later cold-path
+coordinator results are scoped separately below.
+Independent groups prove identity, budget, hashed skip and resource closure, plus
+`terminalRetry` retaining `sourceTable` versus TERMINAL releasing the full table
+and budget while retaining bounded D for historical CLOSE.
+The implementation requires authentic returned binding and the exact original Budget,
+uses declared nofollow bounded EOF/SHA readers, and freezes/drains before exact D→CLOSE.
+Actual throwing close supports retry; generic domain2 activation/factories stay rejected.
+[ADR-006](decisions/ADR-006-terminal-cancelled-capture-admission.md) is ACCEPTED
+engineering direction after independent review of exact `e8cb1532d514e1d2e0c46d93c8d5f20e52c44820`,
+ADR blob `b54b1629f72f213fb9bf735a6c3a76266ca70cdb`. The first typed historical-cancellation
+capture-admission slice is implemented at `af9eebf97174e02c4ab64794a3e80e606179f443`;
+scoped independent source review is **APPROVED** after 4 actual probe groups:
+classification, immutable old-stage anchor refresh, funded capture→activate/read/drain/CLOSE
+preserving old credits, and planner/intent/stale maintenance/retirement refusals with
+an ordinary-save positive control. Worker evidence: 12 focused groups
+and 871 legacy HistoryManifestCheck checks PASS, recorded in
+[terminal admission evidence](../verification/terminal_cancelled_admission/README.md).
+This slice retains global pending/prune blocks and all bytes/credits,
+a physically present verified namespace, selected activation's own completeness and
+immutable old-stage anchors. ADR-006 supersedes only the old plan's new-capture-block
+clause for its fully typed eligible state; all other contracts remain.
+Narrow cold cancellation at `2078e8e2ceb401ffad4277d6428fac62f3a2e9db` has scoped
+independent **APPROVAL**. Two new actual probes passed: foreign uncertain audit
+RED→GREEN with bytes unchanged, and legitimate activated/drained audit positive.
+Earlier owner-exclusion, stale-final strict-ledger and callback groups retain their
+exact scope. The cold-only callback marker (a793960) and foreign-audit guard before
+publication/every refresh (2078e8e) fix both blockers. Latest worker evidence: 12 cold
+groups PASS, including paired fresh JVMs. Activation6 passed at the initial cold slice;
+coordinator59 was RED there, GREEN at a793960 and not rerun at 2078e8e.
+Cold completion/reversed-original-graph recovery, portable backup, runtime integration,
+full-heap and performance, migration and device acceptance remain OPEN. Minimum affected memory bounds are
+required before downstream storage consumers; broad batteries remain for feature completion.
+Writer, activation, terminal-admission and cold-cancellation runners are registered in
+the aggregate host script; only shell syntax was checked for this registration revision. No 48-fault matrix, new full
+suite, APK or CI is claimed. Root owns orchestration and integration.
+Portable source contract `d43dbb17e110edb73eaf68d4597f208b4186d5d0` (plan blob
+`dab01bedacdafb650120a5d6339e3bde94694f01`) is accepted after independent e7 review
+and root's mechanical fix. A1 archive3/schema2 inventory/evidence wire codecs at exact
+`f98ca2913ebc40cbcef0520fba7c91a0a3f4ffe2` have scoped independent APPROVAL and
+are integrated at `88fb149`. Worker affected evidence: Wire51, archive memory3,
+legacy selector1403 and Evidence53 final checks (39 before repair plus 14).
+Review exposed duplicate owner/stage aliases; reader and writer are corrected,
+and 8 independent budget/control checks passed. Archive462 plus INDEX68 remain
+previous affected proof, not new runs. See the [affected codec notes](../verification/portable_wire_codecs/README.md).
+A2 record codecs at exact `2736de7c6105532b62672b5b250d6bfa17a6c72d` have independent
+spec/quality APPROVAL and are integrated at `08abce8d`. Worker RecordCheck72 passed
+with Java11 under `-Xmx32m`. Review inspected the actual five-file diff with no blocker
+or further probe warranted; no duplicate run. Root verified exact integrated artifacts
+with `git diff --quiet`. See the [record codec notes](../verification/portable_operation_records/README.md).
+Runtime backup completion, semantic routing/adoption and coordinated export/import remain OPEN.
+The portable wire and operation-record runners are each registered once in the required host aggregate;
+only `bash -n verification/run_host_checks.sh` ran for this registration change.
+No aggregate or codec tests were rerun for this documentation/runner update.
 
-Active integration: `codex/private-backup-integration`, synchronized normally with
-merged main `b5796ba`. Printing
-`8739354` is integrated after independent exact
-source approval: real-renderer19 cases/126 checks, controlled-renderer18 checks,
-independent18 probes and whole-Java SDK37 compilation passed. `DocumentPrint`
-captures source/title/options before queuing, uses an isolated DOM and one
-process-wide physical ownership slot, and preserves editor mode/Focus/View.
-Strict8MiB UTF-8/BOM validation and a fixed30s pre-submission deadline are new
-printing guards, not measured device budgets. Queued/running work survives Activity
-teardown through process-owned handoff. Exposed adapter resources release only
-after successful delegated onFinish and view disposal. Missing/throwing finish or
-disposal retains the one owner; cancellation does not prove quiescence. Independent
-review repaired normal synchronous finish incorrectly canceling its returned job.
-The required print runner is registered and passed in the combined clean gate.
-The first clean attempt at `fe048d2` stopped at status-fixture compilation: its
-extracted teardown lacked the new DocumentPrint boundary. Production code is
-unchanged; adding that isolated fixture boundary passed57 status assertions.
-The corrected clean gate passed at `05e74ca`, including all required recoverability
-and retention fixtures plus both unsigned audits. PR #22 evidence-only updates after that
-commit left its tested production and fixture inputs unchanged; newer backup
-source below awaits its own combined gate.
-Historical print failures remain reproducible against the baseline selector.
+During implementation, run minimum affected tests and essential compile/build checks;
+reserve broad regression/performance/migration coverage for the feature-complete
+candidate. Avoid duplicating full gates; mandatory integration/release gates remain required.
 
-Backup/adoption direction `be6d444` is integrated as documentation only. ADR-005
-proposes explicit v2 scoped inventory, inert policy provenance, additive read-only
-restored bundles and accessible drafts, with no user-document writes or tab eviction.
-Exact codec plan `c279dfaa` and operation-data/capture plan `7a6c72b3` passed
-independent architecture review and are integrated. Root authorized bounded pure
-codec and phased storage/capture source work in separate worktrees. Pure codec
-source/contracts `f357fe1` passed independent exact-source review; integrated
-`4ed9fbb` adds only the approval record. Worker4,732 functional+7 constrained-memory
-checks and unchanged archive/state/manifest suites passed; reviewer16 independent
-probes passed. The new required runner is registered and passed the combined clean gate above. Typed payload validity, durable spool/adoption and runtime backup
-authority are excluded. Borrowed rows require cooperative ownership through
-quiescence or separately reserved copies; closing does not revoke escaped Java
-references or prove GC. Storage/accounting checkpoint `a92a999` remains unapproved
-in `operation-data-capture`, with four tracked dirty repairs preserved. Independent
-probes found policy/stage/pin/resume/CLOSE writer-admission gaps and same-byte
-PREPARE inode replacement at a final callback. These are source integration
-blockers; no producer/activation or backup UI is implemented. Lead takes the
-interrupted repair inline; new risky source still requires independent review.
-Capture must bind BEGIN to a unique full descriptor, charge all operation evidence
-through graph/pruner/retirement proofs, preserve uncertain source ownership, and
-transfer CLOSE credit exactly once even for complete BEGIN.stage. Fully accounted
-failed/stale preparations permit ordinary quota-admitted saves; native changes
-invalidate capture freshness. Exact schema/golden and reservation choices are in
-the approved plans and ADR-005. The MDOP/portable bridge, verified provider output
-and import/adoption still require review.
+B0 canonical witness streams at exact `afc57ec95d0f971325c29b2e9cbfc1ab9233e1f5`
+have independent spec/quality APPROVAL and are integrated at `d1303eba1cbae823749761493d945292bf4ab4b9`.
+Root verified the four source files and fixture match exactly. Worker evidence: five
+new witness groups PASS; existing plan29 ran once for shared canonical serializer
+compatibility. Partial-prefix seal and foreign-Budget defects were caught and fixed
+RED→GREEN; review required no extra tests. Conservative B0 workspace bounds do not
+prove the whole coordinator fits16MiB. Canonical inputs preserve the original nullable
+profile and shared budget; witnesses confer no authority. The witness runner is
+registered once; this update ran shell syntax/diff checks only.
 
-Outline audit/repair plan `ba86c17` also passed independent review and is integrated
-without production changes:21 cases/46 assertions reproduce15 genuine stale-effect
-failures;8 control cases/27 assertions pass. Bounded implementation is authorized
-and committed at `93a5cc5` in `outline-navigation`; worker32 cases/74 assertions
-and affected fixtures/whole-Java compilation passed. Independent review found no
-blocker on Activity blob13c27c32b0b387e4a45dccf80b5ee06add06f531 with20 probes;
-canonical Activity blob matches the reviewed artifact exactly and source is now
-integrated. The only merge conflict was README evidence; both printing-portability
-and outline notes are retained. Current outline runner is registered GREEN; frozen
-baseline15RED stays separate. Combined clean gate passed above; no Android timing acceptance.
+Portable baseline sources at exact `cce8a6ee34785b889ff58aa7ea142c8640711347` have
+independent spec/quality APPROVAL and are integrated at `fb22bff4`; root verified exact
+Store/fixture matches. Worker focused59 plus large1 PASS: a 9,437,187-byte UNKNOWN stage
+with 36MiB held under `-Xmx48m`. Review duplicated no tests. Canonical hashes and generic
+admission predicates are unchanged. One owned cursor exposes 72 policy rows, original
+provenance, exact physical/missing credits and canonical `private_retained` absence only.
+Additive read-only funded missing-root inventory preserves credits via
+`sourceOnlyMissingRoot`; generic historical capture/Graph/native admission still rejects
+that state and B1 must refuse it. A snapshot grants no write authority. Strict original
+C0/L0/tree checks apply PRE-P only; B2 must compose authentic exact own transport
+transitions, never ignore filename prefixes. The baseline runner is registered once;
+this documentation/runner update ran only shell syntax and diff checks.
 
-Next: complete PR #23 required hosted verification while repairing
-unapproved operation accounting in its separate worktree. Capture stays excluded
-from this candidate until independent safety review clears its source. Then
-continue the separately reviewed portable bridge, verified provider output,
-strict import/adoption and eligible M0–M7 work. Internal native-only capture and
-private-frame capture belong to one meaningful change boundary, not separate
-product claims. Continue directly after each checkpoint; M1 is not complete.
+B1 producer exact `ec06a26ef30eac1809b6f08f83b81d7687b920ab` is independently
+APPROVED and integrated at `f0c6a847`; root verified exact files. Two actual review
+probes blocked original `32379`: selected 8 versus actual-empty preferences, and partial
+witness cleanup requiring EOF. Exact canonical actual scalar binding for all tabs,
+recovery/preferences and whole-cursor abandonment with actual close repaired both;
+genuine uncertainty remains retained. Both original probes now PASS, with no others
+added. Worker final 221 plus existing PrivateState848 functional checks PASS; the latter
+ran once for changed serialization, preserving legacy wire bytes (no memory/full run).
+Original parent used/remaining bytes: minimum 10,973,585/5,803,631; two 8MiB tabs 11,155,999/5,621,217;
+12 tabs+recovery+preferences 12,157,289/4,619,927.
+This is producer-only evidence: no P/provider/UI/activation and no whole-B2 overlap proof.
+The portable capture-plan runner is registered once; this update ran syntax/diff checks only.
 
-Required production recoverability remains GREEN; unchanged raw-provider
-truncation hazards remain separate RED diagnostics. Physical Galaxy Z Fold7 /
-Android16 / One UI8, actual WebView/PDF/SAF/IME/TalkBack, app-UID durability,
-canonical signing and upgrade acceptance remain NOT RUN. Installed literal“2.25”
-remains unverified. Current ADB check found zero connected devices. Device steps
-and the unrun matrix live in
-[device acceptance](M0_DEVICE_ACCEPTANCE.md). No replacement signer is allowed;
-private signing/recovery files stay out of Git/logs/CI. Older Library/provenance
-inputs remain unavailable. No installable release or full campaign completion.
+Funding-input observations at `f24f479` have independent spec/quality approval.
+The estimator now uses three read-only methods bound to the actual measured inputs
+and exact original Budget instead of reflecting capsule/evidence/item fields.
+Focused provenance/state/coordinate checks and four real B1 estimator cases PASS
+with the installed JDK17/Java11/64MiB heap. The test-only catalog reader now actually
+closes before its reopen check. This is a prerequisite, not production funding,
+heap proof or portable Writer lifecycle implementation. No broad suite/APK/CI ran.
+
+The continuation environment lacked the prior worktree/private scratch. The exact
+pushed `3649461` branch was recovered from Git; remote main remains `fdb7bd6` and
+is already an ancestor. No original private files or untracked notes were changed.
+The missing local native-footprint investigation was reconstructed narrowly:
+current native membership needs actual per-member file-key anchors across callbacks;
+original capture cardinality and the estimator's256KiB candidate do not bound later
+native appends. The three scoped resource prerequisites implemented below preserve
+ordinary append semantics, actual fileKey equality and exact reservations.
+Whole-path consumer integration remains the next task. The initial push was rejected
+by GitHub email privacy protection; only these five unpublished commits were
+re-authored with the existing public noreply identity. Their complete source tree
+was verified unchanged before updating the commit references here.
+
+Three resource prerequisites now have scoped independent spec/quality approval:
+
+- `b99df13`: bounded control inspection enforces physical byte/entry caps before
+  record allocation, including parent enrollment, stages and unknown entries.
+  New30 checks and existing control14 cases/209 assertions PASS.
+- `ec312d7`: sequential current-store validation reuses real snapshot/transaction/
+  completion parsers and exact reservations with a prepaid512KiB reader workspace.
+  Review caught the second-stat allocation race and second-workspace reentry;
+  both reproduced RED and passed after repair. Focused79/74 checks, fresh8MiB
+  snapshot and allocation-race child probes under8MiB heap, plus affected protection
+  31 cases/272 assertions, completion7/86 and its restart/write-failure probes PASS.
+- `21e7b4d`: one reusable current-native identity table, separately prepaid on the
+  supplied parent, preserves actual key equality and current-record validation.
+  Owner lease expiry now clears retained evidence after a reviewed RED→GREEN fix;
+  final189 focused checks PASS. Original capture count is not its capacity bound.
+
+These APIs are not yet wired into portable publication or HistoryPins. The table's
+supported-provider accounting convention is explicit; it is not a provider-independent
+heap proof or a256KiB whole-native envelope. Over-capacity terminal evidence must
+refuse before terminal writes and preserve retry authority; ordinary appends remain
+allowed. All three runners are registered once in the required aggregate; only shell
+syntax/diff checks ran for registration. No aggregate, APK or hosted run is claimed.
+Writer snapshot lifetime closure at `9c2353c` has scoped independent spec/quality
+approval. Fresh control/ledger DTOs now stay inside private synchronous checked
+scopes, bind the exact thread/lease and clear both references in finally. No
+Inspection/Ledger is returned; Transition keeps its existing admitted maps/anchors.
+Original fixed debit amounts and all source/policy predicates remain unchanged.
+The affected runner passed87 publication assertions,7 copy cases,11 completion
+cases and52 new lifetime checks. Its existing aggregate entry includes the new
+checks; no aggregate run or additional build/hosted validation occurred.
+
+The bounded consumer review established writer1C/1L and successful terminal5C/2L
+additional lexical snapshots above the original B1 C0/L0 already charged to its
+parent. Retry/audit overlap and numerical representation/consumer credit bounds
+are not yet closed. In particular, partial/active portable control deliberately
+remains generic-not-ready; generic Capacity/Pins routes cannot be used after P.
+An authentic private same-policy accounting route must preserve mandatory saves
+without weakening generic readiness or introducing a second quota authority.
+Original native membership stays exact through BEGIN; only post-BEGIN appends
+may be admitted by the current-native terminal table. These contracts must be
+resolved before enabling portable publication, not after it.
+
+Next, bind actual-snapshot-sized whole-path funding to the original measured inputs
+before P; consume prepaid allowances in the real writer/activation/terminal paths
+without later direct double debits, and keep bounded inspection snapshots scoped.
+Then finish authentic post-P baseline transition, outer-ID routing and actual-close/
+verified-readback coordination. Actual portable Writer lifecycle is still unimplemented.
+
+B2/C preimplementation audit found fixed Writer~7MiB plus Pins6MiB cannot fit
+remaining headroom. Test-only funding estimator `ad9cab4c` has independent APPROVAL;
+four real B1 fixture cases passed with JDK17/Java11 under `-Xmx64m`. Candidate extra
+charges leave 2,836,815 bytes (minimum), 2,484,829 (two 8MiB tabs), and 547,121
+(14 frames). Actual-parent one-byte-under refusal leaves its failed debit unchanged
+and creates no P/artifacts. This is an estimator, not production funding or heap proof;
+see [its limits and results](../verification/portable_funding/report.md). The current-native
+cursor bound, snapshot non-escape, representation caps and prepaid consumption replacing
+later direct debits remain unproved. This diagnostic is not a required production gate;
+no aggregate run, APK or hosted check ran.
+Internal dispatch parser leaf `9f58c949` has scoped independent **APPROVAL** and
+is integrated on the active branch. Changed production files are HistoryControlStore,
+HistoryPinRecord, PrivateOperationEvidence and PrivateOperationStore. Worker73 and
+affected Record72/Evidence53/baseline59+large1 PASS. Partial P remains inert; readiness
+is closed-only, with generic/cold refusal preserved. This proves structural retention
+and owner joins, not an actual Writer first/second backup lifecycle, production funding
+or activation. The required aggregate registers `portable_internal_dispatch/run.sh`
+once; the diagnostic funding estimator remains unregistered. This docs/runner update
+ran shell syntax and diff checks only; no tests were repeated.
+Independent review found no blocker and duplicated no tests; root verified exact
+integrated source/fixture matches. Next: finish conservative whole-path
+funding before P, authentic post-P baseline WriterTransition, outer-ID routing and
+actual-close versus verified-success semantics. Before large implementation,
+check producer/consumer contracts briefly and run minimum affected tests. The retained-receipt
+root is not implemented: verify shared canonical namespace ABSENCE first and fail closed
+if present/unclassified. Actual adoption/route4 and repeated restore→export remain
+required before feature completion. Cold completion implementation remains blocked on an authentic persisted
+original profile. Contract `28147af8`
+(plan blob `9a06e3e0c0a2bcb02c1cdc26565ac61024a236c5`) has independent spec/quality
+APPROVAL and is integrated. V1 lacks the original nullable compatibility graph profile:
+the contract requires refusing cold completion without writes; no completion API is
+implemented. Eligible cancellation remains implemented.
+A future portable witness must retain that exact profile. Source/runtime implementation
+remains OPEN. Preserve global
+pending/prune blocks, all bytes/credits, physical namespace eligibility, selected-own
+completeness and immutable old-stage anchors. Runtime integration and lifecycle/error
+closure remain before downstream features.
+Prove minimum affected memory bounds before downstream storage consumers. Broad full-heap,
+performance, regression, migration and device batteries remain for feature completion.
+Continue M0–M7 directly; M1 is not complete. Source approvals remain exact-artifact scoped.
+Physical Galaxy Z Fold7 / Android16 / One UI8.0, WebView/PDF/SAF/IME/TalkBack,
+app-UID durability and in-place upgrade remain NOT RUN. At feature completion, the
+owner will sign the unsigned APK with the original key and test the Fold7; no device
+work is needed before that candidate is ready. Never create a replacement key or
+publish private files. Keep PR #24 as one draft; do not fragment helper PRs.
 
 ## Merged PR #14 integration evidence — historical checkpoint
 
@@ -509,8 +860,9 @@ Matched synthetic fixtures remain local under ignored
 `verification/build/Galaxy-Z-Fold7-baseline-fixtures.zip`. Physical Fold/SAF/IME/
 TalkBack/upgrade and Android filesystem durability remain distinct NOT RUN gates.
 
-Named history/diff/configurable retention, private backup/restore and M2–M7
-features are not complete. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death
+Historical gap summary (superseded by the current owner checkpoint above):
+named history/diff/configurable retention, private backup/restore and M2–M7
+were incomplete at that earlier checkpoint. Candidate phone/Fold/SAF/TalkBack/upgrade/process-death
 and actual Android durability checks remain NOT RUN. Canonical signing inputs
 will be required only for authorized release preparation, never in Git/logs/CI.
 

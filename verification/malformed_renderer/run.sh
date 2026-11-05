@@ -8,7 +8,7 @@ mkdir -p "$out/classes"
 "$javac_bin" --release 11 -d "$out/classes" \
   verification/stubs/android/graphics/drawable/GradientDrawable.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java \
-  apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java \
+  apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java \
   verification/malformed_renderer/Probe.java
 sha256sum apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java

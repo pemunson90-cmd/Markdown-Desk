@@ -21,7 +21,7 @@ final class HistoryControlStore {
     static final int MAGIC=0x4d444843, VERSION=1, MAX_RECORD=16384, MAX_ENTRIES=256;
     static final long MAX_BYTES=1024L*1024;
     private static final int HEADER=13, CHECKSUM=32, MAX_NAME=64;
-    private static final int REGISTRATION=1, POLICY=2;
+    private static final int REGISTRATION=1, POLICY=2, POLICY_AUTOMATIC=3;
     private final File parent;
     private final Path root;
 
@@ -40,8 +40,13 @@ final class HistoryControlStore {
         final UUID bundleId;
         final long generation, quotaBytes;
         final int automaticCount, serializedBytes;
+        final boolean automaticEnabled;
         final String envelopeHash;
         Record(UUID bundleId,long generation,long quotaBytes,int automaticCount,int serializedBytes,String envelopeHash) {
+            this(bundleId,generation,quotaBytes,automaticCount,serializedBytes,envelopeHash,false);
+        }
+        Record(UUID bundleId,long generation,long quotaBytes,int automaticCount,int serializedBytes,String envelopeHash,boolean automaticEnabled) {
+            this.automaticEnabled=automaticEnabled;
             this.bundleId=bundleId;this.generation=generation;this.quotaBytes=quotaBytes;
             this.automaticCount=automaticCount;this.serializedBytes=serializedBytes;this.envelopeHash=envelopeHash;
         }
@@ -56,8 +61,8 @@ final class HistoryControlStore {
     }
     static final class Policy extends Record {
         final String previousHash;
-        private Policy(UUID bundleId,long generation,String previousHash,long quota,int count,int size,String hash) {
-            super(bundleId,generation,quota,count,size,hash);this.previousHash=previousHash;
+        private Policy(UUID bundleId,long generation,String previousHash,long quota,int count,int size,String hash,boolean enabled) {
+            super(bundleId,generation,quota,count,size,hash,enabled);this.previousHash=previousHash;
         }
     }
     static final class Entry {
@@ -68,6 +73,8 @@ final class HistoryControlStore {
         final Record record;
         final HistoryPruneIntent intent;
         final HistoryPinRecord pin;private final byte[] pinBytes;
+        final PrivateOperationRecord operation;
+        boolean operationPrefix(byte[] expected){return pinPrefix(expected);}
         boolean pinPrefix(byte[] expected){if(pinBytes==null||pinBytes.length>expected.length)return false;for(int i=0;i<pinBytes.length;i++)if(pinBytes[i]!=expected[i])return false;return true;}
         final boolean stage;
         private Entry(String filename,long length,String hash,Record record,boolean stage) {
@@ -78,7 +85,27 @@ final class HistoryControlStore {
         }
         private Entry(String filename,long length,String hash,Record record,boolean stage,HistoryPruneIntent intent,HistoryPinRecord pin,byte[] pinBytes){
             this.filename=filename;this.length=length;envelopeHash=hash;this.record=record;this.stage=stage;this.intent=intent;this.pin=pin;this.pinBytes=pinBytes;
+            PrivateOperationRecord op=null;if(pinBytes!=null&&filename!=null&&PrivateOperationRecord.knownName(stage?filename.substring(0,filename.length()-6):filename)){try{op=decodeOperationControl(pinBytes);}catch(IOException invalid){/* exact optional LINK prefix is classified against its commitment */}}operation=op;
         }
+    }
+    /** Internal structural dispatch only. Inventory must still join the exact owning P;
+     * generic record decoders/factories and activation authority remain unchanged. */
+    static PrivateOperationRecord decodeOperationControl(byte[] bytes)throws IOException {
+        if(bytes==null||bytes.length<45||bytes.length>PrivateOperationRecord.MAX_CONTROL)throw new IOException("Operation control bounds");
+        ByteBuffer header=ByteBuffer.wrap(bytes);
+        if(header.getInt()!=0x4d444f50)throw new IOException("Operation control magic");
+        int version=header.getInt();
+        if(version==1)return PrivateOperationRecord.decode(bytes);
+        if(version==2)return PrivateOperationRecord.decodePortable(bytes);
+        throw new IOException("Unknown operation control version");
+    }
+    static HistoryPinRecord decodePinControl(byte[] bytes)throws IOException {
+        // BEGIN's fixed domain field selects a strict codec; neither checksum nor body
+        // validation is bypassed. CLOSE has no domain and is joined to its exact BEGIN.
+        final int domainOffset=13+16+16+32+8+32+2;
+        boolean portable=bytes!=null&&bytes.length>domainOffset&&bytes[8]==1
+                &&(bytes[domainOffset]&255)==HistoryPinRecord.Domain.PORTABLE_CAPTURE_V1.wire;
+        return portable?HistoryPinRecord.decodePortable(bytes):HistoryPinRecord.decode(bytes);
     }
     static final class StageDescriptor {
         final String filename;
@@ -99,6 +126,8 @@ final class HistoryControlStore {
         final List<StageDescriptor> stages;
         final Entry committedIntent, intentStage;
         final HistoryPinRecord.Inventory pins;
+        final PrivateOperationStore.Control operations;
+        final long controlReservedBytes;final int controlReservedEntries;
         boolean hasMaintenance(){return committedIntent!=null||intentStage!=null;}
         final long actualBytes;
         final int actualEntries;
@@ -106,13 +135,16 @@ final class HistoryControlStore {
         final List<String> diagnostics;
         private Inspection(State state,Registration registration,Record latest,List<Entry> entries,List<StageDescriptor> stages,
                 long bytes,int count,boolean usageComplete,boolean chainComplete,List<String> diagnostics)throws IOException {
-            this.state=state;this.registration=registration;this.latest=latest;
+            this.registration=registration;this.latest=latest;
             this.entries=Collections.unmodifiableList(new ArrayList<>(entries));
             this.stages=Collections.unmodifiableList(new ArrayList<>(stages));
             Entry committed=null,pending=null;
             for(Entry entry:entries){if(HistoryPruneIntent.INTENT_NAME.equals(entry.filename))committed=entry;
                 if(HistoryPruneIntent.STAGE_NAME.equals(entry.filename))pending=entry;}
             committedIntent=committed;intentStage=pending;pins=HistoryPinRecord.inspect(entries,registration);
+            operations=PrivateOperationStore.control(entries,registration,pins);controlReservedBytes=PrivateOperationStore.add(pins.reservedBytes,operations.reservedBytes);
+            controlReservedEntries=Math.addExact(pins.reservedEntries,operations.reservedEntries);
+            this.state=state==State.VALIDATED&&(!operations.ready||bytes>MAX_BYTES-controlReservedBytes||count>MAX_ENTRIES-controlReservedEntries)?State.BLOCKED:state;
             actualBytes=bytes;actualEntries=count;this.usageComplete=usageComplete;this.chainComplete=chainComplete;
             this.diagnostics=Collections.unmodifiableList(new ArrayList<>(diagnostics));
         }
@@ -143,6 +175,16 @@ final class HistoryControlStore {
         }
         return envelope(POLICY,bytes.toByteArray());
     }
+    /** Explicit consent policy; legacy records and registrations always mean disabled. */
+    static byte[] encodeAutomaticPolicy(UUID bundleId,long generation,String previousHash,long quotaBytes,int automaticCount,boolean enabled)throws IOException {
+        if(bundleId==null||generation<=0||enabled&&automaticCount==0)throw new IOException("Invalid automatic policy");
+        validatePolicy(quotaBytes,automaticCount);byte[] previous=hashBytes(previousHash);
+        ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+        try(DataOutputStream out=new DataOutputStream(bytes)) {
+            uuid(out,bundleId);out.writeLong(generation);out.write(previous);out.writeLong(quotaBytes);out.writeInt(automaticCount);out.writeByte(enabled?1:0);
+        }
+        return envelope(POLICY_AUTOMATIC,bytes.toByteArray());
+    }
     private static byte[] envelope(int type,byte[] body)throws IOException {
         if(body.length>MAX_RECORD-HEADER-CHECKSUM)throw new IOException("Control record limit exceeded");
         ByteArrayOutputStream bytes=new ByteArrayOutputStream(HEADER+body.length+CHECKSUM);
@@ -159,7 +201,7 @@ final class HistoryControlStore {
         DataInputStream in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-CHECKSUM));
         if(in.readInt()!=MAGIC||in.readInt()!=VERSION)throw new IOException("Unsupported control framing");
         int type=in.readUnsignedByte(),length=in.readInt();
-        if((type!=REGISTRATION&&type!=POLICY)||length!=bytes.length-HEADER-CHECKSUM)throw new IOException("Invalid control framing");
+        if((type!=REGISTRATION&&type!=POLICY&&type!=POLICY_AUTOMATIC)||length!=bytes.length-HEADER-CHECKSUM)throw new IOException("Invalid control framing");
         UUID bundle=uuid(in);long generation=in.readLong();Record record;
         String hash=hex(sha(bytes));
         if(type==REGISTRATION) {
@@ -172,7 +214,9 @@ final class HistoryControlStore {
         }else {
             if(generation<=0)throw new IOException("Invalid policy generation");
             byte[] previous=new byte[CHECKSUM];in.readFully(previous);long quota=in.readLong();int count=in.readInt();validatePolicy(quota,count);
-            record=new Policy(bundle,generation,hex(previous),quota,count,bytes.length,hash);
+            boolean enabled=false;
+            if(type==POLICY_AUTOMATIC){int flag=in.readUnsignedByte();if(flag>1||flag==1&&count==0)throw new IOException("Invalid automatic policy flag");enabled=flag==1;}
+            record=new Policy(bundle,generation,hex(previous),quota,count,bytes.length,hash,enabled);
         }
         if(in.available()!=0)throw new IOException("Trailing control body");
         return record;
@@ -190,7 +234,32 @@ final class HistoryControlStore {
         return committedName+".stage";
     }
 
-    Inspection inspect()throws IOException {
+    Inspection inspect()throws IOException {return inspect(null);}
+
+    /** Physical input caps only. Caller must separately precharge its workspace;
+     * these limits grant no policy, decode, or portable activation authority. */
+    Inspection inspectBounded(long maximumBytes,int maximumEntries)throws IOException {
+        if(maximumBytes<0||maximumBytes>MAX_BYTES||maximumEntries<0||maximumEntries>MAX_ENTRIES)
+            throw new IOException("Invalid control inspection limits");
+        return inspect(new InputLimits(maximumBytes,maximumEntries));
+    }
+    private static final class InputLimitException extends IOException {
+        InputLimitException(String message){super(message);}
+    }
+    private static final class InputLimits {
+        final long bytes;final int entries;
+        InputLimits(long bytes,int entries){this.bytes=bytes;this.entries=entries;}
+        void entry(int count)throws InputLimitException {
+            if(count<0||count>=entries)throw new InputLimitException("Control inspection entry limit");
+        }
+        void record(long used,BasicFileAttributes actual)throws InputLimitException {
+            // The very same attributes govern read allocation; no preliminary stat.
+            long size=actual.size();
+            if(!actual.isRegularFile()||size<0)throw new InputLimitException("Control inspection unknown physical size");
+            if(used<0||used>bytes||size>bytes-used)throw new InputLimitException("Control inspection byte limit");
+        }
+    }
+    private Inspection inspect(InputLimits limits)throws IOException {
         List<Entry> entries=new ArrayList<>();List<StageDescriptor> stages=new ArrayList<>();List<String> diagnostics=new ArrayList<>();
         long bytes=0;int count=0;boolean usageComplete=true,inventoryValid=true;
         Registration registration=null;Record latest=null;SortedMap<Long,Policy> policies=new TreeMap<>();
@@ -200,9 +269,11 @@ final class HistoryControlStore {
         for(String name:Arrays.asList(ENROLLMENT_NAME,ENROLLMENT_STAGE)){
             Path path=parent.toPath().resolve(name);BasicFileAttributes before;
             try{before=attributes(path);}catch(NoSuchFileException absent){continue;}
-            catch(IOException failure){diagnostics.add("control: enrollment unreadable");usageComplete=false;inventoryValid=false;entries.add(new Entry(name,0,null,null,name.equals(ENROLLMENT_STAGE)));count++;continue;}
+            catch(IOException failure){if(limits!=null)limits.entry(count);diagnostics.add("control: enrollment unreadable");usageComplete=false;inventoryValid=false;entries.add(new Entry(name,0,null,null,name.equals(ENROLLMENT_STAGE)));count++;continue;}
+            if(limits!=null)limits.entry(count);
             count++;long size=before.size();String hash=null;Record record=null;
             try{
+                if(limits!=null)limits.record(bytes,before);
                 if(!before.isRegularFile()||size<0)throw new IOException("Nonregular enrollment");
                 bytes=Math.addExact(bytes,size);
                 if(size>MAX_RECORD)throw new IOException("Oversized enrollment");
@@ -211,7 +282,7 @@ final class HistoryControlStore {
                 validatePhysicalRoles((Registration)record);
                 if(name.equals(ENROLLMENT_NAME))enrollment=(Registration)record;
                 else throw new IOException("Retained enrollment stage");
-            }catch(IOException|ArithmeticException failure){diagnostics.add("control: invalid enrollment");inventoryValid=false;if(!before.isRegularFile()||size<0)usageComplete=false;}
+            }catch(IOException|ArithmeticException failure){if(failure instanceof InputLimitException)throw (InputLimitException)failure;diagnostics.add("control: invalid enrollment");inventoryValid=false;if(!before.isRegularFile()||size<0)usageComplete=false;}
             entries.add(new Entry(name,size,hash,record,name.equals(ENROLLMENT_STAGE)));
         }
         BasicFileAttributes directoryBefore;
@@ -229,26 +300,30 @@ final class HistoryControlStore {
         }
         try(DirectoryStream<Path> paths=Files.newDirectoryStream(root)) {
             for(Path path:paths) {
+                if(limits!=null)limits.entry(count);
                 if(count==MAX_ENTRIES){diagnostics.add("control: entry limit");usageComplete=false;inventoryValid=false;break;}
                 count++;
                 String name=path.getFileName().toString();boolean stage=name.endsWith(".stage");
                 String committed=stage?name.substring(0,name.length()-6):name;
                 boolean maintenance=HistoryPruneIntent.INTENT_NAME.equals(committed);
                 boolean pinName=HistoryPinRecord.knownName(committed);
-                boolean known=maintenance||pinName||knownCommittedName(committed);
+                boolean operationName=PrivateOperationRecord.knownName(committed);
+                boolean known=maintenance||pinName||operationName||knownCommittedName(committed);
                 HistoryPinRecord pin=null;byte[] pinBytes=null;
                 HistoryPruneIntent intent=null;
                 long size=0;String hash=null;Record record=null;
                 if(!known){diagnostics.add("control: unknown entry");inventoryValid=false;}
                 try {
                     BasicFileAttributes before=attributes(path);size=before.size();
+                    if(limits!=null)limits.record(bytes,before);
                     if(!before.isRegularFile()||size<0)throw new IOException("Nonregular control entry");
                     bytes=Math.addExact(bytes,size);
                     int limit=maintenance?HistoryPruneIntent.MAX_BYTES:MAX_RECORD;
                     if(size>limit){same(before,attributes(path));diagnostics.add("control: oversized entry");inventoryValid=false;}
                     else {
                         byte[] envelope=read(path,before,limit);hash=hex(sha(envelope));
-                        if(pinName){pinBytes=envelope;try{pin=HistoryPinRecord.decode(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
+                        if(operationName){pinBytes=envelope;}
+                        else if(pinName){pinBytes=envelope;try{pin=decodePinControl(envelope);if(!pin.name().equals(committed))pin=null;}catch(IOException malformed){/* staged prefix handled by typed pin inventory */}}
                         else if(maintenance){try{intent=HistoryPruneIntent.decode(envelope);}catch(IOException invalid){diagnostics.add("control: invalid intent");inventoryValid=false;}}
                         else if(known) {
                             try {
@@ -259,6 +334,7 @@ final class HistoryControlStore {
                         }
                     }
                 }catch(IOException|ArithmeticException invalid) {
+                    if(invalid instanceof InputLimitException)throw (InputLimitException)invalid;
                     diagnostics.add("control: unreadable entry");usageComplete=false;inventoryValid=false;
                 }
                 Entry entry=new Entry(known?name:null,size,hash,record,stage,intent,pin,pinBytes);entries.add(entry);
@@ -269,6 +345,7 @@ final class HistoryControlStore {
                 }
             }
         }catch(IOException|DirectoryIteratorException failure) {
+            if(failure instanceof InputLimitException)throw (InputLimitException)failure;
             diagnostics.add("control: inventory unavailable");usageComplete=false;inventoryValid=false;
         }
         if(bytes>MAX_BYTES){diagnostics.add("control: byte limit");inventoryValid=false;}
@@ -298,7 +375,7 @@ final class HistoryControlStore {
             diagnostics.add("control: root changed");usageComplete=false;chainComplete=false;inventoryValid=false;
             registration=null;latest=null;
         }
-        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage&&!HistoryPruneIntent.STAGE_NAME.equals(entry.filename)&&!(entry.filename!=null&&HistoryPinRecord.knownName(entry.filename.substring(0,entry.filename.length()-6))))pending.add(entry);
+        List<Entry> pending=new ArrayList<>();for(Entry entry:entries)if(entry.stage&&!PrivateOperationStore.operationEntry(entry)&&!HistoryPruneIntent.STAGE_NAME.equals(entry.filename)&&!(entry.filename!=null&&HistoryPinRecord.knownName(entry.filename.substring(0,entry.filename.length()-6))))pending.add(entry);
         for(Entry entry:pending) {
             boolean provisional=false;
             if(pending.size()==1&&inventoryValid&&usageComplete&&entry.record!=null) {

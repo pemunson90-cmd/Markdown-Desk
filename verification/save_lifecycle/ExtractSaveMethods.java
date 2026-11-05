@@ -14,12 +14,12 @@ public final class ExtractSaveMethods {
             String content=Files.readString(source); Map<String,String> extracted=new HashMap<>();
             Set<String> signatures=new HashSet<>();
             List<String> wanted=Arrays.asList("MODE_EDIT","MODE_PREVIEW","REQUEST_OPEN","REQUEST_CREATE","REQUEST_SPLASH_IMPORT","REQUEST_PROTECTED_COPY",
-                "onActivityResult","captureActiveTab","findTabById","saveInternal","lambda$saveInternal$35","lambda$saveInternal$33","lambda$saveInternal$34","getProtectionStore","getHistoryController","invalidateHistory","restoreProtectedCopy","lambda$saveInternal$32","resumeConflictSave","submitCapturedSave","showProtectedSaves","launchProtectedCopy");
+                "onActivityResult","captureActiveTab","findTabById","saveInternal","lambda$saveInternal$35","lambda$saveInternal$33","lambda$saveInternal$34","getProtectionStore","getHistoryController","invalidateHistory","restoreProtectedCopy","lambda$saveInternal$32","resumeConflictSave","submitCapturedSave","showProtectedSaves","launchProtectedCopy","protectedSavesRequest","protectedSavesSession","ProtectedSavesSession","invalidateProtectedSaves","protectedSavesCurrent","showProtectedSavesPage","showProtectedSaveActions","presentProtectedSavesDialog","historyDialogBuilder","workspaceRootRows","workspaceDialogShown");
             for(Tree declaration:unit.getTypeDecls()) {
                 if(!(declaration instanceof ClassTree) || !((ClassTree)declaration).getSimpleName().contentEquals("MainActivity")) continue;
                 for(Tree member:((ClassTree)declaration).getMembers()) {
                     String name=member instanceof MethodTree ? ((MethodTree)member).getName().toString()
-                        : member instanceof VariableTree ? ((VariableTree)member).getName().toString() : "";
+                        : member instanceof VariableTree ? ((VariableTree)member).getName().toString() : member instanceof ClassTree ? ((ClassTree)member).getSimpleName().toString() : "";
                     if(wanted.contains(name)) {
                         String signature=name;
                         if(member instanceof MethodTree){

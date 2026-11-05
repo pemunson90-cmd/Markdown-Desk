@@ -5,6 +5,7 @@ import java.util.concurrent.*;
 class DocumentPrint {static void cancel(Object activity){}}
 class Activity { protected void onDestroy() {} }
 final class PreviewHarness extends Activity {
+ void searchContentChanged() {}
     static final int MODE_EDIT = 0, MODE_PREVIEW = 1, MODE_SPLIT = 2;
     static boolean background;
     static void mainOnly() { if (background) throw new AssertionError("UI access on worker"); }
@@ -74,6 +75,10 @@ final class PreviewHarness extends Activity {
     final SyntaxBoundary syntaxHighlight = new SyntaxBoundary();
     void continueMarkdownLine(Editable text) {} void invalidateStatistics() {} void updateStatus() {}
     void updateTabsUi() {} void scheduleRecovery() {} void scheduleHighlightEdit() {} void scheduleSession() {}
+    void cancelWorkspaceNavigation() {}
+    void invalidateProtectedSaves() {}
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
     void stopStatistics() {} boolean isDestroyed() { return preview.destroyed; } boolean isFinishing() { mainOnly(); return finishing; }
     QueueExecutor worker() { return (QueueExecutor) renderIo; }
     void changed(String text, boolean suppressed) {
@@ -81,9 +86,12 @@ final class PreviewHarness extends Activity {
         watcher.onTextChanged(editor.text, 0, 0, text.length()); suppressChanges = false;
     }
     void acknowledgeForCapture() {
-        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode));
+        previewPage=new PreviewPage(preview,new LatestPreview.Request(previewDocumentId(),previewRevision,"",palette,previewFontSp,mode,readerTypography));
         previewPage.acknowledged=true;previewReady=true;
     }
+    ReaderTypography typography() {return readerTypography;}
+    void typography(ReaderTypography value) {readerTypography=value;}
+    boolean currentPage() {return isCurrentPreviewPage(previewPage);}
     void layout() { /* LAYOUT */ }
     void settle() {
         main.runDelayed();

@@ -6,9 +6,13 @@ import java.util.*;
 import java.util.concurrent.*;
 final class MainActivity extends Activity {
     final class Editor {final StringBuilder text=new StringBuilder();void append(String s){text.append(s);}void replace(int a,int b,String s){text.replace(a,b,s);}int length(){return text.length();}CharSequence getText(){captures++;return text;}}
-    final Editor editor=new Editor();String displayName="A.md";UiTheme.Palette palette=UiTheme.palette(0,false);float previewFontSp=18;boolean utf8Bom;int captures,mode,rebuilds;
+    final Editor editor=new Editor();String displayName="A.md";UiTheme.Palette palette=UiTheme.palette(0,false);float previewFontSp=18;ReaderTypography readerTypography=ReaderTypography.defaults();boolean utf8Bom;int captures,mode,rebuilds;
     final List<String> errors=new ArrayList<>();final Handler main=new Handler();WebView preview;final ExecutorService io=Executors.newSingleThreadExecutor();
     void showError(String s){errors.add(s);}void stopStatistics(){}void stopPreview(){}void rebuildBody(){rebuilds++;}
     void requestPrint(){printDocument();}void destroy(){onDestroy();}
     /* EXACT_MEMBERS */
+    void invalidateProtectedSaves() {}
+    void pauseDocxExport() {}
+    void cancelDocxExport() {}
+    void cancelWorkspaceNavigation() {}
 }

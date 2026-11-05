@@ -16,6 +16,6 @@ java -cp "$out" ExtractPreview "$source" verification/preview_behavior/PreviewHa
 helper=()
 if [ "$phase" != baseline ]; then helper=(apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java); fi
 javac --release 11 -d "$out" verification/stubs/android/graphics/drawable/GradientDrawable.java \
-  apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,MarkdownRenderer}.java "${helper[@]}" \
+  apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,ReaderTypography,MarkdownRenderer}.java "${helper[@]}" \
   "$out/PreviewHarness.java" verification/preview_behavior/PreviewBenchmark.java
 java -Xms128m -Xmx1g -cp "$out" com.example.markdowndesk.PreviewBenchmark "$phase"

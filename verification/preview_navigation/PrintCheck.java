@@ -26,6 +26,12 @@ public final class PrintCheck {
     static PrintDocumentAdapter ready(MainActivity a)throws Exception{a.requestPrint();render();view().ready();return manager(a).adapters.get(0);}
     static void run(String name,Test body)throws Exception{reset();cases++;body.run();System.out.println("PASS "+name);}
     interface Test{void run()throws Exception;}
+    static String rendererHtml(WebView view){
+        String html=view.html.replaceFirst(" data-md-preview=\"[^\"]+\"","");
+        int paper=html.lastIndexOf("<style>"),end=html.indexOf("</style>",paper)+8;
+        ok(paper>html.indexOf("</style>")&&html.substring(paper,end).contains("@media print{")&&html.substring(paper,end).contains("@page{margin:12mm}"),"single fixed print stylesheet follows renderer style");
+        return html.substring(0,paper)+html.substring(end);
+    }
     public static void main(String[] args)throws Exception{
         worker=(ExecutorService)field("worker");delivery=(Handler)field("main");
         try {
@@ -34,11 +40,21 @@ public final class PrintCheck {
                 MainActivity a=activity();a.mode=mode;a.displayName="A.md";a.editor.append("original **A**");a.requestPrint();
                 a.editor.replace(0,a.editor.length(),"later B");a.displayName="B.md";render();WebView v=view();
                 ok(manager(a).adapters.isEmpty(),"no adapter at render delivery");same(a,v.activity,"view belongs originating Activity");
-                ok(v.html.replaceFirst(" data-md-preview=\"[^\"]+\"","").equals(MarkdownRenderer.render("original **A**",a.palette,a.previewFontSp)),"exact renderer HTML aside metadata");
+                ok(rendererHtml(v).equals(MarkdownRenderer.render("original **A**",a.palette,a.previewFontSp)),"exact renderer HTML aside metadata");
                 ok(v.settings.js&&!v.settings.storage&&!v.settings.file&&!v.settings.content&&v.settings.network&&!v.settings.images,"security settings");
                 ok(v.base.equals("https://markdown.local/"),"baseURL");ok(v.client.shouldOverrideUrlLoading(v,"mdsrc:99"),"source link consumed");ok(v.client.shouldOverrideUrlLoading(v,"https://example.test"),"external link consumed");
                 v.ready();ok(v.title.equals("A.md"),"immutable title");ok(a.mode==mode&&a.rebuilds==0,"mode unchanged");manager(a).adapters.get(0).onFinish();ok(v.destroys==1,"finish disposal");
             }
+        });
+        run("captured reader typography is immutable and defaults stay compatible",()->{
+            MainActivity a=activity();ReaderTypography captured=ReaderTypography.defaults().withFamily(ReaderTypography.Family.MONOSPACE).withLineHeight(2f);
+            DocumentPrint.Capture input=new DocumentPrint.Capture("styled","Style.md",a.palette,18,false,captured);
+            same(input.typography,captured,"immutable style captured");
+            ok(new DocumentPrint.Capture("x","x",a.palette,18,false).typography.family==ReaderTypography.Family.SERIF,"legacy constructor defaults");
+            ok(new DocumentPrint.Capture("x","x",a.palette,18,false,null).typography.family==ReaderTypography.Family.SERIF,"null style defaults");
+            DocumentPrint.start(a,()->input,a::showError);render();WebView v=view();
+            ok(rendererHtml(v).equals(MarkdownRenderer.render("styled",a.palette,18,captured)),"worker renders exact captured typography");
+            v.ready();manager(a).adapters.get(0).onFinish();
         });
         run("global admission before capture and queued destroy handoff",()->{
             CountDownLatch entered=new CountDownLatch(1),leave=new CountDownLatch(1);worker.execute(()->{entered.countDown();try{leave.await();}catch(InterruptedException e){throw new AssertionError(e);}});entered.await();
@@ -62,7 +78,8 @@ public final class PrintCheck {
         });
         run("slow capture uses original absolute timer deadline",()->{
             MainActivity a=activity();DocumentPrint.start(a,()->{SystemClock.now=10_000;return new DocumentPrint.Capture("text","A",a.palette,18,false);},a::showError);
-            ok(delivery.tasks.stream().anyMatch(t->t.at==30_000),"capture does not extend timeout");render();a.destroy();
+            // The real worker can post concurrently; inspect under the stub Handler queue lock.
+            synchronized(delivery){ok(delivery.tasks.stream().anyMatch(t->t.at==30_000),"capture does not extend timeout");}render();a.destroy();
         });
         run("reentrant capture cancellation keeps global reservation",()->{
             MainActivity a=activity(),b=activity();DocumentPrint.start(a,()->{DocumentPrint.cancel(a);b.requestPrint();ok(b.captures==0,"capture cancellation cannot admit another snapshot before returning");return new DocumentPrint.Capture("text","A",a.palette,18,false);},a::showError);

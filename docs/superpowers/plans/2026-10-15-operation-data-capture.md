@@ -1,7 +1,7 @@
 # Operation-data admission and durable capture → BEGIN
 
 > **For agentic workers:** Use superpowers:executing-plans after independent
-> architecture approval and source authorization. Plan 7a6c72b3 is approved and root authorizes implementation; behavior is unverified.
+> architecture approval and source authorization. Plan 7a6c72b3 is approved; source implementation authorized. C1 repair host-tested (3,374 focused checks plus affected backend suites); independent source review and capture lifecycle remain pending.
 
 **Goal:** Charge preparations to primary authority; atomically bind persisted captures to pins.
 **Architecture:** One ledger, immutable PREPARE funding, separate native-source proof
@@ -248,3 +248,232 @@ reversible own transitions and all terminal ledger paths before source authoriza
 Portable v2, retained-import/remap/receipts, UI, output/adoption and compaction are
 separate work. Failed/retained staging needs a future bounded lossless-projection
 proof before omission from backup; no such proof or complete-backup claim here.
+
+### C2 source-lifetime implementation packet, 2026-10-15
+
+Lead owns `PreparationSources`, its focused fixture and the narrow shared
+HistoryStorage/HistoryOperations hooks. This implements only the pre-BEGIN resource
+owner required by tasks3–4, not publication, copying, recoverCapture or activation.
+Register one canonical primary/preparation/producer-capability/shared-budget owner
+in the existing parent State; a new UUID cannot bypass unresolved preflight work.
+Do not provide reset/handoff until the actual producer proves durable transfer.
+Count live sources and executing delegates independently; factory uncertainty seals
+the owner, while failed close retains the original reader for actual close retry.
+Factories and delegate I/O stay outside history monitor/lease. Preparation callback
+participants cannot enter either protocol's terminal/freeze/drain routes. Preserve
+existing operation callbacks' tested freeze requests: outstanding work still blocks
+terminal claims, and operation participants cannot claim C2 quiescence.
+
+The focused tests must cover real cross-protocol entries and blocked open/read/close,
+new-UUID bypass, runtime/null factory uncertainty, EOF/idle/read failure, retry close,
+reentrant/thread violations, same-budget/producer ownership and lease-bound claims.
+Independent exact-source review precedes use by the producer. No complete capture,
+whole simultaneous metadata heap bound, runtime behavior or device acceptance is
+inferred from this helper's test pass. Native fingerprint helper sourcea4cb514 has
+separate independent12-scenario approval and retains its integration obligations.
+
+### C2 fixed-record assembly and writer transition contract
+
+Root accepts canonical initial ledger binding:
+`SHA256(ASCII("MDOP-initial-ledger-v1\n") || u8(present) || raw32(fingerprint) if present)`.
+Absent golden is `d85d1350026fd0c27784a3126cd3adff553265dc45b173b353b13c049645825e`.
+This supplies an explicit64-hex Binding.ledgerHash without changing MDOPv1 bytes
+or the legacy empty operation-graph fingerprint. Complete initial accounting and
+no pending capture remain prerequisites; zeroes/empty-string hash are not substitutes.
+
+Bounded pure `PrivateCapturePlan` assembly will consume the exact initial frozen
+native map/typed Graph/control/ledger, canonical four roots/bootstrap, original
+source owner/shared budget and fixed generated preparation/operation/map/descriptor
+UUIDs plus successful private ClosedFrames belonging to that owner. It must validate
+all global generated-ID uniqueness, canonical tab/recovery/preferences order and
+presence; build exact D,204-byte BEGIN,P and173-byte LINK without cycles or callbacks;
+stream-hash the map without retaining a serialized map array; and reject insufficient
+shared data/control/namespace funding before persistence. Caller metadata owners
+must already be charged to the same budget; assembly charges its own records/copies.
+Its source-owner check requires original OPEN/idle binding under the primary lease;
+this is not final quiescence, full heap approval or publication/activation authority.
+
+The actual writer owns a private typed PreparationTransition, never a public
+accept-current-ledger method. Bind the compact complete baseline and old physical
+control/operation identities. Validate old expectation, perform only the writer's
+specific filesystem action, independently record verified bytes/identity, then call
+durability callbacks and recheck. Each own P/directory/artifact/BEGIN/LINK transition
+must reverse to the initial ledger with exact typed future-credit ownership. A live
+copy token is bound to one producer/artifact/stage inode and accepted prefix hash;
+it cannot adopt a partial stage, cross artifacts or resume after failure. Final
+native+artifact+source closure proof and BEGIN publication share one primary lease.
+Pre-LINK CLOSE permanently abandons activation. Future source handoff/reset needs
+the actual durable operation binding; generic finally-clear remains forbidden.
+Fresh proof workspace is prepaid once in the same budget, not a new16MiB allowance
+or repeated permanent charge on every refresh. Whole simultaneous heap/fault/reopen
+acceptance still requires actual producer tests and independent integration review.
+
+### Cold completion: reversed-original-graph source contract, 2026-10-15
+
+**NEW PROPOSAL — source contract pending review; no implementation/acceptance claim.**
+Inspected baseline: `befffd5dd58e7fffb8b0e606a96a486d061d30b8`. This packet covers
+completion only; reviewed cancellation `2078e8e` remains a separate authority.
+Local MDOPv1, native-map v1 and all historical hashes/bytes remain unchanged.
+**Precise legacy blocker.** Persisted v1 does not supply every original graph input.
+`HistoryGraph.fingerprint` writes `policy != null`, then the graph constructor's
+compatibility `HistoryPolicy.quotaBytes/automaticCount`. This profile is independent
+of `builder.effective`: neither `HistoryArchiveManifest.freeze` nor P/D Binding
+persists its presence/values. Actual capture fixtures use both null and nonnull
+profiles. P persists effective quota/count, bootstrap, sourceHash and ledgerHash;
+map persists effective policy and graphHash, not the omitted constructor profile.
+The original `PrivateCapturePlan.initialControlHash` and writer physical baseline
+are also transient; they cannot be read back from their hashes or recreated as
+original in-memory objects. FullGraphHash binds original control bytes, but does
+not persist every old control/native file's original inode/mtime/ctime. Cold native
+discovery already intentionally establishes fresh anchors; it cannot prove absent
+pre-death anchors. Persisted ledger identities, where present, remain mandatory.
+
+Consequently arbitrary legacy-v1 original fullGraphHash reconstruction is **not
+source-ready for successful cold completion**. No existing authentic persisted
+original-profile witness was found in these seams. Do not guess null, substitute
+the effective/current profile, try candidate profiles against the hash, accept a
+caller profile DTO, or mint a missing-profile capability. A new portable-v2 witness
+is unavailable to these records. Report `MISSING_ORIGINAL_GRAPH_PROFILE` and issue
+no completion authority; existing cancellation may proceed if its own checks pass.
+This is a bounded fail-closed result, not authorization to change a format/product.
+For future portable-v2 B/C recovery, mandatory role4 graph-input witness must retain
+the exact original profile presence byte and, when present, i64 quota/i32 count
+bits; semantically compare it with typed reversal before any recovered binding.
+Current effective policy cannot substitute; A1 structural codec needs no new fields.
+The following freezes recoverable projection/capability obligations for review;
+unavailable inputs must stop before any promotion/publication.
+
+**Typed discovery/reversal algorithm (no general projection API).**
+
+1. Proposed package-private `HistoryPins.recoverCapture(UUID, Budget)` returns
+   `PrivateCaptureWriter.CapturedBinding`; take no P/map/Graph/hash/profile DTOs.
+   Under the canonical primary monitor and one administration lease, validate raw
+   typed enrollment/registration/policy chain, exact four roots/bootstrap, full
+   control/ledger funding and source-lifetime exclusions read-only; no fallback policy
+   or assumed installed readiness. Reserve metadata before decoding/retaining it.
+   Require exactly the selected typed P, its embedded BEGIN and derived LINK IDs.
+2. Require complete map, D and every declared private frame, each final or exact
+   complete stage, with real codecs, declared length/hash and bounded EOF. Check
+   identical P/D binding bytes and rows, D's map row/private order/flags, BEGIN's
+   D hash/length/count/domain2/authority, map's roles/policy/native rows and global
+   generated-ID uniqueness. Strict-decode frames without retaining payload arrays.
+   Verify actual typed native envelopes/edges/identities/reservation owners against
+   the whole map. Missing/partial/stale bytes cannot be reconstructed from hashes.
+3. Enumerate exact selected membership: P or full P.stage; selected directory;
+   namespace only if P.directoryMask bit0; each named artifact final XOR full stage;
+   embedded BEGIN final XOR full stage; derived LINK final XOR stage. Reject unknown
+   members, conflicts, symlinks, nonregular files and partial P/BEGIN unchanged.
+   Enforce producer order: P.stage cannot coexist with data/BEGIN/LINK; LINK needs
+   committed P+BEGIN; artifacts need committed P and the funded directory. A P.stage
+   without complete artifacts cannot satisfy completion; cancellation's separately
+   reviewed typed promotion remains available. Selected CLOSE/CLOSE.stage before
+   LINK permanently abandons activation. This packet grants no closed-capture reopen.
+4. Preserve existing LINK prefix rules: a bound partial LINK.stage consumes its
+   exact physical prefix/slot plus remaining173-byte credit, permits funded ordinary
+   writes, and grants no acknowledgement, repair or activation. Completion refuses
+   that partial prefix. Full exact stages alone may be synced/revalidated/promoted
+   by a specific typed transition, reusing persisted IDs and bytes, never rewriting.
+5. Build a private removal set only from the proven selected objects above; do not
+   remove a prefix, an old preparation, or a namespace predating P. Project original
+   control entries by removing selected P/BEGIN/LINK only. Re-run the same control
+   chain/pin/operation classifiers and allowance calculations on those typed entries;
+   do not filter diagnostic strings from the current scan. Original projected state
+   must independently be VALIDATED, complete, maintenance-free and without active pin.
+6. Project ledger entries/controlIdentities by removing only those selected objects;
+   retain namespace iff bit0 was clear. Recompute actual/reserved bytes/slots from
+   retained entries and old commitments, using the existing exact accounting rules.
+   Equivalently, subtract selected physical artifact bytes and selected occupied
+   entries; remove selected remaining data bytes/entry credits and P's missing-dir
+   credits. Complete artifacts have zero selected data credit; old partial stages,
+   missing directories/artifacts and their remaining credit stay exactly charged.
+   For control subtract selected P/BEGIN/LINK physical bytes/count and **only** their
+   unused BEGIN204/LINK173/CLOSE126 credits/slots. A full BEGIN.stage transfers CLOSE
+   ownership to pin inventory, so recompute rather than double-subtract that credit.
+   Check all nonnegative arithmetic and original aggregate data/control/slot limits.
+7. Original ledger presence is derived from retained physical namespace/commitments,
+   not selected pending. Re-derive pending and ADR-006 historicalCancelledOnly using
+   retained typed control/ledger: all old terminal-cancelled stages/reservations, old
+   closed captures and old physical identities remain. Pruning remains blocked.
+   Rehash the exact `private-operation-ledger-v1` stream: sorted controlIdentities
+   name/value; sorted data name/value; retained operation controls in control order
+   (name,length,envelopeHash-or-empty,stage); actual/reserved/occupied/reservedEntries;
+   projected controlReservedBytes/Entries; complete. Preserve Java writeUTF encoding.
+   Domain-convert presence/fingerprint with `PrivateCapturePlan.initialLedgerHash`
+   and compare P.binding.ledgerHash. Absent retains the exact legacy absent domain.
+8. Feed the private typed projection into the existing Graph builder/hasher while
+   scanning all native files normally; do not manufacture a Graph or clear current
+   diagnostics. Before installation, policy inputs require authentic witness/raw-chain
+   agreement, not graphPolicy fallback. Exact full hash input order is: `read-only-history-graph-v1`; four basenames;
+   constructor bootstrap quota; original nullable compatibility profile; control
+   presence, actualBytes/Entries, usageComplete, state, ordered control tuples
+   (filename,length,hash,stage); effective-policy presence/bundle/generation/hash/
+   quota/count; native+projected-operation actual, native reserved bytes/slots,
+   usageComplete; sorted native records (role,filename,id,kind,length,hash); typed
+   transactions (id,original,attempted,verified); independently derived sorted
+   diagnostics; `operation-ledger-binding-v1`/fingerprint iff projected ledger present.
+   Use the existing i32-length UTF8/null encodings, booleans and scalar widths.
+   Require original complete graph, empty derived diagnostics and map.graphHash
+   equality; ADR-006 permits only its independently proven historical pruning block.
+   The omitted original compatibility profile stops current v1 here (before writes).
+9. With every input independently available, recompute `native-capture-sources-v1`
+   through NativeCaptureFingerprint's real typed path: bundle/registration/bootstrap/
+   witness/raw-chain-proven generation/hash/quota/count; canonical role IDs/absolute root paths;
+   native envelope total/native reserved bytes/slots; native row count and sorted
+   role/name/length/hash tuples. Require P.binding.sourceHash equality. Do not replace
+   the full graph/initial-ledger checks with this separate native predicate.
+
+**Small capability/handoff boundary and ownership.**
+PrivateOperationStore would own private-constructible `ColdCompletion`: exact decoded
+P/D/map, private rows, projection, every selected/retained physical anchor, one fresh
+caller's Budget identity, lease/thread nonce and one-use state; no public constructor
+or hash-based factory. It must first reject the missing legacy graph input above.
+HistoryControlStore owns shared typed classification; HistoryGraph owns only its
+private capability-checked projection/hash seam; NativeCaptureFingerprint owns its
+typed cold entry without pretending that a PreparationSources owner exists.
+HistoryCapacity needs a future private recovery-capability seam, analogous to its
+terminal candidate: existing open/reconcile rejects pin/prepared stages and cannot
+supply initial readiness for full BEGIN.stage. Only after authentic witness, typed
+reversal, native/artifact and resource proofs may that seam establish/retain exact
+installed ready provenance before publication; no existing API supplies this today.
+V1 refuses missing profile before this seam or any promotion. Revalidate installed
+authority identity/readiness after every callback; ordinary reconciliation stays strict.
+HistoryOperations owns `claimColdCompletionLocked` and all gate/resource exclusions;
+HistoryPins owns exact prepared-BEGIN/LINK publication. PrivateCaptureWriter alone
+may construct its existing private CapturedBinding using an added private overload
+accepting this authentic completion proof, never arbitrary decoded records/null claim.
+
+A genuine restart discharges the dead process, never a registered same-process
+PreparationSources or OPEN/frozen/uncertain consumer. Require no preparation owner;
+selected gate absent or exact untouched epoch0 COLD_FROZEN; recheck foreign closed
+audits using the existing resource/running/posting/pending exclusions. Never clear,
+remove or reset owners. A separate cold claim is not cancellation's terminal claim.
+Keep one lease from final native/artifact/reversed-graph proof through exact BEGIN,
+LINK acknowledgement and consumption into the captured-binding handoff. Recheck
+all current hashes, selected/old file inode/type/length/mtime/ctime anchors, directory keys,
+installed authority identity/readiness, exclusions and aggregate credits after each callback. No
+provider/source callback runs locked; callbacks cannot request quiescence/activation.
+The new process cannot reuse the dead producer Budget: the one caller Budget becomes
+the recovery producer Budget; authentic binding/activation must require that exact
+object thereafter. Existing same-process original-Budget/source-proof handoff stays.
+Only durable LINK plus consumed authentic proof permits activateCaptured; preserve
+selected-own final completeness and all historical credits/anchors through activation.
+
+**Small changed-path proof gate (NOT RUN; implementation remains blocked).**
+
+- Fresh JVM1 creates/kills actual producer; fresh JVM2 must currently refuse missing
+  original-profile evidence without writes, then exercise eligible cancel-only
+  recovery with no LINK/binding/activation. A true completion-positive in a fresh JVM
+  is BLOCKED until authentic original input exists; no same-process fixture replaces it.
+- Once that blocker is resolved under review: exact full artifacts → BEGIN/LINK →
+  authentic activation/read/drain/CLOSE in a genuine fresh JVM, including zero-native
+  and old cancelled partial-stage/missing-dir baselines; second reopen keeps credits.
+- Changed reversed graph/native envelope/old stage/control/policy, same-byte inode
+  replacement during callbacks, last-callback ledger mutation and live/uncertain
+  owners must refuse without false activation or changed retained evidence.
+- Partial/conflicting P/BEGIN, partial/full LINK stages, selected pre-LINK CLOSE,
+  unknown paths and complete-stage promotion exercise precise refusal/promotion rules.
+- One simultaneous16MiB metadata budget covers native Graph/map/D/control/ledger,
+  projection/index copies, strings/anchors, native proof, frame-codec workspace and
+  captured source table/activation overlap; precharge once, stream <=65536-byte
+  buffers, measure affected peak and reject before over-allocation. No independent
+  scan/helper allowance. Run only affected checks now; broad batteries at completion.

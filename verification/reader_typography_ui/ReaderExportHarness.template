@@ -1,0 +1,11 @@
+package com.example.markdowndesk;
+import java.util.*;
+final class ReaderExportHarness {
+ static class Editor {String text="# Export";CharSequence getText(){return text;}}
+ static class Intent {String type;final Map<String,String> extras=new HashMap<>();Intent(String action){}Intent setType(String value){type=value;return this;}void putExtra(String key,String value){extras.put(key,value);}static Intent createChooser(Intent value,String title){return value;}}
+ static class ActivityNotFoundException extends RuntimeException{}
+ final Editor editor=new Editor();String displayName="Test.md",error;UiTheme.Palette palette=UiTheme.palette(0,false);float previewFontSp=18;ReaderTypography readerTypography=ReaderTypography.defaults();Intent sent;
+ void startActivity(Intent value){sent=value;}void showError(String value){error=value;}
+ /* SHARE_METHOD */
+ void share(boolean html){shareDocument(html);}
+}
