@@ -48,9 +48,23 @@ public final class ArchiveMarkdownIndexes {
                 .replaceAll("\\s+"," ").trim();
         if(clean.isEmpty())clean="Untitled";
         if(clean.length()>64)clean=clean.substring(0,64).trim();
-        String suffix=id==null?"no-id":id.replaceAll("[^A-Za-z0-9_-]", "_");
-        if(suffix.length()>64)suffix=suffix.substring(0,64);
-        return clean+"--"+suffix+".md";
+        // A truncated identifier alone is not unique: two long imported IDs
+        // can share the same first 64 characters and silently publish into
+        // the same sidecar. Append a digest of the ENTIRE stable identity.
+        String original=id==null?"no-id":id;
+        String visible=original.replaceAll("[^A-Za-z0-9_-]", "_");
+        if(visible.length()>42)visible=visible.substring(0,42);
+        String digest;
+        try {
+            byte[] hash=java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(original.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex=new StringBuilder(16);
+            for(int i=0;i<8;i++)hex.append(String.format(Locale.ROOT,"%02x",hash[i]&255));
+            digest=hex.toString();
+        } catch(java.security.NoSuchAlgorithmException missing) {
+            throw new IllegalStateException("SHA-256 unavailable",missing);
+        }
+        return clean+"--"+visible+"-"+digest+".md";
     }
     private static ArrayList<ArchiveJournal.Annotation> filter(Collection<ArchiveJournal.Annotation> rows,String chatId,boolean linksOnly){
         ArrayList<ArchiveJournal.Annotation> found=new ArrayList<>();
