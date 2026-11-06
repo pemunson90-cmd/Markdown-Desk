@@ -36,7 +36,7 @@ public final class ArchiveMarkdownIndexes {
     public static String replaceGeneratedRegion(String existing,String replacement) {
         if(existing==null||existing.isEmpty())return replacement;
         int start=existing.indexOf(BEGIN),end=existing.indexOf(END);
-        if(start<0&&end<0)return existing.stripTrailing()+"\n\n"+replacement;
+        if(start<0&&end<0)return existing.replaceFirst("\\s+$","")+"\n\n"+replacement;
         if(start<0||end<start)throw new IllegalArgumentException("Corrupted managed Markdown markers; original preserved");
         int rp= replacement.indexOf(BEGIN),re=replacement.indexOf(END);
         if(rp<0||re<rp)throw new IllegalArgumentException("Missing replacement markers");
@@ -91,7 +91,8 @@ public final class ArchiveMarkdownIndexes {
                 +"/"+enc(a.messageId)+"?link="+enc(a.id);
     }
     private static String enc(String value){
-        return URLEncoder.encode(value==null?"":value, StandardCharsets.UTF_8).replace("+","%20");
+        try{return URLEncoder.encode(value==null?"":value,"UTF-8").replace("+","%20");}
+        catch(java.io.UnsupportedEncodingException impossible){throw new IllegalStateException(impossible);}
     }
     private static String instant(long millis){return millis<=0?"unknown":Instant.ofEpochMilli(millis).toString();}
     private static String label(ArchiveJournal.Annotation a){return a.label==null||a.label.trim().isEmpty()?a.type:a.label;}
