@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Packaging repair only: portable, fail-fast, no generated signing identity.
-# Requires JDK 17+, Android SDK platform 35+ and build-tools 35+ (choose exact pins).
+# Requires JDK 17+, stable Android 17 SDK platform (API 37), and compatible stable build-tools.
+# Compile/target SDK 37; minSdk 35 supports Android 15, 16, and 17.
 # The Android minimum and target are read from AndroidManifest.xml, not hardcoded.
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
@@ -10,8 +11,8 @@ if [[ "${1:-}" == --unsigned ]]; then UNSIGNED=true; shift; fi
 [[ $# -le 1 ]] || { echo 'Usage: build.sh [--unsigned] [output-name]' >&2; exit 1; }
 : "${ANDROID_SDK_ROOT:=${ANDROID_HOME:-}}"
 : "${ANDROID_SDK_ROOT:?Set ANDROID_SDK_ROOT to an installed SDK}"
-ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-35}"
-ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-35.0.0}"
+ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-37}"
+ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-36.0.0}"
 BT="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS"
 ANDROID_JAR="$ANDROID_SDK_ROOT/platforms/$ANDROID_PLATFORM/android.jar"
 if ! $UNSIGNED; then
@@ -52,7 +53,7 @@ print(r.attrib[a+'versionCode']);print(r.attrib[a+'versionName'])
 sdk=r.find('uses-sdk')
 if sdk is None: raise SystemExit('Manifest must declare uses-sdk')
 minimum=int(sdk.attrib[a+'minSdkVersion']);target=int(sdk.attrib[a+'targetSdkVersion'])
-if minimum<35 or target<minimum: raise SystemExit('Unsupported Android API range; require API 35+')
+if minimum<35 or target<37: raise SystemExit('Unsupported Android SDK contract; require minSdk 35+ and targetSdk 37+')
 print(minimum);print(target)
 XML
 )
