@@ -37,6 +37,8 @@ import com.example.markdowndesk.workspace.archive.ArchiveNotebookPane;
 import com.example.markdowndesk.workspace.archive.ConversationTabs;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveCitations;
+import com.example.markdowndesk.workspace.archive.ArchiveScrollScript;
+import com.example.markdowndesk.workspace.archive.ArchiveViewport;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
@@ -95,6 +97,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private Uri notesTree;
     private String viewMode="home";
     private ArrayList<ArchiveDatabase.Message> visibleMessages=new ArrayList<>();
+    // The viewport caps DOM nodes, NOT the number of accessible messages.
+    private ArchiveViewport viewport;
+    private String viewportChatId;
+    private boolean adjacentLoading, chunkLoading;
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
@@ -311,7 +317,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return null;
     }
     private void openChat(ArchiveDatabase.Conversation c){
-        active=c;viewMode="reader";pendingFindTerm=null;
+        active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;
         savedScroll=prefs.getInt("archive_chat_scroll_"+c.id,0);
@@ -327,6 +333,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         }
         refreshConversationTabs();
         final int token=++generation;
+        adjacentLoading=false;chunkLoading=false;
+        if(viewport==null||!active.id.equals(viewportChatId)||viewport.total()!=active.messages){
+            viewport=new ArchiveViewport(active.messages,
+                    focusOrdinal>=0?focusOrdinal:windowOffset);
+            viewportChatId=active.id;
+        }
         if(keepScroll && reader!=null)savedScroll=reader.getScrollY();
         final boolean restorePosition=keepScroll||restoreLastPosition;
         final int targetScroll=Math.max(0,savedScroll);
@@ -410,8 +422,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
         io.execute(()->{
             try{
+                ArchiveViewport initial=viewport;
                 List<ArchiveDatabase.Message> messages=database.messages(active.id,
-                        targetOrdinal>=0?targetOrdinal:start,targetOrdinal>=0?1:WINDOW_MESSAGES);
+                        targetOrdinal>=0?targetOrdinal:initial.start(),
+                        targetOrdinal>=0?1:initial.end()-initial.start());
                 String html=renderMessages(messages,targetOrdinal,targetChunk);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||generation!=token)return;
@@ -444,18 +458,41 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         showReader(false);
     }
     private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset){
-        // Reuse the exact Markdown renderer and CSS used by the Markdown reader.
+        // The shared renderer provides exactly the same CSS/Markdown as normal Read.
         String shell=MarkdownRenderer.render("",palette,fontSp,typography);
         int body=shell.indexOf("<body");
         int start=body<0?-1:shell.indexOf('>',body);
         int end=shell.lastIndexOf("</body>");
-        if(start<0||end<start)throw new IllegalStateException("Renderer produced unexpected HTML");
+        if(start<0||end<start)throw new IllegalStateException("Renderer returned invalid HTML shell");
+        boolean continuous=onlyOrdinal<0;
         StringBuilder html=new StringBuilder(shell.substring(0,start+1));
         html.append("<style>.archive-msg{padding:13px 10px;margin:9px 0;border-radius:12px;border:1px solid ")
                 .append(css(palette.border)).append("}.archive-msg.chat{margin-left:18px}")
                 .append(".archive-meta{font-size:.78em;opacity:.83;margin-bottom:9px}")
-                .append(".archive-more{display:block;padding:14px;min-height:44px}</style>");
-        if(messages.isEmpty())html.append("<p>No messages on this page.</p>");
+                .append(".archive-more{display:block;padding:14px;min-height:44px}")
+                .append(".archive-sentinel{display:block;padding:16px;min-height:44px;text-align:center}</style>");
+        if(continuous){
+            html.append("<a id=\"archive-before\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=-1\" data-more=\"")
+                .append(viewport.hasBefore()?"1":"0").append("\"")
+                .append(viewport.hasBefore()?"":" hidden").append(">Earlier messages</a>")
+                .append("<div id=\"archive-stream\">");
+        }
+        html.append(renderMessageSections(messages,onlyOrdinal,partOffset));
+        if(continuous){
+            html.append("</div><a id=\"archive-after\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=1\" data-more=\"")
+                .append(viewport.hasAfter()?"1":"0").append("\"")
+                .append(viewport.hasAfter()?"":" hidden").append(">More messages</a>")
+                .append(ArchiveScrollScript.boot());
+        }else{
+            html.append("<a class=\"archive-more\" href=\"mdarchive://return\">Return to conversation</a>");
+        }
+        html.append(shell.substring(end));
+        return html.toString();
+    }
+    /** Standalone HTML sections used for both the initial page and in-place DOM insertion. */
+    private String renderMessageSections(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset){
+        StringBuilder html=new StringBuilder();
+        if(messages.isEmpty())html.append("<p>No messages in this conversation.</p>");
         for(ArchiveDatabase.Message m:messages){
             int part=onlyOrdinal<0?0:partOffset;
             String content=database.textChunk(m.id,part,CHUNK_PARTS);
@@ -469,30 +506,124 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append("<div class=\"archive-meta\">").append(escape(m.role))
                 .append(" · ").append(escape(m.created))
                 .append(" · #").append(m.ordinal+1).append("</div>")
-                .append("<div class=\"archive-content\">")
-                .append(rendered,opening+1,closing).append("</div>");
+                .append("<div class=\"archive-content\"><div class=\"archive-part\">")
+                .append(rendered,opening+1,closing).append("</div></div>");
             if(more){
-                html.append("<a class=\"archive-more\" href=\"mdarchive://continue?ordinal=")
+                html.append("<a class=\"archive-more\" data-autoload=\"1\" href=\"")
+                    .append(onlyOrdinal<0?"mdarchive://chunk?ordinal=":"mdarchive://continue?ordinal=")
                     .append(m.ordinal).append("&part=").append(part+CHUNK_PARTS)
-                    .append("\">Continue full message (next section)</a>");
+                    .append("\">More of this message</a>");
             }else if(part>0){
                 html.append("<a href=\"mdarchive://return?ordinal=").append(m.ordinal)
                     .append("\">Back to message beginning</a>");
             }
             html.append("</section>");
         }
-        if(onlyOrdinal>=0)html.append("<a class=\"archive-more\" href=\"mdarchive://return?ordinal=")
-                .append(onlyOrdinal).append("\">Return to conversation</a>");
-        else if(windowOffset+messages.size()<active.messages)html.append("<a class=\"archive-more\" href=\"mdarchive://next\">Next messages →</a>");
-        if(windowOffset>0)html.append("<a class=\"archive-more\" href=\"mdarchive://previous\">← Previous messages</a>");
-        html.append(shell.substring(end));
         return html.toString();
+    }
+    /** Reads one adjacent batch and inserts it without recreating the WebView. */
+    private void loadAdjacent(int direction){
+        if(direction!=1&&direction!=-1)return;
+        if(adjacentLoading||focusOrdinal>=0||active==null||viewport==null||reader==null)return;
+        final ArchiveViewport window=viewport;
+        final ArchiveViewport.Load load=direction>0?window.after():window.before();
+        if(load==null)return;
+        final int token=generation;
+        final PreviewWebView web=reader;
+        final String chatId=active.id;
+        adjacentLoading=true;
+        io.execute(()->{
+            try{
+                List<ArchiveDatabase.Message> batch=database.messages(chatId,load.offset,load.count);
+                if(batch.size()!=load.count)throw new IOException("Archive index changed during reading");
+                String fragments=renderMessageSections(batch,-1,0);
+                runOnUiThread(()->{
+                    if(token!=generation||web!=reader||active==null||!chatId.equals(active.id))return;
+                    int excess=Math.max(0,window.end()-window.start()+batch.size()-ArchiveViewport.MAX_VISIBLE);
+                    int futureStart=direction>0?window.start()+excess:load.offset;
+                    int futureEnd=direction>0?window.end()+batch.size():window.end()-excess;
+                    String command=ArchiveScrollScript.insert(fragments,direction,excess,
+                            futureStart>0,futureEnd<window.total());
+                    web.evaluateJavascript(command,accepted->{
+                        if(token!=generation||web!=reader)return;
+                        adjacentLoading=false;
+                        if(!"true".equals(accepted)){
+                            web.evaluateJavascript("window.mdArchiveRelease&&window.mdArchiveRelease()",null);
+                            return;
+                        }
+                        window.insert(load,batch.size());
+                        windowOffset=window.start();
+                        // Updating tab state only after confirmed DOM insertion avoids
+                        // a mismatch when a newer mode/document invalidates the result.
+                        prefs.edit().putInt("archive_chat_position_"+chatId,windowOffset).apply();
+                        if(direction>0){
+                            visibleMessages.addAll(batch);
+                            while(visibleMessages.size()>ArchiveViewport.MAX_VISIBLE)visibleMessages.remove(0);
+                        }else{
+                            visibleMessages.addAll(0,batch);
+                            while(visibleMessages.size()>ArchiveViewport.MAX_VISIBLE)
+                                visibleMessages.remove(visibleMessages.size()-1);
+                        }
+                    });
+                });
+            }catch(Exception e){runOnUiThread(()->{
+                if(token!=generation||web!=reader)return;
+                adjacentLoading=false;
+                web.evaluateJavascript("window.mdArchiveRelease&&window.mdArchiveRelease()",null);
+                fail("Could not load adjacent conversation messages",e);
+            });}
+        });
+    }
+    private void loadChunk(int ordinal,int startPart){
+        if(chunkLoading||focusOrdinal>=0||active==null||reader==null)return;
+        if(ordinal<0||ordinal>=active.messages||startPart<0)return;
+        final int token=generation;
+        final String chat=active.id;
+        final PreviewWebView web=reader;
+        chunkLoading=true;
+        io.execute(()->{
+            try{
+                ArchiveDatabase.Message message=database.messageAt(chat,ordinal);
+                if(message==null||startPart>=message.segments)
+                    throw new IOException("Message section no longer exists");
+                String chunk=database.textChunk(message.id,startPart,CHUNK_PARTS);
+                String rendered=MarkdownRenderer.render(chunk,palette,fontSp,typography);
+                int body=rendered.indexOf("<body");
+                int begin=body<0?-1:rendered.indexOf('>',body);
+                int end=rendered.lastIndexOf("</body>");
+                if(begin<0||end<begin)throw new IOException("Markdown fragment framing failed");
+                int next=startPart+CHUNK_PARTS;
+                String command=ArchiveScrollScript.appendChunk(ordinal,
+                        rendered.substring(begin+1,end),next,next<message.segments);
+                runOnUiThread(()->{
+                    if(token!=generation||reader!=web||active==null||!chat.equals(active.id))return;
+                    web.evaluateJavascript(command,result->{
+                        if(token!=generation||reader!=web)return;
+                        chunkLoading=false;
+                        if(!"true".equals(result))
+                            web.evaluateJavascript("window.mdArchiveChunkRelease&&window.mdArchiveChunkRelease()",null);
+                    });
+                });
+            }catch(Exception e){runOnUiThread(()->{
+                if(token!=generation||reader!=web)return;
+                chunkLoading=false;
+                web.evaluateJavascript("window.mdArchiveChunkRelease&&window.mdArchiveChunkRelease()",null);
+                fail("Unable to load message section",e);
+            });}
+        });
     }
     private static String css(int color){return String.format(Locale.ROOT,"#%06x",color&0xffffff);}
     private static String escape(String s){return s==null?"":s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;");}
     private void localAction(Uri uri){
         String host=uri.getHost();
-        if("next".equals(host))navigateWindow(WINDOW_MESSAGES);
+        if("adjacent".equals(host)){
+            try{loadAdjacent(Integer.parseInt(uri.getQueryParameter("direction")));}
+            catch(RuntimeException ignored){status("Could not navigate conversation");}
+        }else if("chunk".equals(host)){
+            try{loadChunk(Integer.parseInt(uri.getQueryParameter("ordinal")),
+                    Integer.parseInt(uri.getQueryParameter("part")));}
+            catch(RuntimeException ignored){status("Cannot load message section");}
+        }else if("next".equals(host))navigateWindow(WINDOW_MESSAGES);
         else if("previous".equals(host))navigateWindow(-WINDOW_MESSAGES);
         else if("continue".equals(host)){
             try{focusOrdinal=Integer.parseInt(uri.getQueryParameter("ordinal"));
@@ -506,6 +637,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(active==null)return;
         windowOffset=Math.max(0,Math.min(Math.max(0,active.messages-1),windowOffset+step));
         windowOffset=(windowOffset/WINDOW_MESSAGES)*WINDOW_MESSAGES;
+        viewport=null;viewportChatId=null;
         focusOrdinal=-1;chunkOffset=0;savedScroll=0;pendingFindTerm=null;
         prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset)
                 .putInt("archive_chat_scroll_"+active.id,0).apply();
@@ -521,6 +653,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     int n=Integer.parseInt(input.getText().toString().trim());
                     if(n<1||n>active.messages){status("Number outside conversation");return;}
                     windowOffset=((n-1)/WINDOW_MESSAGES)*WINDOW_MESSAGES;
+                    viewport=null;viewportChatId=null;
                     focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
                 }catch(NumberFormatException bad){status("Enter a message number");}
             }).setNegativeButton("Cancel",null).show();
@@ -864,8 +997,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }catch(Exception e){runOnUiThread(()->fail("Could not copy master index",e));}
         });
     }
-    private void chooseNotesFolder(){
-        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+    private void chooseNotesFolder(){        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         try{startActivityForResult(intent,REQUEST_NOTES_TREE);}
