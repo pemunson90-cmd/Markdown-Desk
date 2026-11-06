@@ -1,5 +1,11 @@
 # Build, test, and release gates
 
+## Android compatibility (owner decision, 2026-11-06)
+- Support current stable Android and previous two major versions only: Android 15/API35 through Android 17/API37 as of this decision. No Android 14/API34 or older test/compatibility obligation.
+- The signed manifest minimum and D8/aapt2 minimum must agree at API35. Target SDK is separately reviewed.
+- Preserve all existing user data, in-place upgrades, and functional features regardless of reduced OS compatibility.
+
+
 ## Owner full-scope delivery gate (2026-11-06)
 - For a requested new feature or integrated upgrade, **do not generate/sign/offer a user-facing APK** until **every requested feature is implemented together**, integrated into the real app, and the applicable local bug, dependency, regression, safety and packaging checks have passed. Internal checkpoints and partial green tests are not deliverables.
 - No staged test releases or versionCode churn merely to demonstrate partial progress. A separately requested bug-fix update or explicit owner milestone is the exception.
