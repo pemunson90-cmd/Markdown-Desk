@@ -7,6 +7,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -49,12 +50,28 @@ public final class JsonExplorerActivity extends Activity {
 
     static boolean looksLikeJson(Context context, Uri uri) {
         if (uri==null || !"content".equalsIgnoreCase(uri.getScheme())) return false;
-        String type=context.getContentResolver().getType(uri);
-        if (type!=null && ("application/json".equalsIgnoreCase(type)
-                || "text/json".equalsIgnoreCase(type)
-                || type.toLowerCase(Locale.ROOT).endsWith("+json"))) return true;
-        String name=DocumentIO.metadata(context.getContentResolver(),uri).displayName;
-        return name!=null && name.toLowerCase(Locale.ROOT).endsWith(".json");
+        try {
+            String type=context.getContentResolver().getType(uri);
+            if (type!=null && ("application/json".equalsIgnoreCase(type)
+                    || "text/json".equalsIgnoreCase(type)
+                    || type.toLowerCase(Locale.ROOT).endsWith("+json"))) return true;
+        } catch (RuntimeException providerUnavailable) {
+            // A provider may reject MIME inspection despite a valid read grant.
+        }
+        try (Cursor cursor=context.getContentResolver().query(
+                uri,new String[]{"_display_name"},null,null,null)) {
+            if(cursor!=null && cursor.moveToFirst()) {
+                int index=cursor.getColumnIndex("_display_name");
+                if(index>=0 && !cursor.isNull(index)) {
+                    String name=cursor.getString(index);
+                    if(name!=null && name.toLowerCase(Locale.ROOT).endsWith(".json")) return true;
+                }
+            }
+        } catch (RuntimeException providerUnavailable) {
+            // Content URI display-name inspection is optional; do not probe writes.
+        }
+        String fallback=uri.getLastPathSegment();
+        return fallback!=null && fallback.toLowerCase(Locale.ROOT).endsWith(".json");
     }
 
     @Override public void onCreate(Bundle state) {
