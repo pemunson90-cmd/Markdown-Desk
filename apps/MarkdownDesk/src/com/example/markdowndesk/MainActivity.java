@@ -66,7 +66,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /* JADX INFO: loaded from: classes.dex */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements com.example.markdowndesk.workspace.WorkspaceRouter.SafeExit {
     private static final int MAX_TABS = 12;
     private static final int MODE_EDIT = 0;
     private static final int MODE_PREVIEW = 1;
@@ -248,6 +248,7 @@ public class MainActivity extends Activity {
         buildInterface();
         showLaunchSplash();
         restoreSessionOrRecovery(getIntent());
+        handleWorkspaceEntryIntent(getIntent());
     }
 
     @Override // android.app.Activity
@@ -255,6 +256,33 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         handleIntent(intent);
+        handleWorkspaceEntryIntent(intent);
+    }
+
+    /** Archive's shared Files button reaches the existing protected Files hub.
+     * Requests are one-shot; a repeated intent must not toggle an open rail off.
+     */
+    private void handleWorkspaceEntryIntent(Intent intent) {
+        if(intent==null || !intent.getBooleanExtra(
+                com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_OPEN_FILES,false))return;
+        intent.removeExtra(com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_OPEN_FILES);
+        this.root.post(()->{
+            if(isFinishing()||isDestroyed())return;
+            if(this.workspaceDialog!=null||this.filesRailRequested)return;
+            showFilesNavigator();
+        });
+    }
+
+    /** Existing confirmUnsaved() owns save, recovery, and the explicit discard
+     * decision. Never close the editor on a timer or before its continuation.
+     */
+    @Override public void requestSafeWorkspaceExit(Runnable afterSaveOrExplicitDiscard) {
+        if(afterSaveOrExplicitDiscard==null)return;
+        confirmUnsaved(()->{
+            captureActiveTab();
+            writeSessionNow();
+            afterSaveOrExplicitDiscard.run();
+        });
     }
 
     @Override // android.app.Activity, android.content.ComponentCallbacks
