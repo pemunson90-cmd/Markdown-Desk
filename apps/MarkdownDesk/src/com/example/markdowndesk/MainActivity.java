@@ -4448,6 +4448,11 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchJsonOpen();
         }), matchWrap());
+        content.addView(filesAction("Claude Archive & Research",
+                "Full conversations · search · annotations · saved links · Markdown indexes", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            startActivity(new Intent(this, ArchiveWorkspaceActivity.class));
+        }), matchWrap());
 
         final List<RecentStore.Item> recent=RecentStore.read(this);
         {
