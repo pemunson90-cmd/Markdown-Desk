@@ -1,3 +1,9 @@
+## Android OS support window — owner directive (2026-11-06)
+
+**Support only the current stable Android major version and the two immediately preceding major versions.** As of 2026-11-06 Android 17 (API 37) is stable; therefore support **Android 15–17 (minimum API 35)**. Do not maintain or test OS-specific compatibility with Android 14/API 34 or earlier. Keep the manifest, compiler/D8 minimum, dependencies, and device-test matrix consistent. Re-evaluate the two-version window at the next integrated release after newer stable Android releases; do not raise requirements silently mid-development. A *target SDK* change is separate, with its own behavior checks.
+
+**This changes supported Android OS versions, not user-data compatibility.** Preserve in-place updates, documents, saved work, annotations, settings, existing working features, and the canonical signing identity. This directive takes precedence over older API 26 language.
+
 ## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
 
 **When the owner assigns a build, upgrade, integration, or feature set, finish the ENTIRE requested scope.** Do not silently narrow it, substitute an MVP, postpone a requested feature, call a partial implementation "done", or end the assignment merely because one subsystem compiles or passes a test. "Everything" means the full authorized request; only the owner may expressly change the scope.
