@@ -54,7 +54,7 @@ XML
 "$BT/aapt2" compile --dir "$PROJ/res" -o "$OUT/compiled/res.zip"
 "$BT/aapt2" link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
  --manifest "$PROJ/AndroidManifest.xml" -A "$PROJ/assets" --java "$OUT/gen" \
- --min-sdk-version 26 --target-sdk-version 35 \
+ --min-sdk-version 35 --target-sdk-version 35 \
  --version-code "${VERSION[0]}" --version-name "${VERSION[1]}" "$OUT/compiled/res.zip"
 # Javac argfile paths are quoted; an ordinary extracted path may contain spaces.
 python3 - <<'SOURCES'
@@ -74,7 +74,7 @@ if not files:raise SystemExit('No class files')
 with ZipFile('build/classes.jar','w') as z:
  for p in files:z.writestr(ZipInfo(str(p.relative_to(root)),(1980,1,1,0,0,0)),p.read_bytes())
 CLASSES
-"$BT/d8" --min-api 26 --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
+"$BT/d8" --min-api 35 --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
 test -s "$OUT/dex/classes.dex"
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
 (cd "$OUT/dex" && zip -q -X "$OUT/unsigned.apk" classes*.dex)
