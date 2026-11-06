@@ -43,3 +43,7 @@ No hosted workflow contains private keystores or signing passwords. Run a signed
 ## Acceptance boundaries
 
 Host simulation: runnable now. Emulator/device/actual provider, process death and Fold: separately evidenced. Release: strictly greater versionCode, canonical signature, non-destructive migration, and actual user device acceptance. No new installable APK becomes a release merely because a host workflow is green.
+
+## Deliberate JSON/Archive packaging
+
+`json-explorer-unsigned.yml` is manual-dispatch only. Batch related local commits before one checkpoint push; pushing source does not request an APK. Its compile, focused checks, artifact retention and concurrency protection remain intact. The normal review-ready host PR gate is unchanged. Manually dispatch an exact reviewed branch only when independent hosted verification is needed and the owner full-scope delivery gate permits packaging. No workflow was dispatched by the efficiency repair.

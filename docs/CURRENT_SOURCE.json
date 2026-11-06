@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "development": {
+    "branch": "feature/unified-workspaces-20261106",
+    "anchor_commit": "6b95d5876caf9d3d1f81bc9455bef4c90a0fdc67",
+    "manifest": {
+      "package": "com.example.markdowndesk",
+      "version_code": 38,
+      "version_name": "2.5.0-unified-workspaces"
+    }
+  },
+  "installed": {
+    "status": "unconfirmed",
+    "commit": null,
+    "note": "Code38 is the latest recorded candidate, not proof of installation or owner acceptance. Preserve the installed application and data. Verify its identity before release."
+  },
+  "execution": {
+    "status": "unknown",
+    "observed_utc": "2026-11-06T20:58:43Z",
+    "note": "Repository inspection cannot establish whether the originating product worker is running. This isolated audit branch claims no product ownership."
+  },
+  "evidence": [
+    "docs/verification/MARKDOWN_DESK_UNIFIED_WORKSPACES_CODE38.md",
+    "docs/verification/ARCHIVE_CODE37_READER_SAFETY_FOLLOWUP_20261106.md"
+  ],
+  "next_action": "Check the originating unified-workspaces task and existing owner before assignments. Continue the full requested integration from the latest preserved source; do not issue an intermediate APK. Apply audit fixes only at a safe checkpoint and retain feature-parity, data-safety, signature and Fold7 gates."
+}
