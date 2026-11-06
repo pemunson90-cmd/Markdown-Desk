@@ -86,6 +86,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_PROTECTED_COPY = 1004;
     private static final int REQUEST_CREATE = 1002;
     private static final int REQUEST_OPEN = 1001;
+    private static final int REQUEST_JSON = 1013;
     private static final int REQUEST_SPLASH_IMPORT = 1003;
     // Accessed only by the single I/O executor; the trusted Android parent may be an OS alias.
     private ProtectionStore protectionStore;
@@ -2007,14 +2008,34 @@ public class MainActivity extends Activity {
     }
 
     private void launchOpen() {
-        Intent type = new Intent("android.intent.action.OPEN_DOCUMENT").addCategory("android.intent.category.OPENABLE").setType("text/*");
-        type.putExtra("android.intent.extra.MIME_TYPES", new String[]{"text/markdown", "text/x-markdown", "text/plain", "application/markdown"});
+        Intent type = new Intent("android.intent.action.OPEN_DOCUMENT").addCategory("android.intent.category.OPENABLE").setType("*/*");
+        type.putExtra("android.intent.extra.MIME_TYPES", new String[]{"text/markdown", "text/x-markdown", "text/plain", "application/markdown", "application/json", "text/json"});
         type.addFlags(67);
         try {
             startActivityForResult(type, REQUEST_OPEN);
         } catch (ActivityNotFoundException e) {
             showError("No document picker is available on this device.");
         }
+    }
+
+    /** JSON is deliberately explored outside the Markdown editor's 8 MB edit boundary. */
+    private void launchJsonOpen() {
+        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(picker, REQUEST_JSON); }
+        catch (ActivityNotFoundException missing) { showError("No document picker is available on this device."); }
+    }
+
+    private void openJsonExplorer(Uri uri) {
+        if (uri == null || !"content".equalsIgnoreCase(uri.getScheme())) {
+            showError("JSON Explorer only opens documents supplied through Android Files.");
+            return;
+        }
+        Intent explorer = new Intent(this, JsonExplorerActivity.class)
+                .setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(explorer);
     }
 
     private void launchSaveAs() {
@@ -2060,6 +2081,12 @@ public class MainActivity extends Activity {
             String snapshotId = this.restoreSnapshotId;
             this.restoreSnapshotId = null;
             if (snapshotId != null && !this.saveInProgress) restoreProtectedCopy(snapshotId, data);
+            return;
+        }
+        if (i == REQUEST_JSON || i == REQUEST_OPEN && JsonExplorerActivity.looksLikeJson(this, data)) {
+            if (JsonExplorerActivity.looksLikeJson(this, data)) {
+                openJsonExplorer(data);
+            } else showError("The selected file is not a JSON document.");
             return;
         }
         if (i != REQUEST_OPEN) {
@@ -2116,7 +2143,11 @@ public class MainActivity extends Activity {
         if ("android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action)) {
             if (intent.getData() != null) {
                 takePermission(intent.getData(), intent.getFlags());
-                openDocument(intent.getData(), intent.getFlags(), false, Intent.ACTION_VIEW.equals(action));
+                if (JsonExplorerActivity.looksLikeJson(this, intent.getData())) {
+                    openJsonExplorer(intent.getData());
+                } else {
+                    openDocument(intent.getData(), intent.getFlags(), false, Intent.ACTION_VIEW.equals(action));
+                }
                 return;
             }
             return;
@@ -2125,7 +2156,11 @@ public class MainActivity extends Activity {
             Uri uriStreamFrom = streamFrom(intent);
             if (uriStreamFrom != null) {
                 takePermission(uriStreamFrom, intent.getFlags());
-                openDocument(uriStreamFrom, intent.getFlags(), false);
+                if (JsonExplorerActivity.looksLikeJson(this, uriStreamFrom)) {
+                    openJsonExplorer(uriStreamFrom);
+                } else {
+                    openDocument(uriStreamFrom, intent.getFlags(), false);
+                }
                 return;
             }
             CharSequence charSequenceExtra = intent.getCharSequenceExtra("android.intent.extra.TEXT");
@@ -4410,6 +4445,11 @@ public class MainActivity extends Activity {
         content.addView(filesAction("Browse files", "Android Files · folders, Downloads, search and providers", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchOpen();
+        }), matchWrap());
+        content.addView(filesAction("Explore JSON / Claude export",
+                "Browse JSON and read Claude conversations without editing the source", view -> {
+            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
+            launchJsonOpen();
         }), matchWrap());
 
         final List<RecentStore.Item> recent=RecentStore.read(this);
