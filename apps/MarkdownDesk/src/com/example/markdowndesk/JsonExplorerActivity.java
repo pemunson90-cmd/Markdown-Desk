@@ -84,6 +84,8 @@ public final class JsonExplorerActivity extends Activity {
         SharedPreferences prefs=getSharedPreferences("markdown_desk",MODE_PRIVATE);
         palette=UiTheme.palette(prefs.getInt("ui_theme",0),prefs.getBoolean("dark_theme",false));
         document=getIntent()==null?null:getIntent().getData();
+        if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
+            document=Uri.parse(state.getString("jsonDocumentUri"));
         if (document!=null && !"content".equalsIgnoreCase(document.getScheme())) document=null;
         if (state!=null) {
             ArrayList<String> names=state.getStringArrayList("jsonPathNames");
@@ -101,6 +103,7 @@ public final class JsonExplorerActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
+        if(document!=null) state.putString("jsonDocumentUri",document.toString());
         ArrayList<String> names=new ArrayList<>();
         int[] indices=new int[path.size()];
         for(int i=0;i<path.size();i++) {
