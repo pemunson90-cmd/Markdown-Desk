@@ -450,7 +450,8 @@ public final class MarkdownRenderer {
         while (link.find()) {
             String href = link.group(2).trim();
             String rendered;
-            if (href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:")) {
+            if (href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:")
+                    || com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(href)) {
                 rendered = "<a href=\"" + href + "\">" + link.group(1) + "</a>";
             } else {
                 rendered = "<span class=\"link\">" + link.group(1) + "</span>";
