@@ -39,6 +39,8 @@ import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveCitations;
 import com.example.markdowndesk.workspace.archive.ArchiveScrollScript;
 import com.example.markdowndesk.workspace.archive.ArchiveHighlightScript;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchDialog;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
 import com.example.markdowndesk.workspace.archive.ArchiveViewport;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
@@ -86,6 +88,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private ConversationTabs conversationTabs;
     private HorizontalScrollView readerNavigation;
     private String pendingFindTerm;
+    private ArchiveSearchSpec currentSearch;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
@@ -771,11 +774,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
 
     private void searchDialog(String scopedChat){
-        EditText input=new EditText(this);input.setSingleLine(true);input.setHint("Exact phrase in indexed messages");
-        input.setText(query);input.setSelectAllOnFocus(true);
-        new AlertDialog.Builder(this).setTitle(scopedChat==null?"Search all conversations":"Find in this conversation")
-            .setView(input).setPositiveButton("Find",(d,w)->showSearch(input.getText().toString(),scopedChat,0))
-            .setNegativeButton("Cancel",null).show();
+        ArchiveSearchDialog.show(this,scopedChat,currentSearch,spec->{
+            currentSearch=spec;
+            showSearch(spec.term,scopedChat,0);
+        });
     }
     private void showSearch(String term,String scope,int offset){
         query=term;viewMode="search";
@@ -786,10 +788,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         final int token=++generation;
         io.execute(()->{
             try{
-                List<ArchiveDatabase.Hit> hits=database.search(term,scope,60,offset);
+                ArchiveSearchSpec options=currentSearch;
+                List<ArchiveDatabase.Hit> hits=database.search(term,scope,
+                        options==null?null:options.speaker,
+                        options==null?null:options.fromDate,
+                        options==null?null:options.toDate,60,offset);
                 List<ArchiveJournal.Annotation> notes=new ArrayList<>();
                 String noteWarning=null;
-                if(offset==0){
+                if(offset==0 && (currentSearch==null||!currentSearch.filtersMessagesOnly())){
                     try{notes=ArchiveAnnotationSearch.find(new java.io.File(getFilesDir(),
                             "claude-archive/annotations-v2.journal"),term,scope,100);}
                     catch(IOException sourceUnavailable){noteWarning="Note search is unavailable until its journal is repaired.";}
@@ -812,6 +818,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         });
                     }
                     if(warning!=null)rows.addView(text(warning,13));
+                    if(currentSearch!=null&&currentSearch.filtersMessagesOnly())
+                        rows.addView(text("Speaker/date filters apply to source messages. Clear filters to search saved notes too.",12));
                     if(!matchedNotes.isEmpty()){
                         rows.addView(text("MATCHING NOTES, HIGHLIGHTS & SAVED LINKS",14));
                         for(ArchiveJournal.Annotation note:matchedNotes){
