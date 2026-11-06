@@ -2018,14 +2018,11 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** JSON is deliberately explored outside the Markdown editor's 8 MB edit boundary. */
+    /** JSON is explored outside the Markdown editor's 8 MiB edit boundary. */
     private void launchJsonOpen() {
-        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
-        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        try { startActivityForResult(picker, REQUEST_JSON); }
-        catch (ActivityNotFoundException missing) { showError("No document picker is available on this device."); }
+        // The explorer offers both persistent DocumentsUI and temporary
+        // ACTION_GET_CONTENT sources (e.g. Samsung My Files when available).
+        startActivity(new Intent(this, JsonExplorerActivity.class));
     }
 
     private void openJsonExplorer(Uri uri) {
