@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Packaging repair only: portable, fail-fast, no generated signing identity.
 # Requires JDK 17+, Android SDK platform 35+ and build-tools 35+ (choose exact pins).
+# The Android minimum and target are read from AndroidManifest.xml, not hardcoded.
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 PROJ="$PWD"
@@ -48,13 +49,18 @@ mapfile -t VERSION < <(python3 - <<'XML'
 import xml.etree.ElementTree as E
 r=E.parse('AndroidManifest.xml').getroot();a='{http://schemas.android.com/apk/res/android}'
 print(r.attrib[a+'versionCode']);print(r.attrib[a+'versionName'])
+sdk=r.find('uses-sdk')
+if sdk is None: raise SystemExit('Manifest must declare uses-sdk')
+minimum=int(sdk.attrib[a+'minSdkVersion']);target=int(sdk.attrib[a+'targetSdkVersion'])
+if minimum<35 or target<minimum: raise SystemExit('Unsupported Android API range; require API 35+')
+print(minimum);print(target)
 XML
 )
-[[ ${#VERSION[@]} == 2 ]]
+[[ ${#VERSION[@]} == 4 ]]
 "$BT/aapt2" compile --dir "$PROJ/res" -o "$OUT/compiled/res.zip"
 "$BT/aapt2" link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
  --manifest "$PROJ/AndroidManifest.xml" -A "$PROJ/assets" --java "$OUT/gen" \
- --min-sdk-version 26 --target-sdk-version 35 \
+ --min-sdk-version "${VERSION[2]}" --target-sdk-version "${VERSION[3]}" \
  --version-code "${VERSION[0]}" --version-name "${VERSION[1]}" "$OUT/compiled/res.zip"
 # Javac argfile paths are quoted; an ordinary extracted path may contain spaces.
 python3 - <<'SOURCES'
@@ -74,7 +80,7 @@ if not files:raise SystemExit('No class files')
 with ZipFile('build/classes.jar','w') as z:
  for p in files:z.writestr(ZipInfo(str(p.relative_to(root)),(1980,1,1,0,0,0)),p.read_bytes())
 CLASSES
-"$BT/d8" --min-api 26 --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
+"$BT/d8" --min-api "${VERSION[2]}" --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
 test -s "$OUT/dex/classes.dex"
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
 (cd "$OUT/dex" && zip -q -X "$OUT/unsigned.apk" classes*.dex)
