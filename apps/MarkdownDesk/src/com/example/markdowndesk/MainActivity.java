@@ -124,6 +124,8 @@ public class MainActivity extends Activity {
     private long favoriteIndicatorGeneration;
     private Button readOutlineButton;
     private Button readAppearanceButton;
+    private com.example.markdowndesk.workspace.annotations.MarkdownReadingNotes readingNotes;
+    private String pendingNoteDocumentUri,pendingNoteId;
     private LinearLayout header;
     private Runnable highlightRunnable;
     private final MarkdownSyntaxHighlighter.State syntaxHighlight = new MarkdownSyntaxHighlighter.State();
@@ -228,6 +230,13 @@ public class MainActivity extends Activity {
         int i;
         super.onCreate(bundle);
         this.preferences = getSharedPreferences(PREFS, MODE_EDIT);
+        this.readingNotes=new com.example.markdowndesk.workspace.annotations.MarkdownReadingNotes(this,this.io,
+            (title,archive,chat,all)->{
+                String folder=this.preferences.getString("archive_notes_tree",null);
+                if(folder!=null&&!folder.trim().isEmpty())
+                    new ArchiveSidecarPublisher(getApplicationContext(),Uri.parse(folder))
+                        .publish(title,archive,chat,all);
+            });
         if (this.preferences.contains(PREF_THEME)) {
             i = this.preferences.getInt(PREF_THEME, MODE_EDIT);
         } else {
@@ -606,6 +615,8 @@ public class MainActivity extends Activity {
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         this.readOutlineButton = addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        addReadTool("Note", "Annotate selected passage directly in Read mode",v->{if(readingNotes!=null)readingNotes.annotate();});
+        addReadTool("Notes", "Open source-linked reading notebook",v->{if(readingNotes!=null)readingNotes.showNotes();});
         configureEditorHistoryActions();
         this.writeFavoriteButton = addFormat("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
@@ -761,6 +772,14 @@ public class MainActivity extends Activity {
         @Override // android.webkit.WebViewClient
         public void onPageFinished(WebView webView, String str) {
             MainActivity.this.acknowledgePreviewPage(webView);
+            PreviewPage page=MainActivity.this.previewPage;
+            if(MainActivity.this.isCurrentPreviewPage(page)&&readingNotes!=null&&currentUri!=null){
+                readingNotes.decorate(webView,currentUri.toString(),displayName);
+                if(pendingNoteId!=null&&currentUri.toString().equals(pendingNoteDocumentUri)){
+                    String id=pendingNoteId;pendingNoteId=null;pendingNoteDocumentUri=null;
+                    main.post(()->readingNotes.handleNoteLink(Uri.parse("mdnote://open?id="+Uri.encode(id))));
+                }
+            }
         }
     }
 
@@ -2166,6 +2185,10 @@ public class MainActivity extends Activity {
             return;
         }
         String action = intent.getAction();
+        if("android.intent.action.VIEW".equals(action)&&intent.getData()!=null&&
+                com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(intent.getData().toString())){
+            openMarkdownDocumentLink(intent.getData());return;
+        }
         if ("android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action)) {
             if (intent.getData() != null) {
                 takePermission(intent.getData(), intent.getFlags());
@@ -6046,6 +6069,10 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public boolean handlePreviewUri(Uri uri) {
+        if(uri!=null&&readingNotes!=null&&readingNotes.handleNoteLink(uri))return true;
+        if(uri!=null&&com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(uri.toString())){
+            openMarkdownDocumentLink(uri);return true;
+        }
         if (uri != null && com.example.markdowndesk.workspace.WorkspaceDeepLinks
                 .isArchiveLink(uri.toString())) {
             // Read-mode Markdown links can navigate into exact Claude passages.
@@ -6782,6 +6809,25 @@ public class MainActivity extends Activity {
                 styleButton(this.saveButton, true, false);
             }
         }
+    }
+
+    private void openMarkdownDocumentLink(Uri link){
+        if(link==null||!com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(link.toString())){
+            showError("Invalid Markdown note link");return;
+        }
+        java.util.List<String> segments=link.getPathSegments();
+        if(segments.size()!=2||!"v1".equals(segments.get(0))){showError("Invalid document link");return;}
+        Uri target=Uri.parse(segments.get(1));
+        if(!"content".equalsIgnoreCase(target.getScheme())){showError("Link does not identify an Android document");return;}
+        pendingNoteDocumentUri=target.toString();pendingNoteId=link.getQueryParameter("note");
+        if(currentUri!=null&&currentUri.equals(target)&&this.mode==MODE_PREVIEW){
+            if(pendingNoteId!=null&&readingNotes!=null){
+                String id=pendingNoteId;pendingNoteId=null;pendingNoteDocumentUri=null;
+                readingNotes.handleNoteLink(Uri.parse("mdnote://open?id="+Uri.encode(id)));
+            }
+            return;
+        }
+        openDocument(target,Intent.FLAG_GRANT_READ_URI_PERMISSION,false,true);
     }
 
     private boolean openExternal(Uri uri) {
