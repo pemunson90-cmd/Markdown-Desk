@@ -257,6 +257,7 @@ public class MainActivity extends Activity implements com.example.markdowndesk.w
         setIntent(intent);
         handleIntent(intent);
         handleWorkspaceEntryIntent(intent);
+        handleUnifiedTabIntent(intent);
     }
 
     /** Archive's shared Files button reaches the existing protected Files hub.
@@ -271,6 +272,19 @@ public class MainActivity extends Activity implements com.example.markdowndesk.w
             if(this.workspaceDialog!=null||this.filesRailRequested)return;
             showFilesNavigator();
         });
+    }
+
+    /** Typed tabs stay in their own source sessions; never copy source bytes
+     * into a different editor when following a cross-workspace tab.
+     */
+    private void handleUnifiedTabIntent(Intent intent) {
+        if(intent==null)return;
+        String tabId=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
+        if(tabId==null||tabId.isEmpty())return;
+        int index=findTabById(tabId);
+        intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
+        if(index>=0)switchToTab(index,false);
+        else Toast.makeText(this,"This Markdown tab is not in the restored session",Toast.LENGTH_LONG).show();
     }
 
     /** Existing confirmUnsaved() owns save, recovery, and the explicit discard
@@ -1692,6 +1706,7 @@ public class MainActivity extends Activity implements com.example.markdowndesk.w
 
     /* JADX INFO: Access modifiers changed from: private */
     public void updateTabsUi() {
+        UnifiedTabs.updateMarkdown(this,this.tabs,this.activeTab);
         if (this.tabsRow == null || this.palette == null) {
             return;
         }
@@ -1755,6 +1770,12 @@ public class MainActivity extends Activity implements com.example.markdowndesk.w
         styleButton(buttonCreatePillButton2, false, false);
         this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(48), dp(48)));
         this.tabButtons.add(buttonCreatePillButton2);
+        Button allWorkspaceTabs=createPillButton("⇄", "All Markdown and Archive tabs",
+                v->UnifiedTabs.show(this));
+        allWorkspaceTabs.setTextSize(18.0f);
+        styleButton(allWorkspaceTabs,false,false);
+        this.tabsRow.addView(allWorkspaceTabs,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        this.tabButtons.add(allWorkspaceTabs);
         refreshFavoriteIndicators();
         if (this.activeTab >= 0) {
             this.tabsScroll.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda68
@@ -2628,6 +2649,7 @@ public class MainActivity extends Activity implements com.example.markdowndesk.w
             pruneRedundantUntitledTabs();
             restoreActiveTab(false);
             scheduleSession();
+            handleUnifiedTabIntent(intent);
             if (draft != null && !recoveryRepresented(state, draft)) showPendingProtectedRecovery(draft);
             if (isExternalIntent(intent)) {
                 handleIntent(intent);
