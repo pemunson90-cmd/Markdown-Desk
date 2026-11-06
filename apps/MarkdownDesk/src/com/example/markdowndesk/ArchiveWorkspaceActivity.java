@@ -38,6 +38,7 @@ import com.example.markdowndesk.workspace.archive.ConversationTabs;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveCitations;
 import com.example.markdowndesk.workspace.archive.ArchiveScrollScript;
+import com.example.markdowndesk.workspace.archive.ArchiveHighlightScript;
 import com.example.markdowndesk.workspace.archive.ArchiveViewport;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
@@ -393,6 +394,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(restorePosition)v.post(()->{
                         if(token==generation&&reader==v)v.scrollTo(0,targetScroll);
                     });
+                    refreshHighlights(web,new ArrayList<>(visibleMessages),token);
                     if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
                         v.findAllAsync(pendingFindTerm);
                         pendingFindTerm=null;
@@ -470,7 +472,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append(css(palette.border)).append("}.archive-msg.chat{margin-left:18px}")
                 .append(".archive-meta{font-size:.78em;opacity:.83;margin-bottom:9px}")
                 .append(".archive-more{display:block;padding:14px;min-height:44px}")
-                .append(".archive-sentinel{display:block;padding:16px;min-height:44px;text-align:center}</style>");
+                .append(".archive-sentinel{display:block;padding:16px;min-height:44px;text-align:center}")
+                .append("mark.md-archive-highlight{background:").append(css(palette.raised))
+                .append(";color:").append(css(palette.text)).append(";border-bottom:2px solid ")
+                .append(css(palette.accent)).append(";cursor:pointer;border-radius:3px}</style>");
         if(continuous){
             html.append("<a id=\"archive-before\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=-1\" data-more=\"")
                 .append(viewport.hasBefore()?"1":"0").append("\"")
@@ -482,7 +487,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             html.append("</div><a id=\"archive-after\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=1\" data-more=\"")
                 .append(viewport.hasAfter()?"1":"0").append("\"")
                 .append(viewport.hasAfter()?"":" hidden").append(">More messages</a>")
-                .append(ArchiveScrollScript.boot());
+                .append(ArchiveScrollScript.boot())
+                .append(ArchiveHighlightScript.boot());
         }else{
             html.append("<a class=\"archive-more\" href=\"mdarchive://return\">Return to conversation</a>");
         }
@@ -556,6 +562,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         // Updating tab state only after confirmed DOM insertion avoids
                         // a mismatch when a newer mode/document invalidates the result.
                         prefs.edit().putInt("archive_chat_position_"+chatId,windowOffset).apply();
+                        refreshHighlights(web,batch,token);
                         if(direction>0){
                             visibleMessages.addAll(batch);
                             while(visibleMessages.size()>ArchiveViewport.MAX_VISIBLE)visibleMessages.remove(0);
@@ -600,8 +607,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     web.evaluateJavascript(command,result->{
                         if(token!=generation||reader!=web)return;
                         chunkLoading=false;
-                        if(!"true".equals(result))
-                            web.evaluateJavascript("window.mdArchiveChunkRelease&&window.mdArchiveChunkRelease()",null);
+                        if("true".equals(result))refreshHighlights(web,
+                                java.util.Collections.singletonList(message),token);
+                        else web.evaluateJavascript("window.mdArchiveChunkRelease&&window.mdArchiveChunkRelease()",null);
                     });
                 });
             }catch(Exception e){runOnUiThread(()->{
@@ -610,6 +618,32 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 web.evaluateJavascript("window.mdArchiveChunkRelease&&window.mdArchiveChunkRelease()",null);
                 fail("Unable to load message section",e);
             });}
+        });
+    }
+    /** Reapply only records belonging to the messages loaded into the active
+     * DOM. Selection failure remains explicit: ambiguous quotes are not marked.
+     */
+    private void refreshHighlights(PreviewWebView web,List<ArchiveDatabase.Message> messages,int token){
+        if(messages==null||messages.isEmpty())return;
+        final String chat=active==null?null:active.id;
+        if(chat==null)return;
+        final java.util.HashSet<String> ids=new java.util.HashSet<>();
+        for(ArchiveDatabase.Message m:messages)if(m.messageId!=null)ids.add(m.messageId);
+        io.execute(()->{
+            try{
+                ArchiveJournal.ReadResult rows=journal.load();
+                if(rows.truncatedTail)return;
+                ArrayList<ArchiveJournal.Annotation> matched=new ArrayList<>();
+                for(ArchiveJournal.Annotation a:rows.annotations)
+                    if(chat.equals(a.chatId)&&ids.contains(a.messageId)
+                            &&a.quote!=null&&!a.quote.isEmpty())matched.add(a);
+                if(matched.isEmpty())return;
+                String script=ArchiveHighlightScript.add(matched);
+                runOnUiThread(()->{
+                    if(token==generation&&reader==web&&active!=null&&chat.equals(active.id))
+                        web.evaluateJavascript(script,null);
+                });
+            }catch(Exception ignored){/* Journal remains untouched. */}
         });
     }
     private static String css(int color){return String.format(Locale.ROOT,"#%06x",color&0xffffff);}
@@ -629,6 +663,25 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             try{focusOrdinal=Integer.parseInt(uri.getQueryParameter("ordinal"));
                 chunkOffset=Integer.parseInt(uri.getQueryParameter("part"));savedScroll=0;showReader(false);
             }catch(RuntimeException ignored){status("Message anchor unavailable");}
+        }else if("annotation".equals(host)){
+            String annotationId=uri.getQueryParameter("id");
+            if(annotationId==null||annotationId.trim().isEmpty())return;
+            final String chat=active==null?null:active.id;
+            io.execute(()->{
+                try{
+                    ArchiveJournal.ReadResult rows=journal.load();
+                    if(rows.truncatedTail)return;
+                    for(ArchiveJournal.Annotation item:rows.annotations){
+                        if(annotationId.equals(item.id)&&chat!=null&&chat.equals(item.chatId)){
+                            runOnUiThread(()->{
+                                if(active!=null&&chat.equals(active.id))showAnnotationActions(item);
+                            });
+                            return;
+                        }
+                    }
+                    runOnUiThread(()->status("Saved annotation no longer exists"));
+                }catch(Exception error){runOnUiThread(()->fail("Could not open annotation",error));}
+            });
         }else if("return".equals(host)){
             focusOrdinal=-1;chunkOffset=0;showReader(false);
         }
@@ -901,6 +954,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         io.execute(()->{
             try{ journal.save(annotation); }
             catch(Exception error){runOnUiThread(()->fail("Annotation was not saved",error));return;}
+            if(annotation.quote!=null&&!annotation.quote.isEmpty()){
+                String script=ArchiveHighlightScript.add(
+                    java.util.Collections.singletonList(annotation));
+                runOnUiThread(()->{
+                    if(reader!=null&&active!=null&&annotation.chatId.equals(active.id))
+                        reader.evaluateJavascript(script,null);
+                });
+            }
             if(notesTree==null){
                 runOnUiThread(()->status("Annotation saved locally. Choose a notes folder to publish Markdown indexes."));
                 return;
@@ -997,7 +1058,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }catch(Exception e){runOnUiThread(()->fail("Could not copy master index",e));}
         });
     }
-    private void chooseNotesFolder(){        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+    private void chooseNotesFolder(){
+        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         try{startActivityForResult(intent,REQUEST_NOTES_TREE);}
