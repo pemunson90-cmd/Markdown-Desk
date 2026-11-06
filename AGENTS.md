@@ -1,5 +1,15 @@
 # Markdown Desk — standing Codex engineering contract
 
+## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
+
+**When the owner assigns a build, upgrade, integration, or feature set, finish the ENTIRE requested scope.** Do not silently narrow it, substitute an MVP, postpone a requested feature, call a partial implementation "done", or end the assignment merely because one subsystem compiles or passes a test. "Everything" means the full authorized request; only the owner may expressly change the scope.
+
+**No intermediate APKs, test releases, staged deliveries, or version churn for unfinished feature work.** Implement and integrate all requested features into the actual application first, using properly separated modules and the existing maintained systems. Then perform local bug checks, dependency checks, regression/performance/data-safety checks and build/sign/package **once the integrated task is complete**. Internal commits, tests, checkpoints, branches and progress updates are allowed for safe engineering; they are **not** independent deliverables or permission to stop early. No user-facing APK or installation request until the whole assignment is implemented and the required checks pass. Only an explicitly authorized bug-fix update or owner-requested delivery milestone is an exception.
+
+**If completion is genuinely blocked**, explain the exact blocker, what remains undone, the concrete consequence, and what input/resource is needed; ask for the necessary information or additional time *without claiming asynchronous work or promising later delivery*. Continue every unblocked part of the original assignment. Never hide unfinished requirements in a release note or present known-incomplete feature work as a finished build.
+
+Give brief progress reports at meaningful milestones and on real blockers, not an endless procession of builds. Prefer local development and testing; do not use GitHub Actions unless genuinely necessary. Protect existing user data, signing identity, and previously working features. **This owner directive takes precedence over any older wording about milestones, slices, test candidates, or "ship what works" elsewhere in this repository.**
+
 ## Non-negotiable feature continuity (owner directive)
 
 **If Pat did not explicitly authorize removing a working capability, it stays.** Existing working features, gameplay rules, card effects, interfaces, workflows, integrations, content, data, settings, accessibility, and tools survive fixes, refactors, rewrites, ports, engine replacements and architecture changes. Do not silently delete, stub, disable, simplify, postpone or leave them behind because a new implementation is cleaner or the task named only one feature. Lack of an explicit preservation list is **not** permission to drop anything.
