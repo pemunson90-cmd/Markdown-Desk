@@ -52,8 +52,8 @@ jobs:
           ANDROID_BUILD_TOOLS: '36.0.0'
         run: |
           set -euo pipefail
-          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.3-json-UNSIGNED
-          APK="apps/MarkdownDesk/build/MarkdownDesk-2.3.3-json-UNSIGNED.apk"
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.4-json-foldfix-UNSIGNED
+          APK="apps/MarkdownDesk/build/MarkdownDesk-2.3.4-json-foldfix-UNSIGNED.apk"
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" | grep -E "package:|sdkVersion:|targetSdkVersion:"
           sha256sum "$APK"
@@ -72,7 +72,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: markdown-desk-json-code31-unsigned
-          path: apps/MarkdownDesk/build/MarkdownDesk-2.3.3-json-UNSIGNED.apk
+          name: markdown-desk-json-code32-unsigned
+          path: apps/MarkdownDesk/build/MarkdownDesk-2.3.4-json-foldfix-UNSIGNED.apk
           if-no-files-found: error
           retention-days: 7
