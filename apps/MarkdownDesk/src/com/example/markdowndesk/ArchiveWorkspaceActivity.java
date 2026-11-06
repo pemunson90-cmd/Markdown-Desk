@@ -135,7 +135,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
-        if(!handleDeepLink(getIntent())){
+        if(!handleRequestedWorkspaceTab(getIntent())&&!handleDeepLink(getIntent())){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
                 searchDialog(null);return;
@@ -149,7 +149,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
             intent.removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
             searchDialog(null);
-        }else handleDeepLink(intent);
+        }else if(!handleRequestedWorkspaceTab(intent))handleDeepLink(intent);
+    }
+    private boolean handleRequestedWorkspaceTab(Intent intent){
+        if(intent==null)return false;
+        String id=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
+        if(id==null||id.isEmpty())return false;
+        intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
+        ArchiveDatabase.Conversation target=findConversation(id);
+        if(target==null){status("That conversation must be reindexed before opening");showHome();return true;}
+        openChat(target);return true;
     }
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
@@ -224,7 +233,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         controls.addView(button(label,tap),new LinearLayout.LayoutParams(-2,dp(48)));
     }
     private void refreshConversationTabs(){
-        if(conversationTabsRow==null||conversationTabs==null)return;
+        if(conversationTabs==null)return;
+        UnifiedTabs.updateArchive(this,conversationTabs.entries(),conversationTabs.selected());
+        if(conversationTabsRow==null)return;
         conversationTabsRow.removeAllViews();
         List<ConversationTabs.Entry> items=conversationTabs.entries();
         conversationTabsScroll.setVisibility(items.isEmpty()?View.GONE:View.VISIBLE);
@@ -261,6 +272,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("Saved links",v->showNotebook(true));action("Import",v->chooseImport());
         action("Reading style",v->appearanceDialog());
         action("Inspect JSON",v->startActivity(new Intent(this,JsonExplorerActivity.class)));
+        action("All tabs",v->UnifiedTabs.show(this));
     }
     private void setTitle(String s,String sub){title.setText(s);subtitle.setText(sub);}
     private void view(View child){pane.removeAllViews();pane.addView(child,new LinearLayout.LayoutParams(-1,-1));}
@@ -985,8 +997,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(data.truncatedTail)throw new IOException("Annotation journal has a partial last record; preserve it before publishing");
         new ArchiveSidecarPublisher(this,notesTree).publishAll(data.annotations);
         return true;
-    }
-    private boolean publishNotes(String title,String archiveId,String chatId)throws IOException{
+    }    private boolean publishNotes(String title,String archiveId,String chatId)throws IOException{
         if(notesTree==null)return false;
         ArchiveJournal.ReadResult data=journal.load();
         if(data.truncatedTail)throw new IOException("Interrupted annotation journal. Preserve and repair before publishing.");
@@ -997,7 +1008,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void showNotebook(boolean linksOnly){
         viewMode=linksOnly?"links":"notebook";
         controls.removeAllViews();action("Library",v->showHome());
-        action("Master links",v->showNotebook(true));action("All notes",v->showNotebook(false));        action("Choose notes folder",v->chooseNotesFolder());
+        action("Master links",v->showNotebook(true));action("All notes",v->showNotebook(false));
+        action("Choose notes folder",v->chooseNotesFolder());
         action("Copy master",v->copyMaster());
         setTitle(linksOnly?"Saved links":"Reading notebook",notesTree==null?"Indexes not yet connected":"Markdown indexes connected");
         ScrollView scroll=new ScrollView(this);LinearLayout rows=vertical();scroll.addView(rows);view(scroll);
