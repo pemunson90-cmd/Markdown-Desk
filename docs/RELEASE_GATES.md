@@ -1,5 +1,11 @@
 # Build, test, and release gates
 
+## Owner full-scope delivery gate (2026-11-06)
+- For a requested new feature or integrated upgrade, **do not generate/sign/offer a user-facing APK** until **every requested feature is implemented together**, integrated into the real app, and the applicable local bug, dependency, regression, safety and packaging checks have passed. Internal checkpoints and partial green tests are not deliverables.
+- No staged test releases or versionCode churn merely to demonstrate partial progress. A separately requested bug-fix update or explicit owner milestone is the exception.
+- If a genuine blocker prevents finishing, report precisely what is incomplete and why; do not represent partial work as the completed request. Keep working on all unblocked obligations. This rule overrides conflicting older milestone/release language.
+
+
 ## Every PR
 - Source diff reviewed for behavioral scope, migration and data safety.
 - Host tests pass from a clean checkout, including real functional tests for touched components.
