@@ -1,5 +1,11 @@
 # Markdown Desk — standing Codex engineering contract
 
+## Android OS support window — owner directive (2026-11-06)
+
+**Support only the current stable Android major version and the two immediately preceding major versions.** As of 2026-11-06, Android 17 (API 37) is stable, so the supported range is **Android 15–17 (minimum API 35)**. No requirement to maintain, run compatibility checks for, or design new workarounds specifically for Android 14/API 34 or earlier. Raise the minimum OS floor as the stable Android major-version window advances, with deliberate integration/testing rather than silently during an active build. This applies to manifests, build scripts, dependency choices, and device-test matrices. The *target SDK* is a distinct decision and may change only with relevant behavior checks.
+
+**This is an OS-support policy only.** Preserve existing user data, in-place app upgrades, documents, notes, annotations, saved states, current functional features, and the canonical signing identity. Dropping old Android OS compatibility never authorizes destructive data migration or loss of working features.
+
 ## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
 
 **When the owner assigns a build, upgrade, integration, or feature set, finish the ENTIRE requested scope.** Do not silently narrow it, substitute an MVP, postpone a requested feature, call a partial implementation "done", or end the assignment merely because one subsystem compiles or passes a test. "Everything" means the full authorized request; only the owner may expressly change the scope.
