@@ -217,8 +217,12 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                                   String fromDate,String toDate,int limit,int offset){
         ArrayList<Hit> result=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return result;
-        String escaped="\""+query.trim().replace("\"","\"\"")+"\"";
-        ArrayList<String> args=new ArrayList<>();args.add(escaped);
+        // FTS hits are indexed by segment, not by message. Grouping the snippet
+        // query directly is unsupported by SQLite FTS4, and deduplicating a small
+        // post-LIMIT batch silently loses messages. A separate CTE picks the
+        // first matching segment per message; outer FTS retains valid snippets.
+        String escaped="\"" + query.trim().replace("\"", "\"\"") + "\"";
+        ArrayList<String> args=new ArrayList<>();args.add(escaped);args.add(escaped);
         StringBuilder conditions=new StringBuilder(" WHERE search_parts MATCH ?");
         if(chat!=null&&!chat.isEmpty()){
             conditions.append(" AND m.conversation_id=?");args.add(chat);
@@ -232,16 +236,21 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         if(toDate!=null&&!toDate.trim().isEmpty()){
             conditions.append(" AND m.created<?");args.add(toDate.trim()+"~");
         }
-        String sql="SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal, " +
-                "snippet(search_parts, '[', ']', '…', 0, 16) FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
-                "JOIN messages m ON m.row_id=p.message_row JOIN conversations c ON c.id=m.conversation_id " +
-                conditions.toString()+" ORDER BY COALESCE(m.created,c.updated) DESC " +
-                "LIMIT "+Math.max(1,Math.min(limit*3,300))+" OFFSET "+Math.max(0,offset);
+        String sql="WITH matched AS (" +
+                "SELECT p.message_row AS message_row, MIN(p.row_id) AS first_doc " +
+                "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
+                "WHERE search_parts MATCH ? GROUP BY p.message_row) " +
+                "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal, " +
+                "snippet(search_parts, '[', ']', '…', 0, 16) " +
+                "FROM search_parts JOIN matched h ON h.first_doc=search_parts.docid " +
+                "JOIN messages m ON m.row_id=h.message_row " +
+                "JOIN conversations c ON c.id=m.conversation_id " +
+                "JOIN sources s ON s.id=c.archive_id AND s.status='ready' " +
+                conditions.toString()+
+                " ORDER BY COALESCE(m.created,c.updated) DESC,m.row_id ASC " +
+                "LIMIT "+Math.max(1,Math.min(limit,100))+" OFFSET "+Math.max(0,offset);
         try(Cursor c=getReadableDatabase().rawQuery(sql,args.toArray(new String[0]))){
-            java.util.HashSet<String> seen=new java.util.HashSet<>();
-            while(c.moveToNext() && result.size()<limit){
-                String key=c.getString(0)+"#"+c.getString(2);
-                if(!seen.add(key))continue;
+            while(c.moveToNext()){
                 Hit hit=new Hit();hit.chatId=c.getString(0);hit.chatTitle=c.getString(1);
                 hit.messageId=c.getString(2);hit.role=c.getString(3);hit.created=c.getString(4);
                 hit.messageOrdinal=c.getInt(5);hit.excerpt=c.getString(6);result.add(hit);
