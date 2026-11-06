@@ -62,7 +62,9 @@ public final class ArchiveWorkspaceActivity extends Activity {
     private UiTheme.Palette palette;
     private ReaderTypography typography;
     private float fontSp;
-    private LinearLayout screen, controls, pane;
+    private LinearLayout screen, controls, pane, readerHeader;
+    private HorizontalScrollView readerNavigation;
+    private String pendingFindTerm;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
@@ -138,7 +140,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
         getWindow().setStatusBarColor(palette.surface);
         getWindow().setNavigationBarColor(palette.surface);
         screen=vertical();screen.setBackgroundColor(palette.canvas);
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout header=new LinearLayout(this);readerHeader=header;
+        header.setGravity(Gravity.CENTER_VERTICAL);
         header.setBackgroundColor(palette.surface);
         header.addView(button("‹",v->back()),new LinearLayout.LayoutParams(dp(52),dp(48)));
         LinearLayout headings=vertical();
@@ -147,7 +150,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
         header.addView(headings,new LinearLayout.LayoutParams(0,-2,1));
         header.addView(button("⋮",v->moreMenu()),new LinearLayout.LayoutParams(dp(55),dp(48)));
         screen.addView(header,new LinearLayout.LayoutParams(-1,-2));
-        HorizontalScrollView nav=new HorizontalScrollView(this);nav.setHorizontalScrollBarEnabled(false);
+        HorizontalScrollView nav=new HorizontalScrollView(this);readerNavigation=nav;
+        nav.setHorizontalScrollBarEnabled(false);
         controls=new LinearLayout(this);controls.setPadding(dp(6),dp(4),dp(6),dp(4));
         nav.addView(controls);screen.addView(nav,new LinearLayout.LayoutParams(-1,-2));
         pane=vertical();screen.addView(pane,new LinearLayout.LayoutParams(-1,0,1));
@@ -174,7 +178,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
     private static String safe(String s){return s==null?"Unavailable":(s.length()>400?s.substring(0,400):s);}
 
     private void showHome(){
-        generation++;viewMode="home";active=null;reader=null;focusOrdinal=-1;chunkOffset=0;
+        generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
+        applyFocusChrome();
         commonActions();setTitle("Claude Archive","All imported conversations");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
@@ -217,7 +222,7 @@ public final class ArchiveWorkspaceActivity extends Activity {
         return null;
     }
     private void openChat(ArchiveDatabase.Conversation c){
-        active=c;viewMode="reader";
+        active=c;viewMode="reader";pendingFindTerm=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;savedScroll=0;
         prefs.edit().putString("archive_last_chat",c.id).apply();
@@ -226,7 +231,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
     private void showReader(boolean keepScroll){
         if(active==null){showHome();return;}
         final int token=++generation;
-        viewMode="reader";reloadAppearance();
+        if(keepScroll && savedScroll<=0 && reader!=null)savedScroll=reader.getScrollY();
+        viewMode="reader";reloadAppearance();applyFocusChrome();
         setTitle(active.name,active.messages+" messages · read-only");
         controls.removeAllViews();
         action("←",v->navigateWindow(-WINDOW_MESSAGES));
@@ -261,11 +267,15 @@ public final class ArchiveWorkspaceActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView v,String url){
-                if(token==generation&&v==reader && keepScroll)
-                    v.scrollTo(0,savedScroll);
+                if(token==generation&&v==reader){
+                    if(keepScroll)v.scrollTo(0,savedScroll);
+                    if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
+                        v.findAllAsync(pendingFindTerm);
+                        pendingFindTerm=null;
+                    }
+                }
             }
         });
-        if(keepScroll && savedScroll<=0 && reader!=null)savedScroll=reader.getScrollY();
         view(web);
         final int start=windowOffset;
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
@@ -344,7 +354,7 @@ public final class ArchiveWorkspaceActivity extends Activity {
         if(active==null)return;
         windowOffset=Math.max(0,Math.min(Math.max(0,active.messages-1),windowOffset+step));
         windowOffset=(windowOffset/WINDOW_MESSAGES)*WINDOW_MESSAGES;
-        focusOrdinal=-1;chunkOffset=0;savedScroll=0;
+        focusOrdinal=-1;chunkOffset=0;savedScroll=0;pendingFindTerm=null;
         prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset).apply();
         showReader(false);
     }
@@ -376,10 +386,9 @@ public final class ArchiveWorkspaceActivity extends Activity {
         else getWindow().clearFlags(1024);
         // Keep a small, recoverable toolbar on the phone. Hide it with existing Focus
         // only while reading; Android back/menu exit always remains reachable.
-        controls.setVisibility(fullscreen&&"reader".equals(viewMode)?View.GONE:View.VISIBLE);
-        if(fullscreen&&"reader".equals(viewMode)){
-            screen.setOnClickListener(v->{});
-        }
+        boolean immersed=fullscreen&&"reader".equals(viewMode);
+        if(readerHeader!=null)readerHeader.setVisibility(immersed?View.GONE:View.VISIBLE);
+        if(readerNavigation!=null)readerNavigation.setVisibility(immersed?View.GONE:View.VISIBLE);
     }
     private void appearanceDialog(){
         LinearLayout options=vertical();options.setPadding(dp(18),dp(8),dp(18),dp(8));
@@ -443,7 +452,9 @@ public final class ArchiveWorkspaceActivity extends Activity {
                             ArchiveDatabase.Conversation c=findConversation(hit.chatId);
                             if(c==null){status("Source chat unavailable");return;}
                             active=c;windowOffset=(hit.messageOrdinal/WINDOW_MESSAGES)*WINDOW_MESSAGES;
-                            focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
+                            focusOrdinal=hit.messageOrdinal;
+                            chunkOffset=(hit.partOrdinal/CHUNK_PARTS)*CHUNK_PARTS;
+                            pendingFindTerm=term;savedScroll=0;showReader(false);
                         });
                     }
                     if(hits.size()==60)add(rows,"More search results",v->showSearch(term,scope,offset+60));
@@ -453,8 +464,22 @@ public final class ArchiveWorkspaceActivity extends Activity {
     }
     private void bookmarkCurrent(){
         if(active==null)return;
-        ArchiveDatabase.Message m=database.messageAt(active.id,focusOrdinal>=0?focusOrdinal:windowOffset);
-        if(m==null){status("No message to bookmark");return;}
+        final ArrayList<ArchiveDatabase.Message> candidates=new ArrayList<>(visibleMessages);
+        if(candidates.isEmpty()) {status("No message loaded for bookmarking");return;}
+        if(candidates.size()==1){saveBookmarkFor(candidates.get(0));return;}
+        // Do not silently mark the first message on the page when the reader
+        // is looking farther down. Let the reader choose the exact message.
+        String[] labels=new String[candidates.size()];
+        for(int i=0;i<candidates.size();i++){
+            ArchiveDatabase.Message m=candidates.get(i);
+            labels[i]="#"+(m.ordinal+1)+" · "+safe(m.role)+" · "+safe(m.created);
+        }
+        new AlertDialog.Builder(this).setTitle("Bookmark which message?")
+            .setItems(labels,(dialog,which)->saveBookmarkFor(candidates.get(which)))
+            .setNegativeButton("Cancel",null).show();
+    }
+    private void saveBookmarkFor(ArchiveDatabase.Message m){
+        if(active==null||m==null)return;
         ArchiveJournal.Annotation a=new ArchiveJournal.Annotation();
         a.id=UUID.randomUUID().toString();a.archiveId=active.archiveId;
         a.chatId=active.id;a.chatTitle=active.name;a.messageId=m.messageId;
@@ -592,9 +617,10 @@ public final class ArchiveWorkspaceActivity extends Activity {
             if(index==0){
                 ArchiveDatabase.Conversation c=findConversation(a.chatId);
                 if(c==null){status("Conversation is not indexed; reimport source");return;}
-                active=c;int position=database.findMessageOrdinal(a.chatId,a.messageId);
-                windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
-                focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
+                int position=database.findMessageOrdinal(a.chatId,a.messageId);
+                if(position<0){status("Original message no longer indexed. Link needs review.");return;}
+                active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
+                focusOrdinal=position;chunkOffset=0;savedScroll=0;showReader(false);
             }else if(index==1){
                 ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
                 clipboard.setPrimaryClip(ClipData.newPlainText("Archive link",ArchiveMarkdownIndexes.deepLink(a)));
@@ -742,11 +768,13 @@ public final class ArchiveWorkspaceActivity extends Activity {
         String chat=segments.get(2),message=segments.get(3);
         ArchiveDatabase.Conversation c=findConversation(chat);
         if(c==null){status("Archived conversation unavailable. Reimport its source.");showHome();return true;}
-        active=c;int ordinal=database.findMessageOrdinal(chat,message);
-        windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
-        focusOrdinal=-1;chunkOffset=0;showReader(false);return true;
+        int ordinal=database.findMessageOrdinal(chat,message);
+        if(ordinal<0){status("Saved link no longer resolves to a message");showHome();return true;}
+        active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
+        focusOrdinal=ordinal;chunkOffset=0;showReader(false);return true;
     }
     private void back(){
+        if(fullscreen && "reader".equals(viewMode)){toggleFocus();return;}
         if("reader".equals(viewMode)&&focusOrdinal>=0){focusOrdinal=-1;chunkOffset=0;showReader(false);return;}
         if(!"home".equals(viewMode)){showHome();return;}
         finish();
