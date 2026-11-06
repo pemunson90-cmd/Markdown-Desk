@@ -434,12 +434,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             try{
                 ArchiveViewport initial=viewport;
                 List<ArchiveDatabase.Message> messages=database.messages(active.id,
-                        targetOrdinal>=0?targetOrdinal:initial.start(),
-                        targetOrdinal>=0?1:initial.end()-initial.start());
+                        initial.start(),initial.end()-initial.start());
                 String html=renderMessages(messages,targetOrdinal,targetChunk);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||generation!=token)return;
                     visibleMessages=new ArrayList<>(messages);
+                    focusOrdinal=-1;chunkOffset=0;
                     web.loadDataWithBaseURL("https://markdown.local/",html,"text/html","UTF-8",null);
                 });
             }catch(Exception e){runOnUiThread(()->{if(generation==token)fail("Unable to render conversation",e);});}
@@ -474,7 +474,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         int start=body<0?-1:shell.indexOf('>',body);
         int end=shell.lastIndexOf("</body>");
         if(start<0||end<start)throw new IllegalStateException("Renderer returned invalid HTML shell");
-        boolean continuous=onlyOrdinal<0;
+        boolean continuous=true; // Search and deep links use the same continuous reader.
         StringBuilder html=new StringBuilder(shell.substring(0,start+1));
         html.append("<style>.archive-msg{padding:13px 10px;margin:9px 0;border-radius:12px;border:1px solid ")
                 .append(css(palette.border)).append("}.archive-msg.chat{margin-left:18px}")
@@ -508,7 +508,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         StringBuilder html=new StringBuilder();
         if(messages.isEmpty())html.append("<p>No messages in this conversation.</p>");
         for(ArchiveDatabase.Message m:messages){
-            int part=onlyOrdinal<0?0:partOffset;
+            int part=ArchiveViewport.firstPart(m.ordinal,onlyOrdinal,partOffset);
             String content=database.textChunk(m.id,part,CHUNK_PARTS);
             boolean more=m.segments>part+CHUNK_PARTS;
             String rendered=MarkdownRenderer.render(content,palette,fontSp,typography);
@@ -526,7 +526,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append(rendered,opening+1,closing).append("</div></div>");
             if(more){
                 html.append("<a class=\"archive-more\" data-autoload=\"1\" href=\"")
-                    .append(onlyOrdinal<0?"mdarchive://chunk?ordinal=":"mdarchive://continue?ordinal=")
+                    .append("mdarchive://chunk?direction=1&ordinal=")
                     .append(m.ordinal).append("&part=").append(part+CHUNK_PARTS)
                     .append("\">More of this message</a>");
             }else if(part>0){
@@ -540,7 +540,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     /** Reads one adjacent batch and inserts it without recreating the WebView. */
     private void loadAdjacent(int direction){
         if(direction!=1&&direction!=-1)return;
-        if(adjacentLoading||focusOrdinal>=0||active==null||viewport==null||reader==null)return;
+        if(adjacentLoading||active==null||viewport==null||reader==null)return;
         final ArchiveViewport window=viewport;
         final ArchiveViewport.Load load=direction>0?window.after():window.before();
         if(load==null)return;
@@ -595,7 +595,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
      * source ordinal and selection rather than replacing the entire WebView.
      */
     private void loadChunk(int ordinal,int startPart,boolean backwards,int untilPart){
-        if(chunkLoading||focusOrdinal>=0||active==null||reader==null)return;
+        if(chunkLoading||active==null||reader==null)return;
         if(ordinal<0||ordinal>=active.messages||startPart<0)return;
         if(backwards&&(untilPart<=startPart||untilPart-startPart>CHUNK_PARTS))return;
         final int token=generation;
