@@ -403,6 +403,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest request){
                 Uri uri=request.getUrl();String scheme=uri.getScheme();
                 if("mdarchive".equals(scheme)){localAction(uri);return true;}
+                if(com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(uri.toString())){
+                    startActivity(new Intent(Intent.ACTION_VIEW,uri).setClass(ArchiveWorkspaceActivity.this,MainActivity.class));
+                    return true;
+                }
                 if(com.example.markdowndesk.workspace.WorkspaceDeepLinks
                         .isArchiveLink(uri.toString())){
                     handleDeepLink(new Intent(Intent.ACTION_VIEW,uri));
