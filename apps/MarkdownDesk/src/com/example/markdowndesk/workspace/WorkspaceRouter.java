@@ -7,7 +7,7 @@ import android.widget.Toast;
 
 /** Activities share one package/task. Do not clear task history or bypass editor save guards. */
 public final class WorkspaceRouter {
-    public enum Workspace { MARKDOWN, ARCHIVE, INSPECT }
+    public enum Workspace { MARKDOWN, ARCHIVE, INSPECT, SEARCH }
 
     private WorkspaceRouter() {}
 
@@ -15,13 +15,14 @@ public final class WorkspaceRouter {
         String name=activity.getClass().getName();
         if(name.endsWith(".ArchiveWorkspaceActivity"))return Workspace.ARCHIVE;
         if(name.endsWith(".JsonExplorerActivity"))return Workspace.INSPECT;
+        if(name.endsWith(".UnifiedSearchActivity"))return Workspace.SEARCH;
         return Workspace.MARKDOWN;
     }
 
     public static boolean eligible(Activity activity) {
         String name=activity.getClass().getName();
         return name.endsWith(".MainActivity")||name.endsWith(".ArchiveWorkspaceActivity")
-                ||name.endsWith(".JsonExplorerActivity");
+                ||name.endsWith(".JsonExplorerActivity")||name.endsWith(".UnifiedSearchActivity");
     }
 
     public static final String EXTRA_OPEN_FILES = "com.example.markdowndesk.workspace.OPEN_FILES";
@@ -38,6 +39,11 @@ public final class WorkspaceRouter {
         }
     }
 
+
+    /** Opens one search interface for indexed chats, notes, and authorized files. */
+    public static void openUniversalSearch(Activity current) {
+        launch(current,Workspace.SEARCH);
+    }
 
     /** Global Files navigation is hosted by the existing, protected Markdown hub. */
     public static void openFiles(Activity current){
@@ -56,6 +62,7 @@ public final class WorkspaceRouter {
         switch(target){
             case ARCHIVE:return "com.example.markdowndesk.ArchiveWorkspaceActivity";
             case INSPECT:return "com.example.markdowndesk.JsonExplorerActivity";
+            case SEARCH:return "com.example.markdowndesk.UnifiedSearchActivity";
             default:return "com.example.markdowndesk.MainActivity";
         }
     }
@@ -75,9 +82,13 @@ public final class WorkspaceRouter {
                     "The archive will open only if Markdown Desk closes safely. " +
                     "Use Switch (keep current) to leave the editor open instead.")
                 .setPositiveButton("Close safely",(dialog,which)->{
-                    current.onBackPressed();
-                    if(current.isFinishing())launch(current,target);
-                    else Toast.makeText(current,"Complete the editor's save/close step, then switch.",Toast.LENGTH_LONG).show();
+                    // The editor owns its asynchronous Save/Discard/Cancel dialog.
+                    // Launching immediately after onBackPressed() races that dialog
+                    // and silently fails to switch after a successful Save.
+                    ((com.example.markdowndesk.MainActivity)current)
+                        .closeForWorkspaceSwitch(() -> {
+                            if(launch(current,target))current.finish();
+                        });
                 }).setNegativeButton("Keep open",null).show();
             return;
         }

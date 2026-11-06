@@ -19,6 +19,7 @@ import android.widget.PopupMenu;
 import java.util.Map;
 import java.util.WeakHashMap;
 import com.example.markdowndesk.workspace.WorkspacePreferences;
+import com.example.markdowndesk.UnifiedTabs;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.workspace.WorkspaceRouter.Workspace;
 
@@ -126,7 +127,7 @@ public final class WorkspaceChrome {
                 LinearLayout header=(LinearLayout)first;
                 return header.getChildCount()>0?header.getChildAt(0):null;
             }
-            if(workspace==Workspace.ARCHIVE)return first;
+            if(workspace==Workspace.ARCHIVE || workspace==Workspace.SEARCH)return first;
             return null; // Raw JSON's inspector controls are never hidden.
         }
         private LinearLayout createShell(LinearLayout root,boolean unified){
@@ -146,7 +147,7 @@ public final class WorkspaceChrome {
             label.setGravity(Gravity.CENTER_VERTICAL);
             heading.addView(label,new LinearLayout.LayoutParams(-1,dp(42)));
             bar.addView(heading,new LinearLayout.LayoutParams(0,dp(44),1f));
-            context=button(workspace==Workspace.MARKDOWN?"Save":workspace==Workspace.ARCHIVE?"Notes":"Raw",()->openContext());
+            context=button(workspace==Workspace.MARKDOWN?"Save":workspace==Workspace.ARCHIVE?"Notes":workspace==Workspace.SEARCH?"Find":"Raw",()->openContext());
             bar.addView(context,new LinearLayout.LayoutParams(dp(54),dp(44)));
             markdown=button("✎",()->WorkspaceRouter.open(activity,Workspace.MARKDOWN,false));
             markdown.setContentDescription("Switch to Markdown Desk workspace");
@@ -178,7 +179,7 @@ public final class WorkspaceChrome {
         }
         private void updateTitle(){
             if(label==null)return;
-            String prefix=workspace==Workspace.MARKDOWN?"Markdown Desk":workspace==Workspace.INSPECT?"JSON Inspector":"Archive Reader";
+            String prefix=workspace==Workspace.MARKDOWN?"Markdown Desk":workspace==Workspace.INSPECT?"JSON Inspector":workspace==Workspace.SEARCH?"Search":"Archive Reader";
             String dynamic="";
             if(originalTop instanceof LinearLayout){
                 LinearLayout original=(LinearLayout)originalTop;
@@ -248,7 +249,7 @@ public final class WorkspaceChrome {
             return b;
         }
         private void openFiles(){
-            if(workspace==Workspace.ARCHIVE || workspace==Workspace.INSPECT){
+            if(workspace==Workspace.ARCHIVE || workspace==Workspace.INSPECT || workspace==Workspace.SEARCH){
                 WorkspaceRouter.openFiles(activity);return;
             }
             if(workspace==Workspace.MARKDOWN && originalTop instanceof LinearLayout){
@@ -263,6 +264,9 @@ public final class WorkspaceChrome {
             }
             if(workspace==Workspace.ARCHIVE){
                 if(performTextAction(currentRoot,"Notes"))return;
+            }
+            if(workspace==Workspace.SEARCH){
+                if(performTextAction(currentRoot,"Search"))return;
             }
             WorkspaceRouter.open(activity,Workspace.ARCHIVE,false);
         }
@@ -286,8 +290,11 @@ public final class WorkspaceChrome {
             popup.getMenu().add("Switch & close this workspace").setOnMenuItemClickListener(item->{WorkspaceRouter.open(activity,other,true);return true;});
             popup.getMenu().add(WorkspacePreferences.unified(activity)?"Use original workspace chrome":"Use unified Markdown Desk chrome")
                 .setOnMenuItemClickListener(item->{WorkspacePreferences.toggleUnified(activity);lastUnified=!WorkspacePreferences.unified(activity);reconcile();return true;});
-            popup.getMenu().add("Search Archive").setOnMenuItemClickListener(item->{
-                WorkspaceRouter.openArchiveSearch(activity);return true;
+            popup.getMenu().add("Search all workspaces").setOnMenuItemClickListener(item->{
+                WorkspaceRouter.openUniversalSearch(activity);return true;
+            });
+            popup.getMenu().add("All workspace tabs").setOnMenuItemClickListener(item->{
+                UnifiedTabs.show(activity);return true;
             });
             popup.getMenu().add("Inspect raw JSON").setOnMenuItemClickListener(item->{WorkspaceRouter.open(activity,Workspace.INSPECT,false);return true;});
             if(workspace==Workspace.MARKDOWN && originalTop instanceof LinearLayout){
