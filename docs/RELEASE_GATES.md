@@ -1,5 +1,10 @@
 # Build, test, and release gates
 
+## Android OS compatibility acceptance
+- Current stable Android plus two preceding releases only (as of Nov 2026: Android 15/API35, 16/API36, 17/API37); do not require Android 14/API34 or earlier tests or APIs. The target SDK remains separately reviewed.
+- In-place update and user-data/feature preservation remain mandatory regardless of the minSdk floor.
+
+
 ## Owner full-scope delivery gate (2026-11-06)
 - For a requested new feature or integrated upgrade, **do not generate/sign/offer a user-facing APK** until **every requested feature is implemented together**, integrated into the real app, and the applicable local bug, dependency, regression, safety and packaging checks have passed. Internal checkpoints and partial green tests are not deliverables.
 - No staged test releases or versionCode churn merely to demonstrate partial progress. A separately requested bug-fix update or explicit owner milestone is the exception.
