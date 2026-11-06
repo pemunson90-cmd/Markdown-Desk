@@ -1,3 +1,7 @@
+## Owner Android compatibility policy (2026-11-06)
+
+Support the latest **stable** major Android release and the **two preceding major releases**, not older versions. As of this directive Android 17 is current (API 37), so Markdown Desk's active development minimum is **Android 15 (API 35)**, with required Android 15/16/17 compatibility checks. When a new stable major version arrives, review and advance the floor accordingly; don't retain legacy API workarounds solely for unsupported Android versions. The *minimum supported OS* and *targetSdkVersion* are separate decisions: raise minSdk to 35 now; adjust targetSdk only after evaluating behavior changes, especially Fold/window insets, storage permissions, and background imports. Preserve all previously working features and user data **on supported versions**, including in-place upgrades. Historical Android 8 / minSdk26 baselines remain provenance, not a requirement to support Android 8 in new versions.
+
 ## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
 
 **When the owner assigns a build, upgrade, integration, or feature set, finish the ENTIRE requested scope.** Do not silently narrow it, substitute an MVP, postpone a requested feature, call a partial implementation "done", or end the assignment merely because one subsystem compiles or passes a test. "Everything" means the full authorized request; only the owner may expressly change the scope.
