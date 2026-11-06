@@ -211,19 +211,35 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         return result.toString();
     }
     synchronized List<Hit> search(String query,String chat,int limit,int offset){
+        return search(query,chat,null,null,null,limit,offset);
+    }
+    synchronized List<Hit> search(String query,String chat,String speaker,
+                                  String fromDate,String toDate,int limit,int offset){
         ArrayList<Hit> result=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return result;
-        String escaped="\""+query.trim().replace("\"","\"\"")+"\"";
-        String scoped=chat==null?"":" AND m.conversation_id=?";
-        ArrayList<String> args=new ArrayList<>();args.add(escaped);if(chat!=null)args.add(chat);
+        String escaped="\\""+query.trim().replace("\\"","\\"\\"")+"\\"";
+        ArrayList<String> args=new ArrayList<>();args.add(escaped);
+        StringBuilder conditions=new StringBuilder(" WHERE search_parts MATCH ?");
+        if(chat!=null&&!chat.isEmpty()){
+            conditions.append(" AND m.conversation_id=?");args.add(chat);
+        }
+        if(speaker!=null&&!speaker.trim().isEmpty()){
+            conditions.append(" AND m.role=? COLLATE NOCASE");args.add(speaker.trim());
+        }
+        if(fromDate!=null&&!fromDate.trim().isEmpty()){
+            conditions.append(" AND m.created>=?");args.add(fromDate.trim());
+        }
+        if(toDate!=null&&!toDate.trim().isEmpty()){
+            conditions.append(" AND m.created<?");args.add(toDate.trim()+"~");
+        }
         String sql="SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal, " +
                 "snippet(search_parts, '[', ']', '…', 0, 16) FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
                 "JOIN messages m ON m.row_id=p.message_row JOIN conversations c ON c.id=m.conversation_id " +
-                "WHERE search_parts MATCH ?"+scoped+" ORDER BY COALESCE(m.created,c.updated) DESC " +
-                "LIMIT "+Math.max(1,Math.min(limit,100))+" OFFSET "+Math.max(0,offset);
+                conditions.toString()+" ORDER BY COALESCE(m.created,c.updated) DESC " +
+                "LIMIT "+Math.max(1,Math.min(limit*3,300))+" OFFSET "+Math.max(0,offset);
         try(Cursor c=getReadableDatabase().rawQuery(sql,args.toArray(new String[0]))){
             java.util.HashSet<String> seen=new java.util.HashSet<>();
-            while(c.moveToNext()){
+            while(c.moveToNext() && result.size()<limit){
                 String key=c.getString(0)+"#"+c.getString(2);
                 if(!seen.add(key))continue;
                 Hit hit=new Hit();hit.chatId=c.getString(0);hit.chatTitle=c.getString(1);
