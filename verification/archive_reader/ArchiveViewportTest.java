@@ -5,6 +5,9 @@ import java.util.Random;
 public final class ArchiveViewportTest {
     static void check(boolean yes,String msg){if(!yes)throw new AssertionError(msg);}
     public static void main(String[] args){
+        check(ArchiveViewport.firstPart(12,12,80)==80,"focus section retained");
+        check(ArchiveViewport.firstPart(11,12,80)==0,"neighbor source not clipped");
+        check(ArchiveViewport.firstPart(12,12,-20)==0,"invalid chunk clamped");
         ArchiveViewport empty=new ArchiveViewport(0,0);
         check(empty.start()==0&&empty.end()==0,"empty bounds");
         check(empty.before()==null&&empty.after()==null,"empty loading");

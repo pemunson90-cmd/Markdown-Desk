@@ -33,6 +33,12 @@ public final class ArchiveViewport {
         start=(target/PAGE)*PAGE;
         end=Math.min(total,start+PAGE);
     }
+    /** A search/deep link may begin in a later section of one very long
+     * message. Neighboring messages must still start at their beginning.
+     */
+    public static int firstPart(int ordinal,int targetedOrdinal,int targetedPart){
+        return ordinal==targetedOrdinal?Math.max(0,targetedPart):0;
+    }
     public int start(){return start;}
     public int end(){return end;}
     public int total(){return total;}
