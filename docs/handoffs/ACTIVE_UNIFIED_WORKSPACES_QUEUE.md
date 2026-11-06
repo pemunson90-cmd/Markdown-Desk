@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 00A (PR #37 read-only reconciliation plan; no implementation or merge).
+**Checkpoint:** 2026-11-06, batch 01 (stable evidence and `main` unique-commit review; non-destructive proposal, no merge).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -19,8 +19,8 @@
 |---|---|---|---|
 | 00 | **DONE** | Read-only repo baseline assessment; identify missing branches, stable-policy mismatch, owner scope; establish this integration branch/queue | `c299bf240ac66c9d4b84743646d8c30c4f3e6b92`; no app code touched |
 | 00A | **DONE — PLANNING ONLY** | Inspect PR #37, current heads, prior queue, and classify all 21 changed files; prioritize adaptation without creating a competing status system | PR `#37` at `a3bc7866190fe72c0918679ef5735ddd5482a7ba`; this checkpoint; no code, workflow or merge run |
-| 01 | **NEXT** | Verify latest actually accepted signed/installed stable APK and corresponding source, owner acceptance, and any binary-patch discrepancies; enumerate unique commits presently on `main`; prepare a *non-destructive* stable-main alignment proposal. Do not alter `main` until proof is sufficient | Exact SHA, version, certificate and acceptance evidence; clear blocker if not provable |
-| 02 | PENDING | Inventory every branch and open PR/issue; classify unique source/tests/docs as preserve, integrate, historical tag/archive, or duplicate. Keep old refs until verified | 100% branch ledger and evidence refs |
+| 01 | **DONE — EVIDENCE AUDIT; PROMOTION BLOCKED** | Reconciled code31/32/33 owner observations, signer and binary-patch evidence; enumerated all 11 unique `main` commits; wrote safe alignment proposal. **No verified full stable acceptance or reproducible code33 source-equivalent APK yet.** | This checkpoint and section `Batch 01` below; no main edit |
+| 02 | **NEXT** | Inventory every branch and open PR/issue; classify unique source/tests/docs as preserve, integrate, historical tag/archive, or duplicate. Keep old refs until verified; **do not redo Batch 01** | 100% branch ledger and evidence refs |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
 | 05 | PENDING | Safety: exact selection anchors, process-wide journal synchronization, safe sidecar publication/recovery, transaction integrity, 700 MB archive behavior, source immutability, no silent truncation | Behavior/fault tests for all known failure modes |
@@ -64,6 +64,44 @@
 4. **Revalidation:** 10 focused PR regression checks (adapted), source ancestry/manifest/dirtiness and installed-release gate tests, old+new layout/appearance gates, extractor source-byte equality, preview 450 and status 57 assertions (or updated equivalent with explained count), two host aggregate entry points and duplicate-workflow audit. Use actual `javac --release 11` toolchain; no `-source/-target` workaround counted as parity. Verify no unintended hosted push jobs; skipped CI ≠ passing.
 5. **Only at final integrated source:** full required host suite, complete API37 native build, relevant Android 15/16/17 and Fold7/product-safety acceptance, no regressions, canonical signed update. Record exact commit and observed test outcomes. Nothing from PR #37 alone fulfills this gate.
 
+
+
+## Batch 01 — latest working device evidence and safe `main` alignment (read-only; promotion BLOCKED)
+
+**Decision:** do not promote code33 or code38 to `main` yet. Continue independent planning/branch inventory. The current remote `main` remains `07660de8a7b2128bf00cb19f31711ab1d5531c54` (manifest 2.2.5/code18), while the latest observed functional recovery is code33. Both facts must remain visible without mislabeling the older main as the current stable release or overstating device acceptance.
+
+### Distinct evidence channels (do not conflate)
+
+- **Direct owner report, 2026-11-06:** Pat said **“It worked”** after the JSON recovery candidate was delivered and described the visible Convert to Markdown option. This is meaningful evidence that code33's JSON path opened and functioned at least to that screen. It is **not** an express acceptance of all app features, saved data preservation, Fold/unfold transitions, or a fully release-tested build. The statement lacks a device-reported exact installed-package hash; version association follows the delivery chronology. Avoid the prior false statement that code33 had *no* owner runtime evidence.
+- **Code31:** `docs/verification/JSON_CODE31_33_LOCAL_DIFFERENTIAL_20261105.md` records actual owner's Fold7 screenshots showing JSON navigation to `$[0]` and the Claude transcript dialog. It was usable with contrast/inset defects; it is not a blanket all-feature release acceptance.
+- **Code32:** the owner reported opening JSON crashed after the code32 update. This is a **rejected broken candidate**, not stable.
+- **Code33 artifact:** `fix/json-recovery-local-20261105` @ `30a08de8171e710cf31afb876a8c8321787bef9e`, manifest `2.3.5-json-recovery` / `versionCode 33`; public report `docs/verification/JSON_EXPLORER_CODE33_LOCAL_RECOVERY_20261105.md` records signed APK SHA-256 `7e9da48264e7e3df22fdf96f3c8f585587ad43c37f4af8476e97616487a7bcd2`, package `com.example.markdowndesk`, canonical certificate SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, zipalign and v2/v3 signer PASS **locally per original report**. The signed artifact is not in public Git.
+- **Code33 binary/source equivalence remains UNVERIFIED.** The tested installer was patched from code32 with two precise DEX jump edits at offsets `0x568ee` and `0x56950`, plus manifest version update, **not** compiled from the recovery branch. The source branch changes `AndroidManifest.xml`, `JsonExplorerActivity.java`, local verification/doc files; comparison against code32 branch shows five new commits and no removal of code32 ancestry. A source-equivalent patch is **claimed**, but no full-source build of code33 was shown identical in runtime behavior to the signed binary. Do not silently substitute the source branch for the binary proof.
+- **Code34–38:** newer Archive/Unified Workspaces builds are not established as owner-accepted stable releases; code38 reports explicitly label incomplete integration and absent Fold7 acceptance. Neither the largest versionCode nor a signed test APK implies stable.
+- **Acceptance blocker:** establish device-reported installed version/identity and actual full-app owner acceptance; reconcile code33's binary patch with a reproducible source build and test its behavior, then check upgrade preservation. These are prerequisites to *stable promotion*, not a request for unnecessary repeat testing now. Never demand that the owner uninstall/clear data or publish private APK/signing material.
+
+### Eleven commits unique to `main` (explicitly accounted for)
+
+GitHub comparison of `fix/json-recovery-local-20261105...main` returned **11 ahead / 359 behind**, common ancestor `fdb7bd66c0078cf7b88b53924ee3a16c24d194e3`; only three file paths change on main's side: `AGENTS.md`, `CLAUDE.md`, `docs/RELEASE_GATES.md`. Each of the 11 unique commits was individually inspected with its changed-file list; **zero modifies app source or assets**.
+
+| Commits (newest to oldest) | Changed file / purpose | Action |
+|---|---|---|
+| `07660de8a7`, `42ddf2dbb6`, `29928c6fe` | `docs/RELEASE_GATES.md`: rolling Android 15–17 support and full-scope/no staged-release gates | Retain all policy, reconcile with integration release gates without overwriting existing exclusion |
+| `5edf17cdc7`, `68e9b6df63`, `cc9cc751b9`, `3f4be56d37` | `CLAUDE.md`: Android support, delivery boundary, no unapproved feature loss | Preserve decisions and provenance; deduplicate repeated policy wording, reference single active integration queue |
+| `f0e2dcdddb`, `810a3ad536`, `02aa4b049e`, `f20468c921` | `AGENTS.md`: Android support, delivery boundary, continuity of existing capabilities | Same: preserve intent, reconcile actual delta with current integration instructions; do not copy obsolete Professional M0–M7 as current Unified Workspaces scope |
+
+Some policy language is already present on both development and main, but the exact latest policy blocks differ. **Do not cherry-pick all 11 automatically or assume them redundant.** Compare semantic requirements and preserve exact historical refs/commits before consolidation.
+
+### Approved non-destructive stable-main strategy — implementation only after release evidence
+
+1. Pin immutable refs for the existing `main` head, actual last owner-accepted installer evidence, code31/32/33 source and binary provenance. Check source graph and the 11 policy commits; no force push or reset.
+2. If a prior fully accepted stable source can be proved, create an isolated stable-alignment candidate retaining main history, reconcile application and current policies without dragging unfinished Unified Workspaces code into `main`; validate package, signer, install data and exact release identity. If no accepted/signed source equivalence can be proved, **leave `main` unchanged and record blocked**, not a guessed stable update.
+3. Maintain the single active integration queue on `integration/unified-workspaces-20261106`. PR #37 efficiency repairs are prioritized as Batch 03 **after** branch inventory; do not start implementation while the approved planning freeze applies.
+4. At final Unified Workspaces owner acceptance, merge the verified integrated product into `main` non-destructively, tag exact commit, publish source/release evidence and classify historical feature branches by integrated/archived/deprecated/active. Signed candidate, skipped CI or local source checks alone never authorize promotion.
+
+### Handoff
+
+**Batch 01 evidence audit complete; stable promotion intentionally blocked.** No new app build, testing campaign, APK, PR merge, branch cleanup or `main` modification performed. **Next: Batch 02 branch/PR/issue inventory and stale-handoff reconciliation**, starting from the exact queue/head; preserve every branch with unique work pending classification.
 
 ## Known, not deferred
 
