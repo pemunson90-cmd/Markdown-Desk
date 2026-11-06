@@ -36,7 +36,7 @@ public final class ArchiveMarkdownIndexes {
     public static String replaceGeneratedRegion(String existing,String replacement) {
         if(existing==null||existing.isEmpty())return replacement;
         int start=existing.indexOf(BEGIN),end=existing.indexOf(END);
-        if(start<0&&end<0)return existing.stripTrailing()+"\n\n"+replacement;
+        if(start<0&&end<0)return existing.replaceFirst("\\s+$", "")+"\n\n"+replacement;
         if(start<0||end<start)throw new IllegalArgumentException("Corrupted managed Markdown markers; original preserved");
         int rp= replacement.indexOf(BEGIN),re=replacement.indexOf(END);
         if(rp<0||re<rp)throw new IllegalArgumentException("Missing replacement markers");
