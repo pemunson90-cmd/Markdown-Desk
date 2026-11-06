@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
+import com.example.markdowndesk.workspace.archive.ArchiveTextCodec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -218,25 +219,29 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     }
     synchronized String text(long messageRow,int maxChars){
         StringBuilder out=new StringBuilder();
-        try(Cursor c=getReadableDatabase().rawQuery("SELECT CASE WHEN p.content<>'' THEN p.content " +
-                "ELSE substr(f.body,p.overlap_len+1) END FROM parts p " +
-                "JOIN search_parts f ON f.docid=p.row_id WHERE p.message_row=? ORDER BY p.ordinal",
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT p.content,p.overlap_len,f.body " +
+                "FROM parts p JOIN search_parts f ON f.docid=p.row_id " +
+                "WHERE p.message_row=? ORDER BY p.ordinal",
                 new String[]{Long.toString(messageRow)})){
             while(c.moveToNext()){
-                String value=c.getString(0);if(value==null)continue;
-                if(out.length()+value.length()>maxChars)break;out.append(value);
+                String value=ArchiveTextCodec.reconstruct(c.getString(0),c.getInt(1),c.getString(2));
+                if(out.length()+value.length()>maxChars)break;
+                out.append(value);
             }
-        }return out.toString();
+        }
+        return out.toString();
     }
     synchronized String textChunk(long messageRow,int startPart,int take){
         StringBuilder out=new StringBuilder();
-        try(Cursor c=getReadableDatabase().rawQuery("SELECT CASE WHEN p.content<>'' THEN p.content " +
-                "ELSE substr(f.body,p.overlap_len+1) END FROM parts p " +
-                "JOIN search_parts f ON f.docid=p.row_id WHERE p.message_row=? AND p.ordinal>=? " +
-                "ORDER BY p.ordinal LIMIT "+Math.max(1,Math.min(take,64)),
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT p.content,p.overlap_len,f.body " +
+                "FROM parts p JOIN search_parts f ON f.docid=p.row_id " +
+                "WHERE p.message_row=? AND p.ordinal>=? ORDER BY p.ordinal LIMIT " +
+                Math.max(1,Math.min(take,64)),
                 new String[]{Long.toString(messageRow),Integer.toString(startPart)})){
-            while(c.moveToNext())if(!c.isNull(0))out.append(c.getString(0));
-        }return out.toString();
+            while(c.moveToNext())out.append(
+                ArchiveTextCodec.reconstruct(c.getString(0),c.getInt(1),c.getString(2)));
+        }
+        return out.toString();
     }
     synchronized List<Hit> search(String query,String chat,int limit,int offset){
         return search(query,chat,null,null,null,limit,offset);
