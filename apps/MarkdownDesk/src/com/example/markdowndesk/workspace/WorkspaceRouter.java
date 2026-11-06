@@ -9,6 +9,11 @@ import android.widget.Toast;
 public final class WorkspaceRouter {
     public enum Workspace { MARKDOWN, ARCHIVE, INSPECT }
 
+    /** Editors must complete their own save/recovery protocol before closing. */
+    public interface SafeExit {
+        void requestSafeWorkspaceExit(Runnable afterSaveOrExplicitDiscard);
+    }
+
     private WorkspaceRouter() {}
 
     public static Workspace classify(Activity activity) {
@@ -67,18 +72,20 @@ public final class WorkspaceRouter {
             launch(current,target);
             return;
         }
-        // The main editor owns all dirty-data checks; do not call finish() here.
-        // It might need to ask the owner about an unsaved document.
+        // The editor—not the router—owns the existing unsaved-document
+        // confirmation and protected save. A callback executes only after that
+        // protocol succeeds (or the user explicitly chooses to discard).
         if(from==Workspace.MARKDOWN){
-            new AlertDialog.Builder(current).setTitle("Close Markdown workspace")
-                .setMessage("Markdown Desk must finish its existing save/recovery checks first. " +
-                    "The archive will open only if Markdown Desk closes safely. " +
-                    "Use Switch (keep current) to leave the editor open instead.")
-                .setPositiveButton("Close safely",(dialog,which)->{
-                    current.onBackPressed();
-                    if(current.isFinishing())launch(current,target);
-                    else Toast.makeText(current,"Complete the editor's save/close step, then switch.",Toast.LENGTH_LONG).show();
-                }).setNegativeButton("Keep open",null).show();
+            if(current instanceof SafeExit) {
+                ((SafeExit)current).requestSafeWorkspaceExit(()->{
+                    if(!current.isFinishing()&&!current.isDestroyed()&&launch(current,target))
+                        current.finish();
+                });
+            }else {
+                new AlertDialog.Builder(current).setTitle("Safe switch unavailable")
+                    .setMessage("Keep Markdown Desk open and switch normally; this editor cannot confirm a safe close.")
+                    .setPositiveButton("OK",null).show();
+            }
             return;
         }
         // Archive and raw JSON read-only screens have no unsaved source edits.
