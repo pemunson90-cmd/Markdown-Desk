@@ -149,9 +149,11 @@ public final class ArchiveStreamParser {
         enter('{');
         if (accept('}')) { leave(); return; }
         for (;;) {
+            skipWhitespace();
             if (peek() != '"') throw error("Expected JSON object key");
             String key = string(8192);
             require(':');
+            skipWhitespace();
             handle.read(key);
             if (accept('}')) break;
             require(',');
@@ -163,6 +165,7 @@ public final class ArchiveStreamParser {
         if (accept(']')) { leave(); return; }
         int index=0;
         for (;;) {
+            skipWhitespace();
             handle.read(index++);
             if (accept(']')) break;
             require(',');

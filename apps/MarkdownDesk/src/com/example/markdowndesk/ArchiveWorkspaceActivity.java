@@ -9,6 +9,10 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
@@ -52,11 +56,18 @@ import java.util.concurrent.Executors;
  * Shared palette, typography, preview Markdown renderer and font preferences.
  * Search is database-backed, and all user annotations have independent durable records.
  */
-public final class ArchiveWorkspaceActivity extends Activity {
+public final class ArchiveWorkspaceActivity extends Activity implements ArchiveImportCoordinator.Listener {
     private static final int REQUEST_IMPORT=8201, REQUEST_NOTES_TREE=8202, REQUEST_TRANSCRIPT=8203;
     private static final int WINDOW_MESSAGES=12, CHUNK_PARTS=20;
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
+    private ArchiveImportCoordinator importController;
+    private TextView importSummary,importDetails,importFootnote;
+    private ProgressBar importProgress;
+    private Handler importHandler=new Handler(Looper.getMainLooper());
+    private Runnable importTicker;
+    private boolean importDoneNotified;
+
     private ArchiveDatabase database;
     private ArchiveJournal journal;
     private UiTheme.Palette palette;
@@ -94,6 +105,14 @@ public final class ArchiveWorkspaceActivity extends Activity {
             if(chat!=null)active=findConversation(chat);
         }
         buildChrome();
+        importController=ArchiveImportCoordinator.get(getApplicationContext());
+        importController.attach(this);
+        if(importController.snapshot().running()){
+            showImportScreen();return;
+        }
+        if("interrupted".equals(importController.snapshot().state)){
+            showInterruptedImport();return;
+        }
         if(!handleDeepLink(getIntent())){
             if(active!=null && "reader".equals(viewMode))showReader(false);
             else showHome();
@@ -138,6 +157,10 @@ public final class ArchiveWorkspaceActivity extends Activity {
         getWindow().setStatusBarColor(palette.surface);
         getWindow().setNavigationBarColor(palette.surface);
         screen=vertical();screen.setBackgroundColor(palette.canvas);
+        // Let Android calculate display-cutout, status and navigation insets.
+        // Do not use the old code32 custom decorFits/insets listener: it crashed
+        // this app on the owner's Fold7. fitsSystemWindows works at both widths.
+        screen.setFitsSystemWindows(true);
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         header.setBackgroundColor(palette.surface);
         header.addView(button("‹",v->back()),new LinearLayout.LayoutParams(dp(52),dp(48)));
@@ -667,26 +690,107 @@ public final class ArchiveWorkspaceActivity extends Activity {
         }
     }
     private void importArchive(Uri uri){
-        final int token=++generation;
-        viewMode="import";setTitle("Importing Claude archive","Indexing offline · original unchanged");
+        if(importController==null)importController=ArchiveImportCoordinator.get(getApplicationContext());
+        if(!importController.start(uri)){
+            status("An import is already running, or the selected file cannot be opened");
+            showImportScreen();return;
+        }
+        importDoneNotified=false;
+        showImportScreen();
+    }
+    private void showInterruptedImport(){
+        ++generation;viewMode="import";reader=null;active=null;
         controls.removeAllViews();
-        pane.removeAllViews();pane.addView(text("Reading conversations and building local search…",16));
-        String archiveId=UUID.nameUUIDFromBytes(uri.toString().getBytes(StandardCharsets.UTF_8)).toString();
-        io.execute(()->{
-            ArchiveDatabase importDb=new ArchiveDatabase(this,archiveId);
-            try{
-                importDb.beginImport(uri.toString(),"Claude export");
-                try(InputStream input=getContentResolver().openInputStream(uri)){
-                    if(input==null)throw new IOException("Selected provider returned no data");
-                    new ArchiveStreamParser(new InputStreamReader(input,StandardCharsets.UTF_8),importDb).parse();
-                }
-                importDb.completeImport();
-                runOnUiThread(()->{if(token==generation){status("Claude archive indexed successfully");showHome();}});
-            }catch(Exception failure){
-                importDb.abortImport();
-                runOnUiThread(()->{if(token==generation)fail("Archive import did not complete. Previous index preserved.",failure);});
-            }finally{importDb.close();}
+        setTitle("Import interrupted","Previous completed archive remains available");
+        LinearLayout box=vertical();box.setPadding(dp(18),dp(18),dp(18),dp(18));
+        box.addView(text("Android stopped the previous indexing process. The previous complete index is preserved. You can restart the same export safely.",16));
+        add(box,"Restart import from beginning",v->{
+            if(importController.retryInterrupted())showImportScreen();
+            else status("Unable to reopen the previously selected file");
         });
+        add(box,"Return to conversation library",v->showHome());
+        view(box);
+    }
+    private void showImportScreen(){
+        ++generation;viewMode="import";reader=null;active=null;
+        controls.removeAllViews();
+        setTitle("Importing Claude archive","Indexing offline · original unchanged");
+        FrameLayout wrapper=new FrameLayout(this);
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout body=vertical();body.setPadding(dp(18),dp(18),dp(18),dp(22));
+        importSummary=text("Preparing import…",17);
+        importSummary.setTypeface(null,Typeface.BOLD);
+        importDetails=text("Reading archive metadata",14);
+        importProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        importProgress.setMax(1000);importProgress.setIndeterminate(true);
+        importFootnote=text("Original JSON is read-only. Your last completed archive stays accessible if importing fails.",12);
+        body.addView(importSummary);
+        body.addView(importProgress,new LinearLayout.LayoutParams(-1,dp(12)));
+        body.addView(importDetails);
+        body.addView(importFootnote);
+        add(body,"Cancel import safely",v->new AlertDialog.Builder(this)
+                .setTitle("Cancel indexing?")
+                .setMessage("The original JSON and previous completed index will be preserved. Unfinished staging records will be cleaned up.")
+                .setPositiveButton("Cancel import",(d,w)->importController.cancel())
+                .setNegativeButton("Continue indexing",null).show());
+        add(body,"Return to library (indexing continues while app runs)",v->showHome());
+        scroll.addView(body);
+        int width=Math.max(dp(260),Math.min(getResources().getDisplayMetrics().widthPixels-dp(24),dp(740)));
+        wrapper.addView(scroll,new FrameLayout.LayoutParams(width,-1,Gravity.TOP|Gravity.CENTER_HORIZONTAL));
+        view(wrapper);
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        renderImportProgress(importController.snapshot());
+        if(importTicker!=null)importHandler.removeCallbacks(importTicker);
+        importTicker=()->{
+            if(!isFinishing()&&!isDestroyed()&&"import".equals(viewMode)){
+                renderImportProgress(importController.snapshot());
+                importHandler.postDelayed(importTicker,5000);
+            }
+        };
+        importHandler.postDelayed(importTicker,5000);
+    }
+    @Override public void onArchiveImportChanged(ArchiveImportCoordinator.Snapshot state){
+        runOnUiThread(()->{
+            if(isFinishing()||isDestroyed())return;
+            if(state.running())getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if("import".equals(viewMode)){
+                renderImportProgress(state);
+                if(!state.running()&&!"interrupted".equals(state.state)&&!importDoneNotified){
+                    importDoneNotified=true;
+                    if("complete".equals(state.state)){
+                        status(state.detail);showHome();
+                    }else if("failed".equals(state.state)||"cancelled".equals(state.state)){
+                        new AlertDialog.Builder(this).setTitle("Archive import "+state.state)
+                            .setMessage(state.detail+(state.error==null?"":"\n\n"+state.error))
+                            .setPositiveButton("Return to library",(d,w)->showHome())
+                            .setNeutralButton("Retry",(d,w)->{
+                                if(importController.retryInterrupted())showImportScreen();
+                            }).show();
+                    }
+                }
+            }
+        });
+    }
+    private void renderImportProgress(ArchiveImportCoordinator.Snapshot state){
+        if(importSummary==null||!"import".equals(viewMode))return;
+        String stage="indexing".equals(state.state)?"Indexing Claude conversations":
+                "cleaning".equals(state.state)?"Cleaning index generations":
+                "publishing".equals(state.state)?"Publishing completed archive":
+                "checking".equals(state.state)?"Checking free space":state.detail;
+        importSummary.setText(stage);
+        long mib=1024L*1024;
+        String file=state.size>0?String.format(Locale.ROOT,"%,d / %,d MiB",state.bytes/mib,state.size/mib):
+                String.format(Locale.ROOT,"%,d MiB read (total unknown)",state.bytes/mib);
+        String available=state.free>=0?String.format(Locale.ROOT,"%,d MiB free",state.free/mib):"Free space unavailable";
+        long inactive=Math.max(0,(System.currentTimeMillis()-state.lastChange)/1000);
+        String stalled=state.running() && inactive>=30?"\nNo progress update for "+inactive+" seconds. Checking file provider/storage…":"";
+        importDetails.setText(state.detail+"\n"+file+"\n"+
+                state.conversations+" conversations · "+state.messages+" messages\n"+available+stalled);
+        if(state.size>0){
+            importProgress.setIndeterminate(false);
+            importProgress.setProgress((int)Math.min(1000,state.bytes*1000/Math.max(1,state.size)));
+        }else importProgress.setIndeterminate(true);
     }
     private void exportTranscript(){
         if(active==null)return;
@@ -753,6 +857,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
     }
     @Override public void onBackPressed(){back();}
     @Override protected void onDestroy(){
+        if(importTicker!=null)importHandler.removeCallbacks(importTicker);
+        if(importController!=null)importController.detach(this);
         generation++;io.shutdownNow();
         if(database!=null)database.close();
         super.onDestroy();
