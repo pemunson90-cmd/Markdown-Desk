@@ -1,5 +1,10 @@
 # Markdown Desk — standing Codex engineering contract
 
+## Owner Android compatibility policy (2026-11-06)
+
+Support the latest **stable** major Android release and the **two preceding major releases**, not older versions. As of this directive Android 17 is current (API 37), so Markdown Desk's active development minimum is **Android 15 (API 35)**, with required Android 15/16/17 compatibility checks. When a new stable major version arrives, review and advance the floor accordingly; don't retain legacy API workarounds solely for unsupported Android versions. The *minimum supported OS* and *targetSdkVersion* are separate decisions: raise minSdk to 35 now; adjust targetSdk only after evaluating behavior changes, especially Fold/window insets, storage permissions, and background imports. Preserve all previously working features and user data **on supported versions**, including in-place upgrades. Historical Android 8 / minSdk26 baselines remain provenance, not a requirement to support Android 8 in new versions.
+
+
 ## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
 
 **When the owner assigns a build, upgrade, integration, or feature set, finish the ENTIRE requested scope.** Do not silently narrow it, substitute an MVP, postpone a requested feature, call a partial implementation "done", or end the assignment merely because one subsystem compiles or passes a test. "Everything" means the full authorized request; only the owner may expressly change the scope.
@@ -20,7 +25,7 @@ Give brief progress reports at meaningful milestones and on real blockers, not a
 This file governs every Codex session in this repository. **Read it first**, then `docs/STATUS.md`, `docs/ROADMAP.md`, `docs/RELEASE_GATES.md`, and relevant current decisions/source. Do not obey historical one-shot kickoff notes over this contract. Git source and observed tests outrank AI summaries.
 
 ## Mission and ongoing authorization
-Build the complete **Markdown Desk Professional** M0–M7 roadmap as one sustained engineering campaign, not one prompt per issue. The protected shipping baseline is 2.2.5 / versionCode 18, package `com.example.markdowndesk`, minSdk26, targetSdk35. The exact baseline source was imported on PR #9; never recreate it from memory. The current progress and next executable action live in `docs/STATUS.md`.
+Build the complete **Markdown Desk Professional** M0–M7 roadmap as one sustained engineering campaign, not one prompt per issue. The protected shipping baseline is 2.2.5 / versionCode 18, package `com.example.markdowndesk`, historical minSdk26/targetSdk35 (provenance only, superseded for current active development by the Android 15+ floor). The exact baseline source was imported on PR #9; never recreate it from memory. The current progress and next executable action live in `docs/STATUS.md`.
 
 Continue to the next eligible, approved roadmap task immediately after each bounded change, PR, or milestone. A successful test or closed issue is a checkpoint, **not** the end of the assignment. Within the available run, pursue as much verified work as feasible. When context/runtime/usage ends, leave committed, recoverable work and precise next steps; instructions cannot make an ended session keep running.
 
