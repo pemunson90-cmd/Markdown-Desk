@@ -217,12 +217,15 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         String scoped=chat==null?"":" AND m.conversation_id=?";
         ArrayList<String> args=new ArrayList<>();args.add(escaped);if(chat!=null)args.add(chat);
         String sql="SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal, " +
-                "substr(p.content,1,400) FROM search_parts f JOIN parts p ON p.row_id=f.docid " +
+                "snippet(search_parts, '[', ']', '…', 0, 16) FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
                 "JOIN messages m ON m.row_id=p.message_row JOIN conversations c ON c.id=m.conversation_id " +
-                "WHERE f.body MATCH ?"+scoped+" GROUP BY m.row_id ORDER BY COALESCE(m.created,c.updated) DESC " +
+                "WHERE search_parts MATCH ?"+scoped+" ORDER BY COALESCE(m.created,c.updated) DESC " +
                 "LIMIT "+Math.max(1,Math.min(limit,100))+" OFFSET "+Math.max(0,offset);
         try(Cursor c=getReadableDatabase().rawQuery(sql,args.toArray(new String[0]))){
+            java.util.HashSet<String> seen=new java.util.HashSet<>();
             while(c.moveToNext()){
+                String key=c.getString(0)+"#"+c.getString(2);
+                if(!seen.add(key))continue;
                 Hit hit=new Hit();hit.chatId=c.getString(0);hit.chatTitle=c.getString(1);
                 hit.messageId=c.getString(2);hit.role=c.getString(3);hit.created=c.getString(4);
                 hit.messageOrdinal=c.getInt(5);hit.excerpt=c.getString(6);result.add(hit);
