@@ -37,6 +37,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     static final class Hit {
         String chatId, chatTitle, messageId, role, created, excerpt;
         int messageOrdinal;
+        int partOrdinal;
     }
     private final String archive;
     private SQLiteDatabase ingest;
@@ -240,9 +241,10 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                 "SELECT p.message_row AS message_row, MIN(p.row_id) AS first_doc " +
                 "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
                 "WHERE search_parts MATCH ? GROUP BY p.message_row) " +
-                "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal, " +
+                "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal,p.ordinal, " +
                 "snippet(search_parts, '[', ']', '…', 0, 16) " +
                 "FROM search_parts JOIN matched h ON h.first_doc=search_parts.docid " +
+                "JOIN parts p ON p.row_id=search_parts.docid " +
                 "JOIN messages m ON m.row_id=h.message_row " +
                 "JOIN conversations c ON c.id=m.conversation_id " +
                 "JOIN sources s ON s.id=c.archive_id AND s.status='ready' " +
@@ -253,7 +255,8 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
             while(c.moveToNext()){
                 Hit hit=new Hit();hit.chatId=c.getString(0);hit.chatTitle=c.getString(1);
                 hit.messageId=c.getString(2);hit.role=c.getString(3);hit.created=c.getString(4);
-                hit.messageOrdinal=c.getInt(5);hit.excerpt=c.getString(6);result.add(hit);
+                hit.messageOrdinal=c.getInt(5);hit.partOrdinal=c.getInt(6);
+                hit.excerpt=c.getString(7);result.add(hit);
             }
         }catch(SQLiteException invalidQuery){
             throw new IllegalArgumentException("This search could not be parsed. Try a shorter phrase.",invalidQuery);
@@ -261,9 +264,9 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         return result;
     }
     synchronized int findMessageOrdinal(String chat,String messageId){
-        if(messageId==null)return 0;
+        if(messageId==null||messageId.isEmpty())return -1;
         try(Cursor c=getReadableDatabase().rawQuery("SELECT ordinal FROM messages WHERE conversation_id=? AND message_id=? LIMIT 1",new String[]{chat,messageId})){
-            return c.moveToFirst()?c.getInt(0):0;
+            return c.moveToFirst()?c.getInt(0):-1;
         }
     }
     synchronized Message messageAt(String chat,int ordinal){
