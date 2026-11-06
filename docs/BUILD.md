@@ -1,5 +1,12 @@
 # Reproducible unsigned baseline validation
 
+## Current development Android support policy (2026-11-06)
+
+The supported OS range is the latest stable Android release and its two predecessors: **Android 15 (API 35), Android 16 (API 36), and Android 17 (API 37)**. The current development manifest uses `minSdkVersion=35`. `build.sh` derives the minimum and target API levels for aapt2 and D8 directly from that manifest; the old hardcoded API 26 minimum no longer applies to current development. **targetSdkVersion is independently reviewed** before targeting a new platform, especially for folding/window behavior, storage, and background imports.
+
+The archived 2.2.5 baseline and its original Android 8 minimum remain historical evidence, not today's compatibility requirement. Maintain non-destructive in-place upgrades and existing user data on supported Android versions. Update this rolling support range when a newer stable Android major release arrives. No intermediate APK is authorized by this policy update.
+
+
 Validated on Linux with Temurin **17.0.16+8**, Python **3.12.14**, Android SDK
 platform **37.0 revision 2** (installed folder `android-37.0`), build-tools
 **36.0.0** (aapt2 2.20-13193326; D8 8.10.9-dev). The original SDK 36/tooling
