@@ -316,6 +316,24 @@ public class MainActivity extends Activity {
         finish();
     }
 
+    /** Complete the protected Save/Discard/Cancel flow before switching tasks.
+     * The caller launches the destination only inside the accepted callback;
+     * cancelling or a failed save never closes the Markdown workspace.
+     */
+    public void closeForWorkspaceSwitch(Runnable afterAccepted) {
+        if(afterAccepted==null||isFinishing()||isDestroyed())return;
+        if(this.saveInProgress){
+            Toast.makeText(this,"Finish the current save before closing this workspace",Toast.LENGTH_LONG).show();
+            return;
+        }
+        confirmUnsaved(()->{
+            if(isFinishing()||isDestroyed())return;
+            captureActiveTab();
+            writeSessionNow();
+            afterAccepted.run();
+        });
+    }
+
     @Override // android.app.Activity
     public void onBackPressed() {
         if (this.launchSplash != null) {
@@ -1727,6 +1745,9 @@ public class MainActivity extends Activity {
         styleButton(buttonCreatePillButton2, false, false);
         this.tabsRow.addView(buttonCreatePillButton2, new LinearLayout.LayoutParams(dp(48), dp(48)));
         this.tabButtons.add(buttonCreatePillButton2);
+        // A lightweight cross-workspace index; canonical text/dirty state
+        // stays with the existing protected Markdown session store.
+        UnifiedTabs.updateMarkdown(this,this.tabs,this.activeTab);
         refreshFavoriteIndicators();
         if (this.activeTab >= 0) {
             this.tabsScroll.post(new Runnable() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda68
@@ -2134,6 +2155,14 @@ public class MainActivity extends Activity {
 
     private void handleIntent(Intent intent) {
         if (intent == null) {
+            return;
+        }
+        if(intent.hasExtra(UnifiedTabs.EXTRA_TAB_ID)){
+            String logicalId=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
+            intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
+            int target=findTabById(logicalId);
+            if(target>=0)switchToTab(target,false);
+            else Toast.makeText(this,"This Markdown tab is no longer open",Toast.LENGTH_LONG).show();
             return;
         }
         String action = intent.getAction();
@@ -4453,6 +4482,18 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             startActivity(new Intent(this, ArchiveWorkspaceActivity.class));
         }), matchWrap());
+        content.addView(filesAction("All workspace tabs",
+                "Switch between open Markdown documents and Archive conversations", view -> {
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            captureActiveTab();
+            UnifiedTabs.updateMarkdown(this,this.tabs,this.activeTab);
+            UnifiedTabs.show(this);
+        }),matchWrap());
+        content.addView(filesAction("Search all workspaces",
+                "Search indexed conversations, notes, links and authorized Markdown folders",view->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            startActivity(new Intent(this,UnifiedSearchActivity.class));
+        }),matchWrap());
 
         final List<RecentStore.Item> recent=RecentStore.read(this);
         {
