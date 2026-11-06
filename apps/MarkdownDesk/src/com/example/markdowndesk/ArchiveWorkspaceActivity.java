@@ -71,7 +71,7 @@ public final class ArchiveWorkspaceActivity extends Activity {
     private ArchiveDatabase.Conversation active;
     private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
     private boolean fullscreen, chatLayout;
-    private String pendingExportChat, query="";
+    private String pendingExportChat, query="", searchSpeaker="", searchFromDate="", searchToDate="";
     private Uri notesTree;
     private String viewMode="home";
     private ArrayList<ArchiveDatabase.Message> visibleMessages=new ArrayList<>();
@@ -430,11 +430,40 @@ public final class ArchiveWorkspaceActivity extends Activity {
     }
 
     private void searchDialog(String scopedChat){
-        EditText input=new EditText(this);input.setSingleLine(true);input.setHint("Exact phrase in indexed messages");
-        input.setText(query);input.setSelectAllOnFocus(true);
-        new AlertDialog.Builder(this).setTitle(scopedChat==null?"Search all conversations":"Find in this conversation")
-            .setView(input).setPositiveButton("Find",(d,w)->showSearch(input.getText().toString(),scopedChat,0))
-            .setNegativeButton("Cancel",null).show();
+        LinearLayout fields=vertical();fields.setPadding(dp(18),dp(8),dp(18),dp(12));
+        EditText input=new EditText(this);input.setSingleLine(true);
+        input.setHint("Search exact words or phrase");input.setText(query);
+        input.setSelectAllOnFocus(true);fields.addView(input);
+        EditText speaker=new EditText(this);speaker.setSingleLine(true);
+        speaker.setHint("Speaker (optional: human, assistant)");speaker.setText(searchSpeaker);
+        fields.addView(speaker);
+        EditText from=new EditText(this);from.setSingleLine(true);
+        from.setHint("From date YYYY-MM-DD (optional)");from.setText(searchFromDate);
+        fields.addView(from);
+        EditText to=new EditText(this);to.setSingleLine(true);
+        to.setHint("Through date YYYY-MM-DD (optional)");to.setText(searchToDate);
+        fields.addView(to);
+        ScrollView scroll=new ScrollView(this);scroll.addView(fields);
+        AlertDialog d=new AlertDialog.Builder(this)
+            .setTitle(scopedChat==null?"Search all conversations":"Find in this conversation")
+            .setView(scroll).setPositiveButton("Find",null).setNegativeButton("Cancel",null).create();
+        d.setOnShowListener(ignored->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            String f=from.getText().toString().trim(), t=to.getText().toString().trim();
+            if(!f.isEmpty()&&!f.matches("\\d{4}-\\d{2}-\\d{2}")){
+                from.setError("Use YYYY-MM-DD");return;
+            }
+            if(!t.isEmpty()&&!t.matches("\\d{4}-\\d{2}-\\d{2}")){
+                to.setError("Use YYYY-MM-DD");return;
+            }
+            if(!f.isEmpty()&&!t.isEmpty()&&f.compareTo(t)>0){
+                to.setError("End must not precede start");return;
+            }
+            searchSpeaker=speaker.getText().toString().trim();searchFromDate=f;searchToDate=t;
+            String term=input.getText().toString().trim();
+            if(term.isEmpty()){input.setError("Enter a search phrase");return;}
+            d.dismiss();showSearch(term,scopedChat,0);
+        }));
+        d.show();
     }
     private void showSearch(String term,String scope,int offset){
         query=term;viewMode="search";
@@ -445,7 +474,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
         final int token=++generation;
         io.execute(()->{
             try{
-                List<ArchiveDatabase.Hit> hits=database.search(term,scope,60,offset);
+                List<ArchiveDatabase.Hit> hits=database.search(term,scope,
+                        searchSpeaker,searchFromDate,searchToDate,60,offset);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||token!=generation)return;
                     if(hits.isEmpty())rows.addView(text("No matches in the indexed messages.",14));
