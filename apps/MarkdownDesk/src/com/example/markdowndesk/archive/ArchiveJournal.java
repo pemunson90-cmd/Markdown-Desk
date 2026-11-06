@@ -10,6 +10,9 @@ import java.util.*;
  * A truncated final record is reported and ignored; a corrupt committed record fails closed.
  */
 public final class ArchiveJournal {
+    // All instances in the editor and archive share the same journal file.
+    // An instance-level synchronized method does not protect cross-instance writes.
+    private static final Object PROCESS_LOCK=new Object();
     private static final int MAGIC = 0x414A4E32; // AJN2 (unreleased schema)
     private static final int MAX_RECORD = 8*1024*1024;
     private final File file;
@@ -36,18 +39,27 @@ public final class ArchiveJournal {
         public final ArrayList<Annotation> annotations = new ArrayList<>();
         public boolean truncatedTail;
     }
-    public synchronized void save(Annotation a) throws IOException {
+    public void save(Annotation a) throws IOException {
+        synchronized(PROCESS_LOCK){ saveLocked(a); }
+    }
+    private void saveLocked(Annotation a) throws IOException {
         if(a==null || a.id==null || a.id.isEmpty() || a.chatId==null || a.chatId.isEmpty())
             throw new IOException("Incomplete annotation identity");
         if(!validType(a.type))throw new IOException("Unknown annotation type");
         writeRecord((byte)1,a);
     }
-    public synchronized void delete(String id) throws IOException {
+    public void delete(String id) throws IOException {
+        synchronized(PROCESS_LOCK){ deleteLocked(id); }
+    }
+    private void deleteLocked(String id) throws IOException {
         if(id==null||id.isEmpty())throw new IOException("Empty annotation id");
         Annotation tombstone=new Annotation();tombstone.id=id;
         writeRecord((byte)2,tombstone);
     }
-    public synchronized ReadResult load() throws IOException {
+    public ReadResult load() throws IOException {
+        synchronized(PROCESS_LOCK){ return loadLocked(); }
+    }
+    private ReadResult loadLocked() throws IOException {
         ReadResult result=new ReadResult();
         if(!file.exists())return result;
         LinkedHashMap<String,Annotation> live=new LinkedHashMap<>();
