@@ -1,14 +1,7 @@
 name: Markdown Desk JSON Explorer unsigned acceptance
 
 on:
-  push:
-    branches:
-      - 'feature/json-claude-export-explorer-*'
-    paths:
-      - 'apps/MarkdownDesk/**'
-      - 'shared/**'
-      - 'verification/**'
-      - '.github/workflows/json-explorer-unsigned.yml'
+  # Expensive packaging is deliberate; ordinary checkpoint pushes must not build APKs.
   workflow_dispatch:
 
 permissions:
@@ -52,8 +45,8 @@ jobs:
           ANDROID_BUILD_TOOLS: '36.0.0'
         run: |
           set -euo pipefail
-          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.4-json-foldfix-UNSIGNED
-          APK="apps/MarkdownDesk/build/MarkdownDesk-2.3.4-json-foldfix-UNSIGNED.apk"
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-acceptance-UNSIGNED
+          APK="apps/MarkdownDesk/build/MarkdownDesk-acceptance-UNSIGNED.apk"
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" | grep -E "package:|sdkVersion:|targetSdkVersion:"
           sha256sum "$APK"
@@ -72,7 +65,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: markdown-desk-json-code32-unsigned
-          path: apps/MarkdownDesk/build/MarkdownDesk-2.3.4-json-foldfix-UNSIGNED.apk
+          name: markdown-desk-acceptance-${{ github.sha }}-unsigned
+          path: apps/MarkdownDesk/build/MarkdownDesk-acceptance-UNSIGNED.apk
           if-no-files-found: error
           retention-days: 7

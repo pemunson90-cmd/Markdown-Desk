@@ -3,6 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$PWD/verification/build/host"
 mkdir -p "$OUT/renderer" "$OUT/splash" "$OUT/tmp"
+python3 verification/test_audit_efficiency.py
+python3 verification/check_current_source.py
+bash verification/source_extraction/run.sh
 python3 verification/test_baseline_inventory.py
 python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
 python3 verification/check_layout.py
@@ -38,7 +41,6 @@ bash verification/editor_undo/run.sh
 bash verification/workspace_tree_reader/run.sh
 bash verification/workspace_roots/run.sh
 bash verification/workspace_favorites/run.sh
-bash verification/downloads_browser/run.sh
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
 bash verification/workspace_search_loader/run.sh

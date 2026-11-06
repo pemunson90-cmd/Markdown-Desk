@@ -1,3 +1,22 @@
+<!-- current-source:begin -->
+# Current project status
+
+Generated summary of [CURRENT_SOURCE.json](CURRENT_SOURCE.json). Update that record first; regenerate this block with `python3 verification/check_current_source.py --print-status`.
+
+- Active integration: `feature/unified-workspaces-20261106`; recorded source anchor `6b95d5876caf9d3d1f81bc9455bef4c90a0fdc67`.
+- Source manifest: **2.5.0-unified-workspaces / code38**. This is an unfinished integration candidate, not device acceptance.
+- Installed/owner-accepted baseline: **unconfirmed**. Never infer it from main, a version number, or a signed candidate.
+- Execution state: **unknown**, observed 2026-11-06T20:58:43Z. This record does not claim ownership, a running worker, or permission to take over.
+- Before implementation: inspect existing ownership and dirty work, fetch the named integration branch without switching, then run `python3 verification/check_current_source.py`. A stale branch, manifest, or current summary fails the guard.
+- Before an in-place release: verify the actual installed identity and run `python3 verification/check_current_source.py --require-installed`; canonical signing and all existing release gates still apply.
+- Next action: Check the originating unified-workspaces task and existing owner before assignments. Continue the full requested integration from the latest preserved source; do not issue an intermediate APK. Apply audit fixes only at a safe checkpoint and retain feature-parity, data-safety, signature and Fold7 gates.
+- Current evidence: [MARKDOWN_DESK_UNIFIED_WORKSPACES_CODE38.md](verification/MARKDOWN_DESK_UNIFIED_WORKSPACES_CODE38.md), [ARCHIVE_CODE37_READER_SAFETY_FOLLOWUP_20261106.md](verification/ARCHIVE_CODE37_READER_SAFETY_FOLLOWUP_20261106.md).
+
+Historical sections below are preserved verbatim. Their former “current”/“this branch” labels describe their original checkpoint, not today’s candidate. Read them only when needed for provenance.
+<!-- current-source:end -->
+
+## Historical checkpoints (preserved original record)
+
 # Current project status
 
 ## 2026-10-30: Downloads readability follow-up, code26 signed candidate (THIS BRANCH)
