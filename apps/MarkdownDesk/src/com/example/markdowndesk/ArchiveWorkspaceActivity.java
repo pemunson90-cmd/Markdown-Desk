@@ -318,7 +318,8 @@ public final class ArchiveWorkspaceActivity extends Activity {
                 .append("<div class=\"archive-meta\">").append(escape(m.role))
                 .append(" · ").append(escape(m.created))
                 .append(" · #").append(m.ordinal+1).append("</div>")
-                .append(rendered,opening+1,closing);
+                .append("<div class=\"archive-content\">")
+                .append(rendered,opening+1,closing).append("</div>");
             if(more){
                 html.append("<a class=\"archive-more\" href=\"mdarchive://continue?ordinal=")
                     .append(m.ordinal).append("&part=").append(part+CHUNK_PARTS)
@@ -378,15 +379,16 @@ public final class ArchiveWorkspaceActivity extends Activity {
         prefs.edit().putFloat("preview_font_size",fontSp).apply();showReader(true);
     }
     private void toggleFocus(){
+        if(!"reader".equals(viewMode)){status("Open a conversation to enter reading Focus");return;}
         savedScroll=reader==null?0:reader.getScrollY();fullscreen=!fullscreen;applyFocusChrome();
     }
     private void applyFocusChrome(){
         if(screen==null)return;
-        if(fullscreen)getWindow().setFlags(1024,1024);
-        else getWindow().clearFlags(1024);
-        // Keep a small, recoverable toolbar on the phone. Hide it with existing Focus
-        // only while reading; Android back/menu exit always remains reachable.
         boolean immersed=fullscreen&&"reader".equals(viewMode);
+        if(immersed)getWindow().setFlags(1024,1024);
+        else getWindow().clearFlags(1024);
+        // Android Back exits Focus before navigating. Do not use custom insets
+        // that previously crashed the Fold7 JSON reader.
         if(readerHeader!=null)readerHeader.setVisibility(immersed?View.GONE:View.VISIBLE);
         if(readerNavigation!=null)readerNavigation.setVisibility(immersed?View.GONE:View.VISIBLE);
     }
@@ -492,12 +494,17 @@ public final class ArchiveWorkspaceActivity extends Activity {
         if(reader==null||active==null){status("Open a conversation first");return;}
         // Pull text and a stable message identity from the selected DOM passage.
         String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"
-            +"var n=s.anchorNode;var p=n?(n.nodeType===1?n:n.parentElement):null;"
-            +"var e=p&&p.closest('[data-message-id]');if(!e)return '';"
-            +"var t=s.toString();var all=e.innerText||'';var i=all.indexOf(t);"
+            +"var r=s.getRangeAt(0),a=r.startContainer,z=r.endContainer;"
+            +"var p=a?(a.nodeType===1?a:a.parentElement):null;"
+            +"var q=z?(z.nodeType===1?z:z.parentElement):null;"
+            +"var e=p&&p.closest('[data-message-id]');"
+            +"if(!e||!q||q.closest('[data-message-id]')!==e)return '';"
+            +"var content=e.querySelector('.archive-content');if(!content)return '';"
+            +"var t=s.toString();if(!t||!t.trim())return '';"
+            +"var all=content.innerText||'';var i=all.indexOf(t);if(i<0)return '';"
             +"return JSON.stringify({id:e.getAttribute('data-message-id'),quote:t,"
-            +"start:i,end:i<0?-1:i+t.length,prefix:i<0?'':all.substring(Math.max(0,i-64),i),"
-            +"suffix:i<0?'':all.substring(i+t.length,i+t.length+64)});})()";
+            +"start:i,end:i+t.length,prefix:all.substring(Math.max(0,i-64),i),"
+            +"suffix:all.substring(i+t.length,i+t.length+64)});})()";
         reader.evaluateJavascript(js,result->{
             try{
                 Object decoded=new JSONTokener(result).nextValue();
