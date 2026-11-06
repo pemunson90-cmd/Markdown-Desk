@@ -997,7 +997,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String available=state.free>=0?String.format(Locale.ROOT,"%,d MiB free",state.free/mib):"Free space unavailable";
         long inactive=Math.max(0,(System.currentTimeMillis()-state.lastChange)/1000);
         String stalled=state.running() && inactive>=30?"\nNo progress update for "+inactive+" seconds. Checking file provider/storage…":"";
-        importDetails.setText(state.detail+"\n"+file+"\n"+                state.conversations+" conversations · "+state.messages+" messages\n"+available+stalled);
+        importDetails.setText(state.detail+"\n"+file+"\n"+
+                state.conversations+" conversations · "+state.messages+" messages\n"+available+stalled);
         if(state.size>0){
             importProgress.setIndeterminate(false);
             importProgress.setProgress((int)Math.min(1000,state.bytes*1000/Math.max(1,state.size)));
