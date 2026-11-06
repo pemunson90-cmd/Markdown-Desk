@@ -138,7 +138,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
-        if(!handleDeepLink(getIntent())){
+        if(!handleDeepLink(getIntent()) && !openUnifiedTab(getIntent())){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
                 searchDialog(null);return;
@@ -149,11 +149,23 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);setIntent(intent);
+        if(openUnifiedTab(intent))return;
         if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
             intent.removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
             searchDialog(null);
         }else handleDeepLink(intent);
     }
+    /** Logical tab switch requests preserve the original Archive session IDs. */
+    private boolean openUnifiedTab(Intent intent){
+        if(intent==null||!intent.hasExtra(UnifiedTabs.EXTRA_TAB_ID))return false;
+        String id=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
+        intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
+        ArchiveDatabase.Conversation target=findConversation(id);
+        if(target==null)status("This conversation is not indexed; reimport its source");
+        else openChat(target);
+        return true;
+    }
+
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
         state.putString("chat",active==null?null:active.id);
@@ -227,7 +239,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         controls.addView(button(label,tap),new LinearLayout.LayoutParams(-2,dp(48)));
     }
     private void refreshConversationTabs(){
-        if(conversationTabsRow==null||conversationTabs==null)return;
+        if(conversationTabs==null)return;
+        UnifiedTabs.updateArchive(this,conversationTabs.entries(),conversationTabs.selected());
+        if(conversationTabsRow==null)return;
         conversationTabsRow.removeAllViews();
         List<ConversationTabs.Entry> items=conversationTabs.entries();
         conversationTabsScroll.setVisibility(items.isEmpty()?View.GONE:View.VISIBLE);
@@ -260,7 +274,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void commonActions(){
         controls.removeAllViews();
-        action("Library",v->showHome());action("Search",v->searchDialog(null));
+        action("Library",v->showHome());
+        action("Search",v->startActivity(new Intent(this,UnifiedSearchActivity.class)));
+        action("All tabs",v->UnifiedTabs.show(this));
         action("Saved links",v->showNotebook(true));action("Import",v->chooseImport());
         action("Reading style",v->appearanceDialog());
         action("Inspect JSON",v->startActivity(new Intent(this,JsonExplorerActivity.class)));
@@ -359,6 +375,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("→",v->navigateWindow(WINDOW_MESSAGES));
         action("A−",v->font(-1));action("A+",v->font(1));
         action("Find",v->searchDialog(active.id));
+        action("All tabs",v->UnifiedTabs.show(this));
         action("Copy",v->copySelectedPassage(false));
         action("Share",v->copySelectedPassage(true));
         action("Annotate",v->captureSelection());
