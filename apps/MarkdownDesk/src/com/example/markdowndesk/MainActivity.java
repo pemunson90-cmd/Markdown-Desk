@@ -6005,6 +6005,18 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public boolean handlePreviewUri(Uri uri) {
+        if (uri != null && com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                .isArchiveLink(uri.toString())) {
+            // Read-mode Markdown links can navigate into exact Claude passages.
+            // Only our constrained archive/v1 URL shape gets internal routing.
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,uri)
+                        .setClass(this,ArchiveWorkspaceActivity.class));
+            } catch (ActivityNotFoundException|SecurityException unavailable) {
+                Toast.makeText(this,"Archive Reader is unavailable",Toast.LENGTH_LONG).show();
+            }
+            return true;
+        }
         if (uri != null && "mdsrc".equalsIgnoreCase(uri.getScheme())) {
             try {
                 jumpToSourceOffset(Integer.parseInt(uri.toString().substring("mdsrc:".length())));
