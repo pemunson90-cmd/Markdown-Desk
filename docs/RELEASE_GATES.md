@@ -1,5 +1,12 @@
 # Build, test, and release gates
 
+## Owner Android support window (2026-11-06)
+- Current stable Android is 17 (API 37). Support Android 15–17 only (minimum **API 35**) until the next major stable version advances the rolling three-release window.
+- Verify the current development manifest and build toolchain agree on minSdk; don't leave hardcoded D8/aapt minimums at API 26 or treat Android 8 compatibility as a release obligation.
+- Test min supported Android 15, current Android 17, and Android 16 on Fold7 where available. An OS update's availability on a particular device is not guaranteed.
+- targetSdkVersion may differ from minSdk and must be separately reviewed for behavior changes; user-data compatibility and non-destructive in-place upgrades remain mandatory on supported devices.
+
+
 ## Android OS compatibility acceptance
 - Current stable Android plus two preceding releases only (as of Nov 2026: Android 15/API35, 16/API36, 17/API37); do not require Android 14/API34 or earlier tests or APIs. The target SDK remains separately reviewed.
 - In-place update and user-data/feature preservation remain mandatory regardless of the minSdk floor.
