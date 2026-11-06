@@ -217,7 +217,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                                   String fromDate,String toDate,int limit,int offset){
         ArrayList<Hit> result=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return result;
-        String escaped="\\""+query.trim().replace("\\"","\\"\\"")+"\\"";
+        String escaped="\""+query.trim().replace("\"","\"\"")+"\"";
         ArrayList<String> args=new ArrayList<>();args.add(escaped);
         StringBuilder conditions=new StringBuilder(" WHERE search_parts MATCH ?");
         if(chat!=null&&!chat.isEmpty()){
