@@ -12,6 +12,10 @@ import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
+import android.graphics.Insets;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -36,6 +40,7 @@ import java.util.concurrent.Executors;
 public final class JsonExplorerActivity extends Activity {
     private static final int REQUEST_OPEN=6101;
     private static final int REQUEST_EXPORT=6102;
+    private static final int REQUEST_OPEN_OTHER=6103;
     private Uri document;
     private final ArrayList<JsonExplorerEngine.Step> path=new ArrayList<>();
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
@@ -91,7 +96,7 @@ public final class JsonExplorerActivity extends Activity {
             offset=Math.max(0,state.getInt("jsonOffset",0));
         }
         buildUi();
-        if (document==null) chooseDocument(); else loadPage();
+        if (document==null) showOpenChoices(); else loadPage();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -154,7 +159,7 @@ public final class JsonExplorerActivity extends Activity {
         heading=text("JSON Explorer",18);
         heading.setTypeface(null,Typeface.BOLD);
         top.addView(heading,new LinearLayout.LayoutParams(0,dp(52),1));
-        top.addView(button("Open",v->chooseDocument()),new LinearLayout.LayoutParams(dp(76),dp(48)));
+        top.addView(button("Open",v->showOpenChoices()),new LinearLayout.LayoutParams(dp(76),dp(48)));
         root.addView(top);
 
         location=text("$",12);
@@ -195,7 +200,53 @@ public final class JsonExplorerActivity extends Activity {
         entries=vertical();
         scroll.addView(entries);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        if (Build.VERSION.SDK_INT >= 30) {
+            // Android 15/16 may enforce edge-to-edge even for a legacy full-screen layout.
+            // Own the insets explicitly; no title or page control may sit behind system UI.
+            getWindow().setDecorFitsSystemWindows(false);
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
+                        | WindowInsets.Type.displayCutout());
+                Insets keyboard = insets.getInsets(WindowInsets.Type.ime());
+                view.setPadding(dp(10), dp(8) + bars.top, dp(10),
+                        dp(8) + Math.max(bars.bottom, keyboard.bottom));
+                return insets;
+            });
+            WindowInsetsController controller=getWindow().getInsetsController();
+            if(controller!=null) {
+                int mask=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(palette.dark ? 0 : mask, mask);
+            }
+        }
         setContentView(root);
+        if (Build.VERSION.SDK_INT >= 30) root.requestApplyInsets();
+    }
+
+    private void showOpenChoices() {
+        new AlertDialog.Builder(this).setTitle("Choose how to open JSON")
+                .setItems(new String[]{
+                        "Browse device files (keep access)",
+                        "Browse with another app (My Files, if available)"
+                },(dialog,which)->{
+                    if(which==0)chooseDocument();
+                    else chooseOtherApp();
+                })
+                .setNegativeButton("Cancel",null).show();
+    }
+
+    /** Import-style picker can expose Samsung My Files and other apps that do not
+     * appear as persistent DocumentsProvider roots. Never use it to edit originals. */
+    private void chooseOtherApp() {
+        Intent browse=new Intent(Intent.ACTION_GET_CONTENT)
+                .addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+        browse.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(Intent.createChooser(browse,"Choose a file app"),
+                    REQUEST_OPEN_OTHER);
+        } catch (ActivityNotFoundException missing) {
+            showFailure("No compatible file app was found. Use Browse device files.");
+        }
     }
 
     private void chooseDocument() {
@@ -209,17 +260,20 @@ public final class JsonExplorerActivity extends Activity {
 
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
-        if (request==REQUEST_OPEN && result==RESULT_OK && data!=null && data.getData()!=null) {
+        if ((request==REQUEST_OPEN || request==REQUEST_OPEN_OTHER)
+                && result==RESULT_OK && data!=null && data.getData()!=null) {
             Uri chosen=data.getData();
             if (!"content".equalsIgnoreCase(chosen.getScheme())) {
                 showFailure("Only files from Android's document picker can be opened.");
                 return;
             }
-            try {
-                getContentResolver().takePersistableUriPermission(chosen,
-                        data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (SecurityException | IllegalArgumentException unavailable) {
-                // The transient read grant is sufficient for this session.
+            if(request==REQUEST_OPEN) {
+                try {
+                    getContentResolver().takePersistableUriPermission(chosen,
+                            data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException | IllegalArgumentException unavailable) {
+                    // The transient read grant is sufficient for this session.
+                }
             }
             document=chosen;
             path.clear(); offset=0; page=null; filter.setText("");
@@ -389,17 +443,40 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void showTranscriptDialog(String md) {
+        // Do not mix the dark palette's light text with Android's default white
+        // AlertDialog surface (reported unreadable on the Fold7).
         ScrollView scroll=new ScrollView(this);
         TextView body=text(md.length()>110000 ? md.substring(0,110000)
                 +"\n\n[On-screen preview limited; Copy and Save include the full prepared excerpt.]":md,14);
         body.setTextIsSelectable(true);
+        body.setPadding(dp(18),dp(8),dp(18),dp(16));
         scroll.addView(body);
-        new AlertDialog.Builder(this).setTitle("Claude conversation · read only")
+        TextView title=text("Claude conversation · read only",18);
+        title.setTypeface(null,Typeface.BOLD);
+        title.setPadding(dp(20),dp(16),dp(20),dp(4));
+        AlertDialog dialog=new AlertDialog.Builder(this)
+                .setCustomTitle(title)
                 .setView(scroll)
-                .setNeutralButton("Copy", (dialog,which)->copy(md))
+                .setNeutralButton("Copy", (ignored,which)->copy(md))
                 .setNegativeButton("Close",null)
-                .setPositiveButton("Save Markdown",(dialog,which)->saveMarkdown(md))
-                .show();
+                .setPositiveButton("Save .md",(ignored,which)->saveMarkdown(md))
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            if(dialog.getWindow()!=null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        UiTheme.rounded(palette.surface,dp(14),palette.border,dp(1)));
+                int width=Math.min(getResources().getDisplayMetrics().widthPixels-dp(28),dp(760));
+                int height=Math.min(getResources().getDisplayMetrics().heightPixels-dp(110),dp(640));
+                dialog.getWindow().setLayout(Math.max(dp(260),width),Math.max(dp(270),height));
+            }
+            int buttonColor=UiTheme.readableForeground(palette.accent,palette.surface);
+            for(int id:new int[]{AlertDialog.BUTTON_POSITIVE,AlertDialog.BUTTON_NEGATIVE,
+                    AlertDialog.BUTTON_NEUTRAL}) {
+                Button button=dialog.getButton(id);
+                if(button!=null) button.setTextColor(buttonColor);
+            }
+        });
+        dialog.show();
     }
 
     private void saveMarkdown(String md) {
