@@ -97,6 +97,10 @@ public final class ArchiveCoreTest {
             check(journal.load().annotations.get(0).note.equals("updated"),"latest edit wins");
             String sanitized=ArchiveMarkdownIndexes.fileName("../../: Weir*d ","id/unsafe");
             check(!sanitized.contains("/")&&!sanitized.contains("\\"),"filename escape");
+            String sharedId="a".repeat(120);
+            check(!ArchiveMarkdownIndexes.fileName("Same title",sharedId+"one").equals(
+                    ArchiveMarkdownIndexes.fileName("Same title",sharedId+"two")),
+                    "different long conversation IDs must never collide on sidecar filenames");
             try(FileOutputStream out=new FileOutputStream(target,true)){out.write(new byte[]{0x41,0x4A});}
             check(journal.load().truncatedTail,"truncated crash record detected");
             try(FileOutputStream out=new FileOutputStream(target,false)){out.write("corrupt".getBytes());}
