@@ -1,5 +1,12 @@
 # Build, test, and release gates
 
+## Owner Android support window (2026-11-06)
+- Current stable Android is 17 (API 37). Support Android 15–17 only (minimum **API 35**) until the next major stable version advances the rolling three-release window.
+- Verify the current development manifest and build toolchain agree on minSdk; don't leave hardcoded D8/aapt minimums at API 26 or treat Android 8 compatibility as a release obligation.
+- Test min supported Android 15, current Android 17, and Android 16 on Fold7 where available. An OS update's availability on a particular device is not guaranteed.
+- targetSdkVersion may differ from minSdk and must be separately reviewed for behavior changes; user-data compatibility and non-destructive in-place upgrades remain mandatory on supported devices.
+
+
 ## Owner full-scope delivery gate (2026-11-06)
 - For a requested new feature or integrated upgrade, **do not generate/sign/offer a user-facing APK** until **every requested feature is implemented together**, integrated into the real app, and the applicable local bug, dependency, regression, safety and packaging checks have passed. Internal checkpoints and partial green tests are not deliverables.
 - No staged test releases or versionCode churn merely to demonstrate partial progress. A separately requested bug-fix update or explicit owner milestone is the exception.
