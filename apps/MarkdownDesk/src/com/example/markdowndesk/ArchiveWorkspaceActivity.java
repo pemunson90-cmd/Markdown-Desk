@@ -520,7 +520,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append("<div class=\"archive-meta\">").append(escape(m.role))
                 .append(" · ").append(escape(m.created))
                 .append(" · #").append(m.ordinal+1).append("</div>")
-                .append("<div class=\"archive-content\"><div class=\"archive-part\">")
+                .append("<div class=\"archive-content\"><div class=\"archive-part\" data-start-part=\"")
+                .append(part).append("\" data-part-end=\"")
+                .append(Math.min(part+CHUNK_PARTS,m.segments)).append("\">")
                 .append(rendered,opening+1,closing).append("</div></div>");
             if(more){
                 html.append("<a class=\"archive-more\" data-autoload=\"1\" href=\"")
@@ -589,9 +591,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             });}
         });
     }
-    private void loadChunk(int ordinal,int startPart){
+    /** Load a precise source-segment range in either direction, retaining the
+     * source ordinal and selection rather than replacing the entire WebView.
+     */
+    private void loadChunk(int ordinal,int startPart,boolean backwards,int untilPart){
         if(chunkLoading||focusOrdinal>=0||active==null||reader==null)return;
         if(ordinal<0||ordinal>=active.messages||startPart<0)return;
+        if(backwards&&(untilPart<=startPart||untilPart-startPart>CHUNK_PARTS))return;
         final int token=generation;
         final String chat=active.id;
         final PreviewWebView web=reader;
@@ -601,15 +607,20 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 ArchiveDatabase.Message message=database.messageAt(chat,ordinal);
                 if(message==null||startPart>=message.segments)
                     throw new IOException("Message section no longer exists");
-                String chunk=database.textChunk(message.id,startPart,CHUNK_PARTS);
+                if(backwards&&untilPart>message.segments)
+                    throw new IOException("Earlier section exceeds message length");
+                int take=backwards?untilPart-startPart:CHUNK_PARTS;
+                String chunk=database.textChunk(message.id,startPart,take);
                 String rendered=MarkdownRenderer.render(chunk,palette,fontSp,typography);
                 int body=rendered.indexOf("<body");
                 int begin=body<0?-1:rendered.indexOf('>',body);
                 int end=rendered.lastIndexOf("</body>");
                 if(begin<0||end<begin)throw new IOException("Markdown fragment framing failed");
-                int next=startPart+CHUNK_PARTS;
-                String command=ArchiveScrollScript.appendChunk(ordinal,
-                        rendered.substring(begin+1,end),next,next<message.segments);
+                int next=Math.min(message.segments,startPart+CHUNK_PARTS);
+                String fragment=rendered.substring(begin+1,end);
+                String command=backwards?
+                        ArchiveScrollScript.prependChunk(ordinal,fragment,startPart,untilPart):
+                        ArchiveScrollScript.appendChunk(ordinal,fragment,startPart,next,next<message.segments);
                 runOnUiThread(()->{
                     if(token!=generation||reader!=web||active==null||!chat.equals(active.id))return;
                     web.evaluateJavascript(command,result->{
@@ -662,9 +673,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             try{loadAdjacent(Integer.parseInt(uri.getQueryParameter("direction")));}
             catch(RuntimeException ignored){status("Could not navigate conversation");}
         }else if("chunk".equals(host)){
-            try{loadChunk(Integer.parseInt(uri.getQueryParameter("ordinal")),
-                    Integer.parseInt(uri.getQueryParameter("part")));}
-            catch(RuntimeException ignored){status("Cannot load message section");}
+            try{
+                boolean backwards="-1".equals(uri.getQueryParameter("direction"));
+                int until=backwards?Integer.parseInt(uri.getQueryParameter("until")):-1;
+                loadChunk(Integer.parseInt(uri.getQueryParameter("ordinal")),
+                        Integer.parseInt(uri.getQueryParameter("part")),backwards,until);
+            }catch(RuntimeException ignored){status("Cannot load message section");}
         }else if("next".equals(host))navigateWindow(WINDOW_MESSAGES);
         else if("previous".equals(host))navigateWindow(-WINDOW_MESSAGES);
         else if("continue".equals(host)){
