@@ -12,10 +12,6 @@ import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Build;
-import android.graphics.Insets;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -203,27 +199,10 @@ public final class JsonExplorerActivity extends Activity {
         entries=vertical();
         scroll.addView(entries);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        if (Build.VERSION.SDK_INT >= 30) {
-            // Android 15/16 may enforce edge-to-edge even for a legacy full-screen layout.
-            // Own the insets explicitly; no title or page control may sit behind system UI.
-            getWindow().setDecorFitsSystemWindows(false);
-            root.setOnApplyWindowInsetsListener((view, insets) -> {
-                Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
-                        | WindowInsets.Type.displayCutout());
-                Insets keyboard = insets.getInsets(WindowInsets.Type.ime());
-                view.setPadding(dp(10), dp(8) + bars.top, dp(10),
-                        dp(8) + Math.max(bars.bottom, keyboard.bottom));
-                return insets;
-            });
-            WindowInsetsController controller=getWindow().getInsetsController();
-            if(controller!=null) {
-                int mask=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
-                controller.setSystemBarsAppearance(palette.dark ? 0 : mask, mask);
-            }
-        }
+        // Recovery: use normal Android window fitting. The custom Android 16
+        // insets callback introduced in code32 is isolated as a crash suspect.
+        // Keep all JSON navigation, picker and transcript improvements.
         setContentView(root);
-        if (Build.VERSION.SDK_INT >= 30) root.requestApplyInsets();
     }
 
     private void showOpenChoices() {
