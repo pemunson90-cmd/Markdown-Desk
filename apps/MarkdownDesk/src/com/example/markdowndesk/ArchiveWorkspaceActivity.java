@@ -33,6 +33,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.markdowndesk.archive.ArchiveJournal;
+import com.example.markdowndesk.workspace.archive.ArchiveNotebookPane;
+import com.example.markdowndesk.workspace.archive.ConversationTabs;
+import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
+import com.example.markdowndesk.workspace.archive.ArchiveCitations;
+import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
 
@@ -73,7 +78,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private UiTheme.Palette palette;
     private ReaderTypography typography;
     private float fontSp;
-    private LinearLayout screen, controls, pane, readerHeader;
+    private LinearLayout screen, controls, pane, readerHeader,conversationTabsRow;
+    private HorizontalScrollView conversationTabsScroll;
+    private ConversationTabs conversationTabs;
     private HorizontalScrollView readerNavigation;
     private String pendingFindTerm;
     private TextView title, subtitle;
@@ -82,6 +89,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private ArchiveDatabase.Conversation active;
     private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
     private boolean fullscreen, chatLayout, restoreLastPosition;
+    /** Shared workspace mode contract: Read(0), Inspect(1), Split(2). */
+    private int archiveDisplayMode;
     private String pendingExportChat, query="";
     private Uri notesTree;
     private String viewMode="home";
@@ -92,7 +101,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         prefs=getSharedPreferences("markdown_desk",MODE_PRIVATE);
         journal=new ArchiveJournal(new java.io.File(getFilesDir(),"claude-archive/annotations-v2.journal"));
         database=new ArchiveDatabase(this,"session");
+        conversationTabs=new ConversationTabs(this);
         reloadAppearance();
+        archiveDisplayMode=Math.max(0,Math.min(2,prefs.getInt("archive_display_mode",0)));
         String tree=prefs.getString("archive_notes_tree",null);
         if(tree!=null)try{notesTree=Uri.parse(tree);}catch(RuntimeException ignored){}
         if(state!=null){
@@ -103,6 +114,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             restoreLastPosition="reader".equals(state.getString("view","home"));
             fullscreen=state.getBoolean("focus",false);
             chatLayout=state.getBoolean("bubbles",false);
+            archiveDisplayMode=Math.max(0,Math.min(2,state.getInt("archive_display_mode",archiveDisplayMode)));
             viewMode=state.getString("view","home");
             String chat=state.getString("chat");
             if(chat!=null)active=findConversation(chat);
@@ -117,9 +129,20 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             showInterruptedImport();return;
         }
         if(!handleDeepLink(getIntent())){
+            if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
+                getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
+                searchDialog(null);return;
+            }
             if(active!=null && "reader".equals(viewMode))showReader(false);
             else showHome();
         }
+    }
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);setIntent(intent);
+        if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
+            intent.removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
+            searchDialog(null);
+        }else handleDeepLink(intent);
     }
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
@@ -128,6 +151,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putInt("focused",focusOrdinal);
         state.putInt("scroll",reader==null?savedScroll:reader.getScrollY());
         state.putBoolean("focus",fullscreen);state.putBoolean("bubbles",chatLayout);
+        state.putInt("archive_display_mode",archiveDisplayMode);
         state.putString("view",viewMode);
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -174,6 +198,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         header.addView(headings,new LinearLayout.LayoutParams(0,-2,1));
         header.addView(button("⋮",v->moreMenu()),new LinearLayout.LayoutParams(dp(55),dp(48)));
         screen.addView(header,new LinearLayout.LayoutParams(-1,-2));
+        conversationTabsScroll=new HorizontalScrollView(this);
+        conversationTabsScroll.setHorizontalScrollBarEnabled(false);
+        conversationTabsRow=new LinearLayout(this);
+        conversationTabsRow.setPadding(dp(7),dp(3),dp(7),dp(3));
+        conversationTabsScroll.addView(conversationTabsRow);
+        screen.addView(conversationTabsScroll,new LinearLayout.LayoutParams(-1,-2));
+        refreshConversationTabs();
         HorizontalScrollView nav=new HorizontalScrollView(this);readerNavigation=nav;
         nav.setHorizontalScrollBarEnabled(false);
         controls=new LinearLayout(this);controls.setPadding(dp(6),dp(4),dp(6),dp(4));
@@ -185,11 +216,44 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void action(String label,View.OnClickListener tap){
         controls.addView(button(label,tap),new LinearLayout.LayoutParams(-2,dp(48)));
     }
+    private void refreshConversationTabs(){
+        if(conversationTabsRow==null||conversationTabs==null)return;
+        conversationTabsRow.removeAllViews();
+        List<ConversationTabs.Entry> items=conversationTabs.entries();
+        conversationTabsScroll.setVisibility(items.isEmpty()?View.GONE:View.VISIBLE);
+        for(ConversationTabs.Entry item:items){
+            boolean selected=item.id.equals(conversationTabs.selected());
+            String label=(selected?"● ":"○ ")+item.title;
+            if(label.length()>26)label=label.substring(0,25)+"…";
+            Button tab=button(label,v->{
+                ArchiveDatabase.Conversation c=findConversation(item.id);
+                if(c!=null)openChat(c);
+                else status("This conversation needs to be reindexed");
+            });
+            tab.setContentDescription("Open archive tab: "+item.title+". Long press to close.");
+            tab.setOnLongClickListener(v->{
+                new AlertDialog.Builder(this).setTitle("Close archive tab?")
+                    .setMessage(item.title+"\nYour notes and reading position are preserved.")
+                    .setPositiveButton("Close tab",(d,which)->{
+                        conversationTabs.close(item.id);
+                        if(active!=null&&item.id.equals(active.id)){
+                            ArchiveDatabase.Conversation next=findConversation(conversationTabs.selected());
+                            if(next!=null)openChat(next);else showHome();
+                        }else refreshConversationTabs();
+                    }).setNegativeButton("Keep",null).show();
+                return true;
+            });
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,dp(46));
+            params.rightMargin=dp(6);
+            conversationTabsRow.addView(tab,params);
+        }
+    }
     private void commonActions(){
         controls.removeAllViews();
         action("Library",v->showHome());action("Search",v->searchDialog(null));
         action("Saved links",v->showNotebook(true));action("Import",v->chooseImport());
         action("Reading style",v->appearanceDialog());
+        action("Inspect JSON",v->startActivity(new Intent(this,JsonExplorerActivity.class)));
     }
     private void setTitle(String s,String sub){title.setText(s);subtitle.setText(sub);}
     private void view(View child){pane.removeAllViews();pane.addView(child,new LinearLayout.LayoutParams(-1,-1));}
@@ -205,7 +269,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         rememberReadingPlace();
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
-        commonActions();setTitle("Claude Archive","All imported conversations");
+        commonActions();refreshConversationTabs();setTitle("Claude Archive","All imported conversations");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
         add(body,"Import Claude conversations.json",v->chooseImport());
@@ -257,6 +321,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void showReader(boolean keepScroll){
         if(active==null){showHome();return;}
+        if(!conversationTabs.open(active.id,active.name)){
+            status("Archive has 12 open tabs. Close one to open another.");
+            showHome();return;
+        }
+        refreshConversationTabs();
         final int token=++generation;
         if(keepScroll && reader!=null)savedScroll=reader.getScrollY();
         final boolean restorePosition=keepScroll||restoreLastPosition;
@@ -265,10 +334,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         viewMode="reader";reloadAppearance();applyFocusChrome();
         setTitle(active.name,active.messages+" messages · read-only");
         controls.removeAllViews();
+        // Same semantic three-mode row as Markdown Desk's Write / Read / Split.
+        // Inspect deliberately keeps source JSON immutable and opens the raw tree.
+        action(archiveDisplayMode==0?"● Read":"Read",v->setArchiveDisplayMode(0));
+        action("Inspect",v->setArchiveDisplayMode(1));
+        action(archiveDisplayMode==2?"● Split":"Split",v->setArchiveDisplayMode(2));
         action("←",v->navigateWindow(-WINDOW_MESSAGES));
         action("→",v->navigateWindow(WINDOW_MESSAGES));
         action("A−",v->font(-1));action("A+",v->font(1));
         action("Find",v->searchDialog(active.id));
+        action("Copy",v->copySelectedPassage(false));
+        action("Share",v->copySelectedPassage(true));
         action("Annotate",v->captureSelection());
         action("Mark",v->bookmarkCurrent());
         action("Notes",v->showNotebook(false));
@@ -312,7 +388,24 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 }
             }
         });
-        view(web);
+        if(archiveDisplayMode==2){
+            // Fold7's actual window width determines split orientation, not model name.
+            // The same notebook can be opened alone on compact screens.
+            boolean expanded=getResources().getConfiguration().screenWidthDp>=650;
+            LinearLayout split=new LinearLayout(this);
+            split.setOrientation(expanded?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
+            View notes=ArchiveNotebookPane.create(this,
+                new java.io.File(getFilesDir(),"claude-archive/annotations-v2.journal"),
+                active.id,palette.text,palette.muted,palette.canvas,io,this::showAnnotationActions);
+            if(expanded){
+                split.addView(web,new LinearLayout.LayoutParams(0,-1,2f));
+                split.addView(notes,new LinearLayout.LayoutParams(0,-1,1f));
+            }else{
+                split.addView(web,new LinearLayout.LayoutParams(-1,0,3f));
+                split.addView(notes,new LinearLayout.LayoutParams(-1,0,2f));
+            }
+            view(split);
+        }else view(web);
         final int start=windowOffset;
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
         io.execute(()->{
@@ -327,6 +420,28 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 });
             }catch(Exception e){runOnUiThread(()->{if(generation==token)fail("Unable to render conversation",e);});}
         });
+    }
+    private void setArchiveDisplayMode(int mode){
+        if(active==null){showHome();return;}
+        if(mode==1){
+            String source=database.sourceUri(active.archiveId);
+            if(source==null||source.trim().isEmpty()){
+                status("Original JSON source is unavailable; reselect the archive for inspection");return;
+            }
+            try{
+                Intent inspect=new Intent(this,JsonExplorerActivity.class);
+                inspect.setData(Uri.parse(source));
+                inspect.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(inspect);
+            }catch(RuntimeException failure){fail("Unable to inspect JSON source",failure);}
+            return;
+        }
+        if(mode!=0&&mode!=2)return;
+        if(archiveDisplayMode==mode)return;
+        archiveDisplayMode=mode;
+        prefs.edit().putInt("archive_display_mode",mode).apply();
+        savedScroll=0;
+        showReader(false);
     }
     private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset){
         // Reuse the exact Markdown renderer and CSS used by the Markdown reader.
@@ -481,9 +596,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         io.execute(()->{
             try{
                 List<ArchiveDatabase.Hit> hits=database.search(term,scope,60,offset);
+                List<ArchiveJournal.Annotation> notes=new ArrayList<>();
+                String noteWarning=null;
+                if(offset==0){
+                    try{notes=ArchiveAnnotationSearch.find(new java.io.File(getFilesDir(),
+                            "claude-archive/annotations-v2.journal"),term,scope,100);}
+                    catch(IOException sourceUnavailable){noteWarning="Note search is unavailable until its journal is repaired.";}
+                }
+                final List<ArchiveJournal.Annotation> matchedNotes=notes;
+                final String warning=noteWarning;
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||token!=generation)return;
-                    if(hits.isEmpty())rows.addView(text("No matches in the indexed messages.",14));
+                    if(hits.isEmpty()&&matchedNotes.isEmpty())rows.addView(text("No matching indexed messages or saved annotations.",14));
+                    if(!hits.isEmpty())rows.addView(text("MATCHING CONVERSATION MESSAGES",14));
                     for(ArchiveDatabase.Hit hit:hits){
                         add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),v->{
                             ArchiveDatabase.Conversation c=findConversation(hit.chatId);
@@ -494,6 +619,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                             chunkOffset=Math.max(0,hit.partOrdinal-1);
                             pendingFindTerm=term;savedScroll=0;showReader(false);
                         });
+                    }
+                    if(warning!=null)rows.addView(text(warning,13));
+                    if(!matchedNotes.isEmpty()){
+                        rows.addView(text("MATCHING NOTES, HIGHLIGHTS & SAVED LINKS",14));
+                        for(ArchiveJournal.Annotation note:matchedNotes){
+                            add(rows,safe(note.chatTitle)+" · "+safe(note.messageDate)+"\n"+
+                                safe(note.label)+" · "+safe(note.note),v->showAnnotationActions(note));
+                        }
                     }
                     if(hits.size()==60)add(rows,"More search results",v->showSearch(term,scope,offset+60));
                 });
@@ -523,6 +656,41 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         a.label="Reading place · message "+(m.ordinal+1);
         a.createdAt=System.currentTimeMillis();a.updatedAt=a.createdAt;
         saveAnnotation(a);
+    }
+    private void copySelectedPassage(boolean share){
+        if(reader==null||active==null){status("Select text in a conversation first");return;}
+        // Javascript returns a JSON-encoded string, not executable content.
+        String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"+
+            "var t=s.toString();if(!t||!t.trim())return '';"+
+            "var n=s.anchorNode;var p=n?(n.nodeType===1?n:n.parentElement):null;"+
+            "var e=p&&p.closest('[data-message-id]');"+
+            "var end=s.focusNode;var q=end?(end.nodeType===1?end:end.parentElement):null;"+
+            "if(!e||!q||q.closest('[data-message-id]')!==e)return '';"+
+            "return JSON.stringify({id:e.getAttribute('data-message-id'),quote:t});})()";
+        final String chatId=active.id,archiveId=active.archiveId,title=active.name;
+        reader.evaluateJavascript(js,result->{
+            try{
+                Object decoded=new JSONTokener(result).nextValue();
+                if(!(decoded instanceof String)||((String)decoded).isEmpty()){
+                    status("Select text within one message first");return;
+                }
+                JSONObject selection=new JSONObject((String)decoded);
+                String message=selection.optString("id","");
+                if(message.isEmpty())throw new IOException("Missing message identity");
+                String date=dateOfVisibleMessage(message);
+                String citation=ArchiveCitations.citation(title,date,archiveId,chatId,
+                        message,selection.optString("quote",""));
+                if(share){
+                    Intent intent=new Intent(Intent.ACTION_SEND).setType("text/plain")
+                        .putExtra(Intent.EXTRA_TEXT,citation);
+                    startActivity(Intent.createChooser(intent,"Share selected passage"));
+                }else{
+                    ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Archive quotation",citation));
+                    status("Quote, conversation date and source link copied");
+                }
+            }catch(Exception error){fail("Unable to copy selected passage",error);}
+        });
     }
     private void captureSelection(){
         if(reader==null||active==null){status("Open a conversation first");return;}
@@ -829,8 +997,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String available=state.free>=0?String.format(Locale.ROOT,"%,d MiB free",state.free/mib):"Free space unavailable";
         long inactive=Math.max(0,(System.currentTimeMillis()-state.lastChange)/1000);
         String stalled=state.running() && inactive>=30?"\nNo progress update for "+inactive+" seconds. Checking file provider/storage…":"";
-        importDetails.setText(state.detail+"\n"+file+"\n"+
-                state.conversations+" conversations · "+state.messages+" messages\n"+available+stalled);
+        importDetails.setText(state.detail+"\n"+file+"\n"+                state.conversations+" conversations · "+state.messages+" messages\n"+available+stalled);
         if(state.size>0){
             importProgress.setIndeterminate(false);
             importProgress.setProgress((int)Math.min(1000,state.bytes*1000/Math.max(1,state.size)));
