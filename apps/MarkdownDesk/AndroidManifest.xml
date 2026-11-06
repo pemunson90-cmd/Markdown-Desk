@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="33"
-    android:versionName="2.3.5-json-recovery"
+    android:versionCode="34"
+    android:versionName="2.4.0-archive-research-rc1"
     package="com.example.markdowndesk">
     <uses-sdk
         android:minSdkVersion="26"
@@ -62,6 +62,20 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="application/json"/>
                 <data android:mimeType="text/json"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ArchiveWorkspaceActivity"
+            android:exported="true"
+            android:screenOrientation="unspecified"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="markdowndesk"
+                      android:host="archive"
+                      android:pathPrefix="/v1/" />
             </intent-filter>
         </activity>
         <activity android:name=".DocxPickerActivity" android:exported="false" android:launchMode="standard" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
