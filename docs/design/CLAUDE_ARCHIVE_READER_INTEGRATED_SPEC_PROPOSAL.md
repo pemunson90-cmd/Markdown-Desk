@@ -2,7 +2,7 @@
 
 **Status:** Proposed for owner review, not authorized implementation or release sign-off.
 **Date:** November 5, 2026. **Repository:** pemunson90-cmd/Markdown-Desk.
-**Source baseline:** current code33 JSON recovery branch, \`fix/json-recovery-local-20261105\`. Keep PR #36 and historic reader behavior; do not merge blindly with stale main.
+**Source baseline:** current code33 JSON recovery branch, `fix/json-recovery-local-20261105`. Keep PR #36 and historic reader behavior; do not merge blindly with stale main.
 **Delivery intent:** one integrated owner-facing candidate after bounded internal build/test milestones, not successive incomplete APKs. No hosted GitHub Actions for ordinary work; build/test locally with the canonical signing identity isolated in the owner's Library.
 
 ## Product promise
@@ -14,11 +14,11 @@ This is an archive reader and research notebook, not another editable text edito
 ## Confirmed inherited Markdown Desk capabilities
 
 Source inspected on current code33 development branch:
-- Existing themes: Paper, Midnight, Sepia, Forest, Bubblegum, Amethyst, Black Rose, Ocean, Arcade (\`UiTheme\`).
-- Reading font size and A−/A+ controls, serif/sans/monospace font family, line/paragraph spacing, margins, reading measure, theme picker (\`ReaderTypography\` and MainActivity).
-- Focus/View reduces interface chrome without making a second editor; reader preview uses \`PreviewWebView\` and \`MarkdownRenderer\`.
+- Existing themes: Paper, Midnight, Sepia, Forest, Bubblegum, Amethyst, Black Rose, Ocean, Arcade (`UiTheme`).
+- Reading font size and A−/A+ controls, serif/sans/monospace font family, line/paragraph spacing, margins, reading measure, theme picker (`ReaderTypography` and MainActivity).
+- Focus/View reduces interface chrome without making a second editor; reader preview uses `PreviewWebView` and `MarkdownRenderer`.
 - Document outline, favorites, reader places, recent documents, tappable Markdown links, bookmarks and preview-position support.
-- Existing annotation/bookmark flow has a UX limitation: \`MainActivity.saveReaderAnchor()\` currently requires Write/Split to capture its source-offset anchor. The archive reader must support annotations directly in Read/Focus. It should not copy that requirement.
+- Existing annotation/bookmark flow has a UX limitation: `MainActivity.saveReaderAnchor()` currently requires Write/Split to capture its source-offset anchor. The archive reader must support annotations directly in Read/Focus. It should not copy that requirement.
 - Preserve all current Markdown editing, save/recovery, protected history, 12 tabs, responsive Fold7 layout, all 25 splash assets and external file safety invariants.
 
 Parity contract: all **reader-facing** controls available to Markdown documents should be usable while viewing chats, through shared preferences and shared reader rendering where technically sensible. No edit mode for imported Claude JSON.
@@ -44,30 +44,30 @@ Support three explicit actions (all qualify as **user-created links**):
 2. **Cross-reference**: link selected phrase or note to a specific passage in another imported conversation (and backlink).
 3. **Attach link**: associate a selected passage/note with a user-supplied external URL or local document.
 
-All links use one stable record identity, unique \`link_id\`, source \`archive_id/conversation_id/message_id\`, optional selected phrase/offset, optional destination, user label, note/tags and timestamps. Annotations without links are **not** silently included in the master links-only index. Automatically detected URLs in Claude's content are navigable but are **not** indexed as user-created links without an explicit save action.
+All links use one stable record identity, unique `link_id`, source `archive_id/conversation_id/message_id`, optional selected phrase/offset, optional destination, user label, note/tags and timestamps. Annotations without links are **not** silently included in the master links-only index. Automatically detected URLs in Claude's content are navigable but are **not** indexed as user-created links without an explicit save action.
 
 A source deep link can use a registered, versioned app URI such as
-\`markdowndesk://archive/v1/<archive-id>/<conversation-id>/<message-id>?link=<link-id>\`.
+`markdowndesk://archive/v1/<archive-id>/<conversation-id>/<message-id>?link=<link-id>`.
 Do not claim that this URI works in every external Markdown viewer. Companion Markdown index rows include *human-readable context and IDs* even without the app installed. Optional Markdown full-chat exports can include stable heading/block anchors so links can point to an exported file when one exists.
 
 **Anchor stability:** Prefer original Claude conversation and message IDs. For selected text capture exact quote, local start/end offsets, a short prefix/suffix, a normalized-text digest, and source archive identity/revision. When reimporting, resolve by ID first, then verified quote/context. Never silently retarget to a merely similar phrase; mark anchors "needs review" with original quoted evidence when ambiguous. Preserve timestamps in their source timezone/offset when present; display local timezone as a preference.
 
 ## Durable Markdown per-chat and master indexes
 
-The user selects a companion notes folder by SAF \`ACTION_OPEN_DOCUMENT_TREE\` when enabling durable annotations. **Never write into the Claude export.** The per-chat Markdown file is the durable portable annotation/links artifact; the SQLite catalogue/search index is derived, rebuildable data. Keep stable machine IDs in modest front matter or HTML comments alongside ordinary readable Markdown; preserve unknown user prose when possible.
+The user selects a companion notes folder by SAF `ACTION_OPEN_DOCUMENT_TREE` when enabling durable annotations. **Never write into the Claude export.** The per-chat Markdown file is the durable portable annotation/links artifact; the SQLite catalogue/search index is derived, rebuildable data. Keep stable machine IDs in modest front matter or HTML comments alongside ordinary readable Markdown; preserve unknown user prose when possible.
 
 Proposed files:
-\`Claude Archive/Chat Indexes/<sanitized-chat-title>--<chat-id>.md\`
-\`Claude Archive/MASTER-LINKS.md\`
-\`Claude Archive/INDEX-STATUS.md\` (optional human-readable synchronization/rebuild status).
+`Claude Archive/Chat Indexes/<sanitized-chat-title>--<chat-id>.md`
+`Claude Archive/MASTER-LINKS.md`
+`Claude Archive/INDEX-STATUS.md` (optional human-readable synchronization/rebuild status).
 
 **Per-chat Markdown** groups Notes, Highlights, Saved Links, Related Chats and last-read position if enabled. Each link entry includes created date, original message date when known, label, quote excerpt, attached note, source deep link and external/cross destination if present. A chat may have zero links but notes/highlights.
 
-**Master Markdown** includes **only links explicitly created/saved by the user**, with chat title, message timestamp/date, date link created, label, source excerpt and clickable return link. Default newest-created-first; include clear grouping by chat and optional chronological view. No automatic dump of every hyperlink found in the source. Every entry has one stable \`link_id\`. It is a generated view of per-chat records, not independently editable competing authority.
+**Master Markdown** includes **only links explicitly created/saved by the user**, with chat title, message timestamp/date, date link created, label, source excerpt and clickable return link. Default newest-created-first; include clear grouping by chat and optional chronological view. No automatic dump of every hyperlink found in the source. Every entry has one stable `link_id`. It is a generated view of per-chat records, not independently editable competing authority.
 
 Example structure:
 
-\`\`\`md
+```md
 # Saved Links — Claude Archive
 _Updated 2026-11-05 20:00 America/New_York_
 
@@ -75,7 +75,7 @@ _Updated 2026-11-05 20:00 America/New_York_
   [Aleksei's second introduction](markdowndesk://archive/v1/archive-id/chat-id/message-id?link=link-id)
   — "The decision was already made when he reached the door."
   — Tags: #NSTL #continuity
-\`\`\`
+```
 
 **Write guarantees:** Before replacing any sidecar, preserve the previous verifiable copy and use a durable journal/staging + recovery step. SAF providers do not universally support atomic rename or truncation safety: no false "Saved" message if a stage, rename, backup or master materialization failed. Write the per-chat canonical record, then refresh derived master/cache deterministically; resume incomplete projection on restart. Source conversation bytes never opened for writing. If the folder is unavailable, keep explicitly labeled unsynced local changes and offer retry/relink/export; never discard. If the user manually edits Markdown index externally, detect version changes and reconcile or preserve both versions rather than overwriting.
 
@@ -83,7 +83,7 @@ The app should provide explicit backup of all annotation sidecars; warn that app
 
 ## Search and import
 
-Import one or multiple \`conversations.json\` exports using persisted SAF access when available. Support temporary picker sources with explicit copy-to-local or reselect semantics; do not silently promise persistence from \`ACTION_GET_CONTENT\`. Detect supported schema by content/field shape, not only filename; generic unknown JSON remains in raw explorer. Preserve source IDs, exact source fields and content order; report unsupported blocks/attachments as metadata or accessible references rather than inventing text.
+Import one or multiple `conversations.json` exports using persisted SAF access when available. Support temporary picker sources with explicit copy-to-local or reselect semantics; do not silently promise persistence from `ACTION_GET_CONTENT`. Detect supported schema by content/field shape, not only filename; generic unknown JSON remains in raw explorer. Preserve source IDs, exact source fields and content order; report unsupported blocks/attachments as metadata or accessible references rather than inventing text.
 
 Build a **single-pass, cancellable and resumable local catalogue**: conversation title, timestamps, message ID, speaker, content blocks and text search segments. Use bounded parsing/memory, disk-backed message chunks, checkpoints and verified source identity, not repeated O(total archive) rescans for every list page. The raw JSON remains the source of provenance, and locally materialized message content/index is cache, not a substitute for the raw file's fidelity. Provide index progress, errors, storage footprint, pause/resume, reindex, remove source (without deleting original), and cache-clear controls.
 
@@ -95,7 +95,7 @@ Source updates/reexports: avoid duplicate chats by stable IDs/content fingerprin
 
 ## Reader and rendering implementation
 
-**Reuse, don't fork:** Extract a shared reader appearance controller and safe Markdown content renderer from current Markdown Desk \`ReaderTypography\`, \`PreviewWebView\`, \`MarkdownRenderer\` and existing Focus/outline/navigation code. Both Markdown preview and archive reader should update when user changes shared reading settings. An archive message may contain Markdown, code fences, tables, links, footnotes and quoted multi-line text. Treat markup as untrusted; escape/sanitize any HTML, block remote loads and arbitrary scripting, and dispatch safe links to Android.
+**Reuse, don't fork:** Extract a shared reader appearance controller and safe Markdown content renderer from current Markdown Desk `ReaderTypography`, `PreviewWebView`, `MarkdownRenderer` and existing Focus/outline/navigation code. Both Markdown preview and archive reader should update when user changes shared reading settings. An archive message may contain Markdown, code fences, tables, links, footnotes and quoted multi-line text. Treat markup as untrusted; escape/sanitize any HTML, block remote loads and arbitrary scripting, and dispatch safe links to Android.
 
 Use a virtualized window of visible messages with small overscan; if one message is huge, paginate its render blocks without imposing truncation. Message IDs/offsets remain attached to rendered spans for selection and jump-to-hit. Preserve scroll anchor across incremental render, font/theme changes and configuration changes. Never render an entire enormous archive as one WebView document.
 
@@ -123,7 +123,7 @@ Do **not** bundle AI summarization, automatic unsolicited linking, cloud upload,
 
 ## Technical contracts and safety gates
 
-Model entities: \`ArchiveSource\`, \`Conversation\`, \`Message\`, \`ContentBlock\`, \`MessageAnchor\`, \`Annotation\`, \`UserLink\`, \`ReadingPosition\`, \`IndexProjection\`. Document exact persistence and revision behavior. A user-created link is one record rendered into both per-chat and master views; avoid contradictory independent copies.
+Model entities: `ArchiveSource`, `Conversation`, `Message`, `ContentBlock`, `MessageAnchor`, `Annotation`, `UserLink`, `ReadingPosition`, `IndexProjection`. Document exact persistence and revision behavior. A user-created link is one record rendered into both per-chat and master views; avoid contradictory independent copies.
 
 One source parsing layer serves reading, search, indexes, deep links and export. Reader UI does not parse raw JSON independently. Avoid giant edits to 6k+-line MainActivity: use new isolated archive modules, with small integration surfaces.
 
