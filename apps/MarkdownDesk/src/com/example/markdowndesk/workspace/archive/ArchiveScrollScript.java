@@ -39,7 +39,7 @@ public final class ArchiveScrollScript {
             " var link=section.querySelector('.archive-more[data-autoload]');\n" +
             " if(link){if(more){link.href='mdarchive://chunk?ordinal='+ordinal+'&part='+nextPart;\n" +
             "  link.setAttribute('data-part',String(nextPart));}else link.remove();}\n" +
-            " chunkBusy=false;return true;\n" +
+            " chunkBusy=false;if(window.mdArchiveRefreshHighlights)window.mdArchiveRefreshHighlights();return true;\n" +
             "};\n" +
             "window.mdArchiveInsert=function(html,direction,prune,hasBefore,hasAfter){\n" +
             " var anchor=null,oldTop=0;\n" +
@@ -59,7 +59,7 @@ public final class ArchiveScrollScript {
             " after.setAttribute('data-more',hasAfter?'1':'0');\n" +
             " before.hidden=!hasBefore;after.hidden=!hasAfter;\n" +
             " if(anchor&&document.contains(anchor))window.scrollBy(0,anchor.getBoundingClientRect().top-oldTop);\n" +
-            " busy=false;lastY=window.scrollY;return true;\n" +
+            " busy=false;lastY=window.scrollY;if(window.mdArchiveRefreshHighlights)window.mdArchiveRefreshHighlights();return true;\n" +
             "};\n" +
             "window.addEventListener('scroll',function(){\n" +
             " var y=window.scrollY,delta=y-lastY;lastY=y;\n" +
