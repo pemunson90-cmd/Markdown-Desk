@@ -73,13 +73,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private UiTheme.Palette palette;
     private ReaderTypography typography;
     private float fontSp;
-    private LinearLayout screen, controls, pane;
+    private LinearLayout screen, controls, pane, readerHeader;
+    private HorizontalScrollView readerNavigation;
+    private String pendingFindTerm;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
     private ArchiveDatabase.Conversation active;
     private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
-    private boolean fullscreen, chatLayout;
+    private boolean fullscreen, chatLayout, restoreLastPosition;
     private String pendingExportChat, query="";
     private Uri notesTree;
     private String viewMode="home";
@@ -98,6 +100,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             chunkOffset=Math.max(0,state.getInt("chunk",0));
             focusOrdinal=state.getInt("focused",-1);
             savedScroll=state.getInt("scroll",0);
+            restoreLastPosition="reader".equals(state.getString("view","home"));
             fullscreen=state.getBoolean("focus",false);
             chatLayout=state.getBoolean("bubbles",false);
             viewMode=state.getString("view","home");
@@ -161,7 +164,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         // Do not use the old code32 custom decorFits/insets listener: it crashed
         // this app on the owner's Fold7. fitsSystemWindows works at both widths.
         screen.setFitsSystemWindows(true);
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout header=new LinearLayout(this);readerHeader=header;
+        header.setGravity(Gravity.CENTER_VERTICAL);
         header.setBackgroundColor(palette.surface);
         header.addView(button("‹",v->back()),new LinearLayout.LayoutParams(dp(52),dp(48)));
         LinearLayout headings=vertical();
@@ -170,7 +174,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         header.addView(headings,new LinearLayout.LayoutParams(0,-2,1));
         header.addView(button("⋮",v->moreMenu()),new LinearLayout.LayoutParams(dp(55),dp(48)));
         screen.addView(header,new LinearLayout.LayoutParams(-1,-2));
-        HorizontalScrollView nav=new HorizontalScrollView(this);nav.setHorizontalScrollBarEnabled(false);
+        HorizontalScrollView nav=new HorizontalScrollView(this);readerNavigation=nav;
+        nav.setHorizontalScrollBarEnabled(false);
         controls=new LinearLayout(this);controls.setPadding(dp(6),dp(4),dp(6),dp(4));
         nav.addView(controls);screen.addView(nav,new LinearLayout.LayoutParams(-1,-2));
         pane=vertical();screen.addView(pane,new LinearLayout.LayoutParams(-1,0,1));
@@ -197,7 +202,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private static String safe(String s){return s==null?"Unavailable":(s.length()>400?s.substring(0,400):s);}
 
     private void showHome(){
-        generation++;viewMode="home";active=null;reader=null;focusOrdinal=-1;chunkOffset=0;
+        rememberReadingPlace();
+        generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
+        applyFocusChrome();
         commonActions();setTitle("Claude Archive","All imported conversations");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
@@ -240,16 +247,22 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return null;
     }
     private void openChat(ArchiveDatabase.Conversation c){
-        active=c;viewMode="reader";
+        active=c;viewMode="reader";pendingFindTerm=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
-        focusOrdinal=-1;chunkOffset=0;savedScroll=0;
+        focusOrdinal=-1;chunkOffset=0;
+        savedScroll=prefs.getInt("archive_chat_scroll_"+c.id,0);
+        restoreLastPosition=true;
         prefs.edit().putString("archive_last_chat",c.id).apply();
         showReader(false);
     }
     private void showReader(boolean keepScroll){
         if(active==null){showHome();return;}
         final int token=++generation;
-        viewMode="reader";reloadAppearance();
+        if(keepScroll && reader!=null)savedScroll=reader.getScrollY();
+        final boolean restorePosition=keepScroll||restoreLastPosition;
+        final int targetScroll=Math.max(0,savedScroll);
+        restoreLastPosition=false;
+        viewMode="reader";reloadAppearance();applyFocusChrome();
         setTitle(active.name,active.messages+" messages · read-only");
         controls.removeAllViews();
         action("←",v->navigateWindow(-WINDOW_MESSAGES));
@@ -269,6 +282,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         web.setTextSp(fontSp);web.setOnTextScaleListener(size->{
             fontSp=size;prefs.edit().putFloat("preview_font_size",fontSp).apply();showReader(true);
         });
+        web.setOnScrollChangeListener((view,x,y,oldX,oldY)->{
+            if(token==generation&&reader==web&&"reader".equals(viewMode))
+                savedScroll=Math.max(0,y);
+        });
         WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(false);settings.setAllowContentAccess(false);
         settings.setAllowFileAccess(false);settings.setBlockNetworkLoads(true);
@@ -284,11 +301,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 return true;
             }
             @Override public void onPageFinished(WebView v,String url){
-                if(token==generation&&v==reader && keepScroll)
-                    v.scrollTo(0,savedScroll);
+                if(token==generation&&v==reader){
+                    if(restorePosition)v.post(()->{
+                        if(token==generation&&reader==v)v.scrollTo(0,targetScroll);
+                    });
+                    if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
+                        v.findAllAsync(pendingFindTerm);
+                        pendingFindTerm=null;
+                    }
+                }
             }
         });
-        if(keepScroll && savedScroll<=0 && reader!=null)savedScroll=reader.getScrollY();
         view(web);
         final int start=windowOffset;
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
@@ -331,7 +354,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append("<div class=\"archive-meta\">").append(escape(m.role))
                 .append(" · ").append(escape(m.created))
                 .append(" · #").append(m.ordinal+1).append("</div>")
-                .append(rendered,opening+1,closing);
+                .append("<div class=\"archive-content\">")
+                .append(rendered,opening+1,closing).append("</div>");
             if(more){
                 html.append("<a class=\"archive-more\" href=\"mdarchive://continue?ordinal=")
                     .append(m.ordinal).append("&part=").append(part+CHUNK_PARTS)
@@ -367,8 +391,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(active==null)return;
         windowOffset=Math.max(0,Math.min(Math.max(0,active.messages-1),windowOffset+step));
         windowOffset=(windowOffset/WINDOW_MESSAGES)*WINDOW_MESSAGES;
-        focusOrdinal=-1;chunkOffset=0;savedScroll=0;
-        prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset).apply();
+        focusOrdinal=-1;chunkOffset=0;savedScroll=0;pendingFindTerm=null;
+        prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset)
+                .putInt("archive_chat_scroll_"+active.id,0).apply();
         showReader(false);
     }
     private void jumpDialog(){
@@ -391,18 +416,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         prefs.edit().putFloat("preview_font_size",fontSp).apply();showReader(true);
     }
     private void toggleFocus(){
+        if(!"reader".equals(viewMode)){status("Open a conversation to enter reading Focus");return;}
         savedScroll=reader==null?0:reader.getScrollY();fullscreen=!fullscreen;applyFocusChrome();
     }
     private void applyFocusChrome(){
         if(screen==null)return;
-        if(fullscreen)getWindow().setFlags(1024,1024);
+        boolean immersed=fullscreen&&"reader".equals(viewMode);
+        if(immersed)getWindow().setFlags(1024,1024);
         else getWindow().clearFlags(1024);
-        // Keep a small, recoverable toolbar on the phone. Hide it with existing Focus
-        // only while reading; Android back/menu exit always remains reachable.
-        controls.setVisibility(fullscreen&&"reader".equals(viewMode)?View.GONE:View.VISIBLE);
-        if(fullscreen&&"reader".equals(viewMode)){
-            screen.setOnClickListener(v->{});
-        }
+        if(readerHeader!=null)readerHeader.setVisibility(immersed?View.GONE:View.VISIBLE);
+        if(readerNavigation!=null)readerNavigation.setVisibility(immersed?View.GONE:View.VISIBLE);
     }
     private void appearanceDialog(){
         LinearLayout options=vertical();options.setPadding(dp(18),dp(8),dp(18),dp(8));
@@ -466,7 +489,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                             ArchiveDatabase.Conversation c=findConversation(hit.chatId);
                             if(c==null){status("Source chat unavailable");return;}
                             active=c;windowOffset=(hit.messageOrdinal/WINDOW_MESSAGES)*WINDOW_MESSAGES;
-                            focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
+                            focusOrdinal=hit.messageOrdinal;
+                            // A match may start inside the FTS segment overlap.
+                            chunkOffset=Math.max(0,hit.partOrdinal-1);
+                            pendingFindTerm=term;savedScroll=0;showReader(false);
                         });
                     }
                     if(hits.size()==60)add(rows,"More search results",v->showSearch(term,scope,offset+60));
@@ -476,8 +502,20 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void bookmarkCurrent(){
         if(active==null)return;
-        ArchiveDatabase.Message m=database.messageAt(active.id,focusOrdinal>=0?focusOrdinal:windowOffset);
-        if(m==null){status("No message to bookmark");return;}
+        final ArrayList<ArchiveDatabase.Message> candidates=new ArrayList<>(visibleMessages);
+        if(candidates.isEmpty()){status("No loaded message to bookmark");return;}
+        if(candidates.size()==1){saveBookmarkFor(candidates.get(0));return;}
+        String[] labels=new String[candidates.size()];
+        for(int i=0;i<candidates.size();i++){
+            ArchiveDatabase.Message m=candidates.get(i);
+            labels[i]="#"+(m.ordinal+1)+" · "+safe(m.role)+" · "+safe(m.created);
+        }
+        new AlertDialog.Builder(this).setTitle("Bookmark which message?")
+            .setItems(labels,(dialog,which)->saveBookmarkFor(candidates.get(which)))
+            .setNegativeButton("Cancel",null).show();
+    }
+    private void saveBookmarkFor(ArchiveDatabase.Message m){
+        if(active==null||m==null)return;
         ArchiveJournal.Annotation a=new ArchiveJournal.Annotation();
         a.id=UUID.randomUUID().toString();a.archiveId=active.archiveId;
         a.chatId=active.id;a.chatTitle=active.name;a.messageId=m.messageId;
@@ -490,12 +528,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(reader==null||active==null){status("Open a conversation first");return;}
         // Pull text and a stable message identity from the selected DOM passage.
         String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"
-            +"var n=s.anchorNode;var p=n?(n.nodeType===1?n:n.parentElement):null;"
-            +"var e=p&&p.closest('[data-message-id]');if(!e)return '';"
-            +"var t=s.toString();var all=e.innerText||'';var i=all.indexOf(t);"
+            +"var r=s.getRangeAt(0),a=r.startContainer,z=r.endContainer;"
+            +"var p=a?(a.nodeType===1?a:a.parentElement):null;"
+            +"var q=z?(z.nodeType===1?z:z.parentElement):null;"
+            +"var e=p&&p.closest('[data-message-id]');"
+            +"if(!e||!q||q.closest('[data-message-id]')!==e)return '';"
+            +"var content=e.querySelector('.archive-content');if(!content)return '';"
+            +"var t=s.toString();if(!t||!t.trim())return '';"
+            +"var all=content.innerText||'';var i=all.indexOf(t);if(i<0)return '';"
             +"return JSON.stringify({id:e.getAttribute('data-message-id'),quote:t,"
-            +"start:i,end:i<0?-1:i+t.length,prefix:i<0?'':all.substring(Math.max(0,i-64),i),"
-            +"suffix:i<0?'':all.substring(i+t.length,i+t.length+64)});})()";
+            +"start:i,end:i+t.length,prefix:all.substring(Math.max(0,i-64),i),"
+            +"suffix:all.substring(i+t.length,i+t.length+64)});})()";
         reader.evaluateJavascript(js,result->{
             try{
                 Object decoded=new JSONTokener(result).nextValue();
@@ -615,9 +658,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             if(index==0){
                 ArchiveDatabase.Conversation c=findConversation(a.chatId);
                 if(c==null){status("Conversation is not indexed; reimport source");return;}
-                active=c;int position=database.findMessageOrdinal(a.chatId,a.messageId);
-                windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
-                focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
+                int position=database.findMessageOrdinal(a.chatId,a.messageId);
+                if(position<0){status("Original message no longer indexed. Link needs review.");return;}
+                active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
+                focusOrdinal=position;chunkOffset=0;savedScroll=0;showReader(false);
             }else if(index==1){
                 ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
                 clipboard.setPrimaryClip(ClipData.newPlainText("Archive link",ArchiveMarkdownIndexes.deepLink(a)));
@@ -846,11 +890,23 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String chat=segments.get(2),message=segments.get(3);
         ArchiveDatabase.Conversation c=findConversation(chat);
         if(c==null){status("Archived conversation unavailable. Reimport its source.");showHome();return true;}
-        active=c;int ordinal=database.findMessageOrdinal(chat,message);
-        windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
-        focusOrdinal=-1;chunkOffset=0;showReader(false);return true;
+        int ordinal=database.findMessageOrdinal(chat,message);
+        if(ordinal<0){status("Saved link no longer resolves to a message");showHome();return true;}
+        active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
+        focusOrdinal=ordinal;chunkOffset=0;showReader(false);return true;
+    }
+    private void rememberReadingPlace(){
+        if(active==null||!"reader".equals(viewMode))return;
+        int y=reader==null?savedScroll:reader.getScrollY();
+        prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset)
+                .putInt("archive_chat_scroll_"+active.id,Math.max(0,y)).apply();
+    }
+    @Override protected void onStop(){
+        rememberReadingPlace();
+        super.onStop();
     }
     private void back(){
+        if(fullscreen && "reader".equals(viewMode)){toggleFocus();return;}
         if("reader".equals(viewMode)&&focusOrdinal>=0){focusOrdinal=-1;chunkOffset=0;showReader(false);return;}
         if(!"home".equals(viewMode)){showHome();return;}
         finish();

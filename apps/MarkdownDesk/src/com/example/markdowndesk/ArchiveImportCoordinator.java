@@ -87,8 +87,10 @@ final class ArchiveImportCoordinator {
         if(busy||sourceUri==null||sourceUri.isEmpty())return false;
         return start(Uri.parse(sourceUri));
     }
-    void cancel(){
-        cancellation.set(true);
+    synchronized void cancel(){
+        // A stale Cancel tap must not transition an idle or completed job into
+        // a permanent "cancelling" state. Multiple taps should be idempotent.
+        if(!busy || !snapshot.running() || !cancellation.compareAndSet(false,true))return;
         Thread currentWorker=runningThread;
         if(currentWorker!=null)currentWorker.interrupt();
         InputStream current=sourceStream;
@@ -137,11 +139,15 @@ final class ArchiveImportCoordinator {
                 InputStream counting=new FilterInputStream(input){
                     @Override public int read()throws IOException{
                         if(cancellation.get())throw new IOException("Import cancelled");
-                        int v=super.read();if(v>=0)bytes.incrementAndGet();return v;
+                        int v=super.read();
+                        if(v>=0){bytes.incrementAndGet();throttled(size);}
+                        return v;
                     }
                     @Override public int read(byte[] b,int off,int len)throws IOException{
                         if(cancellation.get())throw new IOException("Import cancelled");
-                        int n=in.read(b,off,len);if(n>0)bytes.addAndGet(n);return n;
+                        int n=in.read(b,off,len);
+                        if(n>0){bytes.addAndGet(n);throttled(size);}
+                        return n;
                     }
                 };
                 new ArchiveStreamParser(new InputStreamReader(counting,StandardCharsets.UTF_8),db).parse();

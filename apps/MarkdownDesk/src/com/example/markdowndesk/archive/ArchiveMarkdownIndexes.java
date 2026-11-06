@@ -48,9 +48,23 @@ public final class ArchiveMarkdownIndexes {
                 .replaceAll("\\s+"," ").trim();
         if(clean.isEmpty())clean="Untitled";
         if(clean.length()>64)clean=clean.substring(0,64).trim();
-        String suffix=id==null?"no-id":id.replaceAll("[^A-Za-z0-9_-]", "_");
-        if(suffix.length()>64)suffix=suffix.substring(0,64);
-        return clean+"--"+suffix+".md";
+        // Truncation alone would overwrite indexes for different long IDs
+        // sharing a prefix. Hash the entire canonical identity, not the title.
+        String original=id==null?"no-id":id;
+        String visible=original.replaceAll("[^A-Za-z0-9_-]", "_");
+        // Preserve the filenames already emitted by earlier builds when safe.
+        // Only IDs that the legacy implementation *truncated* need a new hash.
+        if(visible.length()<=64)return clean+"--"+visible+".md";
+        visible=visible.substring(0,42);
+        try {
+            byte[] hash=java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(original.getBytes(StandardCharsets.UTF_8));
+            StringBuilder digest=new StringBuilder(16);
+            for(int i=0;i<8;i++)digest.append(String.format(Locale.ROOT,"%02x",hash[i]&255));
+            return clean+"--"+visible+"-"+digest+".md";
+        } catch(java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 unavailable",impossible);
+        }
     }
     private static ArrayList<ArchiveJournal.Annotation> filter(Collection<ArchiveJournal.Annotation> rows,String chatId,boolean linksOnly){
         ArrayList<ArchiveJournal.Annotation> found=new ArrayList<>();
