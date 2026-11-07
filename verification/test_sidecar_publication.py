@@ -28,11 +28,23 @@ class SidecarPublicationChecks(unittest.TestCase):
         self.assertLess(guard, stage)
         self.assertIn("original preserved", source)
 
-    def test_legacy_name_never_overwritten_implicitly(self):
+    def test_legacy_migration_preserves_old_and_requires_source_proof(self):
         source = (ROOT / "ArchiveSidecarPublisher.java").read_text()
-        self.assertIn("ArchiveMarkdownIndexes.legacyFileName(", source)
-        self.assertIn("!legacy.equals(safe) && child(folder,legacy)!=null", source)
-        self.assertIn("Legacy Markdown notebook needs identity review", source)
+        section = source.split("private void publishChat(", 1)[1].split(
+            "private void publishDocument(", 1)[0]
+        self.assertIn("ArchiveMarkdownIndexes.legacyFileName(", section)
+        self.assertIn("if(!legacy.equals(safe))", section)
+        self.assertIn("Uri old=child(folder,legacy)", section)
+        self.assertIn("Uri modern=child(folder,safe)", section)
+        self.assertIn("if(modern==null)", section)
+        self.assertIn("String previous=read(old)", section)
+        self.assertIn("!ArchiveMarkdownIndexes.matchesOwner(previous,archiveId,chatId)", section)
+        self.assertIn("identity is ambiguous; original preserved", section)
+        self.assertIn("ArchiveMarkdownIndexes.replaceGeneratedRegion(previous,generated)", section)
+        self.assertIn("publishDocument(folder,safe,migrated,archiveId,chatId)", section)
+        self.assertNotIn("deleteDocument", section)
+        self.assertNotIn("renameDocument", section)
+        self.assertNotIn("publishDocument(folder,legacy", section)
 
     def test_same_chat_id_in_two_archives_retains_distinct_sources(self):
         source = (ROOT / "ArchiveSidecarPublisher.java").read_text()
