@@ -294,7 +294,7 @@ public final class UnifiedSearchActivity extends Activity {
                         for(WorkspaceLiteralSearch.FileHit file:r.hits){
                             if(file.uri==null)continue;
                             for(WorkspaceLiteralSearch.Match match:file.matches){
-                                String key=file.uri.toString()+"\u0001"+file.hash+"\u0001"+match.offsetUtf16;
+                                String key=file.uri.toString()+"\t"+file.hash+"\t"+match.offsetUtf16;
                                 if(seenFolderHits.add(key))
                                     folderHits.add(new FolderHit(next.root.label,file,match,term));
                             }
