@@ -24,6 +24,7 @@ const base={id:'n1',message:'message-7',quote:'target',prefix:'alpha ',suffix:' 
  let r=run('alpha target omega',[base]);
  assert.equal(r.length,1,'valid contextual range decorated');
  assert.equal(r[0].begin,6);
+ assert.match(r[0].label.className,/md-archive-tone-violet/,'legacy missing tone shows violet');
 }
 {
  let r=run('changed target omega',[base]);
@@ -40,5 +41,20 @@ const base={id:'n1',message:'message-7',quote:'target',prefix:'alpha ',suffix:' 
 {
  let r=run('alpha target omega alpha target!',[base]);
  assert.equal(r.length,1,'distinct second occurrence without matching context may be ignored');
+}
+{
+ const r=run('alpha target omega',[{...base,tone:'rose'}]);
+ assert.equal(r.length,1,'typed tone still preserves verified quote');
+ assert.match(r[0].label.className,/md-archive-tone-rose/,'rose selected');
+}
+{
+ const r=run('alpha target omega',[{...base,tone:'mint'}]);
+ assert.match(r[0].label.className,/md-archive-tone-mint/,'mint selected');
+}
+{
+ const r=run('alpha target omega',[{...base,tone:'evil"><script>'}]);
+ assert.equal(r.length,1,'unknown tone must not delete verified annotation');
+ assert.match(r[0].label.className,/md-archive-tone-violet/,'unsafe tone fails closed');
+ assert.ok(!r[0].label.className.includes('script'),'no user CSS/HTML inserted');
 }
 console.log('PASS archive exact emitted highlight DOM: unique contextual anchor, changed context, repeated ambiguity');
