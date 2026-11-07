@@ -11,7 +11,7 @@ if [[ "${1:-}" == --unsigned ]]; then UNSIGNED=true; shift; fi
 [[ $# -le 1 ]] || { echo 'Usage: build.sh [--unsigned] [output-name]' >&2; exit 1; }
 : "${ANDROID_SDK_ROOT:=${ANDROID_HOME:-}}"
 : "${ANDROID_SDK_ROOT:?Set ANDROID_SDK_ROOT to an installed SDK}"
-ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-37}"
+ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-37.0}"
 ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-36.0.0}"
 BT="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS"
 ANDROID_JAR="$ANDROID_SDK_ROOT/platforms/$ANDROID_PLATFORM/android.jar"
