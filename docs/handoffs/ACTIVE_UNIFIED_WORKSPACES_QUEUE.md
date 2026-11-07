@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-07, annotation-history source/migration safety continued through 36c4b64: history can open from global notebook and is now capped by total retained text; exact-source Java 11 regression/CAS/concurrency and API37 javac/D8 PASS; complete product/native/Fold acceptance still OPEN. No GitHub Actions/APK.
+**Checkpoint:** 2026-11-07, `64aa01e6b71fab51a02647bb537a498f82054237`: exact-source annotation history under 32MB Java heap now PASS after pre-fix OOM (46.7MB synthetic journal); journal CAS/concurrency remain PASS. Earlier host-suite PASS is snapshot-scoped. Current full native/app/product/Fold gates OPEN. No GitHub Actions/APK.
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** Bounded, independently committed development batches per owner direction. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -152,7 +152,7 @@ On 2026-11-07 owner explicitly reaffirmed: **ordinary ChatGPT/GitHub connector d
 > **2026-11-07 local-host release gate update:** See [exact local execution report](../verification/CURRENT_PHONE_LOCAL_HOST_20261107.md) (commit `279c008196c7857c66e0b1b4c15a6d4a25d2396f`). User-uploaded pinned `android-json-0.0.20131108.vaadin1.jar` validated SHA256 `dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79`; **one uninterrupted applicable local current-phone host suite returned 0** under ordinary user permissions. Fixed isolated print and protected-save harnesses with exact-source regressions (commits `51492ba72a43ab4f148a693e5869c7ef83e2cc0e`, `89710800dffc5039ee6a7a80c1b5e856e9dfcea0`). Exact log SHA256 `d75866afd6bc66d4a10d7f1a62e1fce9c25186f73190a12b1940e124ed5a767a`. **This does not satisfy full release gate:** GitHub ZIP lacks `.git` for three ancestry/historical-baseline checks; they remain NOT RUN, and owner-deferred portable categories remain excluded; native Android/PDF/SAF/700MB import/Fold7/product-completeness and canonical signer/in-place installation remain pending. Temporary local archive-only runner and guard shim are NOT committed and are NOT a green `--require-clean/--require-installed` source guard. No GitHub Actions or Markdown Desk APK produced.
 
 
-## Batch 03B-3f — exact-source history regression and queue de-staling (2026-11-07)
+## Batch 03B-3f-1 — exact-source history regression and queue de-staling (2026-11-07)
 
 **Live integration:** `9b6f2b29cec330618a49c57430857041c6f01acc`. Confirmed earlier global-notebook source-history fix committed: `ArchiveWorkspaceActivity.java` blob `0d739250697cd42bedbf8c6a6769c34dac1485e2`; corresponding static check blob `78e4dd9d94adf95e5d6388d5c96e0f5c942e1805`. Global notebook no longer incorrectly requires `active!=null` before showing source-verified history; callback is bound to Activity screen generation. This is a UI-source check, not on-device rendering proof.
 
@@ -160,7 +160,7 @@ On 2026-11-07 owner explicitly reaffirmed: **ordinary ChatGPT/GitHub connector d
 
 **Authority cleanup:** Replaced the ancient "Known, not deferred" block that falsely described integrated classes/features as missing. Previous full-suite report is source-snapshot-scoped and cannot be automatically applied to subsequent Archive/JSON/history commits. Outstanding native/full-feature release gates remain OPEN.
 
-## Batch 03B-3f — source-bound annotation history and bounded-memory local gate (2026-11-07)
+## Batch 03B-3f-2 — source-bound annotation history and bounded-memory local gate (2026-11-07)
 
 **Integrated feature:** Annotation histories exposed read-only from both Archive and Markdown notebooks via existing AJN2 durable journal, with revision timestamps, deletion tombstones, copied original note text, source identity checks, and no automatic restore/overwrite. Existing history UI issue when launched from the global notebook without an open conversation was corrected at `9b6f2b29cec330618a49c57430857041c6f01acc` using a UI-generation guard; exact archive source identity remains verified by `ArchiveJournal.history`.
 
@@ -170,6 +170,13 @@ On 2026-11-07 owner explicitly reaffirmed: **ordinary ChatGPT/GitHub connector d
 
 **Remaining full-scope gates:** Most recent full current-phone host suite was PASS on earlier pre-history code with the pinned JSON JAR; this turn executed only touched-component regressions, so do **not** extend the earlier full-suite green claim to this later integrated tree. Actual Android rendering, SAF providers, PDF file output, 700MB native import, Fold7 lifecycle/accessibility and full feature-parity acceptance remain OPEN, as do Git ancestry checks requiring a real checkout. Cross-install private backup remains owner-deferred. No GitHub Actions, intermediate APK, signing or `main` promotion.
 
+
+
+## Batch 03B-3f-3 — journal history scan memory RED/GREEN and exact source preservation
+
+**Verified regression:** The immediately preceding source `ArchiveJournal.java` at Git blob `025c5ea9f5b067449fb2c0e40a7ee496ae150102` was compared against the repaired exact source blob `9e047b9ecbed0f1028ae6aab85d4b79b89e97ede`. Under `java -Xmx32m`, `ArchiveJournalHistoryMemoryCheck` creates 260 valid synthetic AJN2 saves of approximately 46.7 MB total, only one of which belongs to the requested annotation. Old implementation failed with **`java.lang.OutOfMemoryError: Java heap space`** in `ArchiveJournal.loadLocked`, because the history-only path retained a live map for every unrelated source. The repaired path **PASS** under the same heap cap, returning exactly one source-bound revision. Existing `ArchiveJournalHistoryCheck` (including independent 4 MiB history cap), `ArchiveJournalConditionalCheck` and `ArchiveJournalConcurrencyCheck` all **PASS** on the repaired source under `javac --release 11`. History-only scans now stream validation of all records without constructing unrelated live annotations; ordinary full journal loads and CAS paths are unchanged.
+
+**Safe publication:** Atomic integration commit `64aa01e6b71fab51a02647bb537a498f82054237` publishes production `ArchiveJournal.java` blob `9e047b9ecbed0f1028ae6aab85d4b79b89e97ede`, exact test blob `77b05ea1fb4a6145be10518eac77101b3613f258`, and manual-only `verification/archive_reader/run_journal_history_memory.sh` blob `a866e30b4d39d979c7fbf109d397262dff037b36`. Synthetic data is temporary and deleted; no APK, network task, Actions or user data. **This closes the specific history-memory regression, not the complete Unified Workspaces release gate.** The last full applicable host PASS was recorded for its earlier tested branch snapshot; do not transfer it to this newer commit without executing a fresh full run.
 
 ## Machine-readable current-source identity (part of this queue, NOT a second status system)
 
