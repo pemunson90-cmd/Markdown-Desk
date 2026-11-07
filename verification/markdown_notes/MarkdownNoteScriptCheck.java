@@ -7,7 +7,10 @@ public final class MarkdownNoteScriptCheck {
         String capture=MarkdownNoteScript.capture(),boot=MarkdownNoteScript.boot();
         check(capture.contains("all.slice(start,end)!==quote"),"capture refuses unverifiable source");
         check(capture.contains("root.contains(r.commonAncestorContainer)"),"selection is inside reader");
-        check(boot.contains("valid.length!==1")&&boot.contains("matches(row.start)"),"duplicate passages fail closed");
+        check(boot.contains("valid.length!==1")&&boot.contains("while((p=text.indexOf(q,p))>=0)")&&
+                !boot.contains("matches(row.start)"),"every matching passage must be checked, even at old offset");
+        check(capture.contains("startContainer.nodeType!==3")&&
+                capture.contains("closest(\u0027script,style,noscript,template\u0027)"),"capture ignores script text");
         check(boot.contains("new Highlight(...ranges)")&&boot.contains("CSS.highlights.set"),"non-destructive highlight API");
         ArchiveJournal.Annotation a=new ArchiveJournal.Annotation();
         a.id="id-1";a.quote="</script><svg onload=evil()>💜";
