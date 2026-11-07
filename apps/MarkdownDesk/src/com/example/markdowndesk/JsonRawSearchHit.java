@@ -10,13 +10,15 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/** Bounded read-only verification of raw JSON search hits; not a JSON-path claim. */
+/** Bounded read-only verification of raw JSON search hits and optional strict node identity. */
 final class JsonRawSearchHit {
     static final int MAX_BYTES=8*1024*1024;
     static final class Hit {
         final String quote,snippet;final int line,begin,end;
-        Hit(String quote,String snippet,int line,int begin,int end) {
+        final JsonNodeLocator.Target node;
+        Hit(String quote,String snippet,int line,int begin,int end,JsonNodeLocator.Target node) {
             this.quote=quote;this.snippet=snippet;this.line=line;this.begin=begin;this.end=end;
+            this.node=node;
         }
     }
     private JsonRawSearchHit(){}
@@ -62,6 +64,12 @@ final class JsonRawSearchHit {
         int start=Math.max(0,offset-160),end=Math.min(text.length(),offset+literal.length()+160);
         if(start>0&&Character.isLowSurrogate(text.charAt(start)))start--;
         if(end<text.length()&&end>0&&Character.isHighSurrogate(text.charAt(end-1)))end++;
-        return new Hit(literal,text.substring(start,end),line,offset-start,offset-start+literal.length());
+        // A verified raw hit is always useful; a structural jump is offered only
+        // when a strict bounded lexical pass establishes an unambiguous path.
+        JsonNodeLocator.Target node=null;
+        try{node=JsonNodeLocator.locate(text,offset,literal.length());}
+        catch(IOException malformedOrAmbiguous){/* Keep the verified raw passage only. */}
+        return new Hit(literal,text.substring(start,end),line,offset-start,
+                offset-start+literal.length(),node);
     }
 }
