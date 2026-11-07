@@ -42,8 +42,8 @@ final class ArchiveSidecarPublisher {
                     DocumentsContract.Document.MIME_TYPE_DIR,"Chat Indexes");
             if(chats==null)throw new IOException("The selected provider cannot create the Chat Indexes folder");
         }
-        publishDocument(chats,ArchiveMarkdownIndexes.fileName(chatTitle,chatId),perChat);
-        publishDocument(rootDocument,"MASTER-LINKS.md",master);
+        publishChat(chats,chatTitle,archiveId,chatId,perChat);
+        publishDocument(rootDocument,"MASTER-LINKS.md",master,null,null);
     }
 
     void publishAll(Collection<ArchiveJournal.Annotation> annotations)throws IOException{
@@ -54,17 +54,37 @@ final class ArchiveSidecarPublisher {
                 DocumentsContract.Document.MIME_TYPE_DIR,"Chat Indexes");
         if(chats==null)throw new IOException("Cannot create Chat Indexes folder");
         Map<String,ArchiveJournal.Annotation> unique=new LinkedHashMap<>();
-        for(ArchiveJournal.Annotation a:annotations)unique.put(a.chatId,a);
+        for(ArchiveJournal.Annotation a:annotations) {
+            if(a==null || a.archiveId==null || a.chatId==null)
+                throw new IOException("Missing annotation sidecar source identity");
+            unique.put(a.archiveId.length()+":"+a.archiveId+a.chatId,a);
+        }
         for(ArchiveJournal.Annotation a:unique.values())
-            publishDocument(chats,ArchiveMarkdownIndexes.fileName(a.chatTitle,a.chatId),
+            publishChat(chats,a.chatTitle,a.archiveId,a.chatId,
                     ArchiveMarkdownIndexes.perChat(a.chatTitle,a.archiveId,a.chatId,annotations));
-        publishDocument(rootDocument,"MASTER-LINKS.md",ArchiveMarkdownIndexes.master(annotations));
+        publishDocument(rootDocument,"MASTER-LINKS.md",ArchiveMarkdownIndexes.master(annotations),null,null);
     }
 
-    private void publishDocument(Uri folder,String name,String generated)throws IOException{
+    private void publishChat(Uri folder,String title,String archiveId,String chatId,
+                             String generated)throws IOException {
+        String safe=ArchiveMarkdownIndexes.fileName(title,chatId);
+        String legacy=ArchiveMarkdownIndexes.legacyFileName(title,chatId);
+        // Refuse to strand a legacy notebook until an owner-verified migration exists.
+        if(!legacy.equals(safe) && child(folder,legacy)!=null)
+            throw new IOException("Legacy Markdown notebook needs identity review; existing file preserved");
+        publishDocument(folder,safe,generated,archiveId,chatId);
+    }
+
+    private void publishDocument(Uri folder,String name,String generated,
+                                 String archiveId,String chatId)throws IOException{
         Uri existing=child(folder,name);
         String output=generated;
-        if(existing!=null)output=ArchiveMarkdownIndexes.replaceGeneratedRegion(read(existing),generated);
+        if(existing!=null) {
+            String previous=read(existing);
+            if(chatId!=null && !ArchiveMarkdownIndexes.matchesOwner(previous,archiveId,chatId))
+                throw new IOException("Existing Markdown notebook identity is ambiguous; original preserved");
+            output=ArchiveMarkdownIndexes.replaceGeneratedRegion(previous,generated);
+        }
         String stageName=".md-stage-"+UUID.randomUUID().toString()+".md";
         Uri stage=DocumentsContract.createDocument(resolver,folder,"text/markdown",stageName);
         if(stage==null)throw new IOException("Cannot stage the Markdown index in this directory");
