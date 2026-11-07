@@ -66,6 +66,18 @@ public final class ArchiveAnnotationSearchPagingTest {
                 throw new AssertionError("ambiguous multi-tag query was accepted");
             }catch(IllegalArgumentException expected){}
             assertOk(ArchiveAnnotationSearch.page(path,"find",null,100,10000).isEmpty(),"end of results");
+            ArchiveJournal.Annotation unowned=new ArchiveJournal.Annotation();
+            unowned.id="unnamed-source";unowned.chatId="chat-orphan";unowned.messageId="message";
+            unowned.type="note";unowned.label="find an unnamed source";
+            storage.save(unowned);
+            assertOk(ArchiveAnnotationSearch.pageFiltered(path,"find","chat-orphan",10,0,
+                    null,null,"archive").isEmpty(),
+                    "missing archive identity must not masquerade as an archive result");
+            assertOk(ArchiveAnnotationSearch.pageFiltered(path,"find","chat-orphan",10,0,
+                    null,null,"markdown").isEmpty(),
+                    "unknown source must not masquerade as Markdown");
+            assertOk(ArchiveAnnotationSearch.page(path,"find","chat-orphan",10,0).size()==1,
+                    "unnamed legacy notes must remain retrievable without a source filter");
             System.out.println("PASS: paged search of 263 durable annotations, scoped queries, no silent cap");
         } finally {Files.deleteIfExists(new File(dir,"notes.journal").toPath());Files.deleteIfExists(dir.toPath());}
     }
