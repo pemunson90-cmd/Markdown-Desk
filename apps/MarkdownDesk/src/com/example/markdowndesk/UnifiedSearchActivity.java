@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.CancellationSignal;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -24,7 +26,10 @@ import com.example.markdowndesk.workspace.search.UnifiedSearchScope;
 import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -45,6 +50,20 @@ public final class UnifiedSearchActivity extends Activity {
     private List<WorkspaceRootStore.RootState> roots=new ArrayList<>();
     private int generation;
     private boolean searchExecuted;
+    private final Handler rootSearchHandler=new Handler(Looper.getMainLooper());
+    private final ArrayDeque<WorkspaceRootStore.RootState> pendingRoots=new ArrayDeque<>();
+    private final ArrayList<FolderHit> folderHits=new ArrayList<>();
+    private final Set<String> seenFolderHits=new HashSet<>();
+    private int searchedRoots,skippedRoots,limitedRoots,failedRoots,totalRoots,shownFolderHits;
+    private static final int FOLDER_PAGE=100;
+    private static final class FolderHit {
+        final WorkspaceLiteralSearch.FileHit file;
+        final WorkspaceLiteralSearch.Match match;
+        final String term;
+        FolderHit(WorkspaceLiteralSearch.FileHit file,WorkspaceLiteralSearch.Match match,String term){
+            this.file=file;this.match=match;this.term=term;
+        }
+    }
 
     @Override protected void onCreate(Bundle saved){
         super.onCreate(saved);
@@ -128,8 +147,8 @@ public final class UnifiedSearchActivity extends Activity {
         noteTag=field("Exact tag (optional)");body.addView(noteTag);
         noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations"});
         body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
-        body.addView(text("Authorized Markdown / JSON folder (for folder or All searches)",13));
-        folder=choose(new String[]{"No saved folder selected"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
+        body.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
+        folder=choose(new String[]{"All granted saved folders"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(button("Search",v->search()));
         body.addView(button("Stop search",v->cancel()));
         results=stack();body.addView(results);
@@ -138,7 +157,7 @@ public final class UnifiedSearchActivity extends Activity {
     private void refreshFolders(){
         try{
             roots=new WorkspaceRootStore(this).list(getContentResolver());
-            ArrayList<String> labels=new ArrayList<>();labels.add("No saved folder selected");
+            ArrayList<String> labels=new ArrayList<>();labels.add("All granted saved folders");
             for(WorkspaceRootStore.RootState root:roots){
                 labels.add(root.root.label+(root.access==WorkspaceRootStore.Access.CURRENT?"":" · access required"));
             }
@@ -151,8 +170,7 @@ public final class UnifiedSearchActivity extends Activity {
     private void error(String title,Exception ex){new AlertDialog.Builder(this).setTitle(title)
         .setMessage(ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage())
         .setPositiveButton("OK",null).show();}
-    private void cancel(){generation++;if(folderJob!=null){folderJob.cancel();folderJob=null;}
-        status("Search cancelled; no documents changed.");}
+    private void cancel(){cancelActive();status("Search cancelled; no documents changed.");}
     private void search(){
         final String term=query.getText().toString().trim();
         if(term.isEmpty()){query.setError("Enter a phrase");return;}
@@ -171,7 +189,12 @@ public final class UnifiedSearchActivity extends Activity {
         if(selected.includesArchive()||selected.includesNotes())searchIndex(token,term,selected);
         if(selected.includesFolder())searchFolder(token,term);
     }
-    private void cancelActive(){if(folderJob!=null){folderJob.cancel();folderJob=null;}generation++;}
+    private void cancelActive(){
+        if(folderJob!=null){folderJob.cancel();folderJob=null;}
+        pendingRoots.clear();folderHits.clear();seenFolderHits.clear();
+        searchedRoots=skippedRoots=limitedRoots=failedRoots=totalRoots=shownFolderHits=0;
+        generation++;
+    }
     private void searchIndex(int token,String term,UnifiedSearchScope selected){
         final String sender=speaker.getText().toString().trim();
         final String from=fromDate.getText().toString().trim(),to=toDate.getText().toString().trim();
