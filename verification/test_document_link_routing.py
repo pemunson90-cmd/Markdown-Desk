@@ -62,7 +62,8 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('if(!type.isEmpty()&&!type.equals(a.type))continue', engine)
         self.assertIn('if(!desiredTag.isEmpty()&&!hasTag(a.tags,desiredTag))continue', engine)
         self.assertIn('if("markdown".equals(origin)&&!"markdown-document".equals(a.archiveId))continue', engine)
-        self.assertIn('if("archive".equals(origin)&&"markdown-document".equals(a.archiveId))continue', engine)
+        self.assertIn('if("archive".equals(origin)&&(a.archiveId==null||a.archiveId.isEmpty()||', engine)
+        self.assertIn('"markdown-document".equals(a.archiveId)))continue', engine)
         self.assertLess(engine.index('if(!type.isEmpty()&&!type.equals(a.type))continue'),
                         engine.index('if(seen++<start)continue'))
         self.assertIn('part.trim().equalsIgnoreCase(wanted)', engine)
@@ -81,7 +82,7 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('transcriptField(m.role)', export)
         self.assertNotIn('WINDOW_MESSAGES', export)
         self.assertNotIn('CHUNK_PARTS', export)
-        self.assertIn('return value.replace(\'\\\\r\',\' \').replace(\'\\\\n\',\' \')', export)
+        self.assertIn(r"return value.replace('\r',' ').replace('\n',' ')", export)
 
     def test_unified_markdown_match_uses_hash_and_exact_offset_after_open(self):
         search = (JAVA / "UnifiedSearchActivity.java").read_text()
