@@ -16,7 +16,17 @@ public final class MarkdownNoteScriptCheck {
         a.id="id-1";a.quote="</script><svg onload=evil()>💜";
         a.prefix="x\"";a.suffix="\n";
         a.selectionStart=42;
+        a.tags="story,md-color:rose";
         String js=MarkdownNoteScript.decorate(Arrays.asList(a));
+        check(js.contains("tone:\"rose\""),"selected color serialized as safe fixed data");
+        check(boot.contains("CSS.highlights.set('markdown-notes-'+tone"),"separate named highlight ranges");
+        check(boot.contains("markdown-notes-violet")&&boot.contains("markdown-notes-rose")
+                &&boot.contains("markdown-notes-mint")&&boot.contains("markdown-notes-amber")
+                &&boot.contains("markdown-notes-blue")&&boot.contains("markdown-notes-slate"),
+                "all six palette CSS declarations are fixed");
+        a.tags=null;
+        check(MarkdownNoteScript.decorate(Arrays.asList(a)).contains("tone:\"violet\""),
+                "older journal annotations still show violet");
         check(!js.contains("</script>")&&!js.contains("<svg"),"serialized data cannot close script");
         check(js.contains("\\u003c/script\\u003e"),"HTML delimiters escaped");
         check(!MarkdownNoteScript.jump("a\";evil()").contains("a\";evil()"),"jump ID serialized");
