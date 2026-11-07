@@ -29,6 +29,7 @@ class MainActivity {
   void setOrientation(int i){orientation=i;} int getOrientation(){return orientation;} void addView(View v,LayoutParams p){v.layoutParams=p;children.add(v);} void removeAllViews(){children.clear();} void getLocationOnScreen(int[] p){p[0]=100;} int getWidth(){return width;}
  }
  static class DocumentTab {final String id=java.util.UUID.randomUUID().toString();String displayName;boolean dirty;DocumentTab(String n,boolean d){displayName=n;dirty=d;}}
+ static class UnifiedTabs {static void updateMarkdown(MainActivity activity,List<DocumentTab> source,int active){} }
  static class Palette {int border;}
  static class Preferences {int writes;float value; Preferences edit(){return this;} Preferences putFloat(String k,float v){value=v;return this;} void apply(){writes++;}}
  static class Resources {Configuration getConfiguration(){return new Configuration();}} static class Configuration {int screenWidthDp=800;}
