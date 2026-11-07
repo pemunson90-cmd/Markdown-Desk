@@ -144,7 +144,9 @@ public final class ArchiveJournal {
     private ReadResult loadLocked(Annotation requested,HistoryResult history) throws IOException {
         ReadResult result=new ReadResult();
         if(!file.exists())return result;
-        LinkedHashMap<String,Annotation> live=new LinkedHashMap<>();
+        // A history scan must not retain annotations belonging to other sources.
+        // Normal loads still assemble the complete current state.
+        LinkedHashMap<String,Annotation> live=history==null?new LinkedHashMap<>():null;
         long retainedHistoryUnits=0;
         try(DataInputStream input=new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
             for(;;) {
@@ -171,8 +173,8 @@ public final class ArchiveJournal {
                     if(op==1) {
                         if(row.id==null || row.chatId==null || !validType(row.type))
                             throw new IOException("Corrupt annotation record");
-                        live.put(row.id,row);
-                    } else if(op==2) live.remove(row.id);
+                        if(live!=null)live.put(row.id,row);
+                    } else if(op==2) { if(live!=null)live.remove(row.id); }
                     else throw new IOException("Unknown journal operation");
                     if(history!=null && Objects.equals(row.id,requested.id)) {
                         if(op==1 && (!Objects.equals(row.archiveId,requested.archiveId)
@@ -190,7 +192,7 @@ public final class ArchiveJournal {
                 }
             }
         }
-        result.annotations.addAll(live.values());return result;
+        if(live!=null)result.annotations.addAll(live.values());return result;
     }
     private static long historyUnits(Annotation row) {
         long count=0;
