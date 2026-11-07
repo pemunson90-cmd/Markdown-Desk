@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 02B-2c-2 (all six remaining divergent branches reviewed; AGENTS/CLAUDE stale auto-resume routed to this queue; no app implementation).
+**Checkpoint:** 2026-11-06, batch 02C-1 (all branches, PRs and issues have preservation/reconciliation/disposition rules; no cleanup executed).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -26,7 +26,8 @@
 | 02B-2b | **DONE — SOURCE / TEST / EVIDENCE TRIAGE** | Reviewed three **nested** Archive/Claude branch histories (4, 13, 18 unique commits relative to integration, 18 distinct across lineage), net diffs, current production equivalents, omitted regression fixtures and four historical verification reports. Flagged short sanitized-ID sidecar collision as unresolved. | Detailed 02B-2b section below; current parser byte-identical; no app code or PR changes |
 | 02B-2c-1 | **DONE — DOWNLOADS / LONG-PRESS AUDIT** | Audited 7 divergent Downloads and rescue branches, unique commit histories, source-blob identities and legacy/current test coverage. Found two concrete current-source regressions: RecentStore clears corrupt Recents, and long-press fails to reset pending close at fresh ACTION_DOWN. No code changed. | Detailed 02B-2c-1 section; all 7 refs remain protected |
 | 02B-2c-2 | **DONE — HISTORY / PLANS / POLICY TRIAGE** | Six remaining divergent refs classified; `main` 11 policy commits and PR #37 one commit reused prior audits without repeating; four older history/Foundry/Claude plan branches inspected. Top-level `AGENTS.md` and `CLAUDE.md` now point only to this queue, overriding old auto-resume instructions. | Section 02B-2c-2; pointer commits `51830c8baee4d70449958e2097feb6c66ad0e9ca`, `aee8fd90854f4614b19d1ef3a9816094f31f6f74` |
-| 02C | **NEXT** | Finalize dispositions for all 46 branches and 27 PRs/10 standalone issues using completed source review. Establish exact non-destructive archive/deprecate/merge gates, priority PR #37 adaptations, stable-main promotion and final release gate; do not delete unique refs or resume implementation. | Single reconciled no-loss implementation/retirement queue, any true blockers explicit |
+| 02C-1 | **DONE — DISPOSITION PLAN** | Using the completed 46-branch/27-PR/10-issue audit, assigned preservation, reconciliation, historical archive/deprecation, and stable promotion rules without deleting refs. No feature work. | Section 02C-1 and this commit; all original refs intact |
+| 02C-2 | **NEXT** | Verify release/build/test gates against current scripts and owner decisions; produce a one-turn-at-a-time implementation/deprecation handoff with exact readiness criteria and known blockers. **Do not implement or issue APK.** | Final consolidated readiness/stop condition; PR #37 first when explicitly authorized |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
 | 05 | PENDING | Safety: exact selection anchors, process-wide journal synchronization, safe sidecar publication/recovery, transaction integrity, 700 MB archive behavior, source immutability, no silent truncation | Behavior/fault tests for all known failure modes |
@@ -338,6 +339,48 @@ Record both regressions under **Gate 3 data-integrity/user-state** and final nat
 Batch 02A enumerated 46 branches; the **19 divergent tips** have now been assigned to non-overlapping reviews: 3 Unified (02B-2a), 3 nested Archive/Claude (02B-2b), 7 Downloads/rescue (02B-2c-1), and 6 here (02B-2c-2). The other 26 tips are integration ancestors and remain historical retirement candidates, not deletion authorization. Retain the original branch SHA, tests and source identity. **Do not rerun any of these 19 comparisons unless heads move.**
 
 **Next: Batch 02C, final no-loss repository disposition and release-gate readiness:** use the already recorded evidence to classify PRs, issues and branches for eventual merge/archive/deprecate; protect genuine experiments and owner deferrals, and leave all app implementation, branch deletion, release signing and `main` promotion for separately authorized execution gates.
+
+
+## Batch 02C-1 — final GitHub branch/PR/issue **disposition plan**, no mutations
+
+**Read-only snapshot**: 2026-11-06 GitHub API returned **46 branches, 27 PRs** (11 open, 15 merged, 1 closed unmerged) and **10 standalone issues** (9 open, 1 closed). Exact branch SHA/ancestry table is in Batch 02A, with 19 divergent branches fully classified in Batches 02B-2a, -2b, -2c-1 and -2c-2. Branch/PR heads are unchanged at this check, including active integration `1088ccf7ba784a91514e1c09fd58843392ed9d14` (before this checkpoint), `main` `07660de8a7b2128bf00cb19f31711ab1d5531c54`, and PR #37 `a3bc7866190fe72c0918679ef5735ddd5482a7ba`. **Do not recalculate historical audits unless a head changes.**
+
+### Final disposition labels (not completed actions)
+
+- **KEEP-ACTIVE (2):** `main` (stable-only; currently outdated, promotion blocked until acceptance evidence) and `integration/unified-workspaces-20261106` (single authoritative active development/handoff branch).
+- **INTEGRATE-SELECTIVELY, KEEP REFS (7):** three Unified feature/parity branches (`feature/unified-workspaces-20261106`, `feature/unified-markdown-annotations-20261106`, `work/full-unified-parity-20261106`), three related Claude/Archive branches (`feature/claude-archive-integrated-20261105`, `fix/archive-integration-audit-20261105`, `fix/claude-pretty-json-import-20261106`), and **PR #37** source `fix/audit-efficiency-20261106`. Every source/test/provenance gap is specified in Batches 00A/02B. Their original history stays until exact integrated behavior and test coverage are proven, after which historic tags/archival branch refs may replace their active branch names.
+- **RESTORE SAFETY OR TEST EVIDENCE BEFORE RETIREMENT (7):** `fix/downloads-recents-direct-20261030`, `fix/downloads-recents-tabfix2-20261030`, `fix/downloads-recents-v229-source-20261030`, `rescue/md-longpress-tab-freeze-20261017`, `rescue/md-unsigned-build-proof-20261017-longpress-freeze`, `rescue/md-unsigned-build-proof-longpress-20261017`, `rescue/md-unsigned-build-proof-longpress-release-20261017`. Current bugs: malformed `RecentStore` deleting saved metadata and stale long-press close across missing terminal touch events. Retain old test/provenance fixtures and use current runner once, not duplicate old workflows.
+- **PRESERVE HISTORICAL/EXPERIMENTAL (4):** `codex/m1-maintenance` (older history maintenance design with unique tests; must verify equivalence before archival), `moonshot/professional-upgrade-20261031` (owner feature-continuity policy preserved; not release scope), `plan/claude-archive-reader-20261105` (proposal superseded by ratified Unified Workspaces contract, useful design provenance), `plan/moonshot-autonomous-markdown-20261031` (separate Foundry/agent experiment and former product manifest; no autonomous worker authority). Do not merge an old storage system or start Foundry work just to retire a branch.
+- **ANCESTRY-CONTAINED / HISTORICAL CANDIDATES (26):** every branch marked `0` unique commits in the exact 46-entry table in Batch 02A. They may be deprecated *after* associated PR/issue/test provenance and already integrated capabilities are verified; ancestry alone is insufficient. Includes the original code33 recovery, code37 reader safety and earlier merged `codex/` work. Retain immutable reference to owner-signing/release evidence where needed.
+
+**Accounting:** 2 active + 7 selective + 7 safety + 4 historical + 26 contained = **46**. No unnamed catch-all branch, no deletion conducted.
+
+### PR closure / retention matrix — explicit
+
+| PR(s) | Post-integration disposition (none yet closed) |
+|---|---|
+| **#37** | **Highest implementation priority.** Adapt (not merge wholesale) all 21 files per Batch 00A, rerun its 10 focused cases and required full host suite on the final branch. Close only with exact integration commit and test proof; skipped hosted run is not green. |
+| **#36** | Legacy code32 JSON/Fold7 PR: retain until safe code33+current Archive behavior, UI/insets and full data import/reader tests are accepted. Then close as superseded with provenance, not merge broken candidate. |
+| **#35, #34** | Legacy email links, footnotes and reader links: ensure existing Markdown reader behavior and relevant Archive parity tests pass on final source; then close with feature-provenance explanation, or retarget an actually missing capability. |
+| **#31, #30, #29** | Navigation, picker, contrast: preserve history, verify existing live editor/Files/Fold7 and old user acceptance; close as reconciled only if no feature/test regression. No older version promotion. |
+| **#28, #26** | Downloads/Recents alternatives: retain until both current Recents and long-press regressions are corrected, old inaccessible provider-ID recovery survives, and native tests pass. Close duplicates with exact fix source SHA once proven. |
+| **#32** | Foundry G0/old source manifest: classify **out-of-release toolchain experiment**; retain PR/evidence or archive separately, do not run agent autonomously or import obsolete manifest as live truth. |
+| **#24** | Deferred cross-installation private state/capture: keep historical record and inert foundations. No present release requirement for private-state export/import, no automatic implementation. |
+| **#27** | Already closed unmerged and explicitly superseded; preserve source and evidence until unique Recents safety repair proves carried forward. |
+| **#9–23** | 15 already merged. Treat as historical provenance, **no remerge**. Verify final app feature continuity, especially local history, safe saves and recoverability. |
+ 
+### Standalone issue resolution matrix
+
+- **#25 (Downloads/Recents)** remains **in-scope and open** until current Downloads provider/Recents functionality, malformed record preservation and old-ID recovery are retested.
+- **#2–8** are older roadmap issues: map each existing-capability/data-safety or Unified Workspaces intersection into the release gate; leave independent M0–M7 future work separate. **Do not close an entire issue merely because one overlapping portion passed.**
+- **#33 (Foundry G1)** stays **outside this release**, with separate historical evidence. Do not trigger a worker, consume paid usage, or make it an arbitrary gate.
+- **#1** is already closed baseline import; never rerun baseline reconstruction.
+
+### Required deletion / archival proof (later, after implementation acceptance)
+
+Before retiring any of the 44 non-active branch refs: (1) re-read its exact current head; (2) determine if a PR is open and reconcile that PR with a comment/link to precise integrated commit or reason for preserving experiment; (3) preserve original immutable commit with a verified *historical* tag or archive namespace and record owner signing/build/test provenance (no private blobs); (4) verify no unique source, tests, diagnostics or requested behavior is stranded; (5) do not rewrite/force-push `main`; (6) never delete an unmerged branch when functionality remains unaccounted. GitHub has no native archived-branch state: a tag or archival namespace is a chosen *convention*, not an automatic archive. Avoid duplicate tags or archive branches if the ref is already protected. Cleanup itself should be in short, verified batches after code acceptance.
+
+**Next:** Batch 02C-2: consolidate exact release gate, stable-main acceptance blocker and PR #37 preparation; no implementation yet.
 
 ## Known, not deferred
 
