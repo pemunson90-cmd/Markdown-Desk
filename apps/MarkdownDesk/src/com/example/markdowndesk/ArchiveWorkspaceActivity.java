@@ -1471,51 +1471,73 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         final ArchiveDatabase.Conversation conversation=findConversation(chat);
         if(conversation==null){status("Conversation no longer indexed");return;}
         io.execute(()->{
-            try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
-                if(out==null)throw new IOException("Selected provider cannot create PDF file");
-                ArchiveTranscriptPdf.export(database,conversation,out);
-                runOnUiThread(()->status("Complete PDF conversation exported"));
-            }catch(Exception failure){runOnUiThread(()->fail(
-                "PDF export incomplete; do not rely on any partial document",failure));}
+            try{
+                ExportReceipt.Sink out=new ExportReceipt.Sink(
+                        getContentResolver().openOutputStream(destination,"w"));
+                try(out){
+                    ArchiveTranscriptPdf.export(database,conversation,out);
+                }
+                // A provider close can fail AFTER flush; only complete readback is success.
+                try(InputStream check=getContentResolver().openInputStream(destination)){
+                    ExportReceipt.verify(check,out.receipt());
+                }
+                runOnUiThread(()->status("Complete PDF conversation exported and verified"));
+            }catch(Exception failure){
+                runOnUiThread(()->fail(
+                    "PDF export incomplete or could not be verified; do not rely on the selected document",
+                    failure));
+            }
         });
     }
     private void writeTranscript(String chat,Uri destination){
         final ArchiveDatabase.Conversation conversation=findConversation(chat);
         if(conversation==null){status("Conversation no longer indexed");return;}
         io.execute(()->{
-            try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
-                if(out==null)throw new IOException("Selected provider cannot create Markdown file");
-                final String generation=database.exportGeneration(conversation);
-                write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
-                int index=0;
-                for(;;){
-                    database.requireExportGeneration(conversation.archiveId,generation);
-                    List<ArchiveDatabase.Message> messages=database.messages(chat,index,50);
-                    if(messages.isEmpty())break;
-                    for(int row=0;row<messages.size();row++){
-                        ArchiveDatabase.Message m=messages.get(row);
-                        ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments);
-                        write(out,"## "+transcriptField(m.role)+" · "+transcriptField(m.created)+
-                                " · message "+(m.ordinal+1)+"\n\n");
-                        if(conversation.archiveId!=null&&!conversation.archiveId.isEmpty()
-                                &&m.messageId!=null&&!m.messageId.isEmpty()){
-                            Uri source=new Uri.Builder().scheme("markdowndesk").authority("archive")
-                                .appendPath("v1").appendPath(conversation.archiveId)
-                                .appendPath(chat).appendPath(m.messageId).build();
-                            write(out,"Source: [Open original message]("+source.toString()+")\n\n");
+            try{
+                ExportReceipt.Sink out=new ExportReceipt.Sink(
+                        getContentResolver().openOutputStream(destination,"w"));
+                try(out){
+                    final String generation=database.exportGeneration(conversation);
+                    write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
+                    int index=0;
+                    for(;;){
+                        if(Thread.currentThread().isInterrupted())throw new IOException("Transcript export cancelled");
+                        database.requireExportGeneration(conversation.archiveId,generation);
+                        List<ArchiveDatabase.Message> messages=database.messages(chat,index,50);
+                        if(messages.isEmpty())break;
+                        for(int row=0;row<messages.size();row++){
+                            ArchiveDatabase.Message m=messages.get(row);
+                            ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments);
+                            write(out,"## "+transcriptField(m.role)+" · "+transcriptField(m.created)+
+                                    " · message "+(m.ordinal+1)+"\n\n");
+                            if(conversation.archiveId!=null&&!conversation.archiveId.isEmpty()
+                                    &&m.messageId!=null&&!m.messageId.isEmpty()){
+                                Uri source=new Uri.Builder().scheme("markdowndesk").authority("archive")
+                                    .appendPath("v1").appendPath(conversation.archiveId)
+                                    .appendPath(chat).appendPath(m.messageId).build();
+                                write(out,"Source: [Open original message]("+source.toString()+")\n\n");
+                            }
+                            for(int part=0;part<m.segments;part+=32){
+                                final int count=Math.min(32,m.segments-part);
+                                write(out,database.textChunkVerified(m.id,part,count));
+                            }
+                            write(out,"\n\n");
                         }
-                        for(int part=0;part<m.segments;part+=32){
-                            final int count=Math.min(32,m.segments-part);
-                            write(out,database.textChunkVerified(m.id,part,count));
-                        }
-                        write(out,"\n\n");
+                        index+=messages.size();
                     }
-                    index+=messages.size();
+                    database.requireExportGeneration(conversation.archiveId,generation);
+                    ArchiveTranscriptIntegrity.complete(conversation.messages,index);
+                    out.flush();
                 }
-                database.requireExportGeneration(conversation.archiveId,generation);
-                ArchiveTranscriptIntegrity.complete(conversation.messages,index);
-                out.flush();runOnUiThread(()->status("Complete Markdown conversation exported"));
-            }catch(Exception e){runOnUiThread(()->fail("Transcript export failed; do not rely on partial document",e));}
+                try(InputStream check=getContentResolver().openInputStream(destination)){
+                    ExportReceipt.verify(check,out.receipt());
+                }
+                runOnUiThread(()->status("Complete Markdown conversation exported and verified"));
+            }catch(Exception failure){
+                runOnUiThread(()->fail(
+                    "Transcript export incomplete or could not be verified; do not rely on the selected document",
+                    failure));
+            }
         });
     }
     /** Metadata only. Source message bodies are streamed without rewriting. */
