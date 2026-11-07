@@ -21,6 +21,7 @@ import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
 import com.example.markdowndesk.workspace.search.UnifiedSearchScope;
+import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,15 +201,21 @@ public final class UnifiedSearchActivity extends Activity {
                     for(WorkspaceLiteralSearch.FileHit file:r.hits){
                         for(WorkspaceLiteralSearch.Match match:file.matches)
                             add("MD · "+file.displayName+" · line "+match.line+"\n"+match.snippet,
-                                v->openMarkdownHit(file.uri));
+                                v->openMarkdownHit(file,match,term));
                     }
                 });
             if(folderJob==null)status("Another protected folder search is already in progress.");
         }catch(Exception e){status("Folder search unavailable: "+e.getMessage());}
     }
-    private void openMarkdownHit(Uri uri){
-        Intent intent=new Intent(Intent.ACTION_VIEW,uri);
+    private void openMarkdownHit(WorkspaceLiteralSearch.FileHit file,
+                                 WorkspaceLiteralSearch.Match match,String literal){
+        if(file==null||match==null||file.uri==null)return;
+        Intent intent=new Intent(Intent.ACTION_VIEW,file.uri);
         intent.setClassName(getPackageName(),"com.example.markdowndesk.MainActivity");
+        intent.putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString());
+        intent.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash);
+        intent.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal);
+        intent.putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try{startActivity(intent);}catch(Exception e){error("Cannot open Markdown file",e);}
     }
