@@ -83,6 +83,18 @@ class JsonReadingParity(unittest.TestCase):
         self.assertIn('Additional content omitted in this bounded preview',e)
         self.assertIn('Message truncated in preview',e)
 
+    def test_fold_window_insets_reuse_proven_root_fitting(self):
+        a=self.activity
+        main=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java').read_text(encoding='utf-8')
+        archive=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java').read_text(encoding='utf-8')
+        search=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java').read_text(encoding='utf-8')
+        self.assertIn('root.setFitsSystemWindows(true)',a)
+        self.assertIn('this.root.setFitsSystemWindows(true)',main)
+        self.assertIn('screen.setFitsSystemWindows(true)',archive)
+        self.assertIn('root.setFitsSystemWindows(true)',search)
+        self.assertNotIn('setOnApplyWindowInsetsListener',a)
+        self.assertNotIn('setDecorFitsSystemWindows(false)',a)
+
     def test_no_source_mutation_or_silent_page_cap_change(self):
         self.assertIn('final int PAGE_SIZE = 100',self.engine)
         self.assertIn('final int MAX_TRANSCRIPT_MESSAGES = 200',self.engine)
