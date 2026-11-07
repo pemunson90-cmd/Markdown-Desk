@@ -27,6 +27,7 @@ public final class WorkspaceRouter {
 
     public static final String EXTRA_OPEN_FILES = "com.example.markdowndesk.workspace.OPEN_FILES";
     public static final String EXTRA_SEARCH_ARCHIVE = "com.example.markdowndesk.workspace.SEARCH_ARCHIVE";
+    public static final String EXTRA_IMPORT_JSON_URI = "com.example.markdowndesk.workspace.IMPORT_JSON_URI";
 
     public static void openArchiveSearch(Activity current){
         Intent intent=new Intent();
