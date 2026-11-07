@@ -46,6 +46,17 @@ class SidecarPublicationChecks(unittest.TestCase):
         self.assertNotIn("renameDocument", section)
         self.assertNotIn("publishDocument(folder,legacy", section)
 
+    def test_existing_notebook_requires_strict_utf8_before_any_replace(self):
+        source=(ROOT / "ArchiveSidecarPublisher.java").read_text()
+        self.assertIn("StandardCharsets.UTF_8.newDecoder()",source)
+        self.assertIn("onMalformedInput(CodingErrorAction.REPORT)",source)
+        self.assertIn("onUnmappableCharacter(CodingErrorAction.REPORT)",source)
+        self.assertIn("catch(CharacterCodingException malformed)",source)
+        self.assertIn("malformed UTF-8; original preserved",source)
+        self.assertNotIn("new String(out.toByteArray(),StandardCharsets.UTF_8)",source)
+        self.assertLess(source.index("String previous=read(existing)"),
+                        source.index("output=ArchiveMarkdownIndexes.replaceGeneratedRegion"))
+
     def test_same_chat_id_in_two_archives_retains_distinct_sources(self):
         source = (ROOT / "ArchiveSidecarPublisher.java").read_text()
         self.assertIn('a.archiveId.length()+":"+a.archiveId+a.chatId', source)
