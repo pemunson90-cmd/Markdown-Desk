@@ -209,6 +209,16 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('showAnnotationActions(incoming.get(which))', block)
         self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', block)
 
+    def test_archive_import_rejects_lossy_utf8_and_orphan_surrogate_escapes(self):
+        source = (JAVA / "ArchiveImportCoordinator.java").read_text()
+        parser = (JAVA / "archive/ArchiveStreamParser.java").read_text()
+        self.assertIn('ArchiveStreamParser.strictUtf8Reader(counting)', source)
+        self.assertIn('onMalformedInput(CodingErrorAction.REPORT)', parser)
+        self.assertIn('onUnmappableCharacter(CodingErrorAction.REPORT)', parser)
+        self.assertIn('if(awaitingLowSurrogate && !Character.isLowSurrogate(ch))', parser)
+        self.assertIn('if(!awaitingLowSurrogate && Character.isLowSurrogate(ch))', parser)
+        self.assertIn('if(awaitingLowSurrogate)throw error(', parser)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)

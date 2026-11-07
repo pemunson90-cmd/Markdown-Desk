@@ -3,6 +3,10 @@ package com.example.markdowndesk.archive;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.CodingErrorAction;
 import java.util.Objects;
 
 /** Bounded-memory, one-pass parser for Claude conversation exports.
@@ -37,6 +41,16 @@ public final class ArchiveStreamParser {
     private int lookahead = Integer.MIN_VALUE;
     private int depth = 0;
     private int totalConversations = 0;
+
+    /** One strict decoder for original source bytes: replacement characters would
+     * silently change quoted passages, exported text, search and note anchors.
+     */
+    public static Reader strictUtf8Reader(InputStream bytes) {
+        return new InputStreamReader(Objects.requireNonNull(bytes),
+                StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT));
+    }
 
     public ArchiveStreamParser(Reader input, Sink sink) {
         this.input = new BufferedReader(Objects.requireNonNull(input), 32 * 1024);
@@ -220,6 +234,7 @@ public final class ArchiveStreamParser {
     private void readString(ChunkHandler out) throws IOException {
         require('"');
         StringBuilder buf = new StringBuilder(SEGMENT_CHARS);
+        boolean awaitingLowSurrogate=false;
         while(true) {
             int n=consume();
             if(n<0)throw error("Unterminated string");
@@ -245,11 +260,17 @@ public final class ArchiveStreamParser {
                 if(n<0x20) throw error("Control character inside string");
                 ch=(char)n;
             }
+            if(awaitingLowSurrogate && !Character.isLowSurrogate(ch))
+                throw error("Unpaired high surrogate in JSON string");
+            if(!awaitingLowSurrogate && Character.isLowSurrogate(ch))
+                throw error("Unpaired low surrogate in JSON string");
+            awaitingLowSurrogate=Character.isHighSurrogate(ch);
             buf.append(ch);
             if(buf.length()>=SEGMENT_CHARS && !Character.isHighSurrogate(buf.charAt(buf.length()-1))){
                 out.accept(buf.toString());buf.setLength(0);
             }
         }
+        if(awaitingLowSurrogate)throw error("Unpaired high surrogate in JSON string");
         if(buf.length()>0)out.accept(buf.toString());
     }
     private void literal(String expected)throws IOException {

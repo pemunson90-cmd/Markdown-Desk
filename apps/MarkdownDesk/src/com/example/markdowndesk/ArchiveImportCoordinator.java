@@ -10,7 +10,6 @@ import com.example.markdowndesk.archive.ArchiveStreamParser;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.lang.ref.WeakReference;
@@ -150,7 +149,7 @@ final class ArchiveImportCoordinator {
                         return n;
                     }
                 };
-                new ArchiveStreamParser(new InputStreamReader(counting,StandardCharsets.UTF_8),db).parse();
+                new ArchiveStreamParser(ArchiveStreamParser.strictUtf8Reader(counting),db).parse();
             }finally{sourceStream=null;}
             if(cancellation.get())throw new IOException("Import cancelled");
             update("publishing","Switching to completed index without deleting the previous one",null,size,true);
