@@ -59,9 +59,9 @@ public final class UnifiedSearchActivity extends Activity {
     private static final class FolderHit {
         final WorkspaceLiteralSearch.FileHit file;
         final WorkspaceLiteralSearch.Match match;
-        final String term;
-        FolderHit(WorkspaceLiteralSearch.FileHit file,WorkspaceLiteralSearch.Match match,String term){
-            this.file=file;this.match=match;this.term=term;
+        final String term,rootLabel;
+        FolderHit(String rootLabel,WorkspaceLiteralSearch.FileHit file,WorkspaceLiteralSearch.Match match,String term){
+            this.rootLabel=rootLabel;this.file=file;this.match=match;this.term=term;
         }
     }
 
@@ -248,36 +248,112 @@ public final class UnifiedSearchActivity extends Activity {
             }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Cannot load more note results",failure);});}
         });
     }
+    /** Search ALL currently granted saved folders unless the user narrows to one.
+     * The source-owned loader allows only one physical scan at a time. Never
+     * enqueue a new scan inside its delivery callback: its ownership retires after
+     * that callback returns. Main-handler post supplies the required boundary.
+     */
     private void searchFolder(int token,String term){
         int selected=folder.getSelectedItemPosition()-1;
-        if(selected<0||selected>=roots.size()){
-            status("Folder scope requires a saved, authorized Markdown/JSON folder. Choose one in Markdown Desk Files first.");return;
+        if(selected>=roots.size()){status("Selected folder is unavailable. Reopen Files.");return;}
+        pendingRoots.clear();folderHits.clear();seenFolderHits.clear();
+        searchedRoots=skippedRoots=limitedRoots=failedRoots=shownFolderHits=0;
+        if(selected>=0)pendingRoots.addLast(roots.get(selected));
+        else pendingRoots.addAll(roots);
+        totalRoots=pendingRoots.size();
+        if(totalRoots==0){
+            status("No saved folders. Indexed Archive and notes may still have matches; add a folder in Files to include documents.");
+            return;
         }
-        WorkspaceRootStore.RootState root=roots.get(selected);
-        if(root.access!=WorkspaceRootStore.Access.CURRENT){status("Folder access is no longer granted. Reauthorize it from Files.");return;}
-        try{
-            folderJob=WorkspaceSearchLoader.trySearch(this,root.root.uri,term,
-                WorkspaceLiteralSearch.Limits.defaults(),delivery->{
-                    if(token!=generation)return;
+        scanNextRoot(token,term);
+    }
+    private void scanNextRoot(int token,String term){
+        if(token!=generation||isFinishing()||isDestroyed())return;
+        if(folderJob!=null)return;
+        while(!pendingRoots.isEmpty()){
+            WorkspaceRootStore.RootState next=pendingRoots.removeFirst();
+            if(next.access!=WorkspaceRootStore.Access.CURRENT){
+                skippedRoots++;
+                status("Folder not searched (grant missing): "+next.root.label);
+                continue;
+            }
+            try{
+                WorkspaceSearchLoader.Ticket ticket=WorkspaceSearchLoader.trySearch(this,
+                        next.root.uri,term,WorkspaceLiteralSearch.Limits.defaults(),delivery->{
+                    if(token!=generation||isFinishing()||isDestroyed())return;
                     folderJob=null;
-                    if(delivery.result==null){status("Folder search did not complete. No source files changed.");return;}
-                    WorkspaceLiteralSearch.Result r=delivery.result;
-                    status("Markdown folder: "+r.hits.size()+" matching files · "+r.state+
-                            (r.reasons.isEmpty()?"":" · limits: "+r.reasons));
-                    for(WorkspaceLiteralSearch.FileHit file:r.hits){
-                        for(WorkspaceLiteralSearch.Match match:file.matches){
-                            String label=(file.json?"JSON · ":"MD · ")+file.displayName+
-                                    " · line "+match.line+"\n"+match.snippet+
-                                    (file.json?"\nOpen verified raw passage in JSON Inspector":"");
-                            add(label,v->{
-                                if(file.json)openJsonHit(file,match,term);
-                                else openMarkdownHit(file,match,term);
-                            });
+                    searchedRoots++;
+                    if(delivery.result==null){
+                        failedRoots++;
+                        status("Folder failed: "+next.root.label+" · no documents changed");
+                    }else {
+                        WorkspaceLiteralSearch.Result r=delivery.result;
+                        if(!"COMPLETE".equals(String.valueOf(r.state)))limitedRoots++;
+                        status("Folder "+next.root.label+": "+r.hits.size()+" matching files · "+r.state+
+                                (r.reasons.isEmpty()?"":" · limits: "+r.reasons));
+                        for(WorkspaceLiteralSearch.FileHit file:r.hits){
+                            if(file.uri==null)continue;
+                            for(WorkspaceLiteralSearch.Match match:file.matches){
+                                String key=file.uri.toString()+"\u0001"+file.hash+"\u0001"+match.offsetUtf16;
+                                if(seenFolderHits.add(key))
+                                    folderHits.add(new FolderHit(next.root.label,file,match,term));
+                            }
                         }
                     }
+                    // Loader releases its process-wide admission only AFTER this
+                    // callback returns; a synchronous trySearch would spuriously BUSY.
+                    if(!rootSearchHandler.post(()->scanNextRoot(token,term))){
+                        failedRoots+=pendingRoots.size();
+                        pendingRoots.clear();
+                        finishFolderSearch(token);
+                    }
                 });
-            if(folderJob==null)status("Another protected folder search is already in progress.");
-        }catch(Exception e){status("Folder search unavailable: "+e.getMessage());}
+                if(ticket==null){
+                    failedRoots+=pendingRoots.size()+1;
+                    pendingRoots.clear();
+                    status("Protected folder search engine is busy. Folder results are incomplete; try again after it finishes.");
+                    finishFolderSearch(token);
+                    return;
+                }
+                folderJob=ticket;
+                return;
+            }catch(RuntimeException failure){
+                failedRoots++;
+                status("Folder unavailable: "+next.root.label+" · "+failure.getClass().getSimpleName());
+                // A poisoned physical owner remains protected by WorkspaceSearchLoader.
+                // A following trySearch will report BUSY instead of overlapping it.
+            }
+        }
+        finishFolderSearch(token);
+    }
+    private void finishFolderSearch(int token){
+        if(token!=generation||isFinishing()||isDestroyed())return;
+        status("Folder search finished: "+searchedRoots+" scanned of "+totalRoots+
+                "; "+skippedRoots+" missing grants, "+limitedRoots+" limited, "+
+                failedRoots+" failed/busy; "+folderHits.size()+" distinct passage matches"+
+                (skippedRoots+limitedRoots+failedRoots>0?" · INCOMPLETE":""));
+        showMoreFolderMatches(token);
+    }
+    private void showMoreFolderMatches(int token){
+        if(token!=generation||isFinishing()||isDestroyed())return;
+        int end=Math.min(folderHits.size(),shownFolderHits+FOLDER_PAGE);
+        for(int i=shownFolderHits;i<end;i++){
+            FolderHit hit=folderHits.get(i);
+            String label=(hit.file.json?"JSON · ":"MD · ")+hit.file.displayName+
+                    " · "+hit.rootLabel+" · line "+hit.match.line+"\n"+hit.match.snippet;
+            add(label,v->{
+                if(hit.file.json)openJsonHit(hit.file,hit.match,hit.term);
+                else openMarkdownHit(hit.file,hit.match,hit.term);
+            });
+        }
+        shownFolderHits=end;
+        if(shownFolderHits<folderHits.size()){
+            Button more=button("More folder matches ("+(folderHits.size()-shownFolderHits)+" remaining)",v->{
+                v.setEnabled(false);
+                showMoreFolderMatches(token);
+            });
+            results.addView(more);
+        }
     }
     /** JSON files have a separate structured source reader. The literal scan
      * does not mint a JSON node/path identity, so do not claim an exact jump.
