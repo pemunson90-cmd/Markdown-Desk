@@ -367,6 +367,7 @@ public final class UnifiedSearchActivity extends Activity {
                 .putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)
                 .putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)
                 .putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16)
+                .putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true)
                 .setClass(this,JsonExplorerActivity.class)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try{startActivity(intent);}catch(Exception failed){error("Cannot open JSON Inspector",failed);}
@@ -380,6 +381,7 @@ public final class UnifiedSearchActivity extends Activity {
         intent.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash);
         intent.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal);
         intent.putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16);
+        intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try{startActivity(intent);}catch(Exception e){error("Cannot open Markdown file",e);}
     }
@@ -398,6 +400,7 @@ public final class UnifiedSearchActivity extends Activity {
         Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(source))
                 .setClass(this,markdown?MainActivity.class:ArchiveWorkspaceActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         // Opening a saved link does not create or impersonate a provider URI grant.
         try{startActivity(intent);}
         catch(Exception e){error("Cannot open saved note",e);}
@@ -410,6 +413,7 @@ public final class UnifiedSearchActivity extends Activity {
         Uri uri=new Uri.Builder().scheme("markdowndesk").authority("archive")
             .appendPath("v1").appendPath(archiveId).appendPath(chatId).appendPath(messageId==null?"":messageId).build();
         intent.setData(uri);intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         try{startActivity(intent);}catch(Exception e){error("Cannot open archived passage",e);}
     }
     @Override protected void onDestroy(){cancelActive();io.shutdownNow();if(database!=null)database.close();super.onDestroy();}
