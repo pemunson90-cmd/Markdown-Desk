@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 out=verification/build/preview-behavior
 mkdir -p "$out"
-javac -d "$out" verification/source_extraction/ParsedJavaSource.java verification/preview_behavior/ExtractPreview.java
+javac --release 11 -d "$out" verification/source_extraction/ParsedJavaSource.java verification/preview_behavior/ExtractPreview.java
 java -cp "$out" ExtractPreview apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java \
   verification/preview_behavior/PreviewHarness.template "$out/PreviewHarness.java"
 javac --release 11 -d "$out" verification/stubs/android/graphics/drawable/GradientDrawable.java \
