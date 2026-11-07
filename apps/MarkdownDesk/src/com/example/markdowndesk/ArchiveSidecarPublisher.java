@@ -14,7 +14,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.CharacterCodingException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -148,7 +151,14 @@ final class ArchiveSidecarPublisher {
                 if(out.size()+count>24*1024*1024)throw new IOException("Existing Markdown index is too large to update safely");
                 out.write(buffer,0,count);
             }
-            return new String(out.toByteArray(),StandardCharsets.UTF_8);
+            try {
+                return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(out.toByteArray())).toString();
+            } catch(CharacterCodingException malformed){
+                throw new IOException("Existing Markdown index contains malformed UTF-8; original preserved",malformed);
+            }
         }
     }
 }
