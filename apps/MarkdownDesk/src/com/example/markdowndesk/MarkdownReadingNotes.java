@@ -1,0 +1,275 @@
+package com.example.markdowndesk;
+
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.net.Uri;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+import com.example.markdowndesk.archive.ArchiveJournal;
+import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
+import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
+import com.example.markdowndesk.workspace.annotations.MarkdownNoteIdentity;
+import com.example.markdowndesk.workspace.annotations.MarkdownNoteScript;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
+/** Read-only Markdown annotations. The existing AJN2 journal owns all records. */
+final class MarkdownReadingNotes {
+    private final MainActivity activity;
+    private final PreviewWebView web;
+    private final ExecutorService worker;
+    private final Supplier<Uri> source;
+    private final Supplier<String> title;
+    private final BooleanSupplier previewReady;
+    private final ArchiveJournal journal;
+    private String pendingDocument, pendingNote;
+
+    MarkdownReadingNotes(MainActivity host,PreviewWebView preview,ExecutorService io,
+            Supplier<Uri> currentUri,Supplier<String> documentTitle,BooleanSupplier currentPreview) {
+        activity=host;web=preview;worker=io;source=currentUri;title=documentTitle;previewReady=currentPreview;
+        journal=new ArchiveJournal(new File(host.getFilesDir(),"claude-archive/annotations-v2.journal"));
+    }
+
+    private String document() {
+        Uri uri=source.get();
+        if(uri==null)return null;
+        try{return MarkdownNoteIdentity.requireDocument(uri.toString());}
+        catch(IllegalArgumentException bad){return null;}
+    }
+    private boolean live(String uri) {
+        return uri!=null&&uri.equals(document())&&!activity.isFinishing()&&!activity.isDestroyed();
+    }
+    private void message(String text) {
+        if(!activity.isFinishing()&&!activity.isDestroyed())
+            Toast.makeText(activity,text,Toast.LENGTH_LONG).show();
+    }
+
+    /** Called only after MainActivity acknowledges an exact current WebView page. */
+    void decorate(String uri,BooleanSupplier samePage) {
+        if(!live(uri)||!samePage.getAsBoolean())return;
+        worker.execute(()->{
+            try {
+                ArchiveJournal.ReadResult result=journal.load();
+                List<ArchiveJournal.Annotation> matches=new ArrayList<>();
+                for(ArchiveJournal.Annotation a:result.annotations)
+                    if(MarkdownNoteIdentity.owns(a,uri))matches.add(a);
+                activity.runOnUiThread(()->{
+                    if(!live(uri)||!samePage.getAsBoolean())return;
+                    web.evaluateJavascript(MarkdownNoteScript.boot(), ignored->{
+                        if(!live(uri)||!samePage.getAsBoolean())return;
+                        web.evaluateJavascript(MarkdownNoteScript.decorate(matches), ignored2->{
+                            if(!live(uri)||!samePage.getAsBoolean())return;
+                            if(uri.equals(pendingDocument)&&pendingNote!=null) {
+                                String noteId=pendingNote;
+                                pendingDocument=null;pendingNote=null;
+                                jumpVerified(matches,noteId,uri);
+                            }
+                        });
+                    });
+                    if(result.truncatedTail)
+                        message("Notes journal has an interrupted record; preserve it before writing.");
+                });
+            } catch(Exception error) {
+                activity.runOnUiThread(()->{if(live(uri))message("Reading notes unavailable: "+error.getMessage());});
+            }
+        });
+    }
+
+    void requestNote(String uri,String noteId) {
+        if(uri==null||noteId==null||noteId.isEmpty())return;
+        pendingDocument=uri;pendingNote=noteId;
+        if(previewReady.getAsBoolean()&&live(uri))decorate(uri,previewReady);
+    }
+
+    private void jumpVerified(List<ArchiveJournal.Annotation> records,String id,String uri) {
+        boolean owned=false;
+        for(ArchiveJournal.Annotation a:records)
+            if(id.equals(a.id)&&MarkdownNoteIdentity.owns(a,uri)){owned=true;break;}
+        if(!owned){message("Saved note no longer belongs to this document.");return;}
+        web.evaluateJavascript(MarkdownNoteScript.jump(id),result->{
+            if(live(uri)&&!"true".equals(result))
+                message("The quoted passage changed or is ambiguous; note was not moved.");
+        });
+    }
+
+    /** Capture selection on the current acknowledged preview, without changing document bytes. */
+    void annotate() {
+        final String uri=document();
+        if(uri==null){message("Save this document to an Android file before annotating.");return;}
+        if(!previewReady.getAsBoolean()){message("Open the document in Reading mode first.");return;}
+        web.evaluateJavascript(MarkdownNoteScript.capture(),raw->{
+            if(!live(uri)||!previewReady.getAsBoolean())return;
+            try {
+                Object value=new JSONTokener(raw==null?"null":raw).nextValue();
+                JSONObject selected=value instanceof JSONObject?(JSONObject)value:
+                        value instanceof String?new JSONObject((String)value):null;
+                if(selected==null||selected.optString("quote","").trim().isEmpty()){
+                    message("Select a passage in Reading mode first.");return;
+                }
+                showCreation(uri,selected);
+            }catch(Exception invalid){message("Cannot verify this passage selection.");}
+        });
+    }
+
+    private void showCreation(String uri,JSONObject selection) {
+        String[] names={"Highlight","Note","Save source link","Cross-link","External link","Bookmark"};
+        String[] kinds={"highlight","note","source_link","cross_link","external_link","bookmark"};
+        new AlertDialog.Builder(activity).setTitle("Annotate selected passage")
+            .setItems(names,(d,which)->showDetails(uri,selection,kinds[which]))
+            .setNegativeButton("Cancel",null).show();
+    }
+
+    private void showDetails(String uri,JSONObject selection,String kind) {
+        LinearLayout form=new LinearLayout(activity);form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(24,16,24,8);
+        TextView quote=new TextView(activity);
+        quote.setText("Selected: "+selection.optString("quote",""));
+        form.addView(quote);
+        EditText label=new EditText(activity);label.setHint("Label");form.addView(label);
+        EditText note=new EditText(activity);note.setHint("Your note");note.setMinLines(2);form.addView(note);
+        EditText target=new EditText(activity);
+        if("cross_link".equals(kind)||"external_link".equals(kind)){
+            target.setHint("Destination URL or Archive source link");form.addView(target);
+        }
+        EditText tags=new EditText(activity);tags.setHint("Tags (comma-separated)");form.addView(tags);
+        ScrollView scroll=new ScrollView(activity);scroll.addView(form);
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Save "+kind.replace('_',' '))
+                .setView(scroll).setPositiveButton("Save",null).setNegativeButton("Cancel",null).create();
+        dialog.setOnShowListener(shown->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!live(uri)){message("Document changed; reselect passage.");return;}
+            String destination=target.getText().toString().trim();
+            if(("cross_link".equals(kind)||"external_link".equals(kind))&&destination.isEmpty()){
+                target.setError("Destination required");return;
+            }
+            try {
+                ArchiveJournal.Annotation a=MarkdownNoteIdentity.create(uri,title.get(),kind,
+                    selection.getString("quote"),selection.optString("prefix",""),
+                    selection.optString("suffix",""),selection.getInt("start"),selection.getInt("end"),
+                    label.getText().toString(),note.getText().toString(),tags.getText().toString());
+                a.target=destination;
+                dialog.dismiss();save(a,uri);
+            }catch(Exception bad){message("Passage could not be saved: "+bad.getMessage());}
+        }));
+        dialog.show();
+    }
+
+    private void save(ArchiveJournal.Annotation a,String uri) {
+        worker.execute(()->{
+            try {
+                journal.save(a);
+                String publication=publish(uri,title.get());
+                activity.runOnUiThread(()->{
+                    if(live(uri)){
+                        message(publication);
+                        if(previewReady.getAsBoolean())decorate(uri,previewReady);
+                    }
+                });
+            }catch(Exception error){
+                activity.runOnUiThread(()->{if(live(uri))message("Annotation not saved: "+error.getMessage());});
+            }
+        });
+    }
+
+    /** Journal commit is already durable before publication starts. */
+    private String publish(String uri,String name) {
+        String folder=activity.getSharedPreferences("markdown_desk",Context.MODE_PRIVATE)
+                .getString("archive_notes_tree",null);
+        if(folder==null||folder.isEmpty())return "Note saved locally. Choose a notes folder in Archive to publish indexes.";
+        try {
+            ArchiveJournal.ReadResult result=journal.load();
+            if(result.truncatedTail)return "Note saved; journal needs repair before publishing indexes.";
+            new ArchiveSidecarPublisher(activity,Uri.parse(folder))
+                .publish(name,MarkdownNoteIdentity.SOURCE,uri,result.annotations);
+            return "Note saved and Markdown indexes updated.";
+        }catch(Exception failed) {
+            return "Note saved locally; index sync failed. Original notebook preserved: "+failed.getMessage();
+        }
+    }
+
+    void showNotes() {
+        String uri=document();
+        if(uri==null){message("Save this document first to view source-linked notes.");return;}
+        worker.execute(()->{
+            try {
+                ArchiveJournal.ReadResult data=journal.load();
+                ArrayList<ArchiveJournal.Annotation> rows=new ArrayList<>();
+                for(ArchiveJournal.Annotation a:data.annotations)
+                    if(MarkdownNoteIdentity.owns(a,uri))rows.add(a);
+                activity.runOnUiThread(()->{
+                    if(!live(uri))return;
+                    if(data.truncatedTail)message("Interrupted note journal record; edits are protected.");
+                    if(rows.isEmpty()){new AlertDialog.Builder(activity)
+                        .setTitle("Reading notebook").setMessage("No notes for this document yet.")
+                        .setPositiveButton("Close",null).show();return;}
+                    String[] labels=new String[rows.size()];
+                    for(int i=0;i<rows.size();i++){
+                        ArchiveJournal.Annotation a=rows.get(i);
+                        labels[i]=(a.label==null||a.label.isEmpty()?a.type:a.label)+
+                                " · "+(a.quote==null?"":a.quote);
+                    }
+                    new AlertDialog.Builder(activity).setTitle("Reading notebook")
+                        .setItems(labels,(d,index)->showActions(uri,rows.get(index)))
+                        .setNegativeButton("Close",null).show();
+                });
+            }catch(Exception failed){activity.runOnUiThread(()->{if(live(uri))message("Notebook unavailable: "+failed.getMessage());});}
+        });
+    }
+
+    private void showActions(String uri,ArchiveJournal.Annotation a) {
+        if(!MarkdownNoteIdentity.owns(a,uri))return;
+        new AlertDialog.Builder(activity).setTitle(a.label==null?a.type:a.label)
+            .setItems(new String[]{"Go to passage","Copy document note link","Edit note","Delete note"},
+              (d,index)->{
+                if(index==0) {
+                    if(!previewReady.getAsBoolean()){message("Open Reading mode to jump to a note.");return;}
+                    decorate(uri,previewReady);
+                    requestNote(uri,a.id);
+                }else if(index==1) {
+                    ClipboardManager clipboard=(ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    if(clipboard!=null){
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Document note",ArchiveMarkdownIndexes.deepLink(a)));
+                        message("Note link copied");
+                    }
+                }else if(index==2) {
+                    EditText input=new EditText(activity);input.setText(a.note==null?"":a.note);
+                    new AlertDialog.Builder(activity).setTitle("Edit note").setView(input)
+                        .setPositiveButton("Save",(dialog,which)->{
+                            ArchiveJournal.Annotation changed=a.copy();
+                            changed.note=input.getText().toString();
+                            changed.updatedAt=System.currentTimeMillis();
+                            save(changed,uri);
+                        }).setNegativeButton("Cancel",null).show();
+                }else if(index==3) {
+                    new AlertDialog.Builder(activity).setTitle("Delete note?")
+                        .setMessage("The original Markdown document will not change.")
+                        .setPositiveButton("Delete",(dialog,which)->worker.execute(()->{
+                            try{
+                                journal.delete(a.id);
+                                String publication=publish(uri,a.chatTitle);
+                                activity.runOnUiThread(()->{
+                                    if(live(uri)){
+                                        message("Note deleted locally. "+publication);
+                                        if(previewReady.getAsBoolean())decorate(uri,previewReady);
+                                    }
+                                });
+                            }catch(Exception fail){
+                                activity.runOnUiThread(()->{if(live(uri))message("Note could not be deleted: "+fail.getMessage());});
+                            }
+                        })).setNegativeButton("Cancel",null).show();
+                }
+              }).show();
+    }
+}
