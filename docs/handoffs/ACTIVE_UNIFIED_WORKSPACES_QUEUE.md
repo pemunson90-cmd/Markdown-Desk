@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 02C-2 (planning/reconciliation complete; all known gates assigned, implementation explicitly held; two checkpointed batches this turn).
+**Checkpoint:** 2026-11-06, batch 03A-1 (owner's 'Continue' taken as authorization for bounded PR #37 implementation; manual-only workflow and policy complete; no builds or Actions).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -28,7 +28,9 @@
 | 02B-2c-2 | **DONE — HISTORY / PLANS / POLICY TRIAGE** | Six remaining divergent refs classified; `main` 11 policy commits and PR #37 one commit reused prior audits without repeating; four older history/Foundry/Claude plan branches inspected. Top-level `AGENTS.md` and `CLAUDE.md` now point only to this queue, overriding old auto-resume instructions. | Section 02B-2c-2; pointer commits `51830c8baee4d70449958e2097feb6c66ad0e9ca`, `aee8fd90854f4614b19d1ef3a9816094f31f6f74` |
 | 02C-1 | **DONE — DISPOSITION PLAN** | Using the completed 46-branch/27-PR/10-issue audit, assigned preservation, reconciliation, historical archive/deprecation, and stable promotion rules without deleting refs. No feature work. | Section 02C-1 and this commit; all original refs intact |
 | 02C-2 | **DONE — PLANNING COMPLETE, EXECUTION HELD** | Inspected actual native build, host/current-phone scripts, workflow triggers, Archive verification sources, owner gates; locked complete release readiness matrix, code safety blockers and exact first execution order. No builds, merges or Actions. | Batch 02C-2 section; this checkpoint |
-| 03A | **BLOCKED — REQUIRES EXPLICIT IMPLEMENTATION AUTHORIZATION** | First implementation batch, when hold is lifted: adapt all PR #37 efficiency repairs to the **single queue** without importing stale CURRENT_SOURCE/STATUS authority; ensure no unintended GitHub Actions and run focused checks with real Java 11 release symbols. | Tested source guard and workflow/test fixes against current head, tracked via this queue |
+| 03A-1 | **DONE — WORKFLOW EFFICIENCY** | On owner's 'Continue' after planning completion, applied PR #37's manual-only JSON acceptance workflow, SHA-labeled unsigned artifacts and preserved existing check/concurrency/permissions; updated existing CI policy to point at this queue. Static source checks passed; NO hosted job or APK run. | Workflow commit `e9a38e763f0de58fac06659c711ee383311a5f1c` and policy `a4d40937ead88c218f17b9f92da8759944f2a4da`; this checkpoint |
+| 03A-2 | **NEXT** | Adapt PR #37 read-only source guard to derive current source identity and release acceptance from **this queue only**; no stale `CURRENT_SOURCE.json`, no generated dynamic `STATUS.md`. Add focused fixtures as feasible; do not skip release provenance checks. | Clean-state/branch/manifest/evidence tests and exact commit; no Actions |
+| 03A-3 | PENDING | Bring over verification-only shared AST extractor and runner corrections, obsolete code30 check ceiling, and duplicate Downloads runner cleanup, with final host checks against completed product. | Required focused verification, preserved historical host gates |
 | 03B | PENDING — AFTER 03A | Reconcile missing annotations, journal locking, link/sidecar fixes, old Recents and long-press corrections; then full contract implementation in bounded separately saved batches. | No missing code/test/history; no APK before complete contracted features |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
@@ -426,6 +428,17 @@ Before retiring any of the 44 non-active branch refs: (1) re-read its exact curr
 ### Next handoff (no hidden work)
 
 **02C-2 closes the owner-authorized planning/cleanup phase.** No builds, tests, PR merges, branch deletion, signing or implementation have been executed in this batch. The next executable product task is **03A: PR #37 adaptation**, but it remains **BLOCKED pending explicit authorization to resume implementation**. Until then, do not manufacture additional status documents, repeatedly re-audit settled branches or start an autonomous workchain; preserve this queue and await the owner's next instruction.
+
+
+## Batch 03A-1 — PR #37 manual-only acceptance trigger (implementation; source checkpoint)
+
+**Authorization basis:** owner's direct 'Continue' after the completed planning/reconciliation handoff identifying 03A as next. This narrowly resumes PR #37 **workflow efficiency** work; does not authorize an intermediate APK, routine Actions, destructive `main` update or unaccounted feature change.
+
+- `.github/workflows/json-explorer-unsigned.yml`: adopted the exact previously reviewed PR #37 workflow content (Git blob `9ec14f30b504e32cff871b7ae5cca20bd7e8e2c4`). Removed matching push trigger, kept `workflow_dispatch`; unsigned APK name is now `MarkdownDesk-acceptance-UNSIGNED.apk`, artifact name includes `github.sha`, retain existing pinned checkout/Java SDK provision, minimal permissions, concurrency, focused checks, seven-day artifact retention. Source commit `e9a38e763f0de58fac06659c711ee383311a5f1c`.
+- `docs/CI_AND_WORKFLOW_POLICY.md`: appended current decision/queue precedence and accurate acceptance interpretation without removing historical policy, commit `a4d40937ead88c218f17b9f92da8759944f2a4da`.
+- **Verification actually performed:** inspected original and PR workflow; static checks showed `workflow_dispatch` present, no `push` trigger, commit-SHA artifact label, identical generic artifact path, retained concurrency/permissions/check script. GitHub write returned content blob exactly equal to PR-reviewed workflow. **Not executed:** workflow dispatch, full host suite, Android build, JS/YAML runner, device acceptance. Do not call these green.
+- **Next:** 03A-2 read-only queue-bound current-source guard; original PR #37 `docs/CURRENT_SOURCE.json` is an obsolete separate authority and must not be introduced. Maintain this queue's one-source-of-truth semantics.
+
 
 ## Known, not deferred
 
