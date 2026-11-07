@@ -635,19 +635,19 @@ public class MainActivity extends Activity {
         addFormat("H1", "Heading", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda45
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
-                MainActivity.this.lambda$buildInterface$8(view);
+                MainActivity.this.legacyBuildInterfaceAction8(view);
             }
         });
         addFormat("B", "Bold", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda46
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
-                MainActivity.this.lambda$buildInterface$9(view);
+                MainActivity.this.legacyBuildInterfaceAction9(view);
             }
         });
         addFormat("I", "Italic", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda28
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
-                MainActivity.this.lambda$buildInterface$10(view);
+                MainActivity.this.legacyBuildInterfaceAction10(view);
             }
         });
         addFormat("S", "Strikethrough", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda29
@@ -794,17 +794,17 @@ public class MainActivity extends Activity {
     }
 
     /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$buildInterface$10(View view) {
+    public /* synthetic */ void legacyBuildInterfaceAction10(View view) {
         wrap("_", "_");
     }
 
     /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$buildInterface$8(View view) {
+    public /* synthetic */ void legacyBuildInterfaceAction8(View view) {
         prefixLines("# ");
     }
 
     /* JADX INFO: Access modifiers changed from: private */
-    public /* synthetic */ void lambda$buildInterface$9(View view) {
+    public /* synthetic */ void legacyBuildInterfaceAction9(View view) {
         wrap("**", "**");
     }
 
