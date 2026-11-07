@@ -22,6 +22,7 @@ final class ExportReceipt {
         private final MessageDigest sha;
         private long bytes;
         private boolean closed;
+        private boolean closeSucceeded;
         private ExportReceipt completed;
         Sink(OutputStream target)throws IOException {
             if(target==null)throw new IOException("Output document provider returned no stream");
@@ -52,9 +53,10 @@ final class ExportReceipt {
             if(closed)return;
             closed=true;
             destination.close();
+            closeSucceeded=true;
         }
         ExportReceipt receipt()throws IOException{
-            if(!closed||bytes<=0)throw new IOException("Export output was not completely closed");
+            if(!closed||!closeSucceeded||bytes<=0)throw new IOException("Export output was not completely closed");
             if(completed==null)completed=new ExportReceipt(bytes,sha.digest());
             return completed;
         }
