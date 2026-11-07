@@ -483,17 +483,26 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
             view(split);
         }else view(web);
-        final String renderedChat=active.id;
+        final String renderedChat=active.id,renderedArchive=active.archiveId;
+        final String renderedGeneration=active.generationId;
         final ArchiveViewport initial=viewport;
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
         io.execute(()->{
             try{
+                database.requireExportGeneration(renderedArchive,renderedGeneration);
+                int count=initial.end()-initial.start();
                 List<ArchiveDatabase.Message> messages=database.messages(renderedChat,
-                        initial.start(),initial.end()-initial.start());
+                        initial.start(),count);
+                if(messages.size()!=count)throw new IOException("Conversation message window is incomplete");
+                for(int row=0;row<messages.size();row++)
+                    ArchiveTranscriptIntegrity.message(initial.start()+row,
+                            messages.get(row).ordinal,messages.get(row).segments);
                 String html=renderMessages(messages,targetOrdinal,targetChunk);
+                database.requireExportGeneration(renderedArchive,renderedGeneration);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||generation!=token||active==null
-                            ||!renderedChat.equals(active.id))return;
+                            ||!renderedChat.equals(active.id)
+                            ||!renderedGeneration.equals(active.generationId))return;
                     visibleMessages=new ArrayList<>(messages);
                     focusOrdinal=-1;chunkOffset=0;
                     web.loadDataWithBaseURL("https://markdown.local/",html,"text/html","UTF-8",null);
@@ -523,7 +532,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         savedScroll=0;
         showReader(false);
     }
-    private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset){
+    private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset)throws IOException{
         // The shared renderer provides exactly the same CSS/Markdown as normal Read.
         String shell=MarkdownRenderer.render("",palette,fontSp,typography);
         int body=shell.indexOf("<body");
@@ -560,12 +569,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return html.toString();
     }
     /** Standalone HTML sections used for both the initial page and in-place DOM insertion. */
-    private String renderMessageSections(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset){
+    private String renderMessageSections(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset)throws IOException{
         StringBuilder html=new StringBuilder();
         if(messages.isEmpty())html.append("<p>No messages in this conversation.</p>");
         for(ArchiveDatabase.Message m:messages){
             int part=ArchiveViewport.firstPart(m.ordinal,onlyOrdinal,partOffset);
-            String content=database.textChunk(m.id,part,CHUNK_PARTS);
+            if(part<0||part>m.segments)throw new IOException("Message segment offset is invalid");
+            int partsToRead=Math.min(CHUNK_PARTS,m.segments-part);
+            String content=partsToRead==0?"":database.textChunkVerified(m.id,part,partsToRead);
             boolean more=m.segments>part+CHUNK_PARTS;
             String rendered=MarkdownRenderer.render(content,palette,fontSp,typography);
             int b=rendered.indexOf("<body"),opening=b<0?-1:rendered.indexOf('>',b),closing=rendered.lastIndexOf("</body>");
@@ -602,15 +613,21 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(load==null)return;
         final int token=generation;
         final PreviewWebView web=reader;
-        final String chatId=active.id;
+        final String chatId=active.id,archiveId=active.archiveId,sourceGeneration=active.generationId;
         adjacentLoading=true;
         io.execute(()->{
             try{
+                database.requireExportGeneration(archiveId,sourceGeneration);
                 List<ArchiveDatabase.Message> batch=database.messages(chatId,load.offset,load.count);
                 if(batch.size()!=load.count)throw new IOException("Archive index changed during reading");
+                for(int row=0;row<batch.size();row++)
+                    ArchiveTranscriptIntegrity.message(load.offset+row,
+                            batch.get(row).ordinal,batch.get(row).segments);
                 String fragments=renderMessageSections(batch,-1,0);
+                database.requireExportGeneration(archiveId,sourceGeneration);
                 runOnUiThread(()->{
-                    if(token!=generation||web!=reader||active==null||!chatId.equals(active.id))return;
+                    if(token!=generation||web!=reader||active==null||!chatId.equals(active.id)
+                            ||!sourceGeneration.equals(active.generationId))return;
                     int excess=Math.max(0,window.end()-window.start()+batch.size()-ArchiveViewport.MAX_VISIBLE);
                     int futureStart=direction>0?window.start()+excess:load.offset;
                     int futureEnd=direction>0?window.end()+batch.size():window.end()-excess;
@@ -655,18 +672,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(ordinal<0||ordinal>=active.messages||startPart<0)return;
         if(backwards&&(untilPart<=startPart||untilPart-startPart>CHUNK_PARTS))return;
         final int token=generation;
-        final String chat=active.id;
+        final String chat=active.id,archiveId=active.archiveId,sourceGeneration=active.generationId;
         final PreviewWebView web=reader;
         chunkLoading=true;
         io.execute(()->{
             try{
+                database.requireExportGeneration(archiveId,sourceGeneration);
                 ArchiveDatabase.Message message=database.messageAt(chat,ordinal);
-                if(message==null||startPart>=message.segments)
-                    throw new IOException("Message section no longer exists");
+                if(message==null||message.ordinal!=ordinal||startPart>=message.segments)
+                    throw new IOException("Message section no longer exists or changed");
                 if(backwards&&untilPart>message.segments)
                     throw new IOException("Earlier section exceeds message length");
-                int take=backwards?untilPart-startPart:CHUNK_PARTS;
-                String chunk=database.textChunk(message.id,startPart,take);
+                int take=backwards?untilPart-startPart:Math.min(CHUNK_PARTS,message.segments-startPart);
+                String chunk=database.textChunkVerified(message.id,startPart,take);
                 String rendered=MarkdownRenderer.render(chunk,palette,fontSp,typography);
                 int body=rendered.indexOf("<body");
                 int begin=body<0?-1:rendered.indexOf('>',body);
@@ -677,8 +695,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 String command=backwards?
                         ArchiveScrollScript.prependChunk(ordinal,fragment,startPart,untilPart):
                         ArchiveScrollScript.appendChunk(ordinal,fragment,startPart,next,next<message.segments);
+                database.requireExportGeneration(archiveId,sourceGeneration);
                 runOnUiThread(()->{
-                    if(token!=generation||reader!=web||active==null||!chat.equals(active.id))return;
+                    if(token!=generation||reader!=web||active==null||!chat.equals(active.id)
+                            ||!sourceGeneration.equals(active.generationId))return;
                     web.evaluateJavascript(command,result->{
                         if(token!=generation||reader!=web)return;
                         chunkLoading=false;
