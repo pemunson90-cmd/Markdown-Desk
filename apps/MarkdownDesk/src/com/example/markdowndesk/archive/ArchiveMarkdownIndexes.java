@@ -11,7 +11,7 @@ public final class ArchiveMarkdownIndexes {
     public static final String END="<!-- MARKDOWN-DESK-ARCHIVE:END -->";
     public static String perChat(String chatTitle,String archiveId,String chatId,
                                  Collection<ArchiveJournal.Annotation> all) {
-        ArrayList<ArchiveJournal.Annotation> rows=filter(all,chatId,false);
+        ArrayList<ArchiveJournal.Annotation> rows=filter(all,archiveId,chatId,false);
         StringBuilder result=new StringBuilder("# ").append(text(chatTitle)).append(" — Reading Notebook\n\n")
                 .append("_Read-only source. Notes and links are stored separately from the original JSON._\n\n")
                 .append(BEGIN).append("\n").append(ownerMarker(archiveId,chatId)).append("\n\n");
@@ -20,7 +20,7 @@ public final class ArchiveMarkdownIndexes {
         return result.append(END).append("\n").toString();
     }
     public static String master(Collection<ArchiveJournal.Annotation> all) {
-        ArrayList<ArchiveJournal.Annotation> links=filter(all,null,true);
+        ArrayList<ArchiveJournal.Annotation> links=filter(all,null,null,true);
         StringBuilder result=new StringBuilder("# Master Saved Links — Claude Archive\n\n")
                 .append("_Only links deliberately saved by the reader appear here._\n\n")
                 .append(BEGIN).append("\n\n");
@@ -108,9 +108,10 @@ public final class ArchiveMarkdownIndexes {
         }
         return count>0;
     }
-    private static ArrayList<ArchiveJournal.Annotation> filter(Collection<ArchiveJournal.Annotation> rows,String chatId,boolean linksOnly){
+    private static ArrayList<ArchiveJournal.Annotation> filter(Collection<ArchiveJournal.Annotation> rows,String archiveId,String chatId,boolean linksOnly){
         ArrayList<ArchiveJournal.Annotation> found=new ArrayList<>();
-        for(ArchiveJournal.Annotation a:rows)if((chatId==null||chatId.equals(a.chatId)) && (!linksOnly||a.isLink()))found.add(a);
+        for(ArchiveJournal.Annotation a:rows)if((archiveId==null||archiveId.equals(a.archiveId)) &&
+                (chatId==null||chatId.equals(a.chatId)) && (!linksOnly||a.isLink()))found.add(a);
         found.sort(Comparator.comparingLong((ArchiveJournal.Annotation a)->a.createdAt).reversed()
                 .thenComparing(a->a.id==null?"":a.id));
         return found;
