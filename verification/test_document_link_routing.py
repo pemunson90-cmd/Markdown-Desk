@@ -11,7 +11,7 @@ class DocumentRoutingTests(unittest.TestCase):
     def test_renderer_renders_only_validated_internal_links(self):
         source = (JAVA / "MarkdownRenderer.java").read_text()
         self.assertIn("WorkspaceDeepLinks.isInternalLink(href)", source)
-        self.assertNotIn("|| href.startsWith(\"markdowndesk:")", source)
+        self.assertNotIn('href.startsWith("markdowndesk:', source)
 
     def test_markdown_route_uses_protected_view_only_open(self):
         source = (JAVA / "MainActivity.java").read_text()
