@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 03B-3b-2 (conditional journal edits/deletes prevent stale cross-Activity changes in source; focused test registered, full checkout pending).
+**Checkpoint:** 2026-11-06, batch 03B-3b-3 (two exact-source Java11 checks and Java-emitted Node DOM regression PASS locally; pending full ArchiveJournal/Android checkout).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -81,7 +81,8 @@ The read-only guard reads this *single* fenced record. Update this entry only wh
 | 03B-3a-4 | **SOURCE INTEGRATED — NATIVE/HOST GATES OPEN** | Instantiated MarkdownReadingNotes in existing MainActivity; added Note/Notes read actions, confirmed-preview decoration and exact document note link routing; registered identity/script/static suites once in both host runners. 16/16 remote source consistency checks PASS; full Android and JDK host tests NOT RUN. | Main `e5dcb9fdc4e7b2f976a1c9ffbd1e4df4d56e27aa`, integration test `060cf2f5db198b7e5d1a4eb89186427ec4c63c38`, runners `24d68aeda3bba326d768504406134eb43ab37b8b` / `7f7bc114c5e50bfc424d41e2dd03a1ff9df74018` |
 | 03B-3b-1 | **DONE — FUNCTIONAL JS REGRESSION REPAIRED, FULL CHECKOUT GATE OPEN** | Reproduced a real duplicate-quote false-positive in the exact emitted WebView JS using local Node, corrected the matcher to scan all visible eligible text (excluding script/style) and fail closed for repeated context, amended Java regression, added emitted-JS Node fixture and Java11 runner. Full repository Java runner/Android build NOT RUN. | Script `68935f1c45ee407476d990243cba47595bc87f3f`, test `7c5aefc7d5107a04453c76f6486c6c373b2844fe`, emitted-JS fixture `5e776284aebc385038d2886bc4e18ea2b2005fc8`, runner `aebcd384e9c7b1a5713b253dd4bfef489466e7df` |
 | 03B-3b-2 | **SOURCE DONE — CAS BEHAVIOR GATE OPEN** | Found potential stale dialog writes across Archive and Markdown Activity instances; added static-process-lock CAS journal save/delete only if full existing annotation snapshot still matches. Updated both Activities' note editors and added conditional-edit Java fixture in host/current-phone runners. Actual journal Java test and native lifecycle NOT RUN yet. | Journal `aa566f747e1c26e144216b2abfc16406ab76475b`, Markdown controller `cc09e4a3bf97ffbe2f43c9b94e20acabdb0a42a7`, Archive `e7fc8944994340780bf8f6f88af8b7fa47c070b4`, test `c9f3052f51e7899edcc524e4836622848f5664f0` |
-| 03B-3b-3 | **NEXT** | Compile and run available isolated Java11 notes code against exact Git blob; verify emitted script behavior with Node; record exact provenance and scope, no unverified full-app claims. | Executable subset result and honest full checkout blocker |
+| 03B-3b-3 | **DONE — EXACT-SOURCE ISOLATED JAVA + NODE PASS** | With network clone unavailable, reconstructed and hash-verified the exact current Git blobs of MarkdownNoteScript, MarkdownNoteIdentity and both published Java checks; compiled using real `javac --release 11` against explicitly isolated ArchiveJournal/Index stubs. Both Java tests PASS, exact emitted scripts and the published Node DOM fixture PASS (five cases). Full ArchiveJournal, full Android and host suites NOT RUN. | Exact source/test hashes, local command outcomes and constraints in section 03B-3b-3 |
+| 03B-3b-4 | **NEXT** | Finalize four-batch handoff, preserve outstanding full checkout/full SDK, CAS journal tests and all remaining owner-contract features as explicit gates. No release artifact. | One durable final checkpoint with exact SHA |
 | 03B-3b-3 | PENDING | Attempt actual Java11-target focused compilation from available exact repository sources; inventory blocking SDK/checkout prerequisites; repair test defects and record results distinctly from full native suite. | Executed subset with precise provenance |
 | 03B-3b-4 | PENDING | Commit a consolidated 03B-3b handoff covering all repairs, missing contract obligations, full checkout/native acceptance gate and next batched plan; no misleading releases. | Durable queue and exact ref |
 | 03B-3c | PENDING — AFTER 03B-3b | Complete same-app notes-folder selection, explicit source revision/quote rebase behavior, cross-document target picker/backlinks, safe generated-index migration and per-source search; reconcile full owner contract. | No stranded features, staged sidecar preservation; no user-facing release |
@@ -658,6 +659,28 @@ Before retiring any of the 44 non-active branch refs: (1) re-read its exact curr
 - `ArchiveWorkspaceActivity.java` at `e7fc8944994340780bf8f6f88af8b7fa47c070b4` adapts its **existing** Archive editor/deleter to the same conditional path; otherwise the Archive UI could still undo the Markdown guard.
 - Added `verification/archive_reader/ArchiveJournalConditionalCheck.java` @ `c9f3052f51e7899edcc524e4836622848f5664f0`, `run_journal_conditional.sh` @ `fbab5236c55bf51a01f952076bba52583693efa3`: tests accepted current edit, rejected stale edit/delete, accepted current deletion, rejected post-delete resurrection and rejected source-ID changes. Registered in both host entry points `bd8e6a6bd611d74073a2fdad09be7ea60f9da276` / `adecb1db0cf482fc6818d1e2c7b95338b3c752cd`.
 - **Status:** Exact GitHub-source changes committed and reviewed, no complete production Java JDK run of the conditional journal fixture or Android UI run yet; host runner merely registers it. Keep it an acceptance blocker until the real source and harness run. No extra storage, migration, destructive cleanup, Actions or APK.
+
+
+## Batch 03B-3b-3 — real isolated Java 11 and emitted DOM tests against exact current blobs
+
+**Environment evidence:** local offline Linux container has OpenJDK **21.0.12.1** with real `javac --release 11`, Node **v22.16.0**, Git **2.47.3**, but cannot resolve GitHub for full clone and has no Android `android.jar`, pinned host JSON JAR or user's keystore/device. All tests below operated only on synthetic fixtures, not owner documents.
+
+**Exact source identity:** source and official test files were recreated byte-for-byte from their connected GitHub contents and validated by `git hash-object`:
+- `MarkdownNoteScript.java` `a85407603c719618b74c0cf619851a70558e209e`
+- `MarkdownNoteScriptCheck.java` `06e4de017a3402b23e0bb06397ab69f631dffd19`
+- `MarkdownNoteIdentity.java` `9c52db337fb130df95f5d629436e870389d8679a`
+- `MarkdownNoteIdentityCheck.java` `323121a3a38a4a8c098441a3c3bda1741bed56a6`
+- `dom_contract.cjs` `0a3f1f92caa3982b8e3ae83ad6b587a758b527ef`
+
+**Actually executed:**
+1. `javac --release 11 -encoding UTF-8` successfully compiled both exact production helpers and their two exact verification classes, with **explicit minimal synthetic stubs** for `ArchiveJournal.Annotation/validType` and `ArchiveMarkdownIndexes.deepLink`. No full production journal/index compiled.
+2. `MarkdownNoteIdentityCheck` returned **PASS** (per-document identity, bounded selections, rejected URI/types, expected deep link form under the supplied stub).
+3. `MarkdownNoteScriptCheck` returned **PASS** (exact selection requirements, exhaustive quote search, JS encoding/non-destructive highlight contract).
+4. The compiled exact `MarkdownNoteScript` emitted actual capture/boot JS; both were syntax-checked with Node. The **exact** published `dom_contract.cjs` fixture executed against those emitted JS strings and returned **PASS** for five synthetic cases: hidden script text not selected/marked, repeated quote with old valid offset rejected, identical prefix/suffix context duplicates rejected, offset unaffected by hidden text, and changed quote rejected.
+
+**Not established:** compilation of `MarkdownReadingNotes.java`, `MainActivity.java`, `ArchiveWorkspaceActivity.java`, complete `ArchiveJournal.java` conditional CAS, full SDK37/D8/DEX/native Android build, host suite, actual WebView CSS Highlights behavior or Fold7. These remain **NOT RUN** and release blocking. The focused Java tests use stubs, so they prove only the exact helper contracts within that isolated boundary. No GitHub Actions, APK signing or delivery.
+
+**Next:** 03B-3b-4 final repository-level acceptance-gate audit/handoff; then complete verified Android checkout and finish the larger Unified Workspaces contract without repeating the already proven isolated checks unless their source changes.
 
 ## Known, not deferred
 
