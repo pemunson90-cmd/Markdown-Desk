@@ -89,6 +89,8 @@ public final class UnifiedTabs {
             }
         }
         save(context,JS,next);
+        context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+                .remove("json_inspector_position_v1:"+id).apply();
     }
 
     private static void save(Context context,String key,List<UnifiedTabIndex.Entry> rows){
@@ -149,9 +151,11 @@ public final class UnifiedTabs {
             .setItems(labels,(dialog,which)->{
                 UnifiedTabIndex.Entry entry=all.get(which);
                 Uri uri=Uri.parse(entry.id);
-                closeInspector(current,uri);
                 if(current instanceof JsonExplorerActivity
-                    && ((JsonExplorerActivity)current).showingDocument(uri))current.finish();
+                    && ((JsonExplorerActivity)current).showingDocument(uri)){
+                    ((JsonExplorerActivity)current).closeInspectorTabForSwitch();
+                    current.finish();
+                }else closeInspector(current,uri);
             }).setNegativeButton("Cancel",null).show();
     }
 
