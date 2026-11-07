@@ -65,6 +65,8 @@ public final class JsonExplorerActivity extends Activity {
     private String pendingExport;
     private int pendingScrollY;
     private boolean retiringInspector;
+    private boolean openedFromSearch;
+    private Button returnResults;
 
     /** Metadata-only session identity; the original JSON remains read-only. */
     public boolean showingDocument(Uri uri){return uri!=null&&uri.equals(document);}
@@ -158,6 +160,8 @@ public final class JsonExplorerActivity extends Activity {
         readingSp=Math.max(12f,Math.min(32f,prefs.getFloat("preview_font_size",18f)));
         focusReading=state!=null&&state.getBoolean("jsonFocusReading",false);
         sourceHitShown=state!=null&&state.getBoolean("jsonSourceHitShown",false);
+        openedFromSearch=state!=null?state.getBoolean("jsonOpenedFromSearch",false):
+                getIntent()!=null&&getIntent().hasExtra(UnifiedSearchJump.EXTRA_URI);
         document=getIntent()==null?null:getIntent().getData();
         if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
             document=Uri.parse(state.getString("jsonDocumentUri"));
@@ -196,6 +200,8 @@ public final class JsonExplorerActivity extends Activity {
             showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
         }
         setIntent(intent); // Never replace the current intent when tab admission failed.
+        openedFromSearch=intent.hasExtra(UnifiedSearchJump.EXTRA_URI);
+        if(returnResults!=null)returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
         if(document==null||!document.equals(next)){
             document=next;page=null;restoreInspectorPosition(next);loadPage();
         }
@@ -217,6 +223,7 @@ public final class JsonExplorerActivity extends Activity {
         state.putInt("jsonOffset",offset);
         state.putBoolean("jsonFocusReading",focusReading);
         state.putBoolean("jsonSourceHitShown",sourceHitShown);
+        state.putBoolean("jsonOpenedFromSearch",openedFromSearch);
         state.putString("jsonFilter",filter==null?"":filter.getText().toString());
         state.putInt("jsonScrollY",entryScroll==null?0:Math.max(0,entryScroll.getScrollY()));
         saveInspectorPosition();
@@ -278,6 +285,7 @@ public final class JsonExplorerActivity extends Activity {
 
     private void updateReadingFocus(){
         if(actionRow!=null)actionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
+        if(returnResults!=null)returnResults.setVisibility(!focusReading&&openedFromSearch?View.VISIBLE:View.GONE);
         if(filter!=null)filter.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(status!=null)status.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(focusReading)getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -330,6 +338,10 @@ public final class JsonExplorerActivity extends Activity {
         actions.addView(button("Share list",v->shareVisible()),
                 new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(actions);
+        returnResults=button("Return to search results",v->finish());
+        returnResults.setContentDescription("Return to the previous Unified Search results");
+        returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
+        root.addView(returnResults,new LinearLayout.LayoutParams(-1,dp(48)));
 
         filter=new EditText(this);
         filter.setSingleLine(true);
@@ -419,6 +431,8 @@ public final class JsonExplorerActivity extends Activity {
             }
             saveInspectorPosition();
             document=chosen;
+            openedFromSearch=false;
+            if(returnResults!=null)returnResults.setVisibility(View.GONE);
             page=null;restoreInspectorPosition(chosen);
             loadPage();
         } else if(request==REQUEST_EXPORT) {
@@ -724,7 +738,10 @@ public final class JsonExplorerActivity extends Activity {
         if(!path.isEmpty()) {
             path.remove(path.size()-1); offset=0;page=null;
             filter.setText("");loadPage();
-        }else {closeInspectorTabForSwitch();finish();}
+        }else {
+            if(!openedFromSearch)closeInspectorTabForSwitch();
+            finish();
+        }
     }
 
     @Override public void onBackPressed(){back();}
