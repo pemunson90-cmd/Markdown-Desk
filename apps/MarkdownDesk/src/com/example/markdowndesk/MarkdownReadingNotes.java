@@ -252,6 +252,8 @@ final class MarkdownReadingNotes {
         worker.execute(()->{
             try {
                 ArchiveJournal.ReadResult data=journal.load();
+                if(data.truncatedTail)
+                    throw new java.io.IOException("Journal record interrupted; incoming links may be incomplete. Repair the journal before trusting backlink results.");
                 ArrayList<ArchiveJournal.Annotation> inbound=new ArrayList<>();
                 for(ArchiveJournal.Annotation a:data.annotations) {
                     if(a==null||!a.isLink()||a.target==null)continue;
@@ -264,7 +266,6 @@ final class MarkdownReadingNotes {
                 }
                 activity.runOnUiThread(()->{
                     if(!live(current))return;
-                    if(data.truncatedTail)message("A journal record is interrupted; existing backlinks may be incomplete.");
                     if(inbound.isEmpty()){
                         new AlertDialog.Builder(activity).setTitle("Incoming document links")
                             .setMessage("No saved links point to this document.")
