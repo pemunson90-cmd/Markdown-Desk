@@ -56,6 +56,24 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         self.assertIn('ArchiveMarkdownIndexes.replaceGeneratedRegion(previous,generated)', publisher)
         self.assertNotIn('new SQLiteDatabase', controller)
 
+    def test_saved_document_backlinks_use_exact_destination_and_safe_existing_routes(self):
+        activity = (SRC / "MainActivity.java").read_text(encoding="utf-8")
+        controller = (SRC / "MarkdownReadingNotes.java").read_text(encoding="utf-8")
+        self.assertIn('addReadTool("Backlinks"', activity)
+        self.assertIn('this.readingNotes.showBacklinks()', activity)
+        self.assertIn('ArchiveJournal.ReadResult data=journal.load()', controller)
+        self.assertIn('if(a==null||!a.isLink()||a.target==null)continue', controller)
+        self.assertIn('String destination=WorkspaceDeepLinks.documentTarget(a.target)', controller)
+        self.assertIn('destination=MarkdownNoteIdentity.requireDocument(a.target)', controller)
+        self.assertIn('if(current.equals(destination))inbound.add(a)', controller)
+        self.assertIn('ArchiveMarkdownIndexes.deepLink(a)', controller)
+        self.assertIn('WorkspaceDeepLinks.isDocumentLink(origin)', controller)
+        self.assertIn('WorkspaceDeepLinks.isArchiveLink(origin)', controller)
+        self.assertIn('Intent.ACTION_VIEW,link', controller)
+        self.assertIn('MainActivity.class:ArchiveWorkspaceActivity.class', controller)
+        self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', controller)
+        self.assertNotIn('FLAG_GRANT_WRITE_URI_PERMISSION', controller)
+
     def test_dom_script_does_not_execute_source_data(self):
         script = (SRC / "workspace/annotations/MarkdownNoteScript.java").read_text(encoding="utf-8")
         self.assertIn("all.slice(start,end)!==quote", script)
