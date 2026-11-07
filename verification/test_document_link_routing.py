@@ -195,6 +195,20 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertNotIn('positions.length===1', highlight)
         self.assertIn('if(valid.length===1)at=valid[0]', highlight)
 
+    def test_archive_backlinks_are_saved_link_only_and_source_verified(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        self.assertIn('action("Backlinks",v->showIncomingArchiveLinks())', activity)
+        block = activity.split("private void showIncomingArchiveLinks(){", 1)[1].split(
+            "private void showAnnotationActions(", 1)[0]
+        self.assertIn('if(data.truncatedTail)throw', block)
+        self.assertIn('!a.isLink()||a.target==null', block)
+        self.assertIn('WorkspaceDeepLinks.isArchiveLink(a.target)', block)
+        self.assertIn('!archiveId.equals(parts.get(1))||!chat.equals(parts.get(2))', block)
+        self.assertIn('database.findMessageOrdinal(chat,messageId)', block)
+        self.assertIn('if(ordinal<0)continue', block)
+        self.assertIn('showAnnotationActions(incoming.get(which))', block)
+        self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', block)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)

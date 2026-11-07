@@ -406,6 +406,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("Annotate",v->captureSelection());
         action("Mark",v->bookmarkCurrent());
         action("Notes",v->showNotebook(false));
+        action("Backlinks",v->showIncomingArchiveLinks());
         action("Jump",v->jumpDialog());
         action("Focus",v->toggleFocus());
         action("Layout",v->{chatLayout=!chatLayout;showReader(true);});
@@ -1119,6 +1120,50 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }catch(Exception e){runOnUiThread(()->{if(token==generation)fail("Notebook unavailable",e);});}
         });
     }
+    /** Only deliberately saved, source-validated links to this conversation are
+     * incoming backlinks. The journal owns them; original JSON stays immutable.
+     */
+    private void showIncomingArchiveLinks(){
+        if(active==null)return;
+        final String chat=active.id,archiveId=active.archiveId;
+        final int token=generation;
+        io.execute(()->{
+            try{
+                ArchiveJournal.ReadResult data=journal.load();
+                if(data.truncatedTail)throw new IOException("Incomplete annotation journal; backlinks cannot be trusted");
+                ArrayList<ArchiveJournal.Annotation> incoming=new ArrayList<>();
+                ArrayList<String> labels=new ArrayList<>();
+                for(ArchiveJournal.Annotation a:data.annotations){
+                    if(a==null||!a.isLink()||a.target==null||
+                            !com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(a.target))continue;
+                    Uri target=Uri.parse(a.target);
+                    List<String> parts=target.getPathSegments();
+                    if(parts.size()!=4||!archiveId.equals(parts.get(1))||!chat.equals(parts.get(2)))continue;
+                    String messageId=parts.get(3);
+                    int ordinal=database.findMessageOrdinal(chat,messageId);
+                    if(ordinal<0)continue;
+                    incoming.add(a);
+                    String label=a.label==null||a.label.trim().isEmpty()?a.type:a.label;
+                    labels.add(safe(a.chatTitle)+" → message "+(ordinal+1)+" · "+safe(label));
+                }
+                runOnUiThread(()->{
+                    if(token!=generation||active==null||!chat.equals(active.id)||isFinishing()||isDestroyed())return;
+                    if(incoming.isEmpty()){
+                        new AlertDialog.Builder(this).setTitle("Incoming Archive links")
+                            .setMessage("No saved links point to this conversation.")
+                            .setPositiveButton("Close",null).show();return;
+                    }
+                    new AlertDialog.Builder(this).setTitle("Incoming Archive links")
+                        .setItems(labels.toArray(new String[0]),(dialog,which)->showAnnotationActions(incoming.get(which)))
+                        .setNegativeButton("Close",null).show();
+                });
+            }catch(Exception failed){runOnUiThread(()->{
+                if(token==generation&&active!=null&&chat.equals(active.id))
+                    fail("Backlinks unavailable",failed);
+            });}
+        });
+    }
+
     private void showAnnotationActions(ArchiveJournal.Annotation a){
         new AlertDialog.Builder(this).setTitle(safe(a.label)).setItems(new String[]{
                 "Jump to source","Copy Markdown link","Edit note","Delete annotation"},(d,index)->{
