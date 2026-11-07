@@ -61,7 +61,8 @@ class IntegratedEfficiencyTests(unittest.TestCase):
                        "verification/status_behavior/ExtractStatus.java"):
             content = read(script)
             self.assertIn("ParsedJavaSource.parse(source)", content)
-            self.assertIn("parsed.raw", content)
+            self.assertTrue("parsed.raw" in content or "parsed::raw" in content,
+                            "extractor must use shared exact-source slicer")
             self.assertNotIn("ToolProvider.getSystemJavaCompiler()", content)
         for path in ("verification/preview_behavior/run.sh",
                      "verification/preview_behavior/run_benchmark.sh",
