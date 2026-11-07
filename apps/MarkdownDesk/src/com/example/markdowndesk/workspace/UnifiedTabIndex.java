@@ -11,7 +11,7 @@ import java.util.Set;
  * closing and recovery; this list never stores document content.
  */
 public final class UnifiedTabIndex {
-    public enum Kind { MARKDOWN, ARCHIVE }
+    public enum Kind { MARKDOWN, ARCHIVE, INSPECT }
     public static final class Entry {
         public final Kind kind;
         public final String id,title;
@@ -23,10 +23,15 @@ public final class UnifiedTabIndex {
         }
     }
     private UnifiedTabIndex() {}
+    /** Preserve the earlier two-kind API for existing host and app callers. */
     public static List<Entry> merge(List<Entry> markdown,List<Entry> archive){
+        return merge(markdown,archive,null);
+    }
+    public static List<Entry> merge(List<Entry> markdown,List<Entry> archive,List<Entry> inspector){
         ArrayList<Entry> all=new ArrayList<>();Set<String> known=new HashSet<>();
         append(all,known,markdown,Kind.MARKDOWN);
         append(all,known,archive,Kind.ARCHIVE);
+        append(all,known,inspector,Kind.INSPECT);
         return Collections.unmodifiableList(all);
     }
     private static void append(List<Entry> into,Set<String> seen,List<Entry> from,Kind kind){
