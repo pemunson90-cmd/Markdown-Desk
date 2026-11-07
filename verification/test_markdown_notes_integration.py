@@ -22,7 +22,9 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         note = source.split("private void openMarkdownDocumentLink(Uri link) {",1)[1].split("\n    }",1)[0]
         self.assertIn("this.readingNotes.requestNote(source,noteId)", note)
         self.assertIn("openDocument(Uri.parse(source),0,false,true)", note)
-        self.assertNotIn("FLAG_GRANT_READ_URI_PERMISSION", note.split("openDocument(")[0])
+        executable = "\n".join(line.split("//", 1)[0] for line in note.splitlines())
+        self.assertNotIn("FLAG_GRANT_READ_URI_PERMISSION", executable.split("openDocument(")[0])
+        self.assertNotIn("takePermission(", executable)
         self.assertIn("WorkspaceDeepLinks.documentTarget(link.toString())", note)
 
     def test_single_journal_and_revision_gate(self):
