@@ -144,6 +144,8 @@ public final class ArchiveMarkdownIndexes {
         if(a.tags!=null&&!a.tags.isEmpty())out.append(prefix).append("Tags: ").append(text(a.tags)).append("\n");
     }
     public static String deepLink(ArchiveJournal.Annotation a){
+        if("markdown-document".equals(a.archiveId))
+            return "markdowndesk://document/v1/"+enc(a.chatId)+"?note="+enc(a.id);
         return "markdowndesk://archive/v1/"+enc(a.archiveId)+"/"+enc(a.chatId)
                 +"/"+enc(a.messageId)+"?link="+enc(a.id);
     }
