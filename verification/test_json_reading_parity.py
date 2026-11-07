@@ -41,6 +41,24 @@ class JsonReadingParity(unittest.TestCase):
         self.assertIn('state.putInt("jsonOffset",offset)',a)
         self.assertIn('options.setContentDescription("JSON reading options")',a)
 
+    def test_full_archive_reader_is_explicit_and_reuses_process_owned_import(self):
+        a=self.activity
+        archive=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java').read_text(encoding='utf-8')
+        router=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceRouter.java').read_text(encoding='utf-8')
+        self.assertIn('Index full Claude export for complete reading',a)
+        self.assertIn('showFullArchiveImportChoice()',a)
+        self.assertIn('setPositiveButton("Index for full reading"',a)
+        self.assertIn('Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP',a)
+        self.assertIn('putExtra(com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_IMPORT_JSON_URI',a)
+        self.assertIn('EXTRA_IMPORT_JSON_URI',router)
+        self.assertIn('private boolean handleIncomingInspectorImport(Intent intent)',archive)
+        self.assertIn('if(!handleIncomingInspectorImport(getIntent())',archive)
+        self.assertIn('if(handleIncomingInspectorImport(intent))return',archive)
+        self.assertIn('importArchive(selected);',archive)
+        self.assertIn('advertised.equals(selected.toString())',archive)
+        self.assertIn('!"content".equalsIgnoreCase(selected.getScheme())',archive)
+        self.assertIn('Preview is limited to 200 messages',a)
+
     def test_no_source_mutation_or_silent_page_cap_change(self):
         self.assertIn('final int PAGE_SIZE = 100',self.engine)
         self.assertIn('final int MAX_TRANSCRIPT_MESSAGES = 200',self.engine)
