@@ -11,7 +11,7 @@ if [ "$phase" = baseline ]; then
   source="$out/MainActivity.java"
   extra=(baseline)
 fi
-javac -d "$out" verification/source_extraction/ParsedJavaSource.java verification/preview_behavior/ExtractPreview.java
+javac --release 11 -d "$out" verification/source_extraction/ParsedJavaSource.java verification/preview_behavior/ExtractPreview.java
 java -cp "$out" ExtractPreview "$source" verification/preview_behavior/PreviewHarness.template "$out/PreviewHarness.java" "${extra[@]}"
 helper=()
 if [ "$phase" != baseline ]; then helper=(apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java); fi
