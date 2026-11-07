@@ -36,7 +36,29 @@ public final class ArchiveJournalHistoryCheck {
             try(FileOutputStream output=new FileOutputStream(file,true)){output.write(new byte[]{0x41,0x4a});}
             try{journal.history(first);throw new AssertionError("truncated history silently accepted");}
             catch(IOException expected){}
-            System.out.println("PASS immutable annotation history, revisions, tombstones, source isolation and corrupt tail");
+            File large=directory.resolve("large.ajn2").toFile();
+            try {
+                ArchiveJournal bulky=new ArchiveJournal(large);
+                ArchiveJournal.Annotation original=state("large-source");
+                for(int i=0;i<4;i++){
+                    ArchiveJournal.Annotation revision=original.copy();
+                    revision.note="X".repeat(600000)+i;
+                    revision.updatedAt=1000+i;
+                    bulky.save(revision);
+                }
+                try {
+                    bulky.history(original);
+                    throw new AssertionError("Unbounded large revision history was displayed");
+                }catch(IOException oversized){
+                    require(oversized.getMessage().contains("too large to display safely"),
+                            "Oversized history must fail with a clear resource error");
+                }
+                ArchiveJournal.ReadResult latest=bulky.load();
+                require(latest.annotations.size()==1,"History resource refusal must not remove notes");
+                require(latest.annotations.get(0).note.endsWith("3"),
+                        "Latest note remains readable after history resource refusal");
+            } finally {Files.deleteIfExists(large.toPath());}
+            System.out.println("PASS immutable annotation history, revisions, tombstones, source isolation, corrupt tail and bounded memory");
         } finally {Files.deleteIfExists(file.toPath());Files.deleteIfExists(directory);}
     }
 }

@@ -12,6 +12,8 @@ import java.util.*;
 public final class ArchiveJournal {
     private static final int MAGIC = 0x414A4E32; // AJN2 (unreleased schema)
     private static final int MAX_RECORD = 8*1024*1024;
+    // Bound retained historical strings to approximately 4 MiB of UTF-16 storage.
+    private static final long MAX_HISTORY_UNITS = 2L*1024*1024;
     // Multiple Activity instances append to the same journal. Per-instance synchronized
     // methods do not serialize read/append or crash-tail checks across instances.
     private static final Object PROCESS_LOCK = new Object();
@@ -143,6 +145,7 @@ public final class ArchiveJournal {
         ReadResult result=new ReadResult();
         if(!file.exists())return result;
         LinkedHashMap<String,Annotation> live=new LinkedHashMap<>();
+        long retainedHistoryUnits=0;
         try(DataInputStream input=new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
             for(;;) {
                 int first=input.read();
@@ -178,12 +181,24 @@ public final class ArchiveJournal {
                             throw new IOException("Annotation history has conflicting source identity");
                         if(history.revisions.size()>=512)
                             throw new IOException("Annotation history exceeds 512 revisions; no partial view shown");
+                        long next=historyUnits(row);
+                        if(next>MAX_HISTORY_UNITS-retainedHistoryUnits)
+                            throw new IOException("Annotation history is too large to display safely; journal preserved");
+                        retainedHistoryUnits+=next;
                         history.revisions.add(new Revision(row,op==2));
                     }
                 }
             }
         }
         result.annotations.addAll(live.values());return result;
+    }
+    private static long historyUnits(Annotation row) {
+        long count=0;
+        for(String part:new String[]{row.id,row.archiveId,row.chatId,row.chatTitle,
+                row.messageId,row.messageDate,row.type,row.quote,row.note,
+                row.label,row.target,row.tags,row.prefix,row.suffix})
+            if(part!=null)count+=part.length();
+        return count;
     }
     private static boolean readExact(DataInputStream in,byte[] dest)throws IOException {
         try{in.readFully(dest);return true;}catch(EOFException incomplete){return false;}
