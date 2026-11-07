@@ -67,7 +67,7 @@ import java.util.concurrent.Executors;
  * Search is database-backed, and all user annotations have independent durable records.
  */
 public final class ArchiveWorkspaceActivity extends Activity implements ArchiveImportCoordinator.Listener {
-    private static final int REQUEST_IMPORT=8201, REQUEST_NOTES_TREE=8202, REQUEST_TRANSCRIPT=8203;
+    private static final int REQUEST_IMPORT=8201, REQUEST_NOTES_TREE=8202, REQUEST_TRANSCRIPT=8203, REQUEST_TRANSCRIPT_PDF=8204;
     private static final int WINDOW_MESSAGES=12, CHUNK_PARTS=20;
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
@@ -385,6 +385,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("Focus",v->toggleFocus());
         action("Layout",v->{chatLayout=!chatLayout;showReader(true);});
         action("Export .md",v->exportTranscript());
+        action("Export PDF",v->exportTranscriptPdf());
         action("Style",v->appearanceDialog());
         PreviewWebView web=new PreviewWebView(this);
         reader=web;web.setBackgroundColor(palette.canvas);
@@ -1134,7 +1135,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(result!=RESULT_OK||data==null||data.getData()==null)return;
+        if(result!=RESULT_OK||data==null||data.getData()==null){
+            if(request==REQUEST_TRANSCRIPT||request==REQUEST_TRANSCRIPT_PDF)pendingExportChat=null;
+            return;
+        }
         Uri uri=data.getData();
         if(!"content".equalsIgnoreCase(uri.getScheme())){status("Only Android document sources are supported");return;}
         if(request==REQUEST_IMPORT){
@@ -1154,6 +1158,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         }else if(request==REQUEST_TRANSCRIPT){
             String chat=pendingExportChat;pendingExportChat=null;
             if(chat!=null)writeTranscript(chat,uri);
+        }else if(request==REQUEST_TRANSCRIPT_PDF){
+            String chat=pendingExportChat;pendingExportChat=null;
+            if(chat!=null)writeTranscriptPdf(chat,uri);
         }
     }
     private void importArchive(Uri uri){
@@ -1268,18 +1275,49 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         try{startActivityForResult(create,REQUEST_TRANSCRIPT);}
         catch(ActivityNotFoundException missing){pendingExportChat=null;status("Android save picker unavailable");}
     }
+    /** Explicit full transcript PDF export. Does not read the bounded WebView
+     * window, does not overwrite the original JSON, and never claims partial
+     * output succeeded on a provider or index error.
+     */
+    private void exportTranscriptPdf(){
+        if(active==null)return;
+        pendingExportChat=active.id;
+        String name=ArchiveMarkdownIndexes.fileName(active.name,active.id);
+        if(name.endsWith(".md"))name=name.substring(0,name.length()-3)+".pdf";
+        Intent create=new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE).setType("application/pdf")
+                .putExtra(Intent.EXTRA_TITLE,name);
+        try{startActivityForResult(create,REQUEST_TRANSCRIPT_PDF);}
+        catch(ActivityNotFoundException missing){pendingExportChat=null;status("Android PDF save picker unavailable");}
+    }
+    private void writeTranscriptPdf(String chat,Uri destination){
+        final ArchiveDatabase.Conversation conversation=findConversation(chat);
+        if(conversation==null){status("Conversation no longer indexed");return;}
+        io.execute(()->{
+            try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
+                if(out==null)throw new IOException("Selected provider cannot create PDF file");
+                ArchiveTranscriptPdf.export(database,conversation,out);
+                runOnUiThread(()->status("Complete PDF conversation exported"));
+            }catch(Exception failure){runOnUiThread(()->fail(
+                "PDF export incomplete; do not rely on any partial document",failure));}
+        });
+    }
     private void writeTranscript(String chat,Uri destination){
         final ArchiveDatabase.Conversation conversation=findConversation(chat);
         if(conversation==null){status("Conversation no longer indexed");return;}
         io.execute(()->{
             try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
                 if(out==null)throw new IOException("Selected provider cannot create Markdown file");
+                final String generation=database.exportGeneration(conversation.archiveId);
                 write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
                 int index=0;
                 for(;;){
+                    database.requireExportGeneration(conversation.archiveId,generation);
                     List<ArchiveDatabase.Message> messages=database.messages(chat,index,50);
                     if(messages.isEmpty())break;
-                    for(ArchiveDatabase.Message m:messages){
+                    for(int row=0;row<messages.size();row++){
+                        ArchiveDatabase.Message m=messages.get(row);
+                        ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments);
                         write(out,"## "+transcriptField(m.role)+" · "+transcriptField(m.created)+
                                 " · message "+(m.ordinal+1)+"\n\n");
                         if(conversation.archiveId!=null&&!conversation.archiveId.isEmpty()
@@ -1289,11 +1327,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                                 .appendPath(chat).appendPath(m.messageId).build();
                             write(out,"Source: [Open original message]("+source.toString()+")\n\n");
                         }
-                        for(int part=0;part<m.segments;part+=32)write(out,database.textChunk(m.id,part,32));
+                        for(int part=0;part<m.segments;part+=32){
+                            final int count=Math.min(32,m.segments-part);
+                            write(out,database.textChunkVerified(m.id,part,count));
+                        }
                         write(out,"\n\n");
                     }
                     index+=messages.size();
                 }
+                database.requireExportGeneration(conversation.archiveId,generation);
+                ArchiveTranscriptIntegrity.complete(conversation.messages,index);
                 out.flush();runOnUiThread(()->status("Complete Markdown conversation exported"));
             }catch(Exception e){runOnUiThread(()->fail("Transcript export failed; do not rely on partial document",e));}
         });

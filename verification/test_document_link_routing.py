@@ -74,7 +74,10 @@ class DocumentRoutingTests(unittest.TestCase):
             "private static void write(OutputStream", 1)[0]
         self.assertIn('database.messages(chat,index,50)', export)
         self.assertIn('for(int part=0;part<m.segments;part+=32)', export)
-        self.assertIn('database.textChunk(m.id,part,32)', export)
+        self.assertIn('database.textChunkVerified(m.id,part,count)', export)
+        self.assertIn('ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments)', export)
+        self.assertIn('ArchiveTranscriptIntegrity.complete(conversation.messages,index)', export)
+        self.assertIn('database.requireExportGeneration(conversation.archiveId,generation)', export)
         self.assertIn('.appendPath(conversation.archiveId)', export)
         self.assertIn('.appendPath(chat).appendPath(m.messageId)', export)
         self.assertIn('Source: [Open original message]', export)
@@ -83,6 +86,25 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertNotIn('WINDOW_MESSAGES', export)
         self.assertNotIn('CHUNK_PARTS', export)
         self.assertIn(r"return value.replace('\r',' ').replace('\n',' ')", export)
+
+    def test_complete_pdf_export_keeps_full_indexed_source_and_fails_closed(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        pdf = (JAVA / "ArchiveTranscriptPdf.java").read_text()
+        db = (JAVA / "ArchiveDatabase.java").read_text()
+        self.assertIn('action("Export PDF",v->exportTranscriptPdf())', activity)
+        self.assertIn('REQUEST_TRANSCRIPT_PDF=8204', activity)
+        self.assertIn('setType("application/pdf")', activity)
+        self.assertIn('ArchiveTranscriptPdf.export(database,conversation,out)', activity)
+        self.assertIn('PDF export incomplete; do not rely on any partial document', activity)
+        self.assertIn('ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments)', pdf)
+        self.assertIn('database.textChunkVerified(m.id,part,count)', pdf)
+        self.assertIn('ArchiveTranscriptIntegrity.complete(conversation.messages,index)', pdf)
+        self.assertIn('database.requireExportGeneration(conversation.archiveId,generation)', pdf)
+        self.assertIn('MAX_LAYOUT_UNITS=8192', pdf)
+        self.assertIn('pdf.document.writeTo(destination)', pdf)
+        self.assertNotIn('WINDOW_MESSAGES', pdf)
+        self.assertIn('ArchiveTranscriptIntegrity.part(startPart+found,c.getInt(0))', db)
+        self.assertIn('ArchiveTranscriptIntegrity.complete(take,found)', db)
 
     def test_unified_markdown_match_uses_hash_and_exact_offset_after_open(self):
         search = (JAVA / "UnifiedSearchActivity.java").read_text()

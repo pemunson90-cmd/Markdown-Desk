@@ -244,6 +244,39 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         }
         return out.toString();
     }
+    /** Pin the published generation before exporting; never mix old and new
+     * versions of a conversation if a reimport swaps active_versions mid-read.
+     */
+    synchronized String exportGeneration(String archiveId)throws IOException {
+        if(archiveId==null||archiveId.isEmpty())throw new IOException("Missing archive identity");
+        String generation=currentGeneration(getReadableDatabase(),archiveId);
+        ArchiveTranscriptIntegrity.generation(generation,generation);
+        return generation;
+    }
+    synchronized void requireExportGeneration(String archiveId,String expected)throws IOException {
+        ArchiveTranscriptIntegrity.generation(expected,currentGeneration(getReadableDatabase(),archiveId));
+    }
+    /** Unlike preview textChunk(), export must prove every requested segment
+     * exists and appears in order. An empty valid segment remains supported.
+     */
+    synchronized String textChunkVerified(long messageRow,int startPart,int take)throws IOException {
+        if(messageRow<1||startPart<0||take<1||take>64)
+            throw new IOException("Invalid transcript segment range");
+        StringBuilder out=new StringBuilder();int found=0;
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT p.ordinal,p.content,p.overlap_len,f.body " +
+                "FROM parts p JOIN search_parts f ON f.docid=p.row_id " +
+                "WHERE p.message_row=? AND p.ordinal>=? ORDER BY p.ordinal LIMIT " +take,
+                new String[]{Long.toString(messageRow),Integer.toString(startPart)})){
+            while(c.moveToNext()){
+                ArchiveTranscriptIntegrity.part(startPart+found,c.getInt(0));
+                out.append(ArchiveTextCodec.reconstruct(c.getString(1),c.getInt(2),c.getString(3)));
+                found++;
+            }
+        }
+        ArchiveTranscriptIntegrity.complete(take,found);
+        return out.toString();
+    }
     synchronized List<Hit> search(String query,String chat,int limit,int offset){
         return search(query,chat,null,null,null,limit,offset);
     }
