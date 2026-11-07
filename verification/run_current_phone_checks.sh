@@ -11,6 +11,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$PWD/verification/build/host"
 mkdir -p "$OUT/renderer" "$OUT/splash" "$OUT/tmp"
+python3 -m unittest discover -s verification -p 'test_current_source_guard.py'
+python3 verification/check_current_source.py
+bash verification/source_extraction/run.sh
 python3 verification/test_baseline_inventory.py
 python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
 python3 verification/check_layout.py
