@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-07, Android API37+API36 full-source javac11 and D8 PASS; full production JSON parser 700M-char/96MB-heap stress PASS (commit cfd1bd4); Archive complete PDF/Markdown export integrated (74cd601); no APK/Actions; native acceptance and full feature plan remain OPEN.
+**Checkpoint:** 2026-11-07, owner-uploaded pinned host JSON JAR verified; one continuous applicable current-phone host run PASS (exit 0), evidence `docs/verification/CURRENT_PHONE_LOCAL_HOST_20261107.md`; Git ancestry/baseline archive and owner-deferred private-backup tests explicitly NOT RUN; native Android/Fold7/product parity gates OPEN. No APK/Actions.
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** Bounded, independently committed development batches per owner direction. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -147,6 +147,9 @@ On 2026-11-07 owner explicitly reaffirmed: **ordinary ChatGPT/GitHub connector d
 
 **Further current-source host rerun:** `run_journal_concurrency.sh`, `run_journal_conditional.sh`, `run_transcript_integrity.sh`, `run_document_links.sh`, `run_sidecar_identity.sh` PASS, Python integration 14/14 PASS, PR37 tests 7 PASS, document link routing10 PASS, Markdown note integration7 PASS, workspace tree reader52 PASS, directory-loader and search-loader cancellation/poison/hazard fixtures PASS. Pinned host JSON JAR remains inaccessible: do not claim full green host suite. No app binary produced.
 
+
+
+> **2026-11-07 local-host release gate update:** See [exact local execution report](../verification/CURRENT_PHONE_LOCAL_HOST_20261107.md) (commit `279c008196c7857c66e0b1b4c15a6d4a25d2396f`). User-uploaded pinned `android-json-0.0.20131108.vaadin1.jar` validated SHA256 `dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79`; **one uninterrupted applicable local current-phone host suite returned 0** under ordinary user permissions. Fixed isolated print and protected-save harnesses with exact-source regressions (commits `51492ba72a43ab4f148a693e5869c7ef83e2cc0e`, `89710800dffc5039ee6a7a80c1b5e856e9dfcea0`). Exact log SHA256 `d75866afd6bc66d4a10d7f1a62e1fce9c25186f73190a12b1940e124ed5a767a`. **This does not satisfy full release gate:** GitHub ZIP lacks `.git` for three ancestry/historical-baseline checks; they remain NOT RUN, and owner-deferred portable categories remain excluded; native Android/PDF/SAF/700MB import/Fold7/product-completeness and canonical signer/in-place installation remain pending. Temporary local archive-only runner and guard shim are NOT committed and are NOT a green `--require-clean/--require-installed` source guard. No GitHub Actions or Markdown Desk APK produced.
 
 ## Machine-readable current-source identity (part of this queue, NOT a second status system)
 
