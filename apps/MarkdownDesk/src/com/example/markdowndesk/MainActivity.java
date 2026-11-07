@@ -619,6 +619,8 @@ public class MainActivity extends Activity {
                 v->{if(this.readingNotes!=null)this.readingNotes.showNotes();});
         addReadTool("Index folder","Choose where Markdown note indexes are published",
                 v->chooseReadingNotesFolder());
+        addReadTool("Backlinks","Browse saved links pointing to this document",
+                v->{if(this.readingNotes!=null)this.readingNotes.showBacklinks();});
         configureEditorHistoryActions();
         this.writeFavoriteButton = addFormat("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
