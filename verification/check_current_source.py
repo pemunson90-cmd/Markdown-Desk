@@ -123,6 +123,16 @@ def check(root, require_installed=False, require_clean=False):
     return errors, notes
 
 
+def current_release_pair(root):
+    """Return the single verified development manifest identity for legacy gates."""
+    errors, _ = check(root)
+    if errors:
+        raise ValueError('; '.join(errors))
+    declared = source_record(root)['development']['manifest']
+    return str(declared['version_code']), declared['version_name']
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--require-installed', action='store_true')
