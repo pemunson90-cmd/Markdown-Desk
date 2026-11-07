@@ -51,7 +51,8 @@ public final class ArchiveAnnotationSearch {
             if(!type.isEmpty()&&!type.equals(a.type))continue;
             if(!desiredTag.isEmpty()&&!hasTag(a.tags,desiredTag))continue;
             if("markdown".equals(origin)&&!"markdown-document".equals(a.archiveId))continue;
-            if("archive".equals(origin)&&"markdown-document".equals(a.archiveId))continue;
+            if("archive".equals(origin)&&(a.archiveId==null||a.archiveId.isEmpty()||
+                    "markdown-document".equals(a.archiveId)))continue;
             if(contains(a.label,term)||contains(a.quote,term)||contains(a.note,term)
                     ||contains(a.tags,term)||contains(a.target,term)||contains(a.chatTitle,term)) {
                 if(seen++<start)continue;
