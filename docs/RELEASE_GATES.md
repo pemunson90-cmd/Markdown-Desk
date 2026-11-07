@@ -7,6 +7,11 @@
 - targetSdkVersion may differ from minSdk and must be separately reviewed for behavior changes; user-data compatibility and non-destructive in-place upgrades remain mandatory on supported devices.
 
 
+## Owner reaffirmation: local tests, complete plan, one APK (2026-11-07)
+- **No GitHub Actions during ordinary Markdown Desk development or release preparation.** Use the available chat/local JDK, Android SDK and direct production-path tests. A required external exception must be explicitly owner-approved, not inferred from an existing workflow.
+- **Do not generate a Markdown Desk APK, including an intermediate unsigned candidate, until the complete approved Unified Workspaces feature scope is implemented and the applicable local host/dependency/safety tests are green.** SDK/compiler smoke fixtures are not app builds and do not satisfy this gate.
+- Final build/packaging, verification, original-certificate signing and the first phone-testable release occur only after the complete-scope readiness matrix is closed. Fold7 installation and real-device acceptance are separately observed afterward. No release claim based on static assertions alone.
+
 ## Owner full-scope delivery gate (2026-11-06)
 - For a requested new feature or integrated upgrade, **do not generate/sign/offer a user-facing APK** until **every requested feature is implemented together**, integrated into the real app, and the applicable local bug, dependency, regression, safety and packaging checks have passed. Internal checkpoints and partial green tests are not deliverables.
 - No staged test releases or versionCode churn merely to demonstrate partial progress. A separately requested bug-fix update or explicit owner milestone is the exception.
