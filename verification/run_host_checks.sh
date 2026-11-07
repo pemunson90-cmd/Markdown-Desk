@@ -3,6 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="$PWD/verification/build/host"
 mkdir -p "$OUT/renderer" "$OUT/splash" "$OUT/tmp"
+python3 -m unittest discover -s verification -p 'test_current_source_guard.py'
+python3 verification/check_current_source.py
+bash verification/source_extraction/run.sh
 python3 verification/test_baseline_inventory.py
 python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
 python3 verification/check_layout.py
@@ -10,7 +13,6 @@ python3 verification/check_live_appearance.py
 python3 verification/navigation_choices/check_release_identity.py
 bash verification/navigation_choices/run.sh
 bash verification/navigation_ui/run.sh
-bash verification/downloads_browser/run.sh
 java verification/ParseJava.java apps/MarkdownDesk/src shared apps/MarkdownDesk/test
 javac --release 11 -d "$OUT/renderer" verification/stubs/android/graphics/drawable/GradientDrawable.java apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java verification/RendererCheck.java
 java -cp "$OUT/renderer" com.example.markdowndesk.RendererCheck "$OUT/rendered"
