@@ -69,9 +69,24 @@ final class ArchiveSidecarPublisher {
                              String generated)throws IOException {
         String safe=ArchiveMarkdownIndexes.fileName(title,chatId);
         String legacy=ArchiveMarkdownIndexes.legacyFileName(title,chatId);
-        // Refuse to strand a legacy notebook until an owner-verified migration exists.
-        if(!legacy.equals(safe) && child(folder,legacy)!=null)
-            throw new IOException("Legacy Markdown notebook needs identity review; existing file preserved");
+        // Legacy short-ID normalization could collide (for example "a/b" vs "a_b").
+        // Copy only an identity-proven old notebook, retaining manual prose and the
+        // entire original file. Never rename/delete a legacy notebook automatically.
+        if(!legacy.equals(safe)) {
+            Uri old=child(folder,legacy);
+            if(old!=null) {
+                Uri modern=child(folder,safe);
+                if(modern==null) {
+                    String previous=read(old);
+                    if(!ArchiveMarkdownIndexes.matchesOwner(previous,archiveId,chatId))
+                        throw new IOException("Legacy notebook identity is ambiguous; original preserved");
+                    String migrated=ArchiveMarkdownIndexes.replaceGeneratedRegion(previous,generated);
+                    publishDocument(folder,safe,migrated,archiveId,chatId);
+                    return;
+                }
+                // A verified modern notebook owns future updates; legacy stays untouched.
+            }
+        }
         publishDocument(folder,safe,generated,archiveId,chatId);
     }
 
