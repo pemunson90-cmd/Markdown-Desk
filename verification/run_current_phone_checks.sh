@@ -74,6 +74,8 @@ python3 -m unittest discover -s verification -p 'test_unified_all_roots_search.p
 python3 -m unittest discover -s verification -p 'test_search_result_return.py'
 python3 -m unittest discover -s verification -p 'test_json_structured_search.py'
 python3 -m unittest discover -s verification -p 'test_unified_search_state.py'
+python3 -m unittest discover -s verification -p 'test_json_reading_parity.py'
+python3 -m unittest discover -s verification -p 'test_accessibility_contract.py'
 python3 -m unittest discover -s verification -p 'test_export_generation_snapshot.py'
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
