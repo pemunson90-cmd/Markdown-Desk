@@ -15,6 +15,7 @@ python3 -m unittest discover -s verification -p 'test_current_source_guard.py'
 python3 -m unittest discover -s verification -p 'test_pr37_integration.py'
 python3 verification/check_current_source.py
 python3 -m unittest discover -s verification -p 'test_android_platform_contract.py'
+python3 -m unittest discover -s verification -p 'test_source_only_gate.py'
 bash verification/source_extraction/run.sh
 python3 verification/test_baseline_inventory.py
 python3 verification/check_baseline_inventory.py --baseline-ref v2.2.5-baseline
