@@ -1,5 +1,8 @@
 # Reproducible unsigned baseline validation
 
+> **ACTIVE UNIFIED WORKSPACES GATE — 2026-11-07:** This page retains historical source-build and unsigned APK recipes. For the current integration branch, those recipes are **not authorization to build an APK**. Owner requires the complete approved feature plan and applicable local host/security tests finished first; only then build the single phone-testable APK and conduct the signing/in-place-upgrade gate. Before then use `aapt2 compile/link` to disposable resource objects, `javac --release 11` on all actual sources, D8 to disposable DEX, and focused host/native-source tests **without** assembling an APK. No routine GitHub Actions or Codex requirement. Current authority: [Unified Workspaces queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) and [release gates](RELEASE_GATES.md).
+
+
 ## Current development Android support policy (2026-11-06)
 
 The supported OS range is the latest stable Android release and its two predecessors: **Android 15 (API 35), Android 16 (API 36), and Android 17 (API 37)**. The current development manifest uses `minSdkVersion=35`. `build.sh` derives the minimum and target API levels for aapt2 and D8 directly from that manifest; the old hardcoded API 26 minimum no longer applies to current development. **targetSdkVersion is independently reviewed** before targeting a new platform, especially for folding/window behavior, storage, and background imports.
