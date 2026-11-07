@@ -25,6 +25,31 @@ public final class UiTest {
   a.widthDp=400;a.rebuildBody();check(a.body.children.size()==2,"compact split retains vertical two panes");check(a.body.getOrientation()==1,"compact vertical orientation");
   a.widthDp=800;a.mode=0;a.rebuildBody();check(a.body.children.size()==1&&a.body.children.get(0)==a.editor,"Write retains single source pane");a.mode=1;a.rebuildBody();check(a.body.children.size()==1&&a.body.children.get(0)==a.preview,"Read retains single preview pane");
   a.tabs.clear();for(int i=0;i<12;i++)a.tabs.add(new MainActivity.DocumentTab("Document "+i,false));a.activeTab=11;a.updateTabsUi();check(a.tabButtons.size()==13,"all twelve tabs and new action retained");check(a.tabButtons.get(11).selected&&!a.tabButtons.get(12).selected,"last document selection and new-action state");
+  // Exercise the actual extracted production tab touch listener. An interrupted
+  // long-press must not survive into the next ordinary tap on the same tab.
+  MainActivity.PostQueue queued = new MainActivity.PostQueue();
+  a.tabsScroll = queued;
+  a.tabs.clear();
+  a.tabs.add(new MainActivity.DocumentTab("Safety case.md",true));
+  a.activeTab = 0;
+  a.updateTabsUi();
+  int prior = queued.pending.size(); // ignore the unrelated scroll-to-selected post
+  MainActivity.Button hold = a.tabButtons.get(0);
+  String heldId = a.tabs.get(0).id;
+  a.pendingLongPressedTabId = heldId; // old gesture never sent UP or CANCEL
+  hold.touch.onTouch(hold,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
+  check(a.pendingLongPressedTabId==null,"fresh DOWN clears interrupted close intent");
+  hold.touch.onTouch(hold,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(queued.pending.size()==prior,"ordinary tap after interrupted hold never queues close");
+  a.pendingLongPressedTabId = heldId;
+  hold.touch.onTouch(hold,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_CANCEL,0));
+  check(a.pendingLongPressedTabId==null && queued.pending.size()==prior,
+        "canceled hold queues no close");
+  hold.touch.onTouch(hold,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_DOWN,0));
+  a.pendingLongPressedTabId = heldId; // native long-click dispatch during this gesture
+  hold.touch.onTouch(hold,new MainActivity.MotionEvent(MainActivity.MotionEvent.ACTION_UP,0));
+  check(queued.pending.size()==prior+1,"valid completed hold posts exactly one close");
+
   System.out.println("UI assertions: "+checks+", failures: "+failures);if(failures!=0)throw new AssertionError("UI assertions failed");
  }
 }
