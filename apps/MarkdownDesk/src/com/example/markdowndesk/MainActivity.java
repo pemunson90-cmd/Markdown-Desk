@@ -137,6 +137,7 @@ public class MainActivity extends Activity {
     private Runnable pendingAfterSave;
     private SharedPreferences preferences;
     private PreviewWebView preview;
+    private MarkdownReadingNotes readingNotes;
     private Button previewModeButton;
     private boolean previewReady;
     private PreviewPage previewPage;
@@ -571,6 +572,10 @@ public class MainActivity extends Activity {
         settings.setBlockNetworkLoads(true);
         settings.setLoadsImagesAutomatically(false);
         this.preview.setWebViewClient(new AnonymousClass2());
+        this.readingNotes=new MarkdownReadingNotes(this,this.preview,this.io,
+            ()->this.currentUri,()->this.displayName,
+            ()->this.previewReady && isCurrentPreviewPage(this.previewPage) &&
+                this.previewPage.acknowledged,()->this.previewRevision);
         this.preview.setOnScrollChangeListener(new View.OnScrollChangeListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda44
             @Override // android.view.View.OnScrollChangeListener
             public final void onScrollChange(View view, int i, int i2, int i3, int i4) {
@@ -606,6 +611,10 @@ public class MainActivity extends Activity {
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         this.readOutlineButton = addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
         this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        addReadTool("Note","Annotate a selected passage in Reading mode",
+                v->{if(this.readingNotes!=null)this.readingNotes.annotate();});
+        addReadTool("Notes","Browse and edit source-linked reading notes",
+                v->{if(this.readingNotes!=null)this.readingNotes.showNotes();});
         configureEditorHistoryActions();
         this.writeFavoriteButton = addFormat("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
@@ -2168,9 +2177,11 @@ public class MainActivity extends Activity {
             showError("This Markdown document link is invalid or unsupported.");
             return;
         }
-        if(link.getQueryParameter("note")!=null)
-            Toast.makeText(this,"The document can open, but its note anchor is not available yet.",
-                    Toast.LENGTH_LONG).show();
+        String noteId=link.getQueryParameter("note");
+        if(noteId!=null && this.readingNotes!=null)
+            this.readingNotes.requestNote(source,noteId);
+        if(this.currentUri!=null&&source.equals(this.currentUri.toString())&&
+                this.mode==MODE_PREVIEW&&this.previewReady)return;
         // Existing protected read path checks the provider grant and handles revoked URIs.
         // Do not synthesize FLAG_GRANT_READ_URI_PERMISSION from an authored link.
         openDocument(Uri.parse(source),0,false,true);
@@ -5937,6 +5948,11 @@ public class MainActivity extends Activity {
             if (isCurrentPreviewPage(page) && ("\"" + page.token + "\"").equals(value) && !page.acknowledged) {
                 page.acknowledged = true;
                 this.previewReady = true;
+                if(this.readingNotes!=null && this.currentUri!=null) {
+                    final String noteUri=this.currentUri.toString();
+                    this.readingNotes.decorate(noteUri,
+                        ()->isCurrentPreviewPage(page)&&page.acknowledged&&this.previewReady);
+                }
                 long operation = beginPreviewScroll(true);
                 view.scrollTo(MODE_EDIT, Math.max(MODE_EDIT, this.previewRestoreY));
                 releasePreviewScroll(page, operation, 160L);
