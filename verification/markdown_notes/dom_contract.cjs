@@ -22,7 +22,7 @@ function fixture(chunks) {
     }}};
   const selection={rangeCount:0,getRangeAt(){return this.r}};
   const window={getSelection(){return selection}};
-  const ctx={document,window,NodeFilter:{SHOW_TEXT:4},CSS:{highlights:{set(key,value){highlighted.push(value)}}},Highlight:function(...items){this.items=items}};
+  const ctx={document,window,NodeFilter:{SHOW_TEXT:4},CSS:{highlights:{set(key,value){highlighted.push({key,value})}}},Highlight:function(...items){this.items=items}};
   window.CSS=ctx.CSS;window.Highlight=ctx.Highlight;
   return {nodes,selection,ctx,window,highlighted};
 }
@@ -32,14 +32,14 @@ const run=(script,ctx)=>vm.runInNewContext(script,ctx,{timeout:1000});
   run(boot,env.ctx);
   env.window.mdNoteDecorate([{id:"one",quote:"target",prefix:"",suffix:"",start:6}]);
   assert.equal(env.window.mdNoteJump("one"),true,"hidden script text must not count as a visible duplicate");
-  assert.equal(env.highlighted.at(-1).items.length,1,"one visible highlight");
+  assert.equal(env.highlighted.find(x=>x.key==='markdown-notes-violet').value.items.length,1,"one visible highlight");
 }
 {
   const env=fixture([["alpha target omega target"]]);
   run(boot,env.ctx);
   env.window.mdNoteDecorate([{id:"duplicate",quote:"target",prefix:"",suffix:"",start:6}]);
   assert.equal(env.window.mdNoteJump("duplicate"),false,"old offset cannot override duplicate ambiguity");
-  assert.equal(env.highlighted.at(-1).items.length,0,"ambiguous highlights omitted");
+  assert.equal(env.highlighted.find(x=>x.key==='markdown-notes-violet').value.items.length,0,"ambiguous highlights omitted");
 }
 {
   const env=fixture([["alpha target omega alpha target omega"]]);
@@ -65,5 +65,27 @@ const run=(script,ctx)=>vm.runInNewContext(script,ctx,{timeout:1000});
   run(boot,env.ctx);
   env.window.mdNoteDecorate([{id:"changed",quote:"target",prefix:"alpha ",suffix:" omega",start:6}]);
   assert.equal(env.window.mdNoteJump("changed"),false,"changed source must never silently reanchor");
+}
+{
+  const env=fixture([["rose gap mint"]]);
+  run(boot,env.ctx);
+  env.window.mdNoteDecorate([
+    {id:"rose",quote:"rose",prefix:"",suffix:"",tone:"rose"},
+    {id:"mint",quote:"mint",prefix:"",suffix:"",tone:"mint"}]);
+  const latest={};
+  for(const h of env.highlighted) latest[h.key]=h.value;
+  const palette=["violet","rose","mint","amber","blue","slate"];
+  for(const tone of palette) assert.ok(latest["markdown-notes-"+tone], "fixed color exists: "+tone);
+  assert.equal(latest["markdown-notes-rose"].items.length,1,"rose range");
+  assert.equal(latest["markdown-notes-mint"].items.length,1,"mint range");
+  assert.equal(latest["markdown-notes-violet"].items.length,0,"other colors do not inherit marks");
+  assert.equal(env.window.mdNoteJump("mint"),true,"colored note retains exact jump");
+}
+{
+  const env=fixture([["legacy annotation"]]);
+  run(boot,env.ctx);
+  env.window.mdNoteDecorate([{id:"old",quote:"annotation",prefix:"legacy ",suffix:""}]);
+  const violet=env.highlighted.find(x=>x.key==="markdown-notes-violet");
+  assert.equal(violet.value.items.length,1,"legacy record without a tone remains visible");
 }
 console.log("PASS exact emitted Markdown selection/highlight JS: hidden text, duplicate quotes, context and changed passages");
