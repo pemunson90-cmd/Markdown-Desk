@@ -1166,7 +1166,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     private void showAnnotationActions(ArchiveJournal.Annotation a){
         new AlertDialog.Builder(this).setTitle(safe(a.label)).setItems(new String[]{
-                "Jump to source","Copy Markdown link","Edit note","Delete annotation"},(d,index)->{
+                "Jump to source","Copy Markdown link","Edit note","History","Delete annotation"},(d,index)->{
             if(index==0){
                 if("markdown-document".equals(a.archiveId)){
                     String link=ArchiveMarkdownIndexes.deepLink(a);
@@ -1203,6 +1203,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         saveAnnotation(changed,a);
                     }).setNegativeButton("Cancel",null).show();
             }else if(index==3){
+                final String sourceChat=a.chatId,sourceArchive=a.archiveId;
+                AnnotationHistoryDialog.show(this,io,journal,a,
+                        ()->active!=null&&sourceChat!=null&&sourceChat.equals(active.id)&&
+                                sourceArchive!=null&&sourceArchive.equals(active.archiveId),this::status);
+            }else if(index==4){
                 new AlertDialog.Builder(this).setTitle("Delete this annotation?")
                     .setMessage("The original conversation is unaffected.")
                     .setPositiveButton("Delete",(x,w)->io.execute(()->{

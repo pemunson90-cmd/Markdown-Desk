@@ -335,7 +335,7 @@ final class MarkdownReadingNotes {
     private void showActions(String uri,ArchiveJournal.Annotation a) {
         if(!MarkdownNoteIdentity.owns(a,uri))return;
         new AlertDialog.Builder(activity).setTitle(a.label==null?a.type:a.label)
-            .setItems(new String[]{"Go to passage","Copy document note link","Edit note","Delete note"},
+            .setItems(new String[]{"Go to passage","Copy document note link","Edit note","History","Delete note"},
               (d,index)->{
                 if(index==0) {
                     if(!previewReady.getAsBoolean()){message("Open Reading mode to jump to a note.");return;}
@@ -356,6 +356,8 @@ final class MarkdownReadingNotes {
                             save(changed,uri,a);
                         }).setNegativeButton("Cancel",null).show();
                 }else if(index==3) {
+                    AnnotationHistoryDialog.show(activity,worker,journal,a,()->live(uri),this::message);
+                }else if(index==4) {
                     new AlertDialog.Builder(activity).setTitle("Delete note?")
                         .setMessage("The original Markdown document will not change.")
                         .setPositiveButton("Delete",(dialog,which)->worker.execute(()->{

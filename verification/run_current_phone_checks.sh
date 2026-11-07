@@ -54,6 +54,7 @@ bash verification/workspace_favorites/run.sh
 bash verification/recents_integrity/run.sh
 bash verification/archive_reader/run_journal_concurrency.sh
 bash verification/archive_reader/run_journal_conditional.sh
+bash verification/archive_reader/run_journal_history.sh
 bash verification/archive_reader/run_transcript_integrity.sh
 bash verification/archive_reader/run_document_links.sh
 bash verification/archive_reader/run_annotation_dom.sh

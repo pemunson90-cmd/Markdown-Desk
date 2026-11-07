@@ -39,6 +39,32 @@ public final class ArchiveJournal {
         public final ArrayList<Annotation> annotations = new ArrayList<>();
         public boolean truncatedTail;
     }
+    public static final class Revision {
+        public final Annotation annotation;
+        public final boolean deleted;
+        private Revision(Annotation state,boolean isDeleted) {
+            annotation=state.copy();deleted=isDeleted;
+        }
+    }
+    public static final class HistoryResult {
+        public final ArrayList<Revision> revisions=new ArrayList<>();
+    }
+    /** Immutable, source-bound revision history. A suspicious ID reuse or an
+     * interrupted record never becomes another document's history.
+     */
+    public HistoryResult history(Annotation expected)throws IOException {
+        if(expected==null||expected.id==null||expected.id.isEmpty()
+                ||expected.archiveId==null||expected.chatId==null||expected.messageId==null)
+            throw new IOException("Missing annotation history identity");
+        synchronized(PROCESS_LOCK){
+            HistoryResult history=new HistoryResult();
+            ReadResult state=loadLocked(expected,history);
+            if(state.truncatedTail)
+                throw new IOException("Annotation journal has an interrupted record; history is incomplete");
+            return history;
+        }
+    }
+
     public void save(Annotation a) throws IOException {
         synchronized (PROCESS_LOCK) { saveLocked(a); }
     }
@@ -112,7 +138,8 @@ public final class ArchiveJournal {
     public ReadResult load() throws IOException {
         synchronized (PROCESS_LOCK) { return loadLocked(); }
     }
-    private ReadResult loadLocked() throws IOException {
+    private ReadResult loadLocked() throws IOException {return loadLocked(null,null);}
+    private ReadResult loadLocked(Annotation requested,HistoryResult history) throws IOException {
         ReadResult result=new ReadResult();
         if(!file.exists())return result;
         LinkedHashMap<String,Annotation> live=new LinkedHashMap<>();
@@ -144,6 +171,15 @@ public final class ArchiveJournal {
                         live.put(row.id,row);
                     } else if(op==2) live.remove(row.id);
                     else throw new IOException("Unknown journal operation");
+                    if(history!=null && Objects.equals(row.id,requested.id)) {
+                        if(op==1 && (!Objects.equals(row.archiveId,requested.archiveId)
+                                ||!Objects.equals(row.chatId,requested.chatId)
+                                ||!Objects.equals(row.messageId,requested.messageId)))
+                            throw new IOException("Annotation history has conflicting source identity");
+                        if(history.revisions.size()>=512)
+                            throw new IOException("Annotation history exceeds 512 revisions; no partial view shown");
+                        history.revisions.add(new Revision(row,op==2));
+                    }
                 }
             }
         }

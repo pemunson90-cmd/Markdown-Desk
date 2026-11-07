@@ -76,6 +76,22 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', controller)
         self.assertNotIn('FLAG_GRANT_WRITE_URI_PERMISSION', controller)
 
+    def test_readonly_note_history_remains_source_bound(self):
+        markdown=(SRC / "MarkdownReadingNotes.java").read_text()
+        archive=(SRC / "ArchiveWorkspaceActivity.java").read_text()
+        journal=(SRC / "archive/ArchiveJournal.java").read_text()
+        history=(SRC / "AnnotationHistoryDialog.java").read_text()
+        self.assertIn('"Edit note","History","Delete note"', markdown)
+        self.assertIn('"Edit note","History","Delete annotation"', archive)
+        self.assertIn('AnnotationHistoryDialog.show(activity,worker,journal,a,()->live(uri),this::message)', markdown)
+        self.assertIn('AnnotationHistoryDialog.show(this,io,journal,a,', archive)
+        self.assertIn('journal.history(snapshot)', history)
+        self.assertIn('HistoryResult history=new HistoryResult()', journal)
+        self.assertIn('Annotation history has conflicting source identity', journal)
+        self.assertIn('Annotation journal has an interrupted record', journal)
+        self.assertNotIn('saveIfCurrent(', history)
+        self.assertNotIn('deleteIfCurrent(', history)
+
     def test_dom_script_does_not_execute_source_data(self):
         script = (SRC / "workspace/annotations/MarkdownNoteScript.java").read_text(encoding="utf-8")
         self.assertIn("all.slice(start,end)!==quote", script)
