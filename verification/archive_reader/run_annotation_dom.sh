@@ -5,6 +5,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf -- "$OUT"' EXIT
 "${JAVAC:-javac}" --release 11 -encoding UTF-8 -d "$OUT" \
   apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java \
+  apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/AnnotationTone.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveScrollScript.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveHighlightScript.java \
   apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSelectionScript.java \
