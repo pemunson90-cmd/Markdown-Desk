@@ -10,8 +10,8 @@ public final class SidecarIdentityCheck {
     }
     private static ArchiveJournal.Annotation note(String archive,String chat) {
         ArchiveJournal.Annotation a=new ArchiveJournal.Annotation();
-        a.id="note-1";a.type="note";a.archiveId=archive;a.chatId=chat;
-        a.messageId="message-1";a.chatTitle="Shared title";a.quote="Exact text";
+        a.id="note-"+archive;a.type="note";a.archiveId=archive;a.chatId=chat;
+        a.messageId="message-1";a.chatTitle="Shared title";a.quote=archive+" text";
         return a;
     }
     public static void main(String[] args) {
@@ -35,6 +35,9 @@ public final class SidecarIdentityCheck {
         check(!ArchiveMarkdownIndexes.matchesOwner(noNotes,"archiveB",canonical),
                 "archive source must also match");
         notes.add(note("archiveA",canonical));
+        notes.add(note("archiveB",canonical));
+        check(!ArchiveMarkdownIndexes.perChat(title,"archiveA",canonical,notes).contains("archiveB text"),
+                "per-chat projection must not absorb same-ID conversation from other archive");
         String existing=ArchiveMarkdownIndexes.perChat(title,"archiveA",canonical,notes);
         String legacy=existing.replaceFirst("<!-- markdown-desk-owner-sha256:[^>]+ -->\\n",""); 
         check(ArchiveMarkdownIndexes.matchesOwner(legacy,"archiveA",canonical),
@@ -44,7 +47,7 @@ public final class SidecarIdentityCheck {
         check(!ArchiveMarkdownIndexes.matchesOwner(
                 noNotes.replaceFirst("<!-- markdown-desk-owner-sha256:[^>]+ -->\\n",""),
                 "archiveA",canonical),"ambiguous markerless empty legacy notebook fails closed");
-        String withProse="# Personal notes\\n\\n"+existing+"\\nmanual tail\\n";
+        String withProse="# Personal notes\n\n"+existing+"\nmanual tail\n";
         String merged=ArchiveMarkdownIndexes.replaceGeneratedRegion(withProse,existing);
         check(merged.startsWith("# Personal notes") && merged.endsWith("manual tail\\n"),
                 "user prose must survive generated-region updates");
