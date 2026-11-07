@@ -65,6 +65,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 
 /* JADX INFO: loaded from: classes.dex */
 public class MainActivity extends Activity {
@@ -2194,10 +2195,42 @@ public class MainActivity extends Activity {
         openDocument(Uri.parse(source),0,false,true);
     }
 
+    /** A search result cannot grant a file URI or select an unverified passage.
+     * Navigation is applied only after the usual protected Android open completes.
+     */
+    private void captureUnifiedSearchJump(Intent intent) {
+        this.pendingUnifiedJump=null;
+        if(!Intent.ACTION_VIEW.equals(intent.getAction())||intent.getData()==null
+                ||!intent.hasExtra(UnifiedSearchJump.EXTRA_URI))return;
+        String source=intent.getStringExtra(UnifiedSearchJump.EXTRA_URI);
+        String digest=intent.getStringExtra(UnifiedSearchJump.EXTRA_HASH);
+        String literal=intent.getStringExtra(UnifiedSearchJump.EXTRA_LITERAL);
+        int offset=intent.getIntExtra(UnifiedSearchJump.EXTRA_OFFSET,-1);
+        if(source==null||!source.equals(intent.getData().toString())||digest==null
+                ||literal==null||literal.isEmpty()||literal.length()>128||offset<0)return;
+        this.pendingUnifiedJump=new PendingUnifiedJump(source,digest,literal,offset);
+    }
+
+    private void resolveUnifiedSearchJump(Uri uri) {
+        PendingUnifiedJump request=this.pendingUnifiedJump;
+        if(request==null||uri==null||!request.uri.equals(uri.toString()))return;
+        this.pendingUnifiedJump=null; // One-shot; never navigate after a later tab or load.
+        if(!UnifiedSearchJump.matches(request.uri,
+                this.currentUri==null?null:this.currentUri.toString(),
+                request.hash,this.baselineHash,this.editor.getText(),
+                request.literal,request.offset,this.dirty)) {
+            Toast.makeText(this,"The indexed passage changed. Search again to find its new position.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        jumpToSourceOffset(request.offset);
+    }
+
     private void handleIntent(Intent intent) {
         if (intent == null) {
             return;
         }
+        captureUnifiedSearchJump(intent);
         if(intent.hasExtra(UnifiedTabs.EXTRA_TAB_ID)){
             String logicalId=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
             intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
@@ -2302,6 +2335,7 @@ public class MainActivity extends Activity {
             switchToTab(iFindTabByUri, false);
             if (viewOnly) setMode(MODE_PREVIEW, false);
             searchOpenFinished(uri,this.loadToken);
+            resolveUnifiedSearchJump(uri);
             return;
         }
         if (this.tabs.size() >= MAX_TABS) {
@@ -2366,6 +2400,7 @@ public class MainActivity extends Activity {
         this.searchOpenCall=opening;
         try{restoreActiveTab(false);}catch(RuntimeException|Error failed){cancelSearchLocation();throw failed;}finally{this.searchOpenCall=null;}
         searchOpenFinished(uri,i);
+        resolveUnifiedSearchJump(uri);
         scheduleSession();
     }
 
@@ -2375,6 +2410,9 @@ public class MainActivity extends Activity {
             return;
         }
         searchOpenFailed(uri,i);
+        if(this.pendingUnifiedJump!=null && uri!=null
+                && uri.toString().equals(this.pendingUnifiedJump.uri))
+            this.pendingUnifiedJump=null;
         updateStatus();
         if (z) {
             showRecentFailure(uri, exc);
@@ -3327,6 +3365,13 @@ public class MainActivity extends Activity {
     private Object searchNoticeToken;
     private SearchLocation searchLocation;
     private SearchLocation searchOpenCall;
+    private PendingUnifiedJump pendingUnifiedJump;
+    private static final class PendingUnifiedJump {
+        final String uri,hash,literal;final int offset;
+        PendingUnifiedJump(String uri,String hash,String literal,int offset) {
+            this.uri=uri;this.hash=hash;this.literal=literal;this.offset=offset;
+        }
+    }
 
     private static final class SearchScreen {
         final long generation; final WorkspaceRootStore.Root root;
