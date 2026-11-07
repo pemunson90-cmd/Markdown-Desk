@@ -153,7 +153,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
-        if(!handleDeepLink(getIntent()) && !openUnifiedTab(getIntent())){
+        if(!handleIncomingInspectorImport(getIntent()) && !handleDeepLink(getIntent()) && !openUnifiedTab(getIntent())){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
                 searchDialog(null);return;
@@ -164,6 +164,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);setIntent(intent);
+        if(handleIncomingInspectorImport(intent))return;
         if(openUnifiedTab(intent))return;
         if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
             intent.removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
@@ -1499,6 +1500,24 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 }
             }).show();
     }
+    /** Explicit user-requested handoff of a granted JSON content URI.
+     * Reuse the process-owned importer, never convert or mutate the original.
+     * A general JSON file unsupported by the Claude indexer fails visibly.
+     */
+    private boolean handleIncomingInspectorImport(Intent intent){
+        if(intent==null||!intent.hasExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI))return false;
+        String advertised=intent.getStringExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI);
+        intent.removeExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI);
+        Uri selected=intent.getData();
+        if(selected==null||advertised==null||!advertised.equals(selected.toString())
+                ||!"content".equalsIgnoreCase(selected.getScheme())){
+            status("Unable to import: original Android document URI is invalid");
+            showHome();return true;
+        }
+        importArchive(selected);
+        return true;
+    }
+
     private boolean handleDeepLink(Intent intent){
         if(intent==null||intent.getData()==null)return false;
         Uri uri=intent.getData();
