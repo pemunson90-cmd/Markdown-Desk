@@ -111,6 +111,15 @@ class GuardTests(unittest.TestCase):
         self.save()
         self.assertEqual('', self.err(require_installed=True))
 
+    def test_candidate_release_pair_comes_from_queue(self):
+        self.assertEqual(('38', 'candidate'), guard.current_release_pair(self.root))
+
+    def test_release_pair_rejects_manifest_drift(self):
+        p = self.root / guard.MANIFEST
+        p.write_text(p.read_text().replace('versionCode="38"', 'versionCode="41"'))
+        with self.assertRaisesRegex(ValueError, 'manifest'):
+            guard.current_release_pair(self.root)
+
     def test_guard_is_read_only(self):
         before = self.queue.read_bytes()
         self.assertEqual('', self.err())
