@@ -173,9 +173,14 @@ final class MarkdownReadingNotes {
     }
 
     private void save(ArchiveJournal.Annotation a,String uri) {
+        save(a,uri,null);
+    }
+
+    private void save(ArchiveJournal.Annotation a,String uri,ArchiveJournal.Annotation expected) {
         worker.execute(()->{
             try {
-                journal.save(a);
+                if(expected==null)journal.save(a);
+                else journal.saveIfCurrent(expected,a);
                 String publication=publish(uri,a.chatTitle);
                 activity.runOnUiThread(()->{
                     if(live(uri)){
@@ -255,14 +260,14 @@ final class MarkdownReadingNotes {
                             ArchiveJournal.Annotation changed=a.copy();
                             changed.note=input.getText().toString();
                             changed.updatedAt=System.currentTimeMillis();
-                            save(changed,uri);
+                            save(changed,uri,a);
                         }).setNegativeButton("Cancel",null).show();
                 }else if(index==3) {
                     new AlertDialog.Builder(activity).setTitle("Delete note?")
                         .setMessage("The original Markdown document will not change.")
                         .setPositiveButton("Delete",(dialog,which)->worker.execute(()->{
                             try{
-                                journal.delete(a.id);
+                                journal.deleteIfCurrent(a);
                                 String publication=publish(uri,a.chatTitle);
                                 activity.runOnUiThread(()->{
                                     if(live(uri)){
