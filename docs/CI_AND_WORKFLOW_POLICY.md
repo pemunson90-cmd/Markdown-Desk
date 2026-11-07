@@ -2,11 +2,13 @@
 
 This document defines **when to run tests** and **what their results establish**, not permission to waive any release or document-safety requirement. See [AGENTS.md](../AGENTS.md), [release gates](RELEASE_GATES.md), [ADR-001](decisions/ADR-001-safe-save-boundary.md), and [live status](STATUS.md).
 
-## Work in Codex first
+## Owner local-first verification rule (2026-11-07)
 
-Use the existing Codex JDK/Android SDK workspace for local builds, targeted tests, critical reviews, commits and Git operations. Run the smallest relevant tests during editing; run the full host suite and unsigned-build/rebuild checks at integration checkpoints. Avoid GitHub API calls or hosted workflows for work that the local checkout handles. Trigger independent hosted verification deliberately—at review-ready PR boundaries, manual requests for a real portability concern, or an enforced repository rule.
+Develop in the environment actually available: ordinary ChatGPT with the connected GitHub repository is an approved source-editing and commit workflow; Codex/WSL is **not a prerequisite**. For executable checks, prefer a clean full-source checkout in a local runtime, or isolated exact Git-blob-verified production sources with honest scope labels when network access separates the shell from the connected GitHub tool. Run the smallest meaningful functional regressions while editing and the full applicable local host/native gates once the entire product integration is ready. Do not equate import scans, synthetic toolchain smokes, or static checks with a full app compile.
 
-**Draft PRs:** the GitHub Actions workflow does not run its hosted job automatically while a PR is draft. Developers must not interpret a skipped CI job as passing tests. Local tests and their logs should remain current. When the PR becomes **ready for review**, the hosted job runs; further ready-for-review branch changes trigger another run. Manual `workflow_dispatch` remains available for justified independent verification. Do not manually dispatch repeatedly to reproduce a known unchanged failure.
+**GitHub Actions are NOT the default verification runner.** For this Unified Workspaces implementation, do **not** dispatch, require, or intentionally trigger hosted GitHub Actions unless the owner explicitly authorizes a concrete exception or a hard external repository protection makes them unavoidable. Use local tests instead, preserving their exact source SHA, command and observed results. A workflow's existence does not authorize running it.
+
+**Draft PRs:** keep the unfinished integration as draft, avoid marking ready for review (which could automatically trigger the existing hosted workflow), and do not confuse skipped hosted jobs with passing tests. Review-ready/hosted CI remains a historical repository capability, not an implementation-stage requirement for this owner-directed release. No routine background or repeated hosted builds.
 
 ## Separate the two safety claims
 
@@ -14,7 +16,7 @@ Use the existing Codex JDK/Android SDK workspace for local builds, targeted test
 
 Application behavior must **durably protect exact original and attempted edit bytes before opening a destructive provider writer**, fail closed when protection cannot commit, retain both versions through partial/zero-byte provider failures, and expose explicit restore to a **new copy**. The source revision/identity, Save As behavior, and recoveries must be correct.
 
-The current production-path host fixtures in `bash verification/run_host_checks.sh` include the real `ProtectionStore`, Android adapter double, save coordinator, constrained-memory probe, save lifecycle, and recovery/mode tests. These are the **required hosted host checks**, with genuine assertions and a nonzero failure exit. They are evidence within their stated host/simulation boundaries, not Android device acceptance. Add further **production-path** tests as implementation grows. A green host run alone never establishes power-loss, SAF-provider, Fold, TalkBack, or upgrade readiness.
+The current production-path host fixtures in `bash verification/run_host_checks.sh` include the real `ProtectionStore`, Android adapter double, save coordinator, constrained-memory probe, save lifecycle, and recovery/mode tests. These are the **required local host checks**, with genuine assertions and a nonzero failure exit. They are evidence within their stated host/simulation boundaries, not Android device acceptance. Add further **production-path** tests as implementation grows. A green host run alone never establishes power-loss, SAF-provider, Fold, TalkBack, or upgrade readiness.
 
 ### B. Low-level generic-provider atomicity hazard (diagnostic, expected to remain RED)
 
