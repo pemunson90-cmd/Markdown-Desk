@@ -34,12 +34,15 @@ final class MarkdownReadingNotes {
     private final Supplier<Uri> source;
     private final Supplier<String> title;
     private final BooleanSupplier previewReady;
+    private final Supplier<Long> revision;
     private final ArchiveJournal journal;
     private String pendingDocument, pendingNote;
 
     MarkdownReadingNotes(MainActivity host,PreviewWebView preview,ExecutorService io,
-            Supplier<Uri> currentUri,Supplier<String> documentTitle,BooleanSupplier currentPreview) {
+            Supplier<Uri> currentUri,Supplier<String> documentTitle,BooleanSupplier currentPreview,
+            Supplier<Long> previewRevision) {
         activity=host;web=preview;worker=io;source=currentUri;title=documentTitle;previewReady=currentPreview;
+        revision=previewRevision;
         journal=new ArchiveJournal(new File(host.getFilesDir(),"claude-archive/annotations-v2.journal"));
     }
 
@@ -110,8 +113,9 @@ final class MarkdownReadingNotes {
         final String uri=document();
         if(uri==null){message("Save this document to an Android file before annotating.");return;}
         if(!previewReady.getAsBoolean()){message("Open the document in Reading mode first.");return;}
+        final long atRevision=revision.get();
         web.evaluateJavascript(MarkdownNoteScript.capture(),raw->{
-            if(!live(uri)||!previewReady.getAsBoolean())return;
+            if(!live(uri)||!previewReady.getAsBoolean()||revision.get()!=atRevision)return;
             try {
                 Object value=new JSONTokener(raw==null?"null":raw).nextValue();
                 JSONObject selected=value instanceof JSONObject?(JSONObject)value:
@@ -119,20 +123,20 @@ final class MarkdownReadingNotes {
                 if(selected==null||selected.optString("quote","").trim().isEmpty()){
                     message("Select a passage in Reading mode first.");return;
                 }
-                showCreation(uri,selected);
+                showCreation(uri,selected,atRevision);
             }catch(Exception invalid){message("Cannot verify this passage selection.");}
         });
     }
 
-    private void showCreation(String uri,JSONObject selection) {
+    private void showCreation(String uri,JSONObject selection,long revisionAtSelection) {
         String[] names={"Highlight","Note","Save source link","Cross-link","External link","Bookmark"};
         String[] kinds={"highlight","note","source_link","cross_link","external_link","bookmark"};
         new AlertDialog.Builder(activity).setTitle("Annotate selected passage")
-            .setItems(names,(d,which)->showDetails(uri,selection,kinds[which]))
+            .setItems(names,(d,which)->showDetails(uri,selection,kinds[which],revisionAtSelection))
             .setNegativeButton("Cancel",null).show();
     }
 
-    private void showDetails(String uri,JSONObject selection,String kind) {
+    private void showDetails(String uri,JSONObject selection,String kind,long revisionAtSelection) {
         LinearLayout form=new LinearLayout(activity);form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(24,16,24,8);
         TextView quote=new TextView(activity);
@@ -149,7 +153,9 @@ final class MarkdownReadingNotes {
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Save "+kind.replace('_',' '))
                 .setView(scroll).setPositiveButton("Save",null).setNegativeButton("Cancel",null).create();
         dialog.setOnShowListener(shown->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
-            if(!live(uri)){message("Document changed; reselect passage.");return;}
+            if(!live(uri)||!previewReady.getAsBoolean()||revision.get()!=revisionAtSelection){
+                message("Document changed; reselect passage.");return;
+            }
             String destination=target.getText().toString().trim();
             if(("cross_link".equals(kind)||"external_link".equals(kind))&&destination.isEmpty()){
                 target.setError("Destination required");return;
@@ -170,7 +176,7 @@ final class MarkdownReadingNotes {
         worker.execute(()->{
             try {
                 journal.save(a);
-                String publication=publish(uri,title.get());
+                String publication=publish(uri,a.chatTitle);
                 activity.runOnUiThread(()->{
                     if(live(uri)){
                         message(publication);
@@ -235,7 +241,6 @@ final class MarkdownReadingNotes {
               (d,index)->{
                 if(index==0) {
                     if(!previewReady.getAsBoolean()){message("Open Reading mode to jump to a note.");return;}
-                    decorate(uri,previewReady);
                     requestNote(uri,a.id);
                 }else if(index==1) {
                     ClipboardManager clipboard=(ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE);
