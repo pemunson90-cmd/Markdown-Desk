@@ -51,7 +51,7 @@ public final class UnifiedTabs {
      * oversized/authority-free identities are never persisted or reopened.
      * This validates identity, not a substitute for an actual Android read grant.
      */
-    private static boolean validInspectorSource(Uri uri){
+    static boolean validInspectorSource(Uri uri){
         if(uri==null)return false;
         String raw=uri.toString();
         return raw.length()<=8192
