@@ -60,8 +60,10 @@ UTF8 BOM is omitted from matching; hash covers all original bytes. KMP allows ov
 and buffer-crossing matches. Snippet cuts preserve surrogate pairs.
 
 State precedence is CANCELLED, then FAILED, then LIMITED, then COMPLETE. Enum reasons
-preserve mixed failures. Nontext MIME/non-.md/.markdown/.txt rows are outside explicit
-Markdown/text scope. Repeated opaque IDs are graph-deduplicated and recorded CYCLE;
+preserve mixed failures. Search candidates include text/*, application/json, and
+.md/.markdown/.txt/.json filenames. JSON files retain their source type and open
+in JSON Inspector; raw-text offset does not imply a JSON-node exact jump. Other
+binary types are excluded. Repeated opaque IDs are graph-deduplicated and recorded CYCLE;
 partial reader listing remains incomplete regardless. Root/child authority checks
 and actual provider permissions remain authoritative; no writes/grant mutation.
 

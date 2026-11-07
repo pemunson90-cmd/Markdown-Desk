@@ -86,7 +86,7 @@ public final class UnifiedSearchActivity extends Activity {
         noteTag=field("Exact tag (optional)");body.addView(noteTag);
         noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations"});
         body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
-        body.addView(text("Authorized Markdown folder (for folder or All searches)",13));
+        body.addView(text("Authorized Markdown / JSON folder (for folder or All searches)",13));
         folder=choose(new String[]{"No saved folder selected"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(button("Search",v->search()));
         body.addView(button("Stop search",v->cancel()));
@@ -185,7 +185,7 @@ public final class UnifiedSearchActivity extends Activity {
     private void searchFolder(int token,String term){
         int selected=folder.getSelectedItemPosition()-1;
         if(selected<0||selected>=roots.size()){
-            status("Folder scope requires a saved, authorized Markdown folder. Choose one in Markdown Desk Files first.");return;
+            status("Folder scope requires a saved, authorized Markdown/JSON folder. Choose one in Markdown Desk Files first.");return;
         }
         WorkspaceRootStore.RootState root=roots.get(selected);
         if(root.access!=WorkspaceRootStore.Access.CURRENT){status("Folder access is no longer granted. Reauthorize it from Files.");return;}
@@ -199,13 +199,29 @@ public final class UnifiedSearchActivity extends Activity {
                     status("Markdown folder: "+r.hits.size()+" matching files · "+r.state+
                             (r.reasons.isEmpty()?"":" · limits: "+r.reasons));
                     for(WorkspaceLiteralSearch.FileHit file:r.hits){
-                        for(WorkspaceLiteralSearch.Match match:file.matches)
-                            add("MD · "+file.displayName+" · line "+match.line+"\n"+match.snippet,
-                                v->openMarkdownHit(file,match,term));
+                        for(WorkspaceLiteralSearch.Match match:file.matches){
+                            String label=(file.json?"JSON · ":"MD · ")+file.displayName+
+                                    " · line "+match.line+"\n"+match.snippet+
+                                    (file.json?"\nOpen JSON Inspector (line jump unavailable)":"");
+                            add(label,v->{
+                                if(file.json)openJsonHit(file);
+                                else openMarkdownHit(file,match,term);
+                            });
+                        }
                     }
                 });
             if(folderJob==null)status("Another protected folder search is already in progress.");
         }catch(Exception e){status("Folder search unavailable: "+e.getMessage());}
+    }
+    /** JSON files have a separate structured source reader. The literal scan
+     * does not mint a JSON node/path identity, so do not claim an exact jump.
+     */
+    private void openJsonHit(WorkspaceLiteralSearch.FileHit file){
+        if(file==null||file.uri==null)return;
+        Intent intent=new Intent(Intent.ACTION_VIEW,file.uri)
+                .setClass(this,JsonExplorerActivity.class)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        try{startActivity(intent);}catch(Exception failed){error("Cannot open JSON Inspector",failed);}
     }
     private void openMarkdownHit(WorkspaceLiteralSearch.FileHit file,
                                  WorkspaceLiteralSearch.Match match,String literal){

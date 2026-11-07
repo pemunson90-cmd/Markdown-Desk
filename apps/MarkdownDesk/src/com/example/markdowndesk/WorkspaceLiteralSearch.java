@@ -33,8 +33,8 @@ final class WorkspaceLiteralSearch {
         private Match(Pending p){offsetUtf16=p.offset;lengthUtf16=p.queryLength;line=p.line;int n=p.used;if(n>0&&Character.isHighSurrogate(p.text[n-1]))n--;snippet=new String(p.text,0,n);}
     }
     static final class FileHit {
-        final Uri uri;final String documentId,displayName,hash;final long byteLength;final List<Match> matches;
-        private FileHit(Work file,String hash,long bytes,List<Match> matches){uri=file.uri;documentId=file.id;displayName=file.label;this.hash=hash;byteLength=bytes;this.matches=Collections.unmodifiableList(matches);}
+        final Uri uri;final String documentId,displayName,hash;final long byteLength;final boolean json;final List<Match> matches;
+        private FileHit(Work file,String hash,long bytes,List<Match> matches){uri=file.uri;documentId=file.id;displayName=file.label;this.hash=hash;byteLength=bytes;json=file.json;this.matches=Collections.unmodifiableList(matches);}
     }
     static final class Diagnostic {
         final Uri uri;final Reason reason;
@@ -66,8 +66,8 @@ final class WorkspaceLiteralSearch {
         CloseDisposition closeDisposition(){return unresolved==null&&cursorReceipt==null?CloseDisposition.CLOSED:CloseDisposition.UNCERTAIN;}
     }
     private static final class Work {
-        final WorkspaceTreeReader.Directory directory;final Uri uri;final String id,label;final int depth;
-        Work(WorkspaceTreeReader.Directory d,Uri uri,String id,String label,int depth){directory=d;this.uri=uri;this.id=id;this.label=label;this.depth=depth;}
+        final WorkspaceTreeReader.Directory directory;final Uri uri;final String id,label;final int depth;final boolean json;
+        Work(WorkspaceTreeReader.Directory d,Uri uri,String id,String label,int depth,boolean json){directory=d;this.uri=uri;this.id=id;this.label=label;this.depth=depth;this.json=json;}
     }
     private static final class Stop extends IOException {}
     private static final class Oversized extends IOException {}
@@ -94,7 +94,7 @@ final class WorkspaceLiteralSearch {
                 signal.throwIfCanceled();charge(query.length());String id=android.provider.DocumentsContract.getTreeDocumentId(engine.tree);
                 Uri root=android.provider.DocumentsContract.buildDocumentUriUsingTree(engine.tree,id);
                 charge(root.toString().length()+2L*id.length());directoryIds.add(id);admittedDirectories=1;
-                queue.add(new Work(engine.reader.root(),root,id,id,1));
+                queue.add(new Work(engine.reader.root(),root,id,id,1,false));
                 while(!queue.isEmpty()&&!stop){signal.throwIfCanceled();Work work=queue.remove();if(work.directory!=null)directory(work);else file(work);}
             }catch(OperationCanceledException failure){cancelled=true;}
             catch(Stop failure){/* Resource refusal already recorded, no uncharged retention. */}
@@ -123,14 +123,16 @@ final class WorkspaceLiteralSearch {
                     if(work.depth>=cap.depth){limit(Reason.DEPTH);continue;}
                     if(admittedDirectories>=cap.directories){limit(Reason.DIRECTORIES);continue;}
                     charge(entry.uri.toString().length()+2L*entry.documentId.length()+entry.displayName.length());
-                    directoryIds.add(entry.documentId);admittedDirectories++;queue.add(new Work(entry.directory,entry.uri,entry.documentId,entry.displayName,work.depth+1));
+                    directoryIds.add(entry.documentId);admittedDirectories++;queue.add(new Work(entry.directory,entry.uri,entry.documentId,entry.displayName,work.depth+1,false));
                 }else {
                     String name=entry.displayName.toLowerCase(Locale.ROOT);
-                    if(!entry.mimeType.startsWith("text/")&&!name.endsWith(".md")&&!name.endsWith(".markdown")&&!name.endsWith(".txt")){skippedTypes++;continue;}
+                    boolean json="application/json".equalsIgnoreCase(entry.mimeType)||name.endsWith(".json");
+                    if(!json&&!entry.mimeType.startsWith("text/")&&!name.endsWith(".md")
+                            &&!name.endsWith(".markdown")&&!name.endsWith(".txt")){skippedTypes++;continue;}
                     if(admittedFiles>=cap.files){limit(Reason.FILES);continue;}admittedFiles++;
                     if(fileIds.contains(entry.documentId)){reasons.add(Reason.CYCLE);continue;}
                     charge(entry.uri.toString().length()+2L*entry.documentId.length()+entry.displayName.length());
-                    fileIds.add(entry.documentId);queue.add(new Work(null,entry.uri,entry.documentId,entry.displayName,work.depth));
+                    fileIds.add(entry.documentId);queue.add(new Work(null,entry.uri,entry.documentId,entry.displayName,work.depth,json));
                 }
             }
             // Page and its entries have no retained owner after conversion above.

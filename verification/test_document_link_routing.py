@@ -219,6 +219,22 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('if(!awaitingLowSurrogate && Character.isLowSurrogate(ch))', parser)
         self.assertIn('if(awaitingLowSurrogate)throw error(', parser)
 
+    def test_json_folder_search_is_bounded_and_opens_inspector_without_fake_jump(self):
+        source = (JAVA / "WorkspaceLiteralSearch.java").read_text()
+        ui = (JAVA / "UnifiedSearchActivity.java").read_text()
+        self.assertIn('boolean json="application/json".equalsIgnoreCase(entry.mimeType)||name.endsWith(".json")', source)
+        self.assertIn('json=file.json', source)
+        self.assertIn('if(file.json)openJsonHit(file)', ui)
+        self.assertIn('Open JSON Inspector (line jump unavailable)', ui)
+        json_route = ui.split("private void openJsonHit(",1)[1].split(
+            "private void openMarkdownHit(",1)[0]
+        self.assertIn('.setClass(this,JsonExplorerActivity.class)', json_route)
+        self.assertIn('new Intent(Intent.ACTION_VIEW,file.uri)',json_route)
+        self.assertNotIn('UnifiedSearchJump.EXTRA_OFFSET',json_route)
+        self.assertNotIn('takePersistableUriPermission',json_route)
+        self.assertIn('8L<<20',source)
+        self.assertIn('16L<<20',source)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)

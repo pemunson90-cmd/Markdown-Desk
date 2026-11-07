@@ -6,7 +6,7 @@ public enum UnifiedSearchScope {
     ALL("All accessible sources",true,true,true),
     ARCHIVE("Indexed conversations",true,false,false),
     NOTES("Saved notes, highlights and links",false,true,false),
-    FOLDERS("Authorized Markdown folder",false,false,true);
+    FOLDERS("Authorized Markdown / JSON folder",false,false,true);
     public final String title;
     private final boolean archive,notes,folder;
     UnifiedSearchScope(String title,boolean archive,boolean notes,boolean folder){
