@@ -1,3 +1,8 @@
+<!-- historical-status-redirect: 2026-11-06 -->
+> **Historical status archive, not the active work queue.** For current Unified Workspaces branch ownership, batch progress, blockers, and PR #37 reconciliation, use [the authoritative integration queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md). The original status entries below are preserved verbatim for provenance; their "current", "this branch", and "next" claims refer to the historical snapshots that produced them. Do not execute a stale handoff as a task order.
+
+---
+
 # Current project status
 
 ## 2026-10-30: Downloads readability follow-up, code26 signed candidate (THIS BRANCH)
