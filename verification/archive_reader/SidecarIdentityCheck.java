@@ -51,6 +51,26 @@ public final class SidecarIdentityCheck {
         String merged=ArchiveMarkdownIndexes.replaceGeneratedRegion(withProse,existing);
         check(merged.startsWith("# Personal notes") && merged.endsWith("manual tail\n"),
                 "user prose must survive generated-region updates");
-        System.out.println("PASS: sidecar source ownership, short/long IDs, legacy fail-closed, prose");
+        try{
+            ArchiveMarkdownIndexes.replaceGeneratedRegion(
+                    existing+"\n"+ArchiveMarkdownIndexes.BEGIN+"\n",existing);
+            throw new AssertionError("duplicate existing BEGIN accepted");
+        }catch(IllegalArgumentException expected){}
+        try{
+            ArchiveMarkdownIndexes.replaceGeneratedRegion(
+                    existing+"\n"+ArchiveMarkdownIndexes.END+"\n",existing);
+            throw new AssertionError("duplicate existing END accepted");
+        }catch(IllegalArgumentException expected){}
+        try{
+            ArchiveMarkdownIndexes.replaceGeneratedRegion(existing,
+                    existing+"\n"+ArchiveMarkdownIndexes.BEGIN+"\n");
+            throw new AssertionError("duplicate replacement BEGIN accepted");
+        }catch(IllegalArgumentException expected){}
+        try{
+            ArchiveMarkdownIndexes.replaceGeneratedRegion(existing,
+                    existing+"\n"+ArchiveMarkdownIndexes.END+"\n");
+            throw new AssertionError("duplicate replacement END accepted");
+        }catch(IllegalArgumentException expected){}
+        System.out.println("PASS: sidecar source ownership, marker uniqueness, legacy fail-closed, prose");
     }
 }
