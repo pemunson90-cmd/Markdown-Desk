@@ -1006,8 +1006,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return null;
     }
     private void saveAnnotation(ArchiveJournal.Annotation annotation){
+        saveAnnotation(annotation,null);
+    }
+    private void saveAnnotation(ArchiveJournal.Annotation annotation,ArchiveJournal.Annotation expected){
         io.execute(()->{
-            try{ journal.save(annotation); }
+            try{
+                if(expected==null)journal.save(annotation);
+                else journal.saveIfCurrent(expected,annotation);
+            }
             catch(Exception error){runOnUiThread(()->fail("Annotation was not saved",error));return;}
             if(annotation.quote!=null&&!annotation.quote.isEmpty()){
                 String script=ArchiveHighlightScript.add(
@@ -1089,13 +1095,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     .setPositiveButton("Save",(x,which)->{
                         ArchiveJournal.Annotation changed=a.copy();
                         changed.note=input.getText().toString();changed.updatedAt=System.currentTimeMillis();
-                        saveAnnotation(changed);
+                        saveAnnotation(changed,a);
                     }).setNegativeButton("Cancel",null).show();
             }else if(index==3){
                 new AlertDialog.Builder(this).setTitle("Delete this annotation?")
                     .setMessage("The original conversation is unaffected.")
                     .setPositiveButton("Delete",(x,w)->io.execute(()->{
-                        try{journal.delete(a.id);publishNotes(a.chatTitle,a.archiveId,a.chatId);
+                        try{journal.deleteIfCurrent(a);publishNotes(a.chatTitle,a.archiveId,a.chatId);
                             runOnUiThread(()->showNotebook(false));}
                         catch(Exception e){runOnUiThread(()->fail("Could not delete annotation",e));}
                     })).setNegativeButton("Cancel",null).show();
