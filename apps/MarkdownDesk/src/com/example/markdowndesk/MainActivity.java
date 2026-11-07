@@ -2158,6 +2158,24 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** A document link is a request to use an already authorized Android source.
+     * The link itself never supplies or creates a ContentProvider URI grant.
+     */
+    private void openMarkdownDocumentLink(Uri link) {
+        String source=link==null?null:
+                com.example.markdowndesk.workspace.WorkspaceDeepLinks.documentTarget(link.toString());
+        if(source==null){
+            showError("This Markdown document link is invalid or unsupported.");
+            return;
+        }
+        if(link.getQueryParameter("note")!=null)
+            Toast.makeText(this,"The document can open, but its note anchor is not available yet.",
+                    Toast.LENGTH_LONG).show();
+        // Existing protected read path checks the provider grant and handles revoked URIs.
+        // Do not synthesize FLAG_GRANT_READ_URI_PERMISSION from an authored link.
+        openDocument(Uri.parse(source),0,false,true);
+    }
+
     private void handleIntent(Intent intent) {
         if (intent == null) {
             return;
@@ -2171,6 +2189,12 @@ public class MainActivity extends Activity {
             return;
         }
         String action = intent.getAction();
+        if (Intent.ACTION_VIEW.equals(action) && intent.getData()!=null &&
+                "markdowndesk".equalsIgnoreCase(intent.getData().getScheme()) &&
+                "document".equalsIgnoreCase(intent.getData().getHost())) {
+            openMarkdownDocumentLink(intent.getData());
+            return;
+        }
         if ("android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action)) {
             if (intent.getData() != null) {
                 takePermission(intent.getData(), intent.getFlags());
@@ -6051,6 +6075,11 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public boolean handlePreviewUri(Uri uri) {
+        if (uri != null && com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                .isDocumentLink(uri.toString())) {
+            openMarkdownDocumentLink(uri);
+            return true;
+        }
         if (uri != null && com.example.markdowndesk.workspace.WorkspaceDeepLinks
                 .isArchiveLink(uri.toString())) {
             // Read-mode Markdown links can navigate into exact Claude passages.
