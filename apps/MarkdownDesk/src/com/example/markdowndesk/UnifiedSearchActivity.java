@@ -129,13 +129,16 @@ public final class UnifiedSearchActivity extends Activity {
         root=stack();root.setFitsSystemWindows(true);root.setBackgroundColor(palette.canvas);
         LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.HORIZONTAL);
         header.setBackgroundColor(palette.surface);
-        header.addView(button("‹",v->finish()),new LinearLayout.LayoutParams(dp(52),dp(48)));
+        Button back=button("‹",v->finish());
+        back.setContentDescription("Back to previous workspace");
+        header.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));
         header.addView(text("Search all your workspaces",17),new LinearLayout.LayoutParams(0,-2,1f));
         root.addView(header);
         ScrollView page=new ScrollView(this);LinearLayout body=stack();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));page.addView(body);
         query=field("Find a phrase, title, note, or link");body.addView(query);
-        scope=choose(UnifiedSearchScope.labels());body.addView(scope,new LinearLayout.LayoutParams(-1,dp(48)));
+        scope=choose(UnifiedSearchScope.labels());scope.setContentDescription("Search sources");
+        body.addView(scope,new LinearLayout.LayoutParams(-1,dp(48)));
         speaker=field("Speaker (optional)");body.addView(speaker);
         fromDate=field("From YYYY-MM-DD (optional)");body.addView(fromDate);
         toDate=field("Through YYYY-MM-DD (optional)");body.addView(toDate);
@@ -143,12 +146,16 @@ public final class UnifiedSearchActivity extends Activity {
         body.addView(text("Saved-note filters (for Notes or All searches)",13));
         noteKind=choose(new String[]{"Any kind","Note","Highlight","Bookmark",
                 "Source link","Cross-link","External link"});
+        noteKind.setContentDescription("Saved annotation kind");
         body.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
         noteTag=field("Exact tag (optional)");body.addView(noteTag);
         noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations"});
+        noteSource.setContentDescription("Saved annotation origin");
         body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
-        folder=choose(new String[]{"All granted saved folders"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
+        folder=choose(new String[]{"All granted saved folders"});
+        folder.setContentDescription("Authorized document folder scope");
+        body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(button("Search",v->search()));
         body.addView(button("Stop search",v->cancel()));
         results=stack();body.addView(results);
