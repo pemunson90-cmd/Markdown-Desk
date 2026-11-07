@@ -37,8 +37,10 @@ public final class UnifiedSearchActivity extends Activity {
     private WorkspaceSearchLoader.Ticket folderJob;
     private UiTheme.Palette palette;
     private LinearLayout root,results;
-    private EditText query,speaker,fromDate,toDate;
-    private Spinner scope,folder;
+    private EditText query,speaker,fromDate,toDate,noteTag;
+    private Spinner scope,folder,noteKind,noteSource;
+    private static final String[] NOTE_TYPES={"","note","highlight","bookmark","source_link","cross_link","external_link"};
+    private static final String[] NOTE_SOURCES={"","markdown","archive"};
     private List<WorkspaceRootStore.RootState> roots=new ArrayList<>();
     private int generation;
 
@@ -76,6 +78,13 @@ public final class UnifiedSearchActivity extends Activity {
         fromDate=field("From YYYY-MM-DD (optional)");body.addView(fromDate);
         toDate=field("Through YYYY-MM-DD (optional)");body.addView(toDate);
         body.addView(text("Speaker and date filters apply to indexed conversation messages only.",12));
+        body.addView(text("Saved-note filters (for Notes or All searches)",13));
+        noteKind=choose(new String[]{"Any kind","Note","Highlight","Bookmark",
+                "Source link","Cross-link","External link"});
+        body.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
+        noteTag=field("Exact tag (optional)");body.addView(noteTag);
+        noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations"});
+        body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(text("Authorized Markdown folder (for folder or All searches)",13));
         folder=choose(new String[]{"No saved folder selected"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(button("Search",v->search()));
@@ -122,18 +131,21 @@ public final class UnifiedSearchActivity extends Activity {
     private void searchIndex(int token,String term,UnifiedSearchScope selected){
         final String sender=speaker.getText().toString().trim();
         final String from=fromDate.getText().toString().trim(),to=toDate.getText().toString().trim();
+        final String type=NOTE_TYPES[noteKind.getSelectedItemPosition()];
+        final String tag=noteTag.getText().toString().trim();
+        final String origin=NOTE_SOURCES[noteSource.getSelectedItemPosition()];
         io.execute(()->{
             try{
                 List<ArchiveDatabase.Hit> hits=selected.includesArchive()?database.search(term,null,sender,from,to,100,0):new ArrayList<>();
-                List<ArchiveJournal.Annotation> notes=selected.includesNotes()?ArchiveAnnotationSearch.page(
-                    new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,0):new ArrayList<>();
+                List<ArchiveJournal.Annotation> notes=selected.includesNotes()?ArchiveAnnotationSearch.pageFiltered(
+                    new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,0,type,tag,origin):new ArrayList<>();
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
                     for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h.chatId,h.messageId));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
-                    if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100);});
+                    if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100,type,tag,origin);});
                 });
             }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Archive search unavailable",failure);});}
         });
@@ -153,17 +165,17 @@ public final class UnifiedSearchActivity extends Activity {
             }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Cannot load more message results",failure);});}
         });
     }
-    private void moreNotes(int token,String term,int offset){
+    private void moreNotes(int token,String term,int offset,String type,String tag,String origin){
         if(token!=generation)return;
         io.execute(()->{
             try{
-                List<ArchiveJournal.Annotation> page=ArchiveAnnotationSearch.page(
-                    new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,offset);
+                List<ArchiveJournal.Annotation> page=ArchiveAnnotationSearch.pageFiltered(
+                    new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,offset,type,tag,origin);
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     for(ArchiveJournal.Annotation a:page)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,
                         v->openAnnotationHit(a));
-                    if(page.size()==100)add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,offset+100);});
+                    if(page.size()==100)add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,offset+100,type,tag,origin);});
                     if(page.isEmpty())status("All saved-note matches shown");
                 });
             }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Cannot load more note results",failure);});}
