@@ -49,6 +49,23 @@ class ArchiveOutputIntegration(unittest.TestCase):
         self.assertIn("return completed",r)
         self.assertIn("ExportReceiptCheck.java",self.runner)
 
+    def test_full_transcript_print_reuses_complete_generation_verified_stream(self):
+        s=self.activity
+        self.assertIn('action("Print transcript",v->printFullTranscript())',s)
+        self.assertIn('private void streamTranscript(ArchiveDatabase.Conversation conversation,OutputStream out)',s)
+        self.assertIn('private void printFullTranscript()',s)
+        self.assertGreaterEqual(s.count('streamTranscript('),3)
+        self.assertIn('database.exportGeneration(conversation)',s)
+        self.assertIn('database.requireExportGeneration(conversation.archiveId,generation)',s)
+        self.assertIn('ArchiveTranscriptIntegrity.complete(conversation.messages,index)',s)
+        self.assertIn('database.textChunkVerified(m.id,part,count)',s)
+        self.assertIn('if(length>remaining)',s)
+        self.assertIn('remaining=DocumentIO.MAX_DOCUMENT_BYTES',s)
+        self.assertIn('Conversation exceeds 8 MiB print budget. Export full PDF instead.',s)
+        self.assertIn('DocumentPrint.start(this',s)
+        self.assertIn('new DocumentPrint.Capture(markdown,selected.name',s)
+        self.assertIn('sourceGeneration!=generation||active==null',s)
+
     def test_quote_print_uses_existing_protected_engine(self):
         s=self.activity
         self.assertIn('action("Print quote",v->printSelectedPassage())',s)
