@@ -43,3 +43,9 @@ No hosted workflow contains private keystores or signing passwords. Run a signed
 ## Acceptance boundaries
 
 Host simulation: runnable now. Emulator/device/actual provider, process death and Fold: separately evidenced. Release: strictly greater versionCode, canonical signature, non-destructive migration, and actual user device acceptance. No new installable APK becomes a release merely because a host workflow is green.
+
+## Deliberate JSON/Archive unsigned packaging (Unified Workspaces)
+
+The JSON acceptance workflow `.github/workflows/json-explorer-unsigned.yml` runs **only when manually dispatched**, not on ordinary push/checkpoint updates. It retains read-only GitHub permissions, exact source checkout, compile, scoped tests, per-branch concurrency cancellation and short artifact retention; unsigned artifacts are labeled with the **exact workflow commit SHA**, not an obsolete code32 release identifier. Do not dispatch merely to obtain a green badge or to deliver an unfinished APK. The separate review-ready pull-request host-regression workflow retains its current behavior; `skipped` is never `passed`.
+
+The **single current integration and batch handoff** is [the authoritative Unified Workspaces queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md). Its gates override stale `STATUS.md`, old Professional M0–M7 auto-resume text, or PR #37's old `CURRENT_SOURCE.json` proposal for current status. No duplicate status authority. The approved cross-installation *private-state export/import* exclusion remains intact; local history/document safety is still mandatory. Actual hosted runs remain optional only when a concrete independent verification need justifies them; no signing keys or private files are accepted in CI.
