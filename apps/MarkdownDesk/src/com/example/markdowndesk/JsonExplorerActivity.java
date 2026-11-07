@@ -29,6 +29,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -188,12 +189,13 @@ public final class JsonExplorerActivity extends Activity {
 
     @Override protected void onNewIntent(Intent intent){
         saveInspectorPosition();
-        super.onNewIntent(intent);setIntent(intent);
+        super.onNewIntent(intent);
         Uri next=intent==null?null:intent.getData();
         if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
         if(!UnifiedTabs.openInspector(this,next)){
             showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
         }
+        setIntent(intent); // Never replace the current intent when tab admission failed.
         if(document==null||!document.equals(next)){
             document=next;page=null;restoreInspectorPosition(next);loadPage();
         }
@@ -451,7 +453,7 @@ public final class JsonExplorerActivity extends Activity {
                 .setPositiveButton("OK",null).show();
     }
 
-    /** Bounded raw-offset proof. JSON-path resolution remains a separate parser task. */
+    /** Bounded raw-offset proof; exact JSON nodes are available only for strict paths. */
     private void showIncomingRawHit(Intent launch){
         if(launch==null||document==null||!launch.hasExtra(UnifiedSearchJump.EXTRA_URI))return;
         final String expectedUri=launch.getStringExtra(UnifiedSearchJump.EXTRA_URI);
@@ -472,9 +474,15 @@ public final class JsonExplorerActivity extends Activity {
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     TextView passage=text("",14);passage.setText(highlighted);passage.setTextIsSelectable(true);
                     ScrollView scroll=new ScrollView(this);scroll.addView(passage);
-                    new AlertDialog.Builder(this).setTitle("Verified raw JSON · line "+found.line)
-                        .setView(scroll).setPositiveButton("Inspect JSON",null)
-                        .setNeutralButton("Copy exact match",(dialog,which)->copy(found.quote)).show();
+                    AlertDialog.Builder dialog=new AlertDialog.Builder(this)
+                        .setTitle("Verified raw JSON · line "+found.line)
+                        .setView(scroll)
+                        .setNeutralButton("Copy exact match",(ignored,which)->copy(found.quote));
+                    if(found.node!=null)
+                        dialog.setPositiveButton("Jump to exact JSON node",
+                            (ignored,which)->jumpToExactJsonNode(current,expectedUri,hash,literal,at));
+                    else dialog.setPositiveButton("Inspect raw passage",null);
+                    dialog.show();
                 });
             }catch(Exception failed){runOnUiThread(()->{
                 if(token!=revision||request!=rawHitRequest||document==null||!current.equals(document)||isFinishing()||isDestroyed())return;
@@ -482,6 +490,60 @@ public final class JsonExplorerActivity extends Activity {
                 showFailure("Raw JSON match unavailable: "+safeError(failed));
             });}
         });
+    }
+
+    /** Recheck hash and offset at click time, then parse the SAME verified bytes.
+     * An intervening provider edit must not take the user to an unrelated node.
+     */
+    private void jumpToExactJsonNode(Uri current,String source,String hash,String literal,int at){
+        final int expectedRevision=revision;
+        final long expectedRequest=rawHitRequest;
+        worker.execute(()->{
+            try(InputStream input=getContentResolver().openInputStream(current)){
+                JsonRawSearchHit.Hit verified=JsonRawSearchHit.verifyWithSnapshot(
+                        input,source,current.toString(),hash,literal,at);
+                if(verified.node==null||verified.snapshot==null)
+                    throw new IOException("No unambiguous JSON node; inspect the raw passage instead.");
+                ArrayList<JsonExplorerEngine.Step> target=new ArrayList<>();
+                for(JsonNodeLocator.Segment segment:verified.node.path)
+                    target.add(segment.key!=null?JsonExplorerEngine.Step.field(segment.key):
+                            JsonExplorerEngine.Step.element(segment.index));
+                JsonExplorerEngine.Page next=JsonExplorerEngine.scan(
+                        ()->new ByteArrayInputStream(verified.snapshot),target,0);
+                runOnUiThread(()->{
+                    if(expectedRevision!=revision||expectedRequest!=rawHitRequest||document==null
+                            ||!current.equals(document)||isFinishing()||isDestroyed())return;
+                    saveInspectorPosition();
+                    path.clear();path.addAll(target);offset=0;pendingScrollY=0;
+                    filter.setText("");
+                    int token=++revision;
+                    displayPage(next,target,0,token);
+                    saveInspectorPosition();
+                });
+            }catch(Exception changed){
+                runOnUiThread(()->{
+                    if(expectedRevision==revision&&expectedRequest==rawHitRequest
+                            &&document!=null&&current.equals(document)&&!isFinishing()&&!isDestroyed())
+                        showFailure("Exact JSON node unavailable: "+safeError(changed));
+                });
+            }
+        });
+    }
+
+    private void displayPage(JsonExplorerEngine.Page next,
+                             ArrayList<JsonExplorerEngine.Step> target,int start,int token){
+        page=next;
+        location.setText(JsonExplorerEngine.jsonPath(target));
+        heading.setText(next.type+" Explorer");
+        status.setText(next.type+" · "+(next.type.equals("Value")?"read only":
+                "entries "+(start+1)+"–"+(start+next.entries.size())
+                    +(next.hasMore?" · more pages available":""))
+                +" · filter searches this page");
+        renderEntries();
+        if(pendingScrollY>0){
+            final int y=pendingScrollY;pendingScrollY=0;
+            entryScroll.post(()->{if(token==revision)entryScroll.scrollTo(0,y);});
+        }
     }
 
     private void loadPage() {
@@ -500,17 +562,7 @@ public final class JsonExplorerActivity extends Activity {
                         ()->getContentResolver().openInputStream(current),target,start);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||token!=revision)return;
-                    page=next;
-                    heading.setText(next.type+" Explorer");
-                    status.setText(next.type+" · "+(next.type.equals("Value") ? "read only"
-                            : "entries "+(start+1)+"–"+(start+next.entries.size())
-                              +(next.hasMore?" · more pages available":""))
-                            +" · filter searches this page");
-                    renderEntries();
-                    if(pendingScrollY>0){
-                        final int y=pendingScrollY;pendingScrollY=0;
-                        entryScroll.post(()->{if(token==revision)entryScroll.scrollTo(0,y);});
-                    }
+                    displayPage(next,target,start,token);
                 });
             }catch(Exception error){
                 runOnUiThread(()->{
