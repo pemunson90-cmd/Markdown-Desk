@@ -43,6 +43,14 @@ public final class ExportReceiptCheck {
             public int read(byte[] data,int off,int len){return 0;}
         };
         reject(()->ExportReceipt.verify(stalled,receipt),"stalled readback");
-        System.out.println("PASS: closed SAF stream receipt; exact SHA-256/length, failed and changed readback");
+        java.io.OutputStream refusedClose=new java.io.OutputStream(){
+            public void write(int v){}
+            public void close()throws IOException{throw new IOException("provider close failed");}
+        };
+        ExportReceipt.Sink failedClose=new ExportReceipt.Sink(refusedClose);
+        failedClose.write(65);
+        reject(failedClose::close,"provider close exception must fail publication");
+        reject(failedClose::receipt,"a thrown close must never produce a verified receipt");
+        System.out.println("PASS: closed SAF stream receipt; exact SHA-256/length, failed close/readback");
     }
 }
