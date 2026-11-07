@@ -210,6 +210,25 @@ final class MarkdownReadingNotes {
         }
     }
 
+    /** Rebuild indexes from the durable shared journal after a folder grant.
+     * The original Markdown documents and archive JSON are never opened for writing.
+     */
+    void syncIndexes() {
+        worker.execute(()->{
+            try {
+                ArchiveJournal.ReadResult data=journal.load();
+                if(data.truncatedTail)throw new IllegalStateException("Interrupted journal record; existing indexes preserved");
+                String folder=activity.getSharedPreferences("markdown_desk",Context.MODE_PRIVATE)
+                        .getString("archive_notes_tree",null);
+                if(folder==null||folder.isEmpty())throw new IllegalStateException("Choose a notes folder first");
+                new ArchiveSidecarPublisher(activity,Uri.parse(folder)).publishAll(data.annotations);
+                activity.runOnUiThread(()->message("Saved Markdown note indexes synchronized."));
+            }catch(Exception failure){
+                activity.runOnUiThread(()->message("Notes folder saved, but index sync did not finish: "+failure.getMessage()));
+            }
+        });
+    }
+
     void showNotes() {
         String uri=document();
         if(uri==null){message("Save this document first to view source-linked notes.");return;}
