@@ -419,6 +419,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("All tabs",v->UnifiedTabs.show(this));
         action("Copy",v->copySelectedPassage(false));
         action("Share",v->copySelectedPassage(true));
+        action("Print quote",v->printSelectedPassage());
         action("Annotate",v->captureSelection());
         action("Mark",v->bookmarkCurrent());
         action("Notes",v->showNotebook(false));
@@ -969,11 +970,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         a.createdAt=System.currentTimeMillis();a.updatedAt=a.createdAt;
         saveAnnotation(a);
     }
-    private void copySelectedPassage(boolean share){
+    private void copySelectedPassage(boolean share){selectedPassageAction(share,false);}
+    private void printSelectedPassage(){selectedPassageAction(false,true);}
+    private void selectedPassageAction(boolean share,boolean print){
         if(reader==null||active==null){status("Select text in a conversation first");return;}
         // Javascript returns a JSON-encoded string, not executable content.
         String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"+
-            "var t=s.toString();if(!t||!t.trim())return '';"+
+            "var t=s.toString();if(!t||!t.trim()||t.length>65536)return '';"+
             "var n=s.anchorNode;var p=n?(n.nodeType===1?n:n.parentElement):null;"+
             "var e=p&&p.closest('[data-message-id]');"+
             "var end=s.focusNode;var q=end?(end.nodeType===1?end:end.parentElement):null;"+
@@ -997,7 +1000,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 String date=dateOfVisibleMessage(message);
                 String citation=ArchiveCitations.citation(title,date,archiveId,chatId,
                         message,selection.optString("quote",""));
-                if(share){
+                if(print){
+                    // Capture this immutable, source-verified quote, not the entire
+                    // Archive WebView or an unbounded conversation window.
+                    DocumentPrint.start(this,
+                        ()->new DocumentPrint.Capture(citation,title+" · quoted passage",
+                                palette,fontSp,false,typography),
+                        this::status);
+                }else if(share){
                     Intent intent=new Intent(Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(Intent.EXTRA_TEXT,citation);
                     startActivity(Intent.createChooser(intent,"Share selected passage"));
