@@ -4,6 +4,42 @@
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
+## Machine-readable current-source identity (part of this queue, NOT a second status system)
+
+The read-only guard reads this *single* fenced record. Update this entry only when the exact approved integration branch/manifest or evidenced device acceptance changes; never infer an installed build from a signed candidate. The recorded source anchor is an immutable ancestor, **not** a self-referential latest-commit field. The guard checks the latest fetched remote integration head separately and never fetches, resets, or rewrites local work.
+
+<!-- source-contract:begin -->
+```json
+{
+  "schema_version": 1,
+  "development": {
+    "branch": "integration/unified-workspaces-20261106",
+    "anchor_commit": "6f9f8b6cc3003305f7a9c1697291a4f49b84126e",
+    "manifest": {
+      "package": "com.example.markdowndesk",
+      "version_code": 38,
+      "version_name": "2.5.0-unified-workspaces",
+      "min_sdk": 35,
+      "target_sdk": 37
+    }
+  },
+  "installed": {
+    "status": "unconfirmed",
+    "source_commit": null,
+    "apk_sha256": null,
+    "certificate_sha256": null,
+    "owner_accepted": false,
+    "evidence": null
+  },
+  "evidence": [
+    "docs/development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md",
+    "docs/verification/MARKDOWN_DESK_UNIFIED_WORKSPACES_CODE38.md",
+    "docs/verification/ARCHIVE_CODE37_READER_SAFETY_FOLLOWUP_20261106.md"
+  ]
+}
+```
+<!-- source-contract:end -->
+
 ## Source checkpoint (read-only verified)
 
 - `main` = `07660de8a7b2128bf00cb19f31711ab1d5531c54`, manifest 2.2.5 / versionCode 18: **NOT current accepted stable by policy**.
