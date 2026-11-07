@@ -44,6 +44,7 @@ public final class UnifiedSearchActivity extends Activity {
     private static final String[] NOTE_SOURCES={"","markdown","archive"};
     private List<WorkspaceRootStore.RootState> roots=new ArrayList<>();
     private int generation;
+    private boolean searchExecuted;
 
     @Override protected void onCreate(Bundle saved){
         super.onCreate(saved);
@@ -53,6 +54,47 @@ public final class UnifiedSearchActivity extends Activity {
         setTitle("Search · Markdown Desk");
         build();
         refreshFolders();
+        restoreSearchState(saved);
+    }
+    /** Restore search controls by URI identity, not folder list position. Never
+     * restart a physical SAF scan automatically after rotation or process death.
+     */
+    private void restoreSearchState(Bundle saved){
+        if(saved==null)return;
+        query.setText(saved.getString("search_query",""));
+        speaker.setText(saved.getString("search_speaker",""));
+        fromDate.setText(saved.getString("search_from",""));
+        toDate.setText(saved.getString("search_to",""));
+        noteTag.setText(saved.getString("search_tag",""));
+        scope.setSelection(Math.max(0,Math.min(UnifiedSearchScope.values().length-1,
+                saved.getInt("search_scope",0))));
+        noteKind.setSelection(Math.max(0,Math.min(NOTE_TYPES.length-1,
+                saved.getInt("search_kind",0))));
+        noteSource.setSelection(Math.max(0,Math.min(NOTE_SOURCES.length-1,
+                saved.getInt("search_source",0))));
+        String savedFolder=saved.getString("search_folder_uri","");
+        for(int i=0;i<roots.size();i++)
+            if(roots.get(i).root.uri.toString().equals(savedFolder)){
+                folder.setSelection(i+1);break;
+            }
+        searchExecuted=saved.getBoolean("search_executed",false);
+        if(searchExecuted)
+            status("Search controls restored. Tap Search to refresh results after rotation.");
+    }
+    @Override protected void onSaveInstanceState(Bundle out){
+        super.onSaveInstanceState(out);
+        out.putString("search_query",query.getText().toString());
+        out.putString("search_speaker",speaker.getText().toString());
+        out.putString("search_from",fromDate.getText().toString());
+        out.putString("search_to",toDate.getText().toString());
+        out.putString("search_tag",noteTag.getText().toString());
+        out.putInt("search_scope",scope.getSelectedItemPosition());
+        out.putInt("search_kind",noteKind.getSelectedItemPosition());
+        out.putInt("search_source",noteSource.getSelectedItemPosition());
+        int index=folder.getSelectedItemPosition()-1;
+        if(index>=0&&index<roots.size())
+            out.putString("search_folder_uri",roots.get(index).root.uri.toString());
+        out.putBoolean("search_executed",searchExecuted);
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private LinearLayout stack(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);return l;}
@@ -123,6 +165,7 @@ public final class UnifiedSearchActivity extends Activity {
         }
         cancelActive();
         results.removeAllViews();
+        searchExecuted=true;
         final int token=++generation;
         UnifiedSearchScope selected=UnifiedSearchScope.values()[scope.getSelectedItemPosition()];
         if(selected.includesArchive()||selected.includesNotes())searchIndex(token,term,selected);
