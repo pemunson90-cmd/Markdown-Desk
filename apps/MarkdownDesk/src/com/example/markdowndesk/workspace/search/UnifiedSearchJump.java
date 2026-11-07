@@ -8,6 +8,7 @@ public final class UnifiedSearchJump {
     public static final String EXTRA_HASH = "com.example.markdowndesk.search.HASH";
     public static final String EXTRA_LITERAL = "com.example.markdowndesk.search.LITERAL";
     public static final String EXTRA_OFFSET = "com.example.markdowndesk.search.OFFSET";
+    public static final String EXTRA_RETURN_RESULTS = "com.example.markdowndesk.search.RETURN_RESULTS";
     private UnifiedSearchJump(){}
 
     /** All comparisons use Java UTF-16 indices, exactly as the selected-tree
