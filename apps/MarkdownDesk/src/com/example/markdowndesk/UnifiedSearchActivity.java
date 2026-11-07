@@ -19,6 +19,7 @@ import com.example.markdowndesk.archive.ArchiveJournal;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
 import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
 import com.example.markdowndesk.workspace.search.UnifiedSearchScope;
 import java.io.File;
 import java.util.ArrayList;
@@ -74,6 +75,7 @@ public final class UnifiedSearchActivity extends Activity {
         speaker=field("Speaker (optional)");body.addView(speaker);
         fromDate=field("From YYYY-MM-DD (optional)");body.addView(fromDate);
         toDate=field("Through YYYY-MM-DD (optional)");body.addView(toDate);
+        body.addView(text("Speaker and date filters apply to indexed conversation messages only.",12));
         body.addView(text("Authorized Markdown folder (for folder or All searches)",13));
         folder=choose(new String[]{"No saved folder selected"});body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(button("Search",v->search()));
@@ -99,12 +101,16 @@ public final class UnifiedSearchActivity extends Activity {
         .setPositiveButton("OK",null).show();}
     private void cancel(){generation++;if(folderJob!=null){folderJob.cancel();folderJob=null;}
         status("Search cancelled; no documents changed.");}
-    private boolean goodDate(String date){return date.isEmpty()||date.matches("\\d{4}-\\d{2}-\\d{2}");}
     private void search(){
         final String term=query.getText().toString().trim();
         if(term.isEmpty()){query.setError("Enter a phrase");return;}
-        if(!goodDate(fromDate.getText().toString().trim())){fromDate.setError("Use YYYY-MM-DD");return;}
-        if(!goodDate(toDate.getText().toString().trim())){toDate.setError("Use YYYY-MM-DD");return;}
+        try {
+            // Validate actual calendar dates and ordering, not only their shape.
+            new ArchiveSearchSpec(term,speaker.getText().toString(),
+                    fromDate.getText().toString(),toDate.getText().toString());
+        }catch(IllegalArgumentException invalid){
+            error("Invalid search filters",invalid);return;
+        }
         cancelActive();
         results.removeAllViews();
         final int token=++generation;
