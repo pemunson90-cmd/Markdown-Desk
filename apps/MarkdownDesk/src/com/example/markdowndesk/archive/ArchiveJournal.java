@@ -56,6 +56,59 @@ public final class ArchiveJournal {
         Annotation tombstone=new Annotation();tombstone.id=id;
         writeRecord((byte)2,tombstone);
     }
+    /** An editor opened an immutable snapshot. Refuse to resurrect a deleted
+     * note or overwrite another Activity's newer journal record.
+     */
+    public void saveIfCurrent(Annotation expected, Annotation replacement) throws IOException {
+        synchronized(PROCESS_LOCK) {
+            requireCurrentLocked(expected);
+            if(replacement==null || !Objects.equals(expected.id,replacement.id) ||
+                    !Objects.equals(expected.archiveId,replacement.archiveId) ||
+                    !Objects.equals(expected.chatId,replacement.chatId) ||
+                    !Objects.equals(expected.messageId,replacement.messageId))
+                throw new IOException("Annotation edit changes source identity");
+            saveLocked(replacement);
+        }
+    }
+    public void deleteIfCurrent(Annotation expected) throws IOException {
+        synchronized(PROCESS_LOCK) {
+            requireCurrentLocked(expected);
+            deleteLocked(expected.id);
+        }
+    }
+    private void requireCurrentLocked(Annotation expected) throws IOException {
+        if(expected==null || expected.id==null || expected.id.isEmpty())
+            throw new IOException("Missing annotation snapshot");
+        ReadResult state=loadLocked();
+        if(state.truncatedTail)throw new IOException("Interrupted journal; preserve evidence before editing");
+        for(Annotation current:state.annotations) {
+            if(Objects.equals(current.id,expected.id)) {
+                if(sameRecord(current,expected))return;
+                throw new IOException("Annotation changed elsewhere; reopen its latest version");
+            }
+        }
+        throw new IOException("Annotation was deleted or is no longer available");
+    }
+    private static boolean sameRecord(Annotation a,Annotation b) {
+        return Objects.equals(a.id,b.id) &&
+                Objects.equals(a.archiveId,b.archiveId) &&
+                Objects.equals(a.chatId,b.chatId) &&
+                Objects.equals(a.chatTitle,b.chatTitle) &&
+                Objects.equals(a.messageId,b.messageId) &&
+                Objects.equals(a.messageDate,b.messageDate) &&
+                Objects.equals(a.type,b.type) &&
+                Objects.equals(a.quote,b.quote) &&
+                Objects.equals(a.note,b.note) &&
+                Objects.equals(a.label,b.label) &&
+                Objects.equals(a.target,b.target) &&
+                Objects.equals(a.tags,b.tags) &&
+                Objects.equals(a.prefix,b.prefix) &&
+                Objects.equals(a.suffix,b.suffix) &&
+                a.selectionStart==b.selectionStart &&
+                a.selectionEnd==b.selectionEnd &&
+                a.createdAt==b.createdAt && a.updatedAt==b.updatedAt;
+    }
+
     public ReadResult load() throws IOException {
         synchronized (PROCESS_LOCK) { return loadLocked(); }
     }
