@@ -42,6 +42,7 @@ bash verification/workspace_tree_reader/run.sh
 bash verification/workspace_roots/run.sh
 bash verification/workspace_favorites/run.sh
 bash verification/recents_integrity/run.sh
+bash verification/archive_reader/run_journal_concurrency.sh
 bash verification/downloads_browser/run.sh
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
