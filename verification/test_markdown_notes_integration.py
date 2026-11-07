@@ -41,6 +41,7 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         activity = (SRC / "MainActivity.java").read_text(encoding="utf-8")
         controller = (SRC / "MarkdownReadingNotes.java").read_text(encoding="utf-8")
         publisher = (SRC / "ArchiveSidecarPublisher.java").read_text(encoding="utf-8")
+        self.assertIn('import android.content.Context;', activity)
         self.assertIn('REQUEST_READING_NOTES_TREE = 1014', activity)
         self.assertIn('addReadTool("Index folder"', activity)
         self.assertIn('new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)', activity)
