@@ -53,6 +53,22 @@ class InspectorSessionRouting(unittest.TestCase):
         self.assertIn("closeInspectorTabForSwitch();finish()", s)
         self.assertNotIn("closeInspectorTabForSwitch();\n        worker.shutdownNow()", s)
 
+    def test_bounded_per_document_navigation_restore(self):
+        s=self.inspector
+        t=self.tabs
+        self.assertIn("private void saveInspectorPosition()",s)
+        self.assertIn("private void restoreInspectorPosition(Uri uri)",s)
+        self.assertIn('saved.put("steps",steps)',s)
+        self.assertIn('saved.put("offset",Math.max(0,offset))',s)
+        self.assertIn('saved.put("scroll",entryScroll==null?0:Math.max(0,entryScroll.getScrollY()))',s)
+        self.assertIn('saved.put("filter",f)',s)
+        self.assertIn("if(steps==null||steps.length()>64)return",s)
+        self.assertIn("if(state==null)restoreInspectorPosition(document)",s)
+        self.assertIn("restoreInspectorPosition(next);loadPage()",s)
+        self.assertIn("restoreInspectorPosition(chosen)",s)
+        self.assertIn("if(token==revision)entryScroll.scrollTo(0,y)",s)
+        self.assertIn('remove("json_inspector_position_v1:"+id).apply()',t)
+
     def test_only_explicit_switch_and_close_retires_inspector(self):
         r = self.router
         self.assertIn("if(from==Workspace.INSPECT)", r)
