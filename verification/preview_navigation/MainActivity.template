@@ -4,6 +4,10 @@ import java.util.concurrent.*;
 
 /** Android boundary only: deterministic delivery, DOM commit and print service are modeled. */
 final class MainActivity {
+    // Reading notes run in their own dedicated annotation suite. This preview
+    // lifecycle harness keeps the callback boundary but doesn't journal notes.
+    static final class NotesPreview {void decorate(String uri,java.util.function.BooleanSupplier samePage){}}
+    NotesPreview readingNotes;
  void searchContentChanged() {}
  void cancelSearchLocation() {}
     static final int MODE_EDIT=0,MODE_PREVIEW=1,MODE_SPLIT=2;
