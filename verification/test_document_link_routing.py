@@ -50,6 +50,23 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn("Speaker and date filters apply to indexed conversation messages only.", source)
         self.assertNotIn("private boolean goodDate(String date)", source)
 
+    def test_unified_note_filters_preserve_kind_tag_source_across_pages(self):
+        source = (JAVA / "UnifiedSearchActivity.java").read_text()
+        engine = (JAVA / "workspace/archive/ArchiveAnnotationSearch.java").read_text()
+        self.assertIn('noteKind=choose(', source)
+        self.assertIn('noteTag=field("Exact tag (optional)")', source)
+        self.assertIn('noteSource=choose(', source)
+        self.assertIn('ArchiveAnnotationSearch.pageFiltered(', source)
+        self.assertIn('moreNotes(token,term,100,type,tag,origin)', source)
+        self.assertIn('moreNotes(token,term,offset+100,type,tag,origin)', source)
+        self.assertIn('if(!type.isEmpty()&&!type.equals(a.type))continue', engine)
+        self.assertIn('if(!desiredTag.isEmpty()&&!hasTag(a.tags,desiredTag))continue', engine)
+        self.assertIn('if("markdown".equals(origin)&&!"markdown-document".equals(a.archiveId))continue', engine)
+        self.assertIn('if("archive".equals(origin)&&"markdown-document".equals(a.archiveId))continue', engine)
+        self.assertLess(engine.index('if(!type.isEmpty()&&!type.equals(a.type))continue'),
+                        engine.index('if(seen++<start)continue'))
+        self.assertIn('part.trim().equalsIgnoreCase(wanted)', engine)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
