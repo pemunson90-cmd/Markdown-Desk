@@ -38,8 +38,13 @@ public final class ArchiveMarkdownIndexes {
         int start=existing.indexOf(BEGIN),end=existing.indexOf(END);
         if(start<0&&end<0)return existing.replaceFirst("\\s+$", "")+"\n\n"+replacement;
         if(start<0||end<start)throw new IllegalArgumentException("Corrupted managed Markdown markers; original preserved");
+        if(existing.indexOf(BEGIN,start+BEGIN.length())>=0 ||
+                existing.indexOf(END,end+END.length())>=0)
+            throw new IllegalArgumentException("Repeated managed Markdown markers; original preserved");
         int rp= replacement.indexOf(BEGIN),re=replacement.indexOf(END);
-        if(rp<0||re<rp)throw new IllegalArgumentException("Missing replacement markers");
+        if(rp<0||re<rp || replacement.indexOf(BEGIN,rp+BEGIN.length())>=0 ||
+                replacement.indexOf(END,re+END.length())>=0)
+            throw new IllegalArgumentException("Missing or repeated replacement markers");
         return existing.substring(0,start)+replacement.substring(rp,re+END.length())
                 +existing.substring(end+END.length());
     }
