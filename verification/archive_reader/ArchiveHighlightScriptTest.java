@@ -16,7 +16,7 @@ public final class ArchiveHighlightScriptTest {
         check(js.contains("\\u003c/script\\u003e"),"dangerous tag encoded");
         check(js.contains("message-7")&&!js.contains("empty"),"only real selections sent");
         String boot=ArchiveHighlightScript.boot();
-        check(boot.contains("positions.length===1"),"unique quote requirement");
+        check(!boot.contains("positions.length===1"),"unique quotes still require verified context");
         check(boot.contains("valid.length===1"),"ambiguous quote fails closed");
         check(boot.contains("mdarchive://annotation"),"tap to original annotation");
         System.out.println("PASS: inline annotation rendering scripts are data-only and fail closed");

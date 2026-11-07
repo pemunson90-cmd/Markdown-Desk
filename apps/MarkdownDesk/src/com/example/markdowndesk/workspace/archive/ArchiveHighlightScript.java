@@ -32,8 +32,7 @@ public final class ArchiveHighlightScript {
             "var nodes=nodesFor(content),text='';for(var j=0;j<nodes.length;j++)text+=nodes[j].nodeValue;"+
             "var positions=[],index=0;while((index=text.indexOf(record.quote,index))!==-1){positions.push(index);index+=Math.max(1,record.quote.length);}"+
             "if(!positions.length)continue;var at=-1;"+
-            "if(positions.length===1)at=positions[0];"+
-            "else{var valid=[];for(var k=0;k<positions.length;k++){var p=positions[k];"+
+            "{var valid=[];for(var k=0;k<positions.length;k++){var p=positions[k];"+
             "var before=record.prefix||'',after=record.suffix||'';"+
             "if((!before||text.substring(Math.max(0,p-before.length),p).endsWith(before))"+
             "&&(!after||text.substring(p+record.quote.length,p+record.quote.length+after.length).startsWith(after)))valid.push(p);}"+

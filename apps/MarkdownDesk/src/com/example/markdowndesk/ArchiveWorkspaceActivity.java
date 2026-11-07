@@ -89,6 +89,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private HorizontalScrollView readerNavigation;
     private String pendingFindTerm;
     private ArchiveSearchSpec currentSearch;
+    // A reader reached through search retains its exact result page and filters.
+    private String returnSearchTerm, returnSearchScope;
+    private int returnSearchOffset;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
@@ -126,6 +129,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             chatLayout=state.getBoolean("bubbles",false);
             archiveDisplayMode=Math.max(0,Math.min(2,state.getInt("archive_display_mode",archiveDisplayMode)));
             viewMode=state.getString("view","home");
+            returnSearchTerm=state.getString("return_search_term");
+            returnSearchScope=state.getString("return_search_scope");
+            returnSearchOffset=Math.max(0,state.getInt("return_search_offset",0));
+            String savedQuery=state.getString("search_spec_term");
+            if(savedQuery!=null)try{
+                currentSearch=new ArchiveSearchSpec(savedQuery,state.getString("search_spec_speaker"),
+                        state.getString("search_spec_from"),state.getString("search_spec_to"));
+            }catch(IllegalArgumentException invalid){
+                returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;
+            }
             String chat=state.getString("chat");
             if(chat!=null)active=findConversation(chat);
         }
@@ -175,6 +188,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putBoolean("focus",fullscreen);state.putBoolean("bubbles",chatLayout);
         state.putInt("archive_display_mode",archiveDisplayMode);
         state.putString("view",viewMode);
+        state.putString("return_search_term",returnSearchTerm);
+        state.putString("return_search_scope",returnSearchScope);
+        state.putInt("return_search_offset",returnSearchOffset);
+        if(currentSearch!=null){
+            state.putString("search_spec_term",currentSearch.term);
+            state.putString("search_spec_speaker",currentSearch.speaker);
+            state.putString("search_spec_from",currentSearch.fromDate);
+            state.putString("search_spec_to",currentSearch.toDate);
+        }
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private void reloadAppearance(){
@@ -293,6 +315,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     private void showHome(){
         rememberReadingPlace();
+        returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
         commonActions();refreshConversationTabs();setTitle("Claude Archive","All imported conversations");
@@ -337,6 +360,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return null;
     }
     private void openChat(ArchiveDatabase.Conversation c){
+        returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;
         active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;
@@ -375,6 +399,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("→",v->navigateWindow(WINDOW_MESSAGES));
         action("A−",v->font(-1));action("A+",v->font(1));
         action("Find",v->searchDialog(active.id));
+        if(returnSearchTerm!=null)action("Results",v->returnToSearch());
         action("All tabs",v->UnifiedTabs.show(this));
         action("Copy",v->copySelectedPassage(false));
         action("Share",v->copySelectedPassage(true));
@@ -457,16 +482,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
             view(split);
         }else view(web);
-        final int start=windowOffset;
+        final String renderedChat=active.id;
+        final ArchiveViewport initial=viewport;
         final int targetOrdinal=focusOrdinal, targetChunk=chunkOffset;
         io.execute(()->{
             try{
-                ArchiveViewport initial=viewport;
-                List<ArchiveDatabase.Message> messages=database.messages(active.id,
+                List<ArchiveDatabase.Message> messages=database.messages(renderedChat,
                         initial.start(),initial.end()-initial.start());
                 String html=renderMessages(messages,targetOrdinal,targetChunk);
                 runOnUiThread(()->{
-                    if(isFinishing()||isDestroyed()||generation!=token)return;
+                    if(isFinishing()||isDestroyed()||generation!=token||active==null
+                            ||!renderedChat.equals(active.id))return;
                     visibleMessages=new ArrayList<>(messages);
                     focusOrdinal=-1;chunkOffset=0;
                     web.loadDataWithBaseURL("https://markdown.local/",html,"text/html","UTF-8",null);
@@ -823,6 +849,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         });
     }
     private void showSearch(String term,String scope,int offset){
+        returnSearchTerm=term;returnSearchScope=scope;returnSearchOffset=Math.max(0,offset);
         query=term;viewMode="search";
         setTitle(scope==null?"Archive search":"Find in conversation",term);
         controls.removeAllViews();action("Search again",v->searchDialog(scope));
@@ -910,7 +937,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             "if(!e||!q||q.closest('[data-message-id]')!==e)return '';"+
             "return JSON.stringify({id:e.getAttribute('data-message-id'),quote:t});})()";
         final String chatId=active.id,archiveId=active.archiveId,title=active.name;
-        reader.evaluateJavascript(js,result->{
+        final PreviewWebView sourceWeb=reader;
+        final int selectedGeneration=generation;
+        sourceWeb.evaluateJavascript(js,result->{
+            if(selectedGeneration!=generation||sourceWeb!=reader||active==null
+                    ||!chatId.equals(active.id)||!archiveId.equals(active.archiveId)
+                    ||isFinishing()||isDestroyed())return;
             try{
                 Object decoded=new JSONTokener(result).nextValue();
                 if(!(decoded instanceof String)||((String)decoded).isEmpty()){
@@ -936,20 +968,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void captureSelection(){
         if(reader==null||active==null){status("Open a conversation first");return;}
-        // Pull text and a stable message identity from the selected DOM passage.
-        String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"
-            +"var r=s.getRangeAt(0),a=r.startContainer,z=r.endContainer;"
-            +"var p=a?(a.nodeType===1?a:a.parentElement):null;"
-            +"var q=z?(z.nodeType===1?z:z.parentElement):null;"
-            +"var e=p&&p.closest('[data-message-id]');"
-            +"if(!e||!q||q.closest('[data-message-id]')!==e)return '';"
-            +"var content=e.querySelector('.archive-content');if(!content)return '';"
-            +"var t=s.toString();if(!t||!t.trim())return '';"
-            +"var all=content.innerText||'';var i=all.indexOf(t);if(i<0)return '';"
-            +"return JSON.stringify({id:e.getAttribute('data-message-id'),quote:t,"
-            +"start:i,end:i+t.length,prefix:all.substring(Math.max(0,i-64),i),"
-            +"suffix:all.substring(i+t.length,i+t.length+64)});})()";
-        reader.evaluateJavascript(js,result->{
+        // Bind to the selected text range, not the first matching quote.
+        String js=com.example.markdowndesk.workspace.archive.ArchiveSelectionScript.capture();
+        final String selectedChat=active.id, selectedArchive=active.archiveId;
+        final int selectedGeneration=generation;
+        final PreviewWebView selectedWeb=reader;
+        selectedWeb.evaluateJavascript(js,result->{
+            if(selectedGeneration!=generation||selectedWeb!=reader||active==null
+                    ||!selectedChat.equals(active.id)||!selectedArchive.equals(active.archiveId)
+                    ||isFinishing()||isDestroyed())return;
             try{
                 Object decoded=new JSONTokener(result).nextValue();
                 if(!(decoded instanceof String)||((String)decoded).isEmpty()){
@@ -958,18 +985,20 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 JSONObject selection=new JSONObject((String)decoded);
                 String msg=selection.optString("id","");
                 if(msg.isEmpty())throw new IllegalArgumentException("No message identity");
-                annotationDialog(selection);
+                annotationDialog(selection,selectedChat,selectedArchive,selectedGeneration);
             }catch(Exception e){fail("Unable to capture selected passage",e);}
         });
     }
-    private void annotationDialog(JSONObject selection){
+    private void annotationDialog(JSONObject selection,String chat,String archiveId,int sourceGeneration){
         final String[] kinds={"Highlight","Note","Saved source link","Cross-conversation link","Attach external URL","Bookmark"};
         final String[] codes={"highlight","note","source_link","cross_link","external_link","bookmark"};
         new AlertDialog.Builder(this).setTitle("Save selected passage")
-            .setItems(kinds,(dialog,index)->annotationDetails(codes[index],selection))
+            .setItems(kinds,(dialog,index)->annotationDetails(codes[index],selection,
+                    chat,archiveId,sourceGeneration))
             .setNegativeButton("Cancel",null).show();
     }
-    private void annotationDetails(String kind,JSONObject selection){
+    private void annotationDetails(String kind,JSONObject selection,
+                                   String chat,String archiveId,int sourceGeneration){
         LinearLayout layout=vertical();layout.setPadding(dp(20),dp(4),dp(20),dp(10));
         EditText label=new EditText(this);label.setHint("Label");layout.addView(label);
         EditText note=new EditText(this);note.setHint("Your annotation (optional)");
@@ -984,12 +1013,26 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             .setView(scroll).setPositiveButton("Save",null)
             .setNegativeButton("Cancel",null).create();
         d.setOnShowListener(x->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(sourceGeneration!=generation||active==null||!chat.equals(active.id)
+                    ||!archiveId.equals(active.archiveId)||isFinishing()||isDestroyed()){
+                status("Reading source changed; reselect the passage before saving.");return;
+            }
+            String selectedQuote=selection.optString("quote","");
+            int first=selection.optInt("start",-1),last=selection.optInt("end",-1);
+            if(first<0||last-first!=selectedQuote.length()||selectedQuote.isEmpty()){
+                status("Exact selection coordinates are unavailable; reselect passage.");return;
+            }
+            String messageId=selection.optString("id","");
+            boolean present=false;
+            for(ArchiveDatabase.Message row:visibleMessages)
+                if(messageId.equals(row.messageId)){present=true;break;}
+            if(!present){status("Selected message is no longer loaded; reselect passage.");return;}
             if(("external_link".equals(kind)||"cross_link".equals(kind))&&target.getText().toString().trim().isEmpty()){
                 target.setError("Enter a destination");return;
             }
             ArchiveJournal.Annotation a=new ArchiveJournal.Annotation();
-            a.id=UUID.randomUUID().toString();a.archiveId=active.archiveId;
-            a.chatId=active.id;a.chatTitle=active.name;
+            a.id=UUID.randomUUID().toString();a.archiveId=archiveId;
+            a.chatId=chat;a.chatTitle=active.name;
             a.messageId=selection.optString("id","");
             a.messageDate=dateOfVisibleMessage(a.messageId);
             a.quote=selection.optString("quote","");a.prefix=selection.optString("prefix","");
@@ -1080,8 +1123,24 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         new AlertDialog.Builder(this).setTitle(safe(a.label)).setItems(new String[]{
                 "Jump to source","Copy Markdown link","Edit note","Delete annotation"},(d,index)->{
             if(index==0){
+                if("markdown-document".equals(a.archiveId)){
+                    String link=ArchiveMarkdownIndexes.deepLink(a);
+                    if(!com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(link)){
+                        status("Saved Markdown note link is invalid; original note preserved");return;
+                    }
+                    try{
+                        startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link))
+                                .setClass(this,MainActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                    }catch(ActivityNotFoundException|SecurityException denied){
+                        status("Markdown source is unavailable. No new file permission was granted.");
+                    }
+                    return;
+                }
                 ArchiveDatabase.Conversation c=findConversation(a.chatId);
-                if(c==null){status("Conversation is not indexed; reimport source");return;}
+                if(c==null||a.archiveId==null||!a.archiveId.equals(c.archiveId)){
+                    status("Archived annotation source identity no longer matches its conversation");return;
+                }
                 int position=database.findMessageOrdinal(a.chatId,a.messageId);
                 if(position<0){status("Original message no longer indexed. Link needs review.");return;}
                 active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
@@ -1112,7 +1171,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void copyMaster(){
         io.execute(()->{
             try{
-                String md=ArchiveMarkdownIndexes.master(journal.load().annotations);
+                ArchiveJournal.ReadResult snapshot=journal.load();
+                if(snapshot.truncatedTail)
+                    throw new IOException("Saved links are incomplete; repair journal before copying master index");
+                String md=ArchiveMarkdownIndexes.master(snapshot.annotations);
                 runOnUiThread(()->{
                     ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
                     c.setPrimaryClip(ClipData.newPlainText("Master saved links",md));status("Master links copied");
@@ -1366,12 +1428,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private boolean handleDeepLink(Intent intent){
         if(intent==null||intent.getData()==null)return false;
         Uri uri=intent.getData();
-        if(!"markdowndesk".equals(uri.getScheme())||!"archive".equals(uri.getHost()))return false;
+        if(!com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(uri.toString()))return false;
         List<String> segments=uri.getPathSegments();
-        if(segments.size()<4||!"v1".equals(segments.get(0)))return false;
-        String chat=segments.get(2),message=segments.get(3);
+        if(segments.size()!=4||!"v1".equals(segments.get(0)))return false;
+        String sourceArchive=segments.get(1),chat=segments.get(2),message=segments.get(3);
         ArchiveDatabase.Conversation c=findConversation(chat);
-        if(c==null){status("Archived conversation unavailable. Reimport its source.");showHome();return true;}
+        if(c==null||c.archiveId==null||!sourceArchive.equals(c.archiveId)){
+            status("Archived conversation source identity differs from saved link; reimport its source.");
+            showHome();return true;
+        }
         int ordinal=database.findMessageOrdinal(chat,message);
         if(ordinal<0){status("Saved link no longer resolves to a message");showHome();return true;}
         active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
@@ -1387,8 +1452,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         rememberReadingPlace();
         super.onStop();
     }
+    private void returnToSearch(){
+        String term=returnSearchTerm,scope=returnSearchScope;
+        int offset=returnSearchOffset;
+        if(term==null||term.isEmpty()){showHome();return;}
+        rememberReadingPlace();
+        showSearch(term,scope,offset);
+    }
     private void back(){
         if(fullscreen && "reader".equals(viewMode)){toggleFocus();return;}
+        if("reader".equals(viewMode)&&returnSearchTerm!=null){returnToSearch();return;}
         if("reader".equals(viewMode)&&focusOrdinal>=0){focusOrdinal=-1;chunkOffset=0;showReader(false);return;}
         if(!"home".equals(viewMode)){showHome();return;}
         finish();

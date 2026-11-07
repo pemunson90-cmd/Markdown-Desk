@@ -126,6 +126,75 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('offset>displayedText.length()-literal.length()', verify)
         self.assertIn('displayedText.charAt(offset+i)!=literal.charAt(i)', verify)
 
+    def test_archive_deep_link_requires_same_indexed_source_and_exact_shape(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        route = activity.split("private boolean handleDeepLink(Intent intent){", 1)[1].split(
+            "private void rememberReadingPlace()", 1)[0]
+        self.assertIn('WorkspaceDeepLinks.isArchiveLink(uri.toString())', route)
+        self.assertIn('segments.size()!=4', route)
+        self.assertIn('String sourceArchive=segments.get(1),chat=segments.get(2),message=segments.get(3)', route)
+        self.assertIn('!sourceArchive.equals(c.archiveId)', route)
+        self.assertLess(route.index('!sourceArchive.equals(c.archiveId)'),
+                        route.index('database.findMessageOrdinal(chat,message)'))
+
+    def test_shared_notebook_markdown_source_routes_back_to_markdown_reader(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        actions = activity.split("private void showAnnotationActions(ArchiveJournal.Annotation a){", 1)[1].split(
+            "private void copyMaster()", 1)[0]
+        self.assertIn('if("markdown-document".equals(a.archiveId))', actions)
+        self.assertIn('WorkspaceDeepLinks.isDocumentLink(link)', actions)
+        self.assertIn('.setClass(this,MainActivity.class)', actions)
+        self.assertIn('a.archiveId.equals(c.archiveId)', actions)
+        self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', actions)
+
+    def test_master_copy_fails_closed_on_partial_journal(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        copy = activity.split("private void copyMaster(){", 1)[1].split(
+            "private void chooseNotesFolder(){", 1)[0]
+        self.assertIn('if(snapshot.truncatedTail)', copy)
+        self.assertLess(copy.index('if(snapshot.truncatedTail)'),
+                        copy.index('ArchiveMarkdownIndexes.master(snapshot.annotations)'))
+
+    def test_async_reader_uses_captured_chat_and_viewport(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        render = activity.split("private void showReader(boolean keepScroll){", 1)[1].split(
+            "private void setArchiveDisplayMode", 1)[0]
+        self.assertIn('final String renderedChat=active.id', render)
+        self.assertIn('final ArchiveViewport initial=viewport', render)
+        self.assertIn('database.messages(renderedChat,', render)
+        self.assertIn('!renderedChat.equals(active.id)', render)
+
+    def test_archive_reader_back_returns_to_same_search_page_and_filters(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        self.assertIn('returnSearchTerm=term;returnSearchScope=scope;returnSearchOffset=Math.max(0,offset)', activity)
+        self.assertIn('if(returnSearchTerm!=null)action("Results",v->returnToSearch())', activity)
+        self.assertIn('if("reader".equals(viewMode)&&returnSearchTerm!=null){returnToSearch();return;}', activity)
+        self.assertIn('showSearch(term,scope,offset)', activity)
+        self.assertIn('state.putString("return_search_term",returnSearchTerm)', activity)
+        self.assertIn('state.putString("search_spec_speaker",currentSearch.speaker)', activity)
+        self.assertIn('state.putString("search_spec_from",currentSearch.fromDate)', activity)
+        self.assertIn('state.putString("search_spec_to",currentSearch.toDate)', activity)
+        self.assertIn('currentSearch=new ArchiveSearchSpec(savedQuery,', activity)
+        self.assertIn('returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0', activity)
+
+    def test_archive_selection_bindings_refuse_stale_reader_and_wrong_range(self):
+        activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        capture = activity.split("private void captureSelection(){", 1)[1].split(
+            "private void saveAnnotation(", 1)[0]
+        helper = (JAVA / "workspace/archive/ArchiveSelectionScript.java").read_text()
+        highlight = (JAVA / "workspace/archive/ArchiveHighlightScript.java").read_text()
+        self.assertIn('ArchiveSelectionScript.capture()', capture)
+        self.assertNotIn('all.indexOf(t)', capture)
+        self.assertIn('selectedGeneration!=generation||selectedWeb!=reader', capture)
+        self.assertIn('!selectedChat.equals(active.id)', capture)
+        self.assertIn('sourceGeneration!=generation||active==null||!chat.equals(active.id)', capture)
+        self.assertIn('last-first!=selectedQuote.length()', capture)
+        self.assertIn('if(!present){status("Selected message is no longer loaded;', capture)
+        self.assertIn('node===startNode', helper)
+        self.assertIn('text.slice(start,end)!==quote', helper)
+        self.assertNotIn('positions.length===1', highlight)
+        self.assertIn('if(valid.length===1)at=valid[0]', highlight)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
