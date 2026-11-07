@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 01 (stable evidence and `main` unique-commit review; non-destructive proposal, no merge).
+**Checkpoint:** 2026-11-06, batch 02A (all 46 branch tips and ancestry classified; PR/issue/handoff disposition pending, no merges).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -20,7 +20,8 @@
 | 00 | **DONE** | Read-only repo baseline assessment; identify missing branches, stable-policy mismatch, owner scope; establish this integration branch/queue | `c299bf240ac66c9d4b84743646d8c30c4f3e6b92`; no app code touched |
 | 00A | **DONE — PLANNING ONLY** | Inspect PR #37, current heads, prior queue, and classify all 21 changed files; prioritize adaptation without creating a competing status system | PR `#37` at `a3bc7866190fe72c0918679ef5735ddd5482a7ba`; this checkpoint; no code, workflow or merge run |
 | 01 | **DONE — EVIDENCE AUDIT; PROMOTION BLOCKED** | Reconciled code31/32/33 owner observations, signer and binary-patch evidence; enumerated all 11 unique `main` commits; wrote safe alignment proposal. **No verified full stable acceptance or reproducible code33 source-equivalent APK yet.** | This checkpoint and section `Batch 01` below; no main edit |
-| 02 | **NEXT** | Inventory every branch and open PR/issue; classify unique source/tests/docs as preserve, integrate, historical tag/archive, or duplicate. Keep old refs until verified; **do not redo Batch 01** | 100% branch ledger and evidence refs |
+| 02A | **DONE — READ-ONLY** | Enumerated all 46 GitHub branches with exact head SHA; compared each against integration head `5fb58ce5ffa837c692db9cdf0b44f78cfa03c947`. Classified 26 ancestry-contained, 19 divergent, one current integration. No branch modified. | Branch table below; this checkpoint |
+| 02B | **NEXT** | Reconcile open/draft/closed PRs, issues, and stale handoff documents. Examine the **19 divergent branches' unique diffs** before final merge/archive/deprecation decisions. Preserve original refs. Do not redo Batch 02A comparisons unless heads change. | Per-branch unique-change disposition and handoff resolution; no premature deletes |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
 | 05 | PENDING | Safety: exact selection anchors, process-wide journal synchronization, safe sidecar publication/recovery, transaction integrity, 700 MB archive behavior, source immutability, no silent truncation | Behavior/fault tests for all known failure modes |
@@ -102,6 +103,71 @@ Some policy language is already present on both development and main, but the ex
 ### Handoff
 
 **Batch 01 evidence audit complete; stable promotion intentionally blocked.** No new app build, testing campaign, APK, PR merge, branch cleanup or `main` modification performed. **Next: Batch 02 branch/PR/issue inventory and stale-handoff reconciliation**, starting from the exact queue/head; preserve every branch with unique work pending classification.
+
+
+## Batch 02A — exhaustive branch ancestry audit (no cleanup executed)
+
+**Inspection base:** `integration/unified-workspaces-20261106` @ `5fb58ce5ffa837c692db9cdf0b44f78cfa03c947`, before this documentation update. GitHub listed 46 heads, and 46 comparison calls returned their ancestry status. **26 tips are ancestors of the integration line; 19 contain commits absent from it; the remaining tip is the integration branch itself.** The exact heads below are the compare inputs; recheck only if their refs advance.
+
+**Meaning:** `CONTAINED` is an ancestry statement, not evidence that the branch's historical fix is enabled, owner-accepted, tested, or safe to delete. `DIVERGED` means commits must be reviewed for source, tests and history, not necessarily cherry-picked. None has been merged, archived, renamed, closed, deleted, or force-pushed.
+
+| Branch (frozen at inspection) | Exact head SHA | Unique commits vs integration | Status / planned disposition |
+|---|---|---:|---|
+| `baseline/v2.2.9-tabfix2-code24` | `10c6d68f0a7fe31cb5455bcbc996c266f8764005` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/history-execution-export` | `bd1d3e404272855b63a9484cf213ca3098406da5` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/history-ui-integration` | `3bc070a2cb0c8ef9b8e7085cb8bf76ebf4f2d77b` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/m1-capacity-syntax` | `78bf1e56b4505ff0eb1e581a7f76a2016de6f76d` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/m1-maintenance` | `90c077b40f24ac6951ea8eee5b97e78724ec68bc` | 1 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `codex/m1-operation-foundations` | `e5895634ae35289f67c87619495d94005271b23d` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/maintenance-integration` | `3e1890d9710cf025280f05752bed60acf5cfb13e` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/operation-data-capture` | `1a17223a74acc4f465edc1209c59db2674affbf1` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/operation-export-integration` | `b9bc16e8a4596f7f856391abe8f861578b8d34c0` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/preview-integration` | `607bfd03a1ef60e4cceed6921d8722e05449ef9c` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/printing-backup-integration` | `7a13ac5a418a83c5e9dd4b3809cf5355e674de88` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/private-backup-integration` | `53e8f4452bd0250d8f74f692f441276ab3e95173` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `codex/reconciled-retention-editor` | `57124d7d324dddd565a90c15270f82ccad9d1a00` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `feature/claude-archive-integrated-20261105` | `887583d08f20bfbfef95a38591f6a3651499439e` | 4 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `feature/json-claude-export-explorer-20261105` | `c3197dbcbf9568d627d1a52e3f863ec5536d0fb4` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `feature/unified-markdown-annotations-20261106` | `6a7fd23e1370717a05d732b250974fc9ec815e05` | 10 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `feature/unified-research-parity-20261106` | `6f9f8b6cc3003305f7a9c1697291a4f49b84126e` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `feature/unified-workspaces-20261106` | `9daf5bedb5a6c51fc1ab5d2a1291a068b5f2efc4` | 5 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/archive-code37-reader-safety-20261106` | `1d70f6e4428b2bc0dbe6db643f3b8476c9c79513` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `fix/archive-integration-audit-20261105` | `3bb01853dd5071cf7b77e6fb08c740fd04752d32` | 13 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/audit-efficiency-20261106` | `a3bc7866190fe72c0918679ef5735ddd5482a7ba` | 1 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/claude-pretty-json-import-20261106` | `28a68556fb2096a0cc0cff2c010230fc0c13bb61` | 18 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/downloads-contrast-20261030` | `5899b7b4b2041fab5be3d00b32cb4082329317b5` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `fix/downloads-recents-direct-20261030` | `961295c230549c7773b093510b8cc8d938416803` | 13 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/downloads-recents-tabfix2-20261030` | `2affb9b3ca79e2ff654d9b2ac22334eb19302320` | 20 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/downloads-recents-v229-20261030` | `381d270abe8800b49fa0e11affbd4f63c7538941` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `fix/downloads-recents-v229-source-20261030` | `c8fb17a50fe843c2f5f68396ee6418f7d6548a07` | 10 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `fix/json-recovery-local-20261105` | `30a08de8171e710cf31afb876a8c8321787bef9e` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `fix/native-picker-primary-20261030` | `877facadce54247f38aa29d8b7c1cb5f055f813b` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `integration/unified-workspaces-20261106` | `5fb58ce5ffa837c692db9cdf0b44f78cfa03c947` | — | CURRENT — active integration; keep |
+| `main` | `07660de8a7b2128bf00cb19f31711ab1d5531c54` | 11 | DIVERGED (11 policy commits) — preserve; stable promotion gate |
+| `moonshot/professional-upgrade-20261031` | `7a24f23ea14ae35dfa7264adf90e8bc4cb90cb7c` | 2 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `plan/claude-archive-reader-20261105` | `3140396c635de6e93050f05159eacb52503d2d8b` | 2 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `plan/moonshot-autonomous-markdown-20261031` | `6eca943e352c34963dfe2d6494ad60fa12d5c3bc` | 3 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `release/2.3.1-readerlinks` | `f8f998735f534beeb1a273d26bc759c8d8d52bea` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `release/2.3.2-emaillinks` | `2f1bf26feb4c58b629582aac4a0c194ea86574c2` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `release/2.4.2-claude-700mb-recovery-20261106` | `66615a4c4a063e26fcf018f4a05da36615a6363b` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `rescue/md-longpress-tab-freeze-20261017` | `40a422af781b055289a483c2fdee176d023de9d9` | 6 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `rescue/md-tab-longpress-20261017` | `e3a9b7a24c193ab22f7b33fd10533a8cf3831b90` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `rescue/md-unsigned-build-proof-20261016` | `6b18baca3482ff8242458f408a08db0be8dfa1e3` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `rescue/md-unsigned-build-proof-20261017-longpress-freeze` | `b6bf63c9dc9d036384270faa31d16a0940b4b70c` | 19 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `rescue/md-unsigned-build-proof-20261017-tab-freeze` | `3a081c97f3e6ce8fef54019f19dae1781370903a` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `rescue/md-unsigned-build-proof-longpress-20261017` | `df858feb1b1759217f7546145369b6645d275f6f` | 1 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `rescue/md-unsigned-build-proof-longpress-fix-20261017` | `b4061016ba2dabb998e8b196e60ec8246b305a88` | 0 | CONTAINED by ancestry — candidate historical/deprecate only after PR and test review |
+| `rescue/md-unsigned-build-proof-longpress-release-20261017` | `c7c3462fefd2a98070982af6af4aeaf8026979fa` | 5 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+| `work/full-unified-parity-20261106` | `1d810b951d481e967521fa9705a5397b3d74be85` | 1 | DIVERGED — preserve, inspect unique commits and file diffs; no blind merge |
+
+### Batch 02A disposition boundaries
+
+- **Protect:** `main` (11 distinct policy commits; Batch 01), exact owner-accepted release provenance, current integration queue, PR #37 and source branches until proven reconciled. Never equate ancestry with installed release.
+- **Priority conflict review:** modern Unified Workspaces branches (5/10/1 unique commits), `fix/audit-efficiency-20261106` (1 unique commit; 21 file edits already inventoried in Batch 00A), the Claude Archive/JSON fixes (4/13/18 unique commits), and the older Downloads/long-press divergent repairs. These are classified as **retain pending diff inspection**, not redundant.
+- **Possible future deprecation:** 26 ancestry-contained historical branches could be retired after associated PR/issue, signed-source and test provenance review and immutable references/tags; **no deletion is approved by this inventory alone**.
+- **Excluded feature line:** the contained `codex/private-backup-integration` branch remains historical evidence; cross-installation private-state export/import stays excluded from the current release.
+- **Next exact work:** Batch 02B PR/issue/handoff inventory, then unique-diff review of the 19 divergent lines, recording each as integrate verified change / historical-only / superseded-with-proof / genuinely experimental. Avoid re-reading the 26 already confirmed ancestors unless new evidence contradicts the ancestry.
+
 
 ## Known, not deferred
 
