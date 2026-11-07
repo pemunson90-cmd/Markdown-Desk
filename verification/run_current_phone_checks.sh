@@ -52,6 +52,7 @@ bash verification/workspace_roots/run.sh
 bash verification/workspace_favorites/run.sh
 bash verification/recents_integrity/run.sh
 bash verification/archive_reader/run_journal_concurrency.sh
+bash verification/archive_reader/run_document_links.sh
 bash verification/workspace_directory_loader/run.sh
 bash verification/workspace_search/run.sh
 bash verification/workspace_search_loader/run.sh
