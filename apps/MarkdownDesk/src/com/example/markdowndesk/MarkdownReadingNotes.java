@@ -4,6 +4,8 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.net.Uri;
 import android.view.View;
 import android.widget.EditText;
@@ -227,6 +229,78 @@ final class MarkdownReadingNotes {
                 activity.runOnUiThread(()->message("Notes folder saved, but index sync did not finish: "+failure.getMessage()));
             }
         });
+    }
+
+    /** Saved inbound links are indexed from the journal, not from parsed source text.
+     * A link does not grant access to the source document.
+     */
+    void showBacklinks() {
+        final String current=document();
+        if(current==null){message("Save the document first to inspect backlinks.");return;}
+        worker.execute(()->{
+            try {
+                ArchiveJournal.ReadResult data=journal.load();
+                ArrayList<ArchiveJournal.Annotation> inbound=new ArrayList<>();
+                for(ArchiveJournal.Annotation a:data.annotations) {
+                    if(a==null||!a.isLink()||a.target==null)continue;
+                    String destination=WorkspaceDeepLinks.documentTarget(a.target);
+                    if(destination==null) {
+                        try{destination=MarkdownNoteIdentity.requireDocument(a.target);}
+                        catch(IllegalArgumentException ignored){}
+                    }
+                    if(current.equals(destination))inbound.add(a);
+                }
+                activity.runOnUiThread(()->{
+                    if(!live(current))return;
+                    if(data.truncatedTail)message("A journal record is interrupted; existing backlinks may be incomplete.");
+                    if(inbound.isEmpty()){
+                        new AlertDialog.Builder(activity).setTitle("Incoming document links")
+                            .setMessage("No saved links point to this document.")
+                            .setPositiveButton("Close",null).show();
+                        return;
+                    }
+                    String[] labels=new String[inbound.size()];
+                    for(int i=0;i<inbound.size();i++){
+                        ArchiveJournal.Annotation a=inbound.get(i);
+                        String label=a.label==null||a.label.trim().isEmpty()?"Saved link":a.label;
+                        labels[i]=a.chatTitle+" · "+label;
+                    }
+                    new AlertDialog.Builder(activity).setTitle("Incoming document links")
+                        .setItems(labels,(dialog,index)->showBacklinkActions(current,inbound.get(index)))
+                        .setNegativeButton("Close",null).show();
+                });
+            }catch(Exception failure){
+                activity.runOnUiThread(()->{if(live(current))message("Backlinks unavailable: "+failure.getMessage());});
+            }
+        });
+    }
+
+    private void showBacklinkActions(String current,ArchiveJournal.Annotation a) {
+        if(!live(current))return;
+        final String origin=ArchiveMarkdownIndexes.deepLink(a);
+        new AlertDialog.Builder(activity).setTitle(a.chatTitle)
+            .setItems(new String[]{"Open linking passage","Copy linking passage URL"},(dialog,index)->{
+                if(index==1){
+                    ClipboardManager clipboard=(ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    if(clipboard!=null){
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Backlink source",origin));
+                        message("Backlink source copied");
+                    }
+                    return;
+                }
+                if(!live(current))return;
+                Uri link=Uri.parse(origin);
+                boolean markdown=WorkspaceDeepLinks.isDocumentLink(origin);
+                boolean archive=WorkspaceDeepLinks.isArchiveLink(origin);
+                if(!markdown&&!archive){message("Saved backlink source is invalid.");return;}
+                Intent view=new Intent(Intent.ACTION_VIEW,link)
+                    .setClass(activity,markdown?MainActivity.class:ArchiveWorkspaceActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                try{activity.startActivity(view);}
+                catch(ActivityNotFoundException|SecurityException denied){
+                    message("The linking passage could not be opened.");
+                }
+            }).setNegativeButton("Close",null).show();
     }
 
     void showNotes() {
