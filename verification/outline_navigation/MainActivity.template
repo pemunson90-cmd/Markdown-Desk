@@ -5,6 +5,20 @@ import java.util.regex.PatternSyntaxException;
 
 /** Android boundary only. DOM actions and delayed delivery are modeled, not a browser engine. */
 final class MainActivity {
+    // In-reader annotation delivery is tested by its dedicated suite.
+    static final class NotesPreview {void decorate(String uri,java.util.function.BooleanSupplier samePage){}}
+    NotesPreview readingNotes;
+    // Cross-workspace link dispatch is tested in the link-routing suite, not
+    // by these outline/source-scroll navigation fixtures.
+    static final class ArchiveWorkspaceActivity {}
+    static final class ActivityNotFoundException extends RuntimeException {}
+    static final class Intent {
+        static final String ACTION_VIEW="android.intent.action.VIEW";
+        Intent(String action,Uri uri){}
+        Intent setClass(Object context,Class<?> destination){return this;}
+    }
+    void startActivity(Intent intent){}
+    void openMarkdownDocumentLink(Uri uri){}
  void searchContentChanged() {}
  void cancelSearchLocation() {}
     static final int MODE_EDIT=0,MODE_PREVIEW=1,MODE_SPLIT=2;
@@ -49,7 +63,7 @@ final class MainActivity {
         void dismiss(){dismissed=true;}void setView(ScrollView v){content=v;}void setOnShowListener(DialogInterface.OnShowListener l){show=l;}void show(){if(show!=null)show.onShow(this);}
         TextView row(int i){return (TextView)((LinearLayout)content.child).children.get(i);}
     }
-    static class Toast {static Toast makeText(MainActivity a,String text,int duration){a.errors.add(text);return new Toast();}void show(){}}
+    static class Toast {static final int LENGTH_LONG=1;static Toast makeText(MainActivity a,String text,int duration){a.errors.add(text);return new Toast();}void show(){}}
 
     static final class WebView extends View {
         static final class Load {final String url,html;Load(String url,String html){this.url=url;this.html=html;}}
