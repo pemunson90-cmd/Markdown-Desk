@@ -314,6 +314,9 @@ public final class JsonExplorerActivity extends Activity {
 
     private void buildUi() {
         root=vertical();
+        // Match the existing Main, Archive and Unified Search window fitting.
+        // Do not resurrect the custom code32 insets listener that caused a crash.
+        root.setFitsSystemWindows(true);
         root.setBackgroundColor(palette.canvas);
         root.setPadding(dp(10),dp(8),dp(10),dp(8));
 
