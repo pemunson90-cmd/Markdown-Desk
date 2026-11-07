@@ -9,8 +9,8 @@ public final class UnifiedSearchJumpCheck {
         int exact=text.indexOf("phrase");
         ok(UnifiedSearchJump.matches(uri,uri,hash,hash,text,"phrase",exact,false),
                 "exact unchanged source selection must resolve");
-        ok(!UnifiedSearchJump.matches(uri,uri,hash,hash,text,"phrase",exact+19,false),
-                "another matching passage cannot replace recorded offset");
+        ok(!UnifiedSearchJump.matches(uri,uri,hash,hash,text,"phrase",exact+18,false),
+                "an offset not pointing to the saved literal must be rejected");
         ok(UnifiedSearchJump.matches(uri,uri,hash,hash,text,"😀",6,false),
                 "offsets are UTF-16 code units, including surrogate pairs");
         ok(!UnifiedSearchJump.matches(uri,uri,hash,hash,text,"😀",7,false),
