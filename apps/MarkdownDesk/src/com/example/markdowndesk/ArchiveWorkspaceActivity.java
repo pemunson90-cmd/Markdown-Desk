@@ -408,6 +408,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     handleDeepLink(new Intent(Intent.ACTION_VIEW,uri));
                     return true;
                 }
+                if(com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                        .isDocumentLink(uri.toString())){
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW,uri)
+                                .setClass(ArchiveWorkspaceActivity.this,MainActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                    } catch(ActivityNotFoundException|SecurityException unavailable) {
+                        status("Markdown document reader unavailable");
+                    }
+                    return true;
+                }
                 if("https".equals(scheme)||"http".equals(scheme)||"mailto".equals(scheme)){
                     try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}
                     catch(ActivityNotFoundException e){status("No browser available");}
