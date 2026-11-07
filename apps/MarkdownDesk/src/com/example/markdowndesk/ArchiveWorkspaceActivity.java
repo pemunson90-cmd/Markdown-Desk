@@ -1203,10 +1203,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         saveAnnotation(changed,a);
                     }).setNegativeButton("Cancel",null).show();
             }else if(index==3){
-                final String sourceChat=a.chatId,sourceArchive=a.archiveId;
+                final int historyGeneration=generation;
+                // Notebook rows are valid even when no conversation is open.
+                // The journal itself authenticates this annotation's source.
                 AnnotationHistoryDialog.show(this,io,journal,a,
-                        ()->active!=null&&sourceChat!=null&&sourceChat.equals(active.id)&&
-                                sourceArchive!=null&&sourceArchive.equals(active.archiveId),this::status);
+                        ()->generation==historyGeneration,this::status);
             }else if(index==4){
                 new AlertDialog.Builder(this).setTitle("Delete this annotation?")
                     .setMessage("The original conversation is unaffected.")

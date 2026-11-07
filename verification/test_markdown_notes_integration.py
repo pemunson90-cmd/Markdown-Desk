@@ -85,6 +85,8 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         self.assertIn('"Edit note","History","Delete annotation"', archive)
         self.assertIn('AnnotationHistoryDialog.show(activity,worker,journal,a,()->live(uri),this::message)', markdown)
         self.assertIn('AnnotationHistoryDialog.show(this,io,journal,a,', archive)
+        self.assertIn('()->generation==historyGeneration,this::status', archive)
+        self.assertNotIn('()->active!=null&&sourceChat!=null', archive)
         self.assertIn('journal.history(snapshot)', history)
         self.assertIn('HistoryResult history=new HistoryResult()', journal)
         self.assertIn('Annotation history has conflicting source identity', journal)
