@@ -26,6 +26,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -39,6 +41,7 @@ import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveCitations;
 import com.example.markdowndesk.workspace.archive.ArchiveScrollScript;
 import com.example.markdowndesk.workspace.archive.ArchiveHighlightScript;
+import com.example.markdowndesk.workspace.annotations.AnnotationTone;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchDialog;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
 import com.example.markdowndesk.workspace.archive.ArchiveViewport;
@@ -1038,6 +1041,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         target.setHint("Destination URL or archive link");
         if("cross_link".equals(kind)||"external_link".equals(kind))layout.addView(target);
         EditText tags=new EditText(this);tags.setHint("Tags separated by commas");layout.addView(tags);
+        Spinner tone=new Spinner(this);
+        ArrayAdapter<String> toneChoices=new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,AnnotationTone.labels());
+        toneChoices.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        tone.setAdapter(toneChoices);
+        tone.setContentDescription("Annotation highlight color");
+        layout.addView(tone);
         TextView quote=text("Selected: "+safe(selection.optString("quote","")),12);layout.addView(quote);
         ScrollView scroll=new ScrollView(this);scroll.addView(layout);
         AlertDialog d=new AlertDialog.Builder(this).setTitle("Save "+kind.replace('_',' '))
@@ -1071,7 +1081,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             a.selectionStart=selection.optInt("start",-1);a.selectionEnd=selection.optInt("end",-1);
             a.type=kind;a.label=label.getText().toString().trim();
             a.note=note.getText().toString();a.target=target.getText().toString().trim();
-            a.tags=tags.getText().toString().trim();a.createdAt=System.currentTimeMillis();a.updatedAt=a.createdAt;
+            a.tags=AnnotationTone.withTone(tags.getText().toString().trim(),
+                    AnnotationTone.byIndex(tone.getSelectedItemPosition()));
+            a.createdAt=System.currentTimeMillis();a.updatedAt=a.createdAt;
             d.dismiss();saveAnnotation(a);
         }));
         d.show();
@@ -1196,7 +1208,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     private void showAnnotationActions(ArchiveJournal.Annotation a){
         new AlertDialog.Builder(this).setTitle(safe(a.label)).setItems(new String[]{
-                "Jump to source","Copy Markdown link","Edit note","History","Delete annotation"},(d,index)->{
+                "Jump to source","Copy Markdown link","Edit note","History","Delete annotation",
+                "Highlight color"},(d,index)->{
             if(index==0){
                 if("markdown-document".equals(a.archiveId)){
                     String link=ArchiveMarkdownIndexes.deepLink(a);
@@ -1246,6 +1259,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                             runOnUiThread(()->showNotebook(false));}
                         catch(Exception e){runOnUiThread(()->fail("Could not delete annotation",e));}
                     })).setNegativeButton("Cancel",null).show();
+            }else if(index==5){
+                new AlertDialog.Builder(this).setTitle("Annotation highlight color")
+                    .setSingleChoiceItems(AnnotationTone.labels(),AnnotationTone.index(a.tags),
+                        (dialog,which)->{
+                            ArchiveJournal.Annotation changed=a.copy();
+                            changed.tags=AnnotationTone.withTone(a.tags,AnnotationTone.byIndex(which));
+                            changed.updatedAt=System.currentTimeMillis();
+                            dialog.dismiss();
+                            saveAnnotation(changed,a);
+                        })
+                    .setNegativeButton("Cancel",null).show();
             }
         }).show();
     }
