@@ -67,6 +67,22 @@ class DocumentRoutingTests(unittest.TestCase):
                         engine.index('if(seen++<start)continue'))
         self.assertIn('part.trim().equalsIgnoreCase(wanted)', engine)
 
+    def test_transcript_export_streams_full_messages_with_exact_source_links(self):
+        source = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
+        export = source.split("private void writeTranscript(", 1)[1].split(
+            "private static void write(OutputStream", 1)[0]
+        self.assertIn('database.messages(chat,index,50)', export)
+        self.assertIn('for(int part=0;part<m.segments;part+=32)', export)
+        self.assertIn('database.textChunk(m.id,part,32)', export)
+        self.assertIn('.appendPath(conversation.archiveId)', export)
+        self.assertIn('.appendPath(chat).appendPath(m.messageId)', export)
+        self.assertIn('Source: [Open original message]', export)
+        self.assertIn('transcriptField(conversation.name)', export)
+        self.assertIn('transcriptField(m.role)', export)
+        self.assertNotIn('WINDOW_MESSAGES', export)
+        self.assertNotIn('CHUNK_PARTS', export)
+        self.assertIn('return value.replace(\'\\\\r\',\' \').replace(\'\\\\n\',\' \')', export)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
