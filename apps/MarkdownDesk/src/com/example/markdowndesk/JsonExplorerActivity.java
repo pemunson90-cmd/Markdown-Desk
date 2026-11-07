@@ -601,10 +601,13 @@ public final class JsonExplorerActivity extends Activity {
         }
         if(page.conversation && page.messagesKey!=null) {
             final String messages=page.messagesKey;
-            entries.addView(button("Read as Claude conversation",v->showTranscript(messages)),
+            entries.addView(button("Read this conversation preview",v->showTranscript(messages)),
                     new LinearLayout.LayoutParams(-1,dp(54)));
-            entries.addView(text("A readable, read-only preview of the first 200 messages. "
-                    +"You can copy, share, or save that preview as Markdown.",12));
+            entries.addView(button("Index full Claude export for complete reading",
+                    v->showFullArchiveImportChoice()),new LinearLayout.LayoutParams(-1,dp(54)));
+            entries.addView(text("Preview is limited to 200 messages, 600,000 characters and "
+                    +"24,000 characters per message. The complete on-device Archive Reader uses "
+                    +"the existing streaming index instead; it does not convert original JSON to Markdown.",12));
         }
         int shown=0;
         for (JsonExplorerEngine.Entry e: page.entries) {
@@ -662,6 +665,31 @@ public final class JsonExplorerActivity extends Activity {
                 .putExtra(Intent.EXTRA_TEXT,value);
         try{startActivity(Intent.createChooser(send,"Share JSON excerpt"));}
         catch(ActivityNotFoundException missing){showFailure("No sharing app is available.");}
+    }
+
+    /** Explicit user choice to reuse the existing generation-safe full Archive reader.
+     * JSON Inspector itself remains usable and does not silently start a large import.
+     */
+    private void showFullArchiveImportChoice(){
+        final Uri uri=document;
+        if(uri==null||!"content".equalsIgnoreCase(uri.getScheme())){
+            showFailure("Choose a readable JSON file first.");return;
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Read the complete Claude archive")
+            .setMessage("The full reader streams and indexes a compatible Claude export on this device. "+
+                    "The original JSON is never changed. Indexing may require substantial local storage; "+
+                    "an unsupported general JSON file will report an error. Your previous completed index stays available.")
+            .setPositiveButton("Index for full reading",(dialog,which)->{
+                Intent launch=new Intent(this,ArchiveWorkspaceActivity.class)
+                    .setAction(Intent.ACTION_VIEW).setData(uri)
+                    .putExtra(com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_IMPORT_JSON_URI,
+                            uri.toString())
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                try{startActivity(launch);}
+                catch(RuntimeException failed){showFailure("Archive reader unavailable: "+safeError(failed));}
+            })
+            .setNegativeButton("Keep preview",null).show();
     }
 
     private void showTranscript(String messagesKey) {
