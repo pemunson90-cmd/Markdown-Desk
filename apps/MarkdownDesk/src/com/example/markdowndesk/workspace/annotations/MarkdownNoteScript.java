@@ -50,7 +50,7 @@ public final class MarkdownNoteScript {
             "}\n" +
             "function show(){if(!window.CSS||!CSS.highlights||!window.Highlight)return;\n" +
             " for(var t=0;t<tones.length;t++){var tone=tones[t],ranges=[];\n" +
-            " for(var i=0;i<rows.length;i++){if(rows[i].tone!==tone)continue;var r=find(rows[i]);if(r)ranges.push(r);}\n" +
+            " for(var i=0;i<rows.length;i++){if((rows[i].tone||'violet')!==tone)continue;var r=find(rows[i]);if(r)ranges.push(r);}\n" +
             " CSS.highlights.set('markdown-notes-'+tone,new Highlight(...ranges));}\n" +
             "}\n" +
             "window.mdNoteDecorate=function(data){rows=Array.isArray(data)?data:[];show();return rows.length;};\n" +
