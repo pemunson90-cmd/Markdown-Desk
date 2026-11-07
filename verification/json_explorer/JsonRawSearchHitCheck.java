@@ -38,7 +38,7 @@ public final class JsonRawSearchHitCheck {
         ok(exact.node!=null&&exact.node.path.size()==3,"verified exact JSON node path");
         ok("nodes".equals(exact.node.path.get(0).key)&&exact.node.path.get(1).index==1
                 &&"name".equals(exact.node.path.get(2).key),"duplicate phrase maps to correct array item");
-                reject(()->JsonRawSearchHit.verify(new ByteArrayInputStream(bom),"content://other",uri,hash(bom),"needle",second),"forged URI");
+        reject(()->JsonRawSearchHit.verify(new ByteArrayInputStream(bom),"content://other",uri,hash(bom),"needle",second),"forged URI");
         reject(()->JsonRawSearchHit.verify(new ByteArrayInputStream(bom),uri,uri,"a".repeat(64),"needle",second),"changed hash");
         reject(()->JsonRawSearchHit.verify(new ByteArrayInputStream(bom),uri,uri,hash(bom),"needle",second-1),"wrong quote offset");
         byte[] invalid=new byte[]{(byte)0xc0,(byte)0xaf};
