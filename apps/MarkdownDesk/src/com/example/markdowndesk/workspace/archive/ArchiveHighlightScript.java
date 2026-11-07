@@ -1,6 +1,7 @@
 package com.example.markdowndesk.workspace.archive;
 
 import com.example.markdowndesk.archive.ArchiveJournal;
+import com.example.markdowndesk.workspace.annotations.AnnotationTone;
 import java.util.Collection;
 
 /** Read-only DOM decoration of journal-backed annotations.
@@ -40,7 +41,9 @@ public final class ArchiveHighlightScript {
             "if(at<0)continue;"+
             "var start=locate(nodes,at),end=locate(nodes,at+record.quote.length);if(!start||!end)continue;"+
             "try{var range=document.createRange();range.setStart(start[0],start[1]);range.setEnd(end[0],end[1]);"+
-            "var label=document.createElement('mark');label.className='md-archive-highlight';"+
+            "var label=document.createElement('mark');"+
+            "var tone=/^(violet|rose|mint|amber|blue|slate)$/.test(record.tone)?record.tone:'violet';"+
+            "label.className='md-archive-highlight md-archive-tone-'+tone;"+
             "label.setAttribute('data-annotation-id',record.id);label.setAttribute('title','Open saved annotation');"+
             "label.appendChild(range.extractContents());range.insertNode(label);}catch(error){}"+
             "}}\n"+
@@ -67,6 +70,7 @@ public final class ArchiveHighlightScript {
                 .append(",\"quote\":").append(ArchiveScrollScript.quote(a.quote))
                 .append(",\"prefix\":").append(ArchiveScrollScript.quote(a.prefix==null?"":a.prefix))
                 .append(",\"suffix\":").append(ArchiveScrollScript.quote(a.suffix==null?"":a.suffix))
+                .append(",\"tone\":").append(ArchiveScrollScript.quote(AnnotationTone.fromTags(a.tags)))
                 .append('}');
         }
         return "window.mdArchiveAddHighlights&&window.mdArchiveAddHighlights("+json.append(']').toString()+");";
