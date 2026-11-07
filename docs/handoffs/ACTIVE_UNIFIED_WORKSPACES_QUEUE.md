@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-07, batches 03B-3d-1 through 03B-3d-6 (note folder/backlinks, legacy identity-proven sidecars, search routing/filters, complete Markdown transcript source links; source-only checks PASS, runnable Java/native/full release gates OPEN).
+**Checkpoint:** 2026-11-07, batch 03B-3d-7 (exact GitHub-source AJN2 conditional/concurrency plus corrected annotation paging tests COMPILED and PASSED locally; orphan-source search leak fixed with RED/GREEN evidence; full native/full-product release still OPEN).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** Bounded, independently committed development batches per owner direction. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -75,6 +75,26 @@
 ## Batch 03B-3d-6 — streamed complete Markdown export source provenance (2026-11-07)
 
 **Product implementation:** `ArchiveWorkspaceActivity.writeTranscript` already streams **all** indexed messages in pages of 50 and all their content segments in groups of 32, separate from the bounded on-screen `WINDOW_MESSAGES`/CHUNK_PARTS rendering. Preserved that complete output path; changed the heading metadata to use `transcriptField` escaping (not a truncating display helper) and added a source hyperlink per message whenever the original archive identity and message ID exist. Links use the existing exact `markdowndesk://archive/v1/` shape, built with Android `Uri.Builder.appendPath` encoding archive ID/chat ID/message ID. User's original message body is still emitted verbatim from `database.textChunk`; source JSON never written. No fake PDF claim. Commits: `711160f3b21d26231430ceb50873ee5779367151`, escaping correction `722922b56bbf07e57e3f49379707081dac5598d1`, static test `00d8418183d5d5b211dcf9d185a63938365becde`. On exact re-fetched production/test source, **8/8 source assertions PASS** for full message/segment iteration, Archive source path, no preview window cap, escaped metadata/newlines and test registration. Compile, actual streaming output, UTF-8/markdown edge-case regression, SAF write failure/recovery and full PDF transcript **NOT RUN / NOT DONE**. No APK, CI, signer or `main` mutation.
+
+
+## Batch 03B-3d-7 — real local exact-source Java gate and orphan-source fix (2026-11-07)
+
+**Local checkout workaround, not GitHub Actions:** Shell `git ls-remote` still fails `Could not resolve host: github.com`, including direct network attempts; the connected GitHub tool reads/writes repo normally. Recovered the available older Java files from the user's own Library, reconciled them with current GitHub commits, then verified exact `git hash-object` equality on all five resulting current production/test files before compilation. Isolated test directory: `/mnt/data/md_build_current_source` (ephemeral, not authoritative or a complete repo checkout). Java runtime JDK21, real `javac --release 11 -encoding UTF-8`.
+
+**Exact latest tested code blobs:**
+- `apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java`: `e18a0393f58f95794fb0c7c1d9484548abfeb534`.
+- `apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveAnnotationSearch.java`: **`dd418963aedda576e2f0a66fbf9ef095bd4fd8b9`** (includes orphan filter fix).
+- `verification/archive_reader/ArchiveAnnotationSearchPagingTest.java`: **`f9d8285a9b2ac29e0760aea3a92ad18936a5dd04`**.
+- `verification/archive_reader/ArchiveJournalConcurrencyCheck.java`: `a299b4ecb6defb6f3003f9a72aeb1f75f21e6d05`.
+- `verification/archive_reader/ArchiveJournalConditionalCheck.java`: `a461ab652684fb00578611cf5e189253309ac179`.
+
+**RED/GREEN test:** Independent temporary `ScopeBug.java` fixture saved a valid AJN2 note with no `archiveId` and queried `source=archive`; the prior production filter returned that orphan as an Archive result (RED, `AssertionError`). This is a real navigation/identity flaw for valid legacy AJN2 records because `ArchiveJournal.save` does not require `archiveId`. Repaired the source-specific filter to reject null or empty Archive identity only when archive-scoped; the unfiltered search remains able to find legacy notes. Code commit `32941097b7dc59f73870b5e22a91bf656f9bd32c`, expanded official paging test `28620aba7d9c7146a39250a8ec192c3bf865f3f6`.
+
+**Actual executable results:** One `javac --release 11` invocation compiled the five exact GitHub blobs without stubs, successfully. `ArchiveJournalConditionalCheck` PASS (reject stale edits/deletes and resurrection), `ArchiveJournalConcurrencyCheck` PASS (four concurrent writers, 100 records, interleaved reads and delete), and `ArchiveAnnotationSearchPagingTest` PASS (263 note records, paged exact kind/tag/source filters, orphan legacy source fail closed). Independent `ScopeBug` after fix reports zero misclassified Archive hits. This validates these bounded production components only—not Android Activities, WebView or SAF.
+
+**Gate enrollment repaired:** Prior official `ArchiveAnnotationSearchPagingTest` was not invoked by the two host aggregates despite existing in source. Added its compilation and execution to the already shared `verification/archive_reader/run_journal_concurrency.sh` (commit `2599347f0bc19ded923bb146cac98d22ada63da4`), which both `run_host_checks.sh` and `run_current_phone_checks.sh` already call once; no extra hosted workflow, duplicate aggregate or separate runner. Do not count hosted CI as necessary to execute this local Java gate.
+
+**Still blocking release:** A complete current 871-file source checkout is unavailable in the isolated execution environment and cannot be cloned via shell/network. The active GitHub connector does not expose binary repository archive download. Authentic Android SDK37 + build-tools36.1 are already locally verified. Actual full-app resource/Java/D8 packaging, all applicable host regressions, native SAF/insets/Fold7, remaining PDF/exact-jump/700MB features and owner acceptance remain OPEN. No APK generated, signed, installed or distributed; no GitHub Actions invoked; `main` unchanged. Future source checkout must be verified against live integration SHA and preserve existing work.
 
 ## Machine-readable current-source identity (part of this queue, NOT a second status system)
 
