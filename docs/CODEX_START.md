@@ -1,5 +1,7 @@
 # Resume Codex — continuous Markdown Desk Professional campaign
 
+> **Current Unified Workspaces reconciliation (2026-11-06):** Before taking work from this historical Professional resume recipe, read [the single authoritative integration queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) and verify its recorded current head. The Unified Workspaces release boundary—not the entire later M0–M7 roadmap—controls active work; cross-installation private-state export/import remains excluded. Execute **one explicitly requested bounded batch per user turn**, save evidence in that existing queue, and stop. Do not autonomously resume, treat the oldest 'current' STATUS section as a live handoff, duplicate status systems, or merge/retire historic PRs before reconciliation. PR #37 source/workflow efficiency repairs are first implementation priority once authorized. All legacy details below remain historical reference and cannot override this notice.
+
 This is a **reusable session entry point**, not a one-issue task order.
 
 ## Start or resume
