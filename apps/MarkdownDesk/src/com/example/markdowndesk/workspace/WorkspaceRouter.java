@@ -92,9 +92,13 @@ public final class WorkspaceRouter {
                 }).setNegativeButton("Keep open",null).show();
             return;
         }
-        // Archive and raw JSON read-only screens have no unsaved source edits.
-        // Their annotation journal is fsynced before a successful Save acknowledgement.
-        if(launch(current,target))current.finish();
+        // Archive and Inspector are read-only, but only the explicit close path
+        // retires a JSON document's remembered logical tab.
+        if(launch(current,target)){
+            if(from==Workspace.INSPECT)
+                ((com.example.markdowndesk.JsonExplorerActivity)current).closeInspectorTabForSwitch();
+            current.finish();
+        }
     }
 
     private static boolean launch(Activity current,Workspace target){
