@@ -32,7 +32,7 @@ class UnifiedAllRootsSearch(unittest.TestCase):
         self.assertIn("skippedRoots++",s)
         self.assertIn("limitedRoots++",s)
         self.assertIn("failedRoots++",s)
-        self.assertIn('+" · INCOMPLETE":"")',s)
+        self.assertIn('?" · INCOMPLETE":""',s)
         self.assertIn("r.reasons",s)
 
     def test_bounded_dedup_pagination_and_source_navigation(self):
@@ -40,7 +40,7 @@ class UnifiedAllRootsSearch(unittest.TestCase):
         self.assertIn("seenFolderHits.add(key)",s)
         self.assertIn("private static final int FOLDER_PAGE=100",s)
         self.assertIn("Math.min(folderHits.size(),shownFolderHits+FOLDER_PAGE)",s)
-        self.assertIn('button("More folder matches (",',s)
+        self.assertIn('button("More folder matches ("+',s)
         self.assertIn("if(hit.file.json)openJsonHit",s)
         self.assertIn("else openMarkdownHit",s)
 
