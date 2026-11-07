@@ -16,15 +16,25 @@ final class JsonRawSearchHit {
     static final class Hit {
         final String quote,snippet;final int line,begin,end;
         final JsonNodeLocator.Target node;
-        Hit(String quote,String snippet,int line,int begin,int end,JsonNodeLocator.Target node) {
+        final byte[] snapshot; // only retained by an explicit on-demand jump
+        Hit(String quote,String snippet,int line,int begin,int end,JsonNodeLocator.Target node,byte[] snapshot) {
             this.quote=quote;this.snippet=snippet;this.line=line;this.begin=begin;this.end=end;
-            this.node=node;
+            this.node=node;this.snapshot=snapshot;
         }
     }
     private JsonRawSearchHit(){}
 
     static Hit verify(InputStream stream,String requestedUri,String actualUri,
             String sourceSha,String literal,int offset)throws IOException {
+        return verify(stream,requestedUri,actualUri,sourceSha,literal,offset,false);
+    }
+    /** An explicit node jump needs one immutable source snapshot for verification and reading. */
+    static Hit verifyWithSnapshot(InputStream stream,String requestedUri,String actualUri,
+            String sourceSha,String literal,int offset)throws IOException {
+        return verify(stream,requestedUri,actualUri,sourceSha,literal,offset,true);
+    }
+    private static Hit verify(InputStream stream,String requestedUri,String actualUri,
+            String sourceSha,String literal,int offset,boolean keepSnapshot)throws IOException {
         if(stream==null)throw new IOException("JSON source permission unavailable");
         ByteArrayOutputStream received=new ByteArrayOutputStream(16384);
         byte[] buffer=new byte[8192];int count;
@@ -70,6 +80,6 @@ final class JsonRawSearchHit {
         try{node=JsonNodeLocator.locate(text,offset,literal.length());}
         catch(IOException malformedOrAmbiguous){/* Keep the verified raw passage only. */}
         return new Hit(literal,text.substring(start,end),line,offset-start,
-                offset-start+literal.length(),node);
+                offset-start+literal.length(),node,keepSnapshot?source:null);
     }
 }
