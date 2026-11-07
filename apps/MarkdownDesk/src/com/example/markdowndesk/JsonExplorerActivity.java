@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -43,7 +44,11 @@ public final class JsonExplorerActivity extends Activity {
     private int offset=0;
     private int revision=0;
     private UiTheme.Palette palette;
-    private LinearLayout root, entries;
+    private LinearLayout root, entries, actionRow;
+    private ScrollView entryScroll;
+    private SharedPreferences prefs;
+    private float readingSp;
+    private boolean focusReading;
     private TextView heading, location, status;
     private EditText filter;
     private JsonExplorerEngine.Page page;
@@ -77,8 +82,10 @@ public final class JsonExplorerActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        SharedPreferences prefs=getSharedPreferences("markdown_desk",MODE_PRIVATE);
+        prefs=getSharedPreferences("markdown_desk",MODE_PRIVATE);
         palette=UiTheme.palette(prefs.getInt("ui_theme",0),prefs.getBoolean("dark_theme",false));
+        readingSp=Math.max(12f,Math.min(32f,prefs.getFloat("preview_font_size",18f)));
+        focusReading=state!=null&&state.getBoolean("jsonFocusReading",false);
         document=getIntent()==null?null:getIntent().getData();
         if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
             document=Uri.parse(state.getString("jsonDocumentUri"));
@@ -94,6 +101,7 @@ public final class JsonExplorerActivity extends Activity {
             offset=Math.max(0,state.getInt("jsonOffset",0));
         }
         buildUi();
+        updateReadingFocus();
         if (document==null) showOpenChoices(); else loadPage();
     }
 
@@ -110,6 +118,7 @@ public final class JsonExplorerActivity extends Activity {
         state.putStringArrayList("jsonPathNames",names);
         state.putIntArray("jsonPathIndices",indices);
         state.putInt("jsonOffset",offset);
+        state.putBoolean("jsonFocusReading",focusReading);
     }
 
     private int dp(int n) { return Math.round(n*getResources().getDisplayMetrics().density); }
@@ -123,7 +132,8 @@ public final class JsonExplorerActivity extends Activity {
     private Button button(String text, View.OnClickListener action) {
         Button b=new Button(this);
         b.setText(text);
-        b.setTextSize(13);
+        b.setTag(Float.valueOf(13));
+        b.setTextSize(scaleFont(13));
         b.setAllCaps(false);
         b.setTextColor(palette.text);
         b.setBackground(UiTheme.rounded(palette.raised,dp(9),palette.border,dp(1)));
@@ -137,9 +147,50 @@ public final class JsonExplorerActivity extends Activity {
         TextView v=new TextView(this);
         v.setText(value);
         v.setTextColor(palette.text);
-        v.setTextSize(size);
+        v.setTag(Float.valueOf(size));
+        v.setTextSize(scaleFont(size));
         v.setPadding(dp(10),dp(7),dp(10),dp(7));
         return v;
+    }
+
+    private float scaleFont(float original){
+        return Math.max(12f,Math.min(32f,original*readingSp/18f));
+    }
+
+    /** Reapply the original display sizes; never compound a prior scaling. */
+    private void applyReadingFont(View target){
+        if(target instanceof TextView){
+            Object base=target.getTag();
+            if(base instanceof Float)((TextView)target).setTextSize(scaleFont((Float)base));
+        }
+        if(target instanceof ViewGroup){
+            ViewGroup parent=(ViewGroup)target;
+            for(int i=0;i<parent.getChildCount();i++)applyReadingFont(parent.getChildAt(i));
+        }
+    }
+
+    private void changeReadingFont(int delta){
+        readingSp=Math.max(12f,Math.min(32f,readingSp+delta));
+        if(prefs!=null)prefs.edit().putFloat("preview_font_size",readingSp).apply();
+        if(root!=null)applyReadingFont(root);
+    }
+
+    private void updateReadingFocus(){
+        if(actionRow!=null)actionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
+        if(filter!=null)filter.setVisibility(focusReading?View.GONE:View.VISIBLE);
+        if(status!=null)status.setVisibility(focusReading?View.GONE:View.VISIBLE);
+        if(focusReading)getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    }
+
+    private void showReadingOptions(){
+        new AlertDialog.Builder(this).setTitle("JSON reading options")
+            .setItems(new String[]{"A−  Smaller text","A+  Larger text",
+                    focusReading?"Exit Focus mode":"Enter Focus mode"},(d,selected)->{
+                if(selected==0)changeReadingFont(-1);
+                else if(selected==1)changeReadingFont(1);
+                else {focusReading=!focusReading;updateReadingFocus();}
+            }).setNegativeButton("Close",null).show();
     }
 
     private LinearLayout row() {
@@ -159,6 +210,9 @@ public final class JsonExplorerActivity extends Activity {
         heading.setTypeface(null,Typeface.BOLD);
         top.addView(heading,new LinearLayout.LayoutParams(0,dp(52),1));
         top.addView(button("Open",v->showOpenChoices()),new LinearLayout.LayoutParams(dp(76),dp(48)));
+        Button options=button("⋮",v->showReadingOptions());
+        options.setContentDescription("JSON reading options");
+        top.addView(options,new LinearLayout.LayoutParams(dp(50),dp(48)));
         root.addView(top);
 
         location=text("$",12);
@@ -166,7 +220,8 @@ public final class JsonExplorerActivity extends Activity {
         location.setTextIsSelectable(true);
         root.addView(location);
 
-        LinearLayout actions=row();
+        actionRow=row();
+        LinearLayout actions=actionRow;
         actions.addView(button("Copy path",v->copy(JsonExplorerEngine.jsonPath(path))),
                 new LinearLayout.LayoutParams(0,dp(48),1));
         actions.addView(button("Copy list",v->copyVisible()),
@@ -180,7 +235,8 @@ public final class JsonExplorerActivity extends Activity {
         filter.setHint("Filter this page by title or value");
         filter.setHintTextColor(palette.muted);
         filter.setTextColor(palette.text);
-        filter.setTextSize(14);
+        filter.setTag(Float.valueOf(14));
+        filter.setTextSize(scaleFont(14));
         filter.setPadding(dp(12),dp(8),dp(12),dp(8));
         filter.setBackground(UiTheme.rounded(palette.surface,dp(9),palette.border,dp(1)));
         root.addView(filter,new LinearLayout.LayoutParams(-1,dp(50)));
@@ -194,11 +250,11 @@ public final class JsonExplorerActivity extends Activity {
         status.setTextColor(palette.muted);
         root.addView(status);
 
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(true);
+        entryScroll=new ScrollView(this);
+        entryScroll.setFillViewport(true);
         entries=vertical();
-        scroll.addView(entries);
-        root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        entryScroll.addView(entries);
+        root.addView(entryScroll,new LinearLayout.LayoutParams(-1,0,1));
         // Recovery: use normal Android window fitting. The custom Android 16
         // insets callback introduced in code32 is isolated as a crash suspect.
         // Keep all JSON navigation, picker and transcript improvements.
@@ -352,7 +408,8 @@ public final class JsonExplorerActivity extends Activity {
                 path.add(e.step);offset=0; page=null;filter.setText("");loadPage();
             });
             b.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
-            b.setTextSize(14);
+            b.setTag(Float.valueOf(14));
+            b.setTextSize(scaleFont(14));
             b.setMinHeight(dp(62));
             b.setContentDescription("Explore "+e.title+": "+e.detail);
             entries.addView(b,new LinearLayout.LayoutParams(-1,-2));

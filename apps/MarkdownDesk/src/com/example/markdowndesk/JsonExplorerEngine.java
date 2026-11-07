@@ -3,7 +3,6 @@ package com.example.markdowndesk;
 import android.util.JsonReader;
 import android.util.JsonToken;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -64,14 +63,9 @@ final class JsonExplorerEngine {
     private static JsonReader reader(StreamSource source) throws IOException {
         InputStream stream = source.open();
         if (stream == null) throw new IOException("The document provider did not supply a readable stream.");
-        // UTF-8 BOM is common in exported text. Strip it without buffering the export.
-        java.io.PushbackInputStream input = new java.io.PushbackInputStream(
-                new BufferedInputStream(stream, 32768), 3);
-        byte[] mark = new byte[3];
-        int count = input.read(mark);
-        if (!(count == 3 && (mark[0]&255)==0xEF && (mark[1]&255)==0xBB && (mark[2]&255)==0xBF)) {
-            if (count > 0) input.unread(mark, 0, count);
-        }
+        // SAF providers may return fewer than three bytes per read, even when
+        // a UTF-8 BOM is present. Preserve all non-BOM input exactly.
+        InputStream input=JsonUtf8Bom.strip(stream);
         JsonReader json = new JsonReader(new InputStreamReader(input,
                 StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
