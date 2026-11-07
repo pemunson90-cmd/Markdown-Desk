@@ -21,6 +21,14 @@ public final class MainActivity extends HostActivity {
     private void handleDocxResult(int result,Intent data){throw new AssertionError("DOCX result belongs to actual docx_ui fixture");}
     private static final int REQUEST_WORKSPACE_TREE=1005;
     private void handleWorkspaceTreeResult(int result,Intent intent){throw new AssertionError("Workspace result belongs to actual workspace_ui fixture");}
+    // The extracted onActivityResult now routes JSON and shared reading-note folders.
+    // These boundaries are independently tested, not writable-save destinations here.
+    private static final int REQUEST_JSON=1013, REQUEST_READING_NOTES_TREE=1014;
+    private void handleReadingNotesTreeResult(int result,Intent intent){throw new AssertionError("Notes tree result belongs to Markdown notes fixture");}
+    static final class JsonExplorerActivity {
+        static boolean looksLikeJson(MainActivity host,Uri source){return false;}
+    }
+    void openJsonExplorer(Uri source){throw new AssertionError("JSON viewer belongs to JSON reader fixture");}
 
     public static final class Uri {
         final String value; private Uri(String value){this.value=value;}
