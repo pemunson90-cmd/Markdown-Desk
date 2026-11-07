@@ -3,6 +3,25 @@
 > **ACTIVE UNIFIED WORKSPACES GATE — 2026-11-07:** This page retains historical source-build and unsigned APK recipes. For the current integration branch, those recipes are **not authorization to build an APK**. Owner requires the complete approved feature plan and applicable local host/security tests finished first; only then build the single phone-testable APK and conduct the signing/in-place-upgrade gate. Before then use `aapt2 compile/link` to disposable resource objects, `javac --release 11` on all actual sources, D8 to disposable DEX, and focused host/native-source tests **without** assembling an APK. No routine GitHub Actions or Codex requirement. Current authority: [Unified Workspaces queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) and [release gates](RELEASE_GATES.md).
 
 
+## No-APK current source gate (November 7, 2026)
+
+For the full Unified Workspaces release preflight, **before all features are approved**, use:
+
+```bash
+export ANDROID_SDK_ROOT="/path/to/installed/sdk"
+export ANDROID_PLATFORM=android-37.0
+export ANDROID_BUILD_TOOLS=36.1.0
+bash verification/compile_native_sources_only.sh
+```
+
+This verifies the actual source compilation with API37 AAPT2 resource objects, generated
+`R.java`, Java `--release 11`, and D8 `--min-api 35`. Every intermediate is
+isolated and deleted. **It never assembles or signs an APK** and does not run
+GitHub Actions. A successful compile is evidence only for that exact source checkout,
+not full host, physical provider, Fold7, or release acceptance. First run the
+authoritative live task queue's applicable local host regressions; only after all
+required features and pre-APK checks pass may the documented full build be invoked.
+
 ## Current development Android support policy (2026-11-06)
 
 The supported OS range is the latest stable Android release and its two predecessors: **Android 15 (API 35), Android 16 (API 36), and Android 17 (API 37)**. The current development manifest uses `minSdkVersion=35`. `build.sh` derives the minimum and target API levels for aapt2 and D8 directly from that manifest; the old hardcoded API 26 minimum no longer applies to current development. **targetSdkVersion is independently reviewed** before targeting a new platform, especially for folding/window behavior, storage, and background imports.
