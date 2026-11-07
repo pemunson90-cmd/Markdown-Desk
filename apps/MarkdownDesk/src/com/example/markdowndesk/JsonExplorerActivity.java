@@ -61,6 +61,12 @@ public final class JsonExplorerActivity extends Activity {
     private JsonExplorerEngine.Page page;
     private String pendingExport;
 
+    /** Metadata-only session identity; the original JSON remains read-only. */
+    public boolean showingDocument(Uri uri){return uri!=null&&uri.equals(document);}
+    public void closeInspectorTabForSwitch(){
+        if(document!=null)UnifiedTabs.closeInspector(this,document);
+    }
+
     static boolean looksLikeJson(Context context, Uri uri) {
         if (uri==null || !"content".equalsIgnoreCase(uri.getScheme())) return false;
         try {
@@ -98,6 +104,8 @@ public final class JsonExplorerActivity extends Activity {
         if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
             document=Uri.parse(state.getString("jsonDocumentUri"));
         if (document!=null && !"content".equalsIgnoreCase(document.getScheme())) document=null;
+        boolean noInspectorSlot=document!=null&&!UnifiedTabs.openInspector(this,document);
+        if(noInspectorSlot)document=null;
         if (state!=null) {
             ArrayList<String> names=state.getStringArrayList("jsonPathNames");
             int[] indices=state.getIntArray("jsonPathIndices");
@@ -110,6 +118,7 @@ public final class JsonExplorerActivity extends Activity {
         }
         buildUi();
         updateReadingFocus();
+        if(noInspectorSlot)showFailure("Twelve JSON Inspector tabs are open. Close one in All workspace tabs before opening another.");
         if(document==null)showOpenChoices();
         else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
     }
@@ -118,6 +127,9 @@ public final class JsonExplorerActivity extends Activity {
         super.onNewIntent(intent);setIntent(intent);
         Uri next=intent==null?null:intent.getData();
         if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
+        if(!UnifiedTabs.openInspector(this,next)){
+            showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
+        }
         if(document==null||!document.equals(next)){
             document=next;path.clear();offset=0;loadPage();
         }
@@ -332,6 +344,9 @@ public final class JsonExplorerActivity extends Activity {
                 } catch (SecurityException | IllegalArgumentException unavailable) {
                     // The transient read grant is sufficient for this session.
                 }
+            }
+            if(!UnifiedTabs.openInspector(this,chosen)){
+                showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
             }
             document=chosen;
             path.clear(); offset=0; page=null; filter.setText("");
@@ -585,7 +600,7 @@ public final class JsonExplorerActivity extends Activity {
         if(!path.isEmpty()) {
             path.remove(path.size()-1); offset=0;page=null;
             filter.setText("");loadPage();
-        }else finish();
+        }else {closeInspectorTabForSwitch();finish();}
     }
 
     @Override public void onBackPressed(){back();}
