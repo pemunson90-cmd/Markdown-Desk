@@ -95,6 +95,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     // A reader reached through search retains its exact result page and filters.
     private String returnSearchTerm, returnSearchScope;
     private int returnSearchOffset;
+    private final ArrayList<String> priorArchiveChats=new ArrayList<>();
     private boolean returnUnifiedSearch;
     private TextView title, subtitle;
     private PreviewWebView reader;
@@ -136,6 +137,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             returnSearchTerm=state.getString("return_search_term");
             returnSearchScope=state.getString("return_search_scope");
             returnSearchOffset=Math.max(0,state.getInt("return_search_offset",0));
+            ArrayList<String> previous=state.getStringArrayList("archive_prior_chat_ids");
+            if(previous!=null)for(String id:previous)
+                if(id!=null&&!id.isEmpty()&&id.length()<=4096){
+                    if(priorArchiveChats.size()==16)priorArchiveChats.remove(0);
+                    priorArchiveChats.add(id);
+                }
             returnUnifiedSearch=state.getBoolean("return_unified_search",false);
             String savedQuery=state.getString("search_spec_term");
             if(savedQuery!=null)try{
@@ -197,6 +204,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putString("return_search_term",returnSearchTerm);
         state.putString("return_search_scope",returnSearchScope);
         state.putInt("return_search_offset",returnSearchOffset);
+        state.putStringArrayList("archive_prior_chat_ids",new ArrayList<>(priorArchiveChats));
         state.putBoolean("return_unified_search",returnUnifiedSearch);
         if(currentSearch!=null){
             state.putString("search_spec_term",currentSearch.term);
@@ -322,6 +330,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     private void showHome(){
         rememberReadingPlace();
+        priorArchiveChats.clear();
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
@@ -1231,6 +1240,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 }
                 int position=database.findMessageOrdinal(a.chatId,a.messageId);
                 if(position<0){status("Original message no longer indexed. Link needs review.");return;}
+                rememberPriorArchiveVisit(c.id);
                 active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
                 focusOrdinal=position;chunkOffset=0;savedScroll=0;showReader(false);
             }else if(index==1){
@@ -1563,8 +1573,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         int ordinal=database.findMessageOrdinal(chat,message);
         if(ordinal<0){status("Saved link no longer resolves to a message");showHome();return true;}
         returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
+        rememberPriorArchiveVisit(c.id);
         active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
         focusOrdinal=ordinal;chunkOffset=0;showReader(false);return true;
+    }
+    /** Bounded local navigation history. No URI grants or source text are stored.
+     * Reopening always resolves the recorded public chat ID against today's ready index.
+     */
+    private void rememberPriorArchiveVisit(String destination){
+        if(active==null||destination==null||destination.equals(active.id)
+                ||!"reader".equals(viewMode))return;
+        rememberReadingPlace();
+        if(priorArchiveChats.size()==16)priorArchiveChats.remove(0);
+        priorArchiveChats.add(active.id);
     }
     private void rememberReadingPlace(){
         if(active==null||!"reader".equals(viewMode))return;
@@ -1600,6 +1621,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
         }
         if("reader".equals(viewMode)&&returnSearchTerm!=null){returnToSearch();return;}
+        if("reader".equals(viewMode)){
+            while(!priorArchiveChats.isEmpty()){
+                String prior=priorArchiveChats.remove(priorArchiveChats.size()-1);
+                ArchiveDatabase.Conversation previous=findConversation(prior);
+                if(previous!=null){
+                    rememberReadingPlace();
+                    openChat(previous);
+                    return;
+                }
+            }
+        }
         if("reader".equals(viewMode)&&focusOrdinal>=0){focusOrdinal=-1;chunkOffset=0;showReader(false);return;}
         if(!"home".equals(viewMode)){showHome();return;}
         finish();
