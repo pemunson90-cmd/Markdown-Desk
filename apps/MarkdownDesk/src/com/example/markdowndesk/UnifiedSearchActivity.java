@@ -350,6 +350,7 @@ public final class UnifiedSearchActivity extends Activity {
         if(shownFolderHits<folderHits.size()){
             Button more=button("More folder matches ("+(folderHits.size()-shownFolderHits)+" remaining)",v->{
                 v.setEnabled(false);
+                results.removeView(v);
                 showMoreFolderMatches(token);
             });
             results.addView(more);
