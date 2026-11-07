@@ -59,6 +59,30 @@ class JsonReadingParity(unittest.TestCase):
         self.assertIn('!"content".equalsIgnoreCase(selected.getScheme())',archive)
         self.assertIn('Preview is limited to 200 messages',a)
 
+    def test_preview_reuses_reader_typography_and_safe_html(self):
+        a=self.activity
+        self.assertIn('PreviewWebView rendered=new PreviewWebView(this)',a)
+        self.assertIn('MarkdownRenderer.render(visible,palette,readingSp,typography)',a)
+        self.assertIn('ReaderTypography.fromValues(',a)
+        self.assertIn('settings.setJavaScriptEnabled(false)',a)
+        self.assertIn('settings.setAllowFileAccess(false)',a)
+        self.assertIn('settings.setAllowContentAccess(false)',a)
+        self.assertIn('settings.setBlockNetworkLoads(true)',a)
+        self.assertIn('dialog.setOnDismissListener(ignored->rendered.destroy())',a)
+        self.assertIn('rendered.setOnTextScaleListener(size->',a)
+        self.assertIn('Copy excerpt',a)
+        self.assertIn('Save excerpt .md',a)
+
+    def test_bounded_preview_never_masquerades_as_complete_output(self):
+        a=self.activity
+        e=self.engine
+        self.assertIn('On-screen preview limited.',a)
+        self.assertIn('Read this conversation preview',a)
+        self.assertIn('Index full Claude export for complete reading',a)
+        self.assertIn('Additional text omitted in this bounded preview',e)
+        self.assertIn('Additional content omitted in this bounded preview',e)
+        self.assertIn('Message truncated in preview',e)
+
     def test_no_source_mutation_or_silent_page_cap_change(self):
         self.assertIn('final int PAGE_SIZE = 100',self.engine)
         self.assertIn('final int MAX_TRANSCRIPT_MESSAGES = 200',self.engine)
