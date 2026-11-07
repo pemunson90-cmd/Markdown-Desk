@@ -83,6 +83,26 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertNotIn('CHUNK_PARTS', export)
         self.assertIn('return value.replace(\'\\\\r\',\' \').replace(\'\\\\n\',\' \')', export)
 
+    def test_unified_markdown_match_uses_hash_and_exact_offset_after_open(self):
+        search = (JAVA / "UnifiedSearchActivity.java").read_text()
+        activity = (JAVA / "MainActivity.java").read_text()
+        verify = (JAVA / "workspace/search/UnifiedSearchJump.java").read_text()
+        self.assertIn('v->openMarkdownHit(file,match,term)', search)
+        self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString())', search)
+        self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)', search)
+        self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)', search)
+        self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16)', search)
+        self.assertIn('captureUnifiedSearchJump(intent)', activity)
+        self.assertGreaterEqual(activity.count('resolveUnifiedSearchJump(uri)'), 2)
+        self.assertIn('UnifiedSearchJump.matches(request.uri,', activity)
+        self.assertIn('request.hash,this.baselineHash,this.editor.getText()', activity)
+        self.assertIn('request.literal,request.offset,this.dirty', activity)
+        self.assertIn('jumpToSourceOffset(request.offset)', activity)
+        self.assertIn('this.pendingUnifiedJump=null; // One-shot', activity)
+        self.assertIn('!baselineHash.equalsIgnoreCase(searchHash)', verify)
+        self.assertIn('offset>displayedText.length()-literal.length()', verify)
+        self.assertIn('displayedText.charAt(offset+i)!=literal.charAt(i)', verify)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
