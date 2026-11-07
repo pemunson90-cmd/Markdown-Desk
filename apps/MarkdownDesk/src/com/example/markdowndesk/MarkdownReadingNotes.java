@@ -9,6 +9,8 @@ import android.content.ActivityNotFoundException;
 import android.net.Uri;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -18,6 +20,7 @@ import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
 import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import com.example.markdowndesk.workspace.annotations.MarkdownNoteIdentity;
 import com.example.markdowndesk.workspace.annotations.MarkdownNoteScript;
+import com.example.markdowndesk.workspace.annotations.AnnotationTone;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -151,6 +154,13 @@ final class MarkdownReadingNotes {
             target.setHint("Destination URL or Archive source link");form.addView(target);
         }
         EditText tags=new EditText(activity);tags.setHint("Tags (comma-separated)");form.addView(tags);
+        Spinner tone=new Spinner(activity);
+        ArrayAdapter<String> toneChoices=new ArrayAdapter<>(activity,
+                android.R.layout.simple_spinner_item,AnnotationTone.labels());
+        toneChoices.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        tone.setAdapter(toneChoices);
+        tone.setContentDescription("Annotation highlight color");
+        form.addView(tone);
         ScrollView scroll=new ScrollView(activity);scroll.addView(form);
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("Save "+kind.replace('_',' '))
                 .setView(scroll).setPositiveButton("Save",null).setNegativeButton("Cancel",null).create();
@@ -166,7 +176,9 @@ final class MarkdownReadingNotes {
                 ArchiveJournal.Annotation a=MarkdownNoteIdentity.create(uri,title.get(),kind,
                     selection.getString("quote"),selection.optString("prefix",""),
                     selection.optString("suffix",""),selection.getInt("start"),selection.getInt("end"),
-                    label.getText().toString(),note.getText().toString(),tags.getText().toString());
+                    label.getText().toString(),note.getText().toString(),
+                    AnnotationTone.withTone(tags.getText().toString(),
+                            AnnotationTone.byIndex(tone.getSelectedItemPosition())));
                 a.target=destination;
                 dialog.dismiss();save(a,uri);
             }catch(Exception bad){message("Passage could not be saved: "+bad.getMessage());}
@@ -335,7 +347,7 @@ final class MarkdownReadingNotes {
     private void showActions(String uri,ArchiveJournal.Annotation a) {
         if(!MarkdownNoteIdentity.owns(a,uri))return;
         new AlertDialog.Builder(activity).setTitle(a.label==null?a.type:a.label)
-            .setItems(new String[]{"Go to passage","Copy document note link","Edit note","History","Delete note"},
+            .setItems(new String[]{"Go to passage","Copy document note link","Edit note","History","Delete note","Highlight color"},
               (d,index)->{
                 if(index==0) {
                     if(!previewReady.getAsBoolean()){message("Open Reading mode to jump to a note.");return;}
@@ -374,6 +386,18 @@ final class MarkdownReadingNotes {
                                 activity.runOnUiThread(()->{if(live(uri))message("Note could not be deleted: "+fail.getMessage());});
                             }
                         })).setNegativeButton("Cancel",null).show();
+                }else if(index==5) {
+                    new AlertDialog.Builder(activity).setTitle("Annotation highlight color")
+                        .setSingleChoiceItems(AnnotationTone.labels(),AnnotationTone.index(a.tags),
+                                (dialog,selected)->{
+                                    ArchiveJournal.Annotation changed=a.copy();
+                                    changed.tags=AnnotationTone.withTone(a.tags,
+                                            AnnotationTone.byIndex(selected));
+                                    changed.updatedAt=System.currentTimeMillis();
+                                    dialog.dismiss();
+                                    save(changed,uri,a);
+                                })
+                        .setNegativeButton("Cancel",null).show();
                 }
               }).show();
     }
