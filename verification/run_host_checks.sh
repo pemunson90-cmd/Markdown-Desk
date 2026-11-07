@@ -45,6 +45,9 @@ bash verification/recents_integrity/run.sh
 bash verification/archive_reader/run_journal_concurrency.sh
 bash verification/archive_reader/run_document_links.sh
 bash verification/archive_reader/run_sidecar_identity.sh
+bash verification/markdown_notes/run_identity.sh
+bash verification/markdown_notes/run_script.sh
+python3 -m unittest discover -s verification -p 'test_markdown_notes_integration.py'
 python3 -m unittest discover -s verification -p 'test_sidecar_publication.py'
 python3 -m unittest discover -s verification -p 'test_document_link_routing.py'
 bash verification/downloads_browser/run.sh
