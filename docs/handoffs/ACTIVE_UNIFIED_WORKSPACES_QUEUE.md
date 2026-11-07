@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-07, owner-uploaded pinned host JSON JAR verified; one continuous applicable current-phone host run PASS (exit 0), evidence `docs/verification/CURRENT_PHONE_LOCAL_HOST_20261107.md`; Git ancestry/baseline archive and owner-deferred private-backup tests explicitly NOT RUN; native Android/Fold7/product parity gates OPEN. No APK/Actions.
+**Checkpoint:** 2026-11-07, integration head `9b6f2b29cec330618a49c57430857041c6f01acc`; Archive exact-selection/backlinks/navigation, strict import encoding, JSON Focus/scaling, shared note revision history integrated. Exact current AJN2 history/CAS/concurrency Java tests PASS locally. Earlier full-host PASS is snapshot-scoped; fresh full native/product/device gates remain OPEN. No Actions/APK.
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** Bounded, independently committed development batches per owner direction. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -150,6 +150,15 @@ On 2026-11-07 owner explicitly reaffirmed: **ordinary ChatGPT/GitHub connector d
 
 
 > **2026-11-07 local-host release gate update:** See [exact local execution report](../verification/CURRENT_PHONE_LOCAL_HOST_20261107.md) (commit `279c008196c7857c66e0b1b4c15a6d4a25d2396f`). User-uploaded pinned `android-json-0.0.20131108.vaadin1.jar` validated SHA256 `dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79`; **one uninterrupted applicable local current-phone host suite returned 0** under ordinary user permissions. Fixed isolated print and protected-save harnesses with exact-source regressions (commits `51492ba72a43ab4f148a693e5869c7ef83e2cc0e`, `89710800dffc5039ee6a7a80c1b5e856e9dfcea0`). Exact log SHA256 `d75866afd6bc66d4a10d7f1a62e1fce9c25186f73190a12b1940e124ed5a767a`. **This does not satisfy full release gate:** GitHub ZIP lacks `.git` for three ancestry/historical-baseline checks; they remain NOT RUN, and owner-deferred portable categories remain excluded; native Android/PDF/SAF/700MB import/Fold7/product-completeness and canonical signer/in-place installation remain pending. Temporary local archive-only runner and guard shim are NOT committed and are NOT a green `--require-clean/--require-installed` source guard. No GitHub Actions or Markdown Desk APK produced.
+
+
+## Batch 03B-3f — exact-source history regression and queue de-staling (2026-11-07)
+
+**Live integration:** `9b6f2b29cec330618a49c57430857041c6f01acc`. Confirmed earlier global-notebook source-history fix committed: `ArchiveWorkspaceActivity.java` blob `0d739250697cd42bedbf8c6a6769c34dac1485e2`; corresponding static check blob `78e4dd9d94adf95e5d6388d5c96e0f5c942e1805`. Global notebook no longer incorrectly requires `active!=null` before showing source-verified history; callback is bound to Activity screen generation. This is a UI-source check, not on-device rendering proof.
+
+**Actually executed local tests:** Owner source ZIP `Markdown-Desk-integration-unified-workspaces-20261106.zip` extracted to isolated `/mnt/data/md_review_20261107` after ZIP safety/integrity validation; original journal blob `e18a0393f58f95794fb0c7c1d9484548abfeb534` hash-matched. Applied exact committed journal history delta and verified resulting blob `f7ebd1b585fd107fc6b9366cbf48da6edd268c94`, plus exact `ArchiveJournalHistoryCheck.java` blob `a0e1792412a97ff3f645ca61758243278d66a6d0`—no invented local source substitution. Ran real `javac --release 11` on production journal and exact history fixture; PASS revision history, tombstones, source identity collision, interrupted tail. Recompiled against the same exact journal and ran existing `ArchiveJournalConditionalCheck` and `ArchiveJournalConcurrencyCheck`; both PASS. These are focused Java host checks; no Android UI test or APK.
+
+**Authority cleanup:** Replaced the ancient "Known, not deferred" block that falsely described integrated classes/features as missing. Previous full-suite report is source-snapshot-scoped and cannot be automatically applied to subsequent Archive/JSON/history commits. Outstanding native/full-feature release gates remain OPEN.
 
 ## Machine-readable current-source identity (part of this queue, NOT a second status system)
 
@@ -889,16 +898,20 @@ Added 3-case `verification/test_android_platform_contract.py` `37f79c9f7e3dbbad4
 
 **Resumption guarantee:** the Fast resume block above has the exact Library file IDs and checksums for SDK recovery; no dependency on this chat's temporary `/mnt/data` paths is assumed in a future session. The initial 03B-3c-1 'no SDK' observation is historical and superseded; it was true of the isolated environment *before* Library materialization.
 
-## Known, not deferred
+## Current unresolved work and historical dispositions (reconciled 2026-11-07)
 
-1. `MainActivity` on annotations branch references missing `MarkdownReadingNotes` and `WorkspaceDeepLinks.isDocumentLink`; research branch drops Markdown annotation integration.
-2. Research branch has instance-level `ArchiveJournal` synchronization; annotations branch adds cross-instance process lock.
-3. Search currently lacks full scope/filters and exact Markdown line jump; source selection uses first quote occurrence in DOM text.
-4. Unified transcript PDF/export parity, annotation back-navigation, sidecar recovery/cleanup, and end-to-end tab/reader parity unverified.
-5. Research manifest targets API37; build default `android-37` path conflicts with docs naming installed `android-37.0`; no full current-source API37 build proven.
-6. Existing `main` has 11 commits absent from code33 history, per compare; preserve them before any stable-main realignment.
-7. Preserve original package `com.example.markdowndesk`, canonical signing certificate SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, all 25 splash assets, and in-place data/history.
-8. Explicitly excluded: cross-installation private backup export/import; preserve its inert foundations and existing local recovery.
+The preceding 03B planning ledger is historical evidence, not an instruction to rerun completed work. The former eight-item "Known, not deferred" list dated before implementation has been explicitly reconciled:
+
+1. **Markdown note controller / internal link routing — SOURCE INTEGRATED.** `MarkdownReadingNotes` and `WorkspaceDeepLinks` are present and wired in the current integration. Device rendering, SAF grants, and Fold lifecycle still require native tests.
+2. **Journal cross-instance synchronization — INTEGRATED AND LOCALLY TESTED.** Shared process lock, conditional saves/deletes, source-bound history. Exact committed current journal blob `f7ebd1b585fd107fc6b9366cbf48da6edd268c94` plus history fixture `a0e1792412a97ff3f645ca61758243278d66a6d0` reconstructed from the source ZIP and commit, hash-matched and compiled `javac --release 11`. History/CAS/concurrency test mains all PASS. Native Activity dialogs/SAF providers not proven.
+3. **Unified Search source filters and exact jump — IMPLEMENTED, NATIVE QA OPEN.** Kind/exact tag/Markdown-vs-Archive scope, speaker/date, notes/links and verified UTF-16 Markdown match offset implemented. Remaining complete source/JSON folder coverage and actual result navigation/back-to-results/large-font/Fold cases are unverified.
+4. **Selection, backlinks, revision history and exports — SOURCE INTEGRATED, NATIVE QA OPEN.** Exact DOM-range quote selection with ambiguity protection, Archive + Markdown incoming backlinks, source-verified legacy sidecar copying, read-only revision history, complete Markdown/PDF transcript streaming/completeness checks. PDF layout/render and SAF output/partial-write recovery on actual Android are NOT RUN. No claim of full reader parity.
+5. **SDK directory naming / compilation — RESOLVED AS SOURCE GATE.** Build script uses `android-37.0`. Authentic API36 and API37 Java/D8 full-source compilation were observed on relevant earlier commits; current history callback fix has not received a new full Activity compilation in this extracted ZIP session. A native run and minimum-API35 device case remain OPEN.
+6. **Main/feature branch ancestry — PRESERVE UNTIL ACCEPTANCE.** The historical `main` policy commits remain separate; do not overwrite, force-push, cherry-pick blindly, merge or delete old work before a complete signed and accepted release.
+7. **Package/certificate/25 splash assets/upgrade — RELEASE HARD GATE.** Keep original package `com.example.markdowndesk`, signing certificate SHA-256 `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`, all 25 splash assets and in-place user data/history. Full local host run once returned 0 on its earlier snapshot, with three Git-ancestry tests explicitly NOT RUN; **not evidence that post-snapshot commits passed the entire suite**. No APK until full pre-phone feature and test matrix.
+8. **Explicitly excluded:** cross-installation private-state backup export/import, per owner decision. Existing in-app save/revision/recovery remain required.
+
+**Next pre-phone priorities:** Recheck current-head full Java/D8 and all applicable local host regressions (against an exact source checkout or audited ZIP delta); resolve any RED findings. Validate actual Archive/PDF/SAF behavior and 700MB Android import/reimport/cancellation with suitable native environment; Fold7 screenshot/rotation/insets and TalkBack; reconcile the full eight-domain contract. No staged APK/Actions or speculative green signoff.
 
 ## Per-turn handoff contract
 
