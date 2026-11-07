@@ -16,6 +16,10 @@ import android.text.Editable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.BackgroundColorSpan;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -716,24 +720,72 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void showTranscriptDialog(String md) {
-        // Do not mix the dark palette's light text with Android's default white
-        // AlertDialog surface (reported unreadable on the Fold7).
-        ScrollView scroll=new ScrollView(this);
-        TextView body=text(md.length()>110000 ? md.substring(0,110000)
-                +"\n\n[On-screen preview limited; Copy and Save include the full prepared excerpt.]":md,14);
-        body.setTextIsSelectable(true);
-        body.setPadding(dp(18),dp(8),dp(18),dp(16));
-        scroll.addView(body);
-        TextView title=text("Claude conversation · read only",18);
+        // This is a preview, not a full-transcript promise. Reuse the exact
+        // editor renderer, shared typography, palette and existing link rules.
+        final String visible=md.length()>110000
+                ?md.substring(0,110000)
+                    +"\n\n_[On-screen preview limited. Copy/Save contain only the prepared bounded excerpt. For full reading, index the original JSON in Archive Reader.]_"
+                :md;
+        PreviewWebView rendered=new PreviewWebView(this);
+        rendered.setBackgroundColor(palette.surface);
+        rendered.setTextSp(readingSp);
+        WebSettings settings=rendered.getSettings();
+        settings.setJavaScriptEnabled(false);
+        settings.setDomStorageEnabled(false);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccess(false);
+        settings.setBlockNetworkLoads(true);
+        settings.setLoadsImagesAutomatically(false);
+        rendered.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
+                Uri link=request.getUrl();
+                String value=link.toString();
+                if("markdown.local".equals(link.getHost())&&link.getFragment()!=null)return false;
+                if(com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(value)
+                        ||com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(value)){
+                    Intent open=new Intent(Intent.ACTION_VIEW,link)
+                            .setClass(JsonExplorerActivity.this,
+                                    com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(value)
+                                            ?ArchiveWorkspaceActivity.class:MainActivity.class)
+                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                    try{startActivity(open);}catch(RuntimeException unavailable){
+                        showFailure("Linked Markdown Desk source is unavailable.");
+                    }
+                    return true;
+                }
+                String scheme=link.getScheme();
+                if("https".equalsIgnoreCase(scheme)||"http".equalsIgnoreCase(scheme)
+                        ||"mailto".equalsIgnoreCase(scheme)){
+                    try{startActivity(new Intent(Intent.ACTION_VIEW,link));}
+                    catch(RuntimeException unavailable){showFailure("No application can open that link.");}
+                }
+                return true; // Never navigate this WebView to an untrusted origin.
+            }
+        });
+        final ReaderTypography typography=ReaderTypography.fromValues(
+                prefs.getString("reader_font_family",null),
+                prefs.getFloat("reader_line_height",Float.NaN),
+                prefs.getFloat("reader_paragraph_gap",Float.NaN),
+                prefs.getInt("reader_margin_px",0),prefs.getInt("reader_measure_px",0));
+        Runnable redraw=()->rendered.loadDataWithBaseURL("https://markdown.local/",
+                MarkdownRenderer.render(visible,palette,readingSp,typography),"text/html","UTF-8",null);
+        rendered.setOnTextScaleListener(size->{
+            readingSp=size;
+            prefs.edit().putFloat("preview_font_size",readingSp).apply();
+            redraw.run();
+        });
+        redraw.run();
+        TextView title=text("Claude preview · read only",18);
         title.setTypeface(null,Typeface.BOLD);
         title.setPadding(dp(20),dp(16),dp(20),dp(4));
         AlertDialog dialog=new AlertDialog.Builder(this)
                 .setCustomTitle(title)
-                .setView(scroll)
-                .setNeutralButton("Copy", (ignored,which)->copy(md))
+                .setView(rendered)
+                .setNeutralButton("Copy excerpt",(ignored,which)->copy(md))
                 .setNegativeButton("Close",null)
-                .setPositiveButton("Save .md",(ignored,which)->saveMarkdown(md))
+                .setPositiveButton("Save excerpt .md",(ignored,which)->saveMarkdown(md))
                 .create();
+        dialog.setOnDismissListener(ignored->rendered.destroy());
         dialog.setOnShowListener(ignored -> {
             if(dialog.getWindow()!=null) {
                 dialog.getWindow().setBackgroundDrawable(
@@ -752,7 +804,7 @@ public final class JsonExplorerActivity extends Activity {
         dialog.show();
     }
 
-    private void saveMarkdown(String md) {
+        private void saveMarkdown(String md) {
         pendingExport=md;
         Intent create=new Intent(Intent.ACTION_CREATE_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE)
