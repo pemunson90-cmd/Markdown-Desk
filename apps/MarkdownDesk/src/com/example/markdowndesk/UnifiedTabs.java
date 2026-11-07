@@ -47,8 +47,22 @@ public final class UnifiedTabs {
      * A document already open is reselected, otherwise the user must close an old tab
      * when all 12 Inspector slots are occupied (never silently evict data or sessions).
      */
+    /** Logical tabs are for existing provider-backed documents only; malformed
+     * oversized/authority-free identities are never persisted or reopened.
+     * This validates identity, not a substitute for an actual Android read grant.
+     */
+    private static boolean validInspectorSource(Uri uri){
+        if(uri==null)return false;
+        String raw=uri.toString();
+        return raw.length()<=8192
+                &&"content".equalsIgnoreCase(uri.getScheme())
+                &&uri.getHost()!=null&&!uri.getHost().isEmpty()
+                &&uri.getPath()!=null&&!uri.getPath().isEmpty()
+                &&uri.getFragment()==null;
+    }
+
     public static boolean openInspector(Context context,Uri uri){
-        if(context==null||uri==null||!"content".equalsIgnoreCase(uri.getScheme()))return false;
+        if(context==null||!validInspectorSource(uri))return false;
         String id=uri.toString();
         List<UnifiedTabIndex.Entry> before=read(context,JS,UnifiedTabIndex.Kind.INSPECT);
         ArrayList<UnifiedTabIndex.Entry> next=new ArrayList<>();
@@ -167,7 +181,7 @@ public final class UnifiedTabs {
                 "com.example.markdowndesk.JsonExplorerActivity":"com.example.markdowndesk.MainActivity");
         if(entry.kind==UnifiedTabIndex.Kind.INSPECT){
             Uri uri=Uri.parse(entry.id);
-            if(!"content".equalsIgnoreCase(uri.getScheme())){
+            if(!validInspectorSource(uri)){
                 Toast.makeText(current,"Invalid JSON tab source",Toast.LENGTH_LONG).show();return;
             }
             intent.setAction(Intent.ACTION_VIEW);
