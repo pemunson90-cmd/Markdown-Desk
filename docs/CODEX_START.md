@@ -2,6 +2,8 @@
 
 > **Current Unified Workspaces reconciliation (2026-11-06):** Before taking work from this historical Professional resume recipe, read [the single authoritative integration queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) and verify its recorded current head. The Unified Workspaces release boundary—not the entire later M0–M7 roadmap—controls active work; cross-installation private-state export/import remains excluded. Execute **one explicitly requested bounded batch per user turn**, save evidence in that existing queue, and stop. Do not autonomously resume, treat the oldest 'current' STATUS section as a live handoff, duplicate status systems, or merge/retire historic PRs before reconciliation. PR #37 source/workflow efficiency repairs are first implementation priority once authorized. All legacy details below remain historical reference and cannot override this notice.
 
+> **Source verification before editing:** Fetch the named integration branch (without resetting/switching a dirty worktree), then run `python3 verification/check_current_source.py` from a clean or safely preserved descendant checkout. The guard reads the single `docs/handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md` source-contract, validates manifest/anchor/fetched-tip/evidence, and warns on dirty work. Stop and reconcile if it fails. Use `--require-clean` for final clean-source tests, and `--require-installed` only for release acceptance; neither a test candidate nor stale `main` establishes device acceptance. Run `python3 -m unittest discover -s verification -p 'test_current_source_guard.py'` for focused regression verification.
+
 This is a **reusable session entry point**, not a one-issue task order.
 
 ## Start or resume
