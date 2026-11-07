@@ -43,6 +43,13 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', region)
         self.assertNotIn('takePersistableUriPermission', region)
 
+    def test_unified_search_reuses_strict_calendar_spec(self):
+        source = (JAVA / "UnifiedSearchActivity.java").read_text()
+        self.assertIn("new ArchiveSearchSpec(term,speaker.getText().toString()", source)
+        self.assertIn("error(\"Invalid search filters\",invalid)", source)
+        self.assertIn("Speaker and date filters apply to indexed conversation messages only.", source)
+        self.assertNotIn("private boolean goodDate(String date)", source)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
