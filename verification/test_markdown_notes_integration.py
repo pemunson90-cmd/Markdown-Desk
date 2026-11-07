@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Source-level safety checks for Markdown reading notes integration.
+These cannot replace Android/WebView/SAF behavior and compilation tests.
+"""
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "apps/MarkdownDesk/src/com/example/markdowndesk"
+
+class MarkdownNotesIntegrationCheck(unittest.TestCase):
+    def test_reader_actions_and_acknowledged_preview(self):
+        source = (SRC / "MainActivity.java").read_text(encoding="utf-8")
+        self.assertIn('addReadTool("Note","Annotate a selected passage in Reading mode"', source)
+        self.assertIn('addReadTool("Notes","Browse and edit source-linked reading notes"', source)
+        self.assertIn("this.readingNotes.decorate(noteUri,", source)
+        self.assertIn("isCurrentPreviewPage(page)&&page.acknowledged&&this.previewReady", source)
+        self.assertIn("()->this.previewRevision", source)
+
+    def test_source_bound_note_routes_have_no_fake_uri_grant(self):
+        source = (SRC / "MainActivity.java").read_text(encoding="utf-8")
+        note = source.split("private void openMarkdownDocumentLink(Uri link) {",1)[1].split("\n    }",1)[0]
+        self.assertIn("this.readingNotes.requestNote(source,noteId)", note)
+        self.assertIn("openDocument(Uri.parse(source),0,false,true)", note)
+        self.assertNotIn("FLAG_GRANT_READ_URI_PERMISSION", note.split("openDocument(")[0])
+        self.assertIn("WorkspaceDeepLinks.documentTarget(link.toString())", note)
+
+    def test_single_journal_and_revision_gate(self):
+        controller = (SRC / "MarkdownReadingNotes.java").read_text(encoding="utf-8")
+        self.assertIn('claude-archive/annotations-v2.journal', controller)
+        self.assertIn("MarkdownNoteIdentity.owns(a,uri)", controller)
+        self.assertIn("revision.get()!=revisionAtSelection", controller)
+        self.assertIn("journal.save(a)", controller)
+        self.assertIn("journal.delete(a.id)", controller)
+        self.assertIn("ArchiveSidecarPublisher(activity,Uri.parse(folder))", controller)
+        self.assertIn("String publication=publish(uri,a.chatTitle)", controller)
+        self.assertNotIn("new SQLiteDatabase", controller)
+
+    def test_dom_script_does_not_execute_source_data(self):
+        script = (SRC / "workspace/annotations/MarkdownNoteScript.java").read_text(encoding="utf-8")
+        self.assertIn("all.slice(start,end)!==quote", script)
+        self.assertIn("valid.length!==1", script)
+        self.assertIn("CSS.highlights.set", script)
+        self.assertIn('case', script)
+        self.assertNotIn("innerHTML=", script)
+        self.assertIn("window.mdNoteJump", script)
+
+    def test_shared_projection_uses_document_uri(self):
+        source = (SRC / "archive/ArchiveMarkdownIndexes.java").read_text(encoding="utf-8")
+        self.assertIn('"markdown-document".equals(a.archiveId)', source)
+        self.assertIn('"markdowndesk://document/v1/"+enc(a.chatId)+"?note="+enc(a.id)', source)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
