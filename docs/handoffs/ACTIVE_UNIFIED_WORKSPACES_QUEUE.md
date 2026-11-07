@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 02B-2b (three nested Archive/Claude branch lines, 18 distinct unique commits and source/test/report gaps classified; no implementation or merges).
+**Checkpoint:** 2026-11-06, batch 02B-2c-1 (seven divergent Downloads/long-press rescue branches reviewed; current-source safety regressions identified; no app changes).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -24,7 +24,9 @@
 | 02B-1 | **DONE — TRIAGE + SAFE ROUTING** | Inspected 27 PRs / 10 standalone issues, classified old handoffs, added static authoritative-queue redirects to `CODEX_START.md` and historical `STATUS.md` without changing old history. No merges, releases or issue closures. | Entry-point commits `5b90e086ced9d46ee15caabb4b32755c0867b854` and `982ff0d51cf45dc56fd527c4e3d4d3d51b8990c4`; this queue checkpoint |
 | 02B-2a | **DONE — SOURCE TRIAGE** | Inspected all **16 unique commits** across the three divergent Unified Workspaces/Markdown Annotations/Full Parity lines, compared actual code and test blob identities and classified missing versus superseded implementations. No code changes. | Detailed 02B-2a evidence below, unchanged app/tree and all 3 old branches preserved |
 | 02B-2b | **DONE — SOURCE / TEST / EVIDENCE TRIAGE** | Reviewed three **nested** Archive/Claude branch histories (4, 13, 18 unique commits relative to integration, 18 distinct across lineage), net diffs, current production equivalents, omitted regression fixtures and four historical verification reports. Flagged short sanitized-ID sidecar collision as unresolved. | Detailed 02B-2b section below; current parser byte-identical; no app code or PR changes |
-| 02B-2c | **NEXT** | Inspect remaining **13 divergent branches** in bounded groups: Downloads/rescue, Moonshot/plans, history, and `main`. Reconcile AGENTS/CLAUDE stale auto-resume wording without duplicating queues; finalize branch/PR deprecation after all unique source/tests checked. | Safe, evidenced merge/archive/deprecate classification; zero premature deletes |
+| 02B-2c-1 | **DONE — DOWNLOADS / LONG-PRESS AUDIT** | Audited 7 divergent Downloads and rescue branches, unique commit histories, source-blob identities and legacy/current test coverage. Found two concrete current-source regressions: RecentStore clears corrupt Recents, and long-press fails to reset pending close at fresh ACTION_DOWN. No code changed. | Detailed 02B-2c-1 section; all 7 refs remain protected |
+| 02B-2c-2 | **NEXT** | Review remaining 6 divergent lines (Moonshot, plans, history maintenance, main); classify unique code, evidence and legitimate future experiments. Reconcile old AGENTS/CLAUDE autostart instructions **without** resuming product implementation. | All 19 divergent branches accounted for; no blind merges |
+| 02C | PENDING | Once source review is complete, finalize no-loss branch/PR/issue dispositions and stop stale handoff entry paths, with no deletion of unique source/evidence. | One release-gate-ready cleanup and integration plan |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
 | 05 | PENDING | Safety: exact selection anchors, process-wide journal synchronization, safe sidecar publication/recovery, transaction integrity, 700 MB archive behavior, source immutability, no silent truncation | Behavior/fault tests for all known failure modes |
@@ -277,6 +279,39 @@ Three branches are **historical + selectively required tests/evidence**, NOT eli
 
 **Next Batch 02B-2c:** review the **13 remaining divergent** branches (Downloads/rescue first, then Moonshot/plans/history/`main`) in small groups; classify exact unique source/tests/docs before proposing retirement. Do not repeat already completed 02A branch count, 02B-1 PR count, 02B-2a Unified work, or 02B-2b Archive-line comparison unless refs advance.
 
+
+
+## Batch 02B-2c-1 — seven divergent Downloads and long-press rescue refs
+
+**Inspection source:** integration `bfcad66269b6df08b46f94332e88945733cc37fc` (prior to documentation update). Seven branch tips compared to integration, their published history examined, production/test blob SHA checked against the current integration tree. They form *overlapping historical implementations and rescue revisions*; do not add per-branch unique counts as if independent changes. **Not merged, not eligible for deletion until red/green behavior is reconciled.**
+
+| Branch / frozen head | Unique commits vs integration | Verified disposition |
+|---|---:|---|
+| `fix/downloads-recents-direct-20261030` @ `961295c230549c7773b093510b8cc8d938416803` | 13 | Superseded **source baseline** (PR #27 closed), but not all behavior superseded: preserves malformed Recents in `RecentStore`; branch-specific `downloads_paths` fixture is absent but newer `downloads_browser` tests cover the path rules. No branch merge. |
+| `fix/downloads-recents-tabfix2-20261030` @ `2affb9b3ca79e2ff654d9b2ac22334eb19302320` | 20 | Correct installed-tabfix2 ancestry, predecessor for PR #28. Core Downloads classes identical to integration; native `longpress.sh` fixture and older test-paths require coverage review. Preserved. |
+| `fix/downloads-recents-v229-source-20261030` @ `c8fb17a50fe843c2f5f68396ee6418f7d6548a07` | 10 | Alternate exact code24 Downloads port; identical core Downloads classes. Old `downloads-v229-proof.yml` is historical independent-build evidence, not a workflow to resurrect under PR #37 efficiency policy. Preserve history; do not merge. |
+| `rescue/md-longpress-tab-freeze-20261017` @ `40a422af781b055289a483c2fdee176d023de9d9` | 6 | First safe exact-tab-ID / deferred-close design with native longpress script. Later rescue produced stronger cancellation semantics; preserve provenance. |
+| `rescue/md-unsigned-build-proof-20261017-longpress-freeze` @ `b6bf63c9dc9d036384270faa31d16a0940b4b70c` | 19 | Audited code24 chain fixed `ACTION_CANCEL` and new-`ACTION_DOWN` stale-request reset. Historic `LONGPRESS_TAB_FREEZE_2026-10-17.md` (absent from integration tree) records exact local signer/artifacts and prior three green CI/emulator runs, **not** Fold7 acceptance. Retain this strongest semantics + coverage as a recovery source. |
+| `rescue/md-unsigned-build-proof-longpress-20261017` @ `df858feb1b1759217f7546145369b6645d275f6f` | 1 | Narrow historical fixture/UI button-case adjustment only; don't replay. |
+| `rescue/md-unsigned-build-proof-longpress-release-20261017` @ `c7c3462fefd2a98070982af6af4aeaf8026979fa` | 5 | Follow-up fixture corrections and signed-release provenance `LONG_PRESS_FREEZE_2026-10-17.md` missing from integration; preserve historical report and test-case intent, no old APK claim as current. |
+
+### Exact currently-present work (avoid repeats)
+
+- Production `DownloadsAccess.java`, `DownloadsFileProvider.java`, `DownloadsPaths.java` have the **same Git blob SHA** across current integration, old direct Downloads, v229-source and tabfix2 branches: existing canonical path validation, nonexported provider and opt-in browsing are already present. **Do not port these classes again.**
+- Old `verification/downloads_paths/DownloadsPathsCheck.java` tests filename extensions, traversal, symlink and nested paths. Current `verification/downloads_browser/DownloadsPathsCheck.java` covers those same core invariants, plus bounded directory flooding; different test bytes are not proof of missing product function. Check final suite once, do not preserve duplicate suite runs.
+- Current `verification/tab_switch_native/run.sh` already verifies actual Android long presses, dirty inactive tab Cancel/Discard and clean close. Its tests do **not** specifically prove *interrupted gesture/new ACTION_DOWN cannot trigger an old request*; the stronger historical extracted gesture tests in `verification/split_resize` and missing native longpress script are useful reference fixtures, not a mandate to add duplicate CI runs.
+- These old branches' workflows target earlier package candidates or explicitly hosted builds; **do not re-enable rapid-push hosted workflows** while reconciling PR #37.
+
+### Two source-confirmed regressions / release blockers (new)
+
+1. **Malformed Recents destructive catch:** current `RecentStore.read` catches `JSONException` then executes `sharedPreferences.edit().remove(KEY).apply()`, silently deleting the stored Recents JSON on parse error. Older direct Downloads / tabfix2 source changed that catch to preserve the record. **Current integration did not retain the fix** (current blob differs). Recover that preservation behavior with a focused corrupt-record read/recovery/explicit-remove test; do not auto-delete user history.
+2. **Stale tab-close gesture:** current `MainActivity.updateTabsUi` touch handler only handles `ACTION_UP` and `ACTION_CANCEL` when `pendingLongPressedTabId` matches; it **does not clear stale pending intent at `ACTION_DOWN`**. After an interrupted long-press with missing terminal event, a new touch on the same tab can consume an old close request on UP. Audited code24 `645d2e504f0735b2993dac5d0a61ce66671c260e` resets per-tab close intent at fresh DOWN and cancels on CANCEL. **High-priority behavioral repair after PR #37**: preserve exact-tab identity, safe existing document Save/Discard/Cancel, accessibility-generated long-click and correct Android gesture sequence. Add RED first and regression for down/interrupted/new down/up, cancel and session reopening. Do not blindly paste old Activity code.
+
+### Proof and retirement gates
+
+Record both regressions under **Gate 3 data-integrity/user-state** and final native UI tests. The seven branch refs and their historical report SHA remain pinned as provenance. The old `rescue` and `fix` branch names can be tagged/archived only when both corrected behaviors and all source/test history are demonstrated on the final integration head; no force-push/deletion now. The earliest direct branch was explicitly superseded as a release baseline, **not** permission to discard its unique Recents safety fix.
+
+**Next: Batch 02B-2c-2** — six Moonshot/plans/history/`main` branches. No repeat of these seven audits unless the heads move.
 
 ## Known, not deferred
 
