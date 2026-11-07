@@ -44,7 +44,7 @@ public final class WorkspaceDeepLinks {
             String path=link.getRawPath();
             if(path==null || !path.startsWith("/v1/"))return null;
             String encoded=path.substring(4);
-            if(encoded.isEmpty() || encoded.indexOf('/')>=0 || encoded.indexOf('\')>=0 ||
+            if(encoded.isEmpty() || encoded.indexOf('/')>=0 || encoded.indexOf(92)>=0 ||
                     encoded.contains("..") || !encoded.matches("[A-Za-z0-9%._~!$&'()*+,;=:@-]+"))return null;
             String query=link.getRawQuery();
             if(query!=null && !query.matches("note=(?:[A-Za-z0-9._~-]|%[A-Fa-f0-9]{2}){1,512}"))return null;
