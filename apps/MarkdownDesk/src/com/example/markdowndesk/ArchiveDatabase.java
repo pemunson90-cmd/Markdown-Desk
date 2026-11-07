@@ -22,8 +22,10 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     static final int PAGE=60;
     static final class Conversation {
         String id,archiveId,name,created,updated; int messages;
-        Conversation(String id,String archiveId,String name,String created,String updated,int messages){
-            this.id=id;this.archiveId=archiveId;this.name=name;this.created=created;this.updated=updated;this.messages=messages;
+        final String generationId;
+        Conversation(String id,String archiveId,String name,String created,String updated,int messages,String generationId){
+            this.id=id;this.archiveId=archiveId;this.name=name;this.created=created;this.updated=updated;
+            this.messages=messages;this.generationId=generationId;
         }
     }
     static final class Message {
@@ -203,7 +205,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                 Math.max(1,Math.min(limit,200))+" OFFSET "+Math.max(0,offset),args)){
             while(c.moveToNext())result.add(new Conversation(
                     stableChat(c.getString(0),c.getString(2),c.getString(1)),c.getString(1),
-                    c.getString(3),c.getString(4),c.getString(5),c.getInt(6)));
+                    c.getString(3),c.getString(4),c.getString(5),c.getInt(6),c.getString(2)));
         }
         return result;
     }
@@ -247,10 +249,14 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     /** Pin the published generation before exporting; never mix old and new
      * versions of a conversation if a reimport swaps active_versions mid-read.
      */
-    synchronized String exportGeneration(String archiveId)throws IOException {
-        if(archiveId==null||archiveId.isEmpty())throw new IOException("Missing archive identity");
-        String generation=currentGeneration(getReadableDatabase(),archiveId);
-        ArchiveTranscriptIntegrity.generation(generation,generation);
+    synchronized String exportGeneration(Conversation selected)throws IOException {
+        if(selected==null||selected.archiveId==null||selected.archiveId.isEmpty())
+            throw new IOException("Missing archived conversation identity");
+        // The conversation list is a generation-bound snapshot. If a new import
+        // published since it was selected, never silently export newer content
+        // under the previous conversation's title/metadata.
+        String generation=currentGeneration(getReadableDatabase(),selected.archiveId);
+        ArchiveTranscriptIntegrity.generation(selected.generationId,generation);
         return generation;
     }
     synchronized void requireExportGeneration(String archiveId,String expected)throws IOException {

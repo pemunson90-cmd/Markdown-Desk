@@ -1421,7 +1421,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         io.execute(()->{
             try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
                 if(out==null)throw new IOException("Selected provider cannot create Markdown file");
-                final String generation=database.exportGeneration(conversation.archiveId);
+                final String generation=database.exportGeneration(conversation);
                 write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
                 int index=0;
                 for(;;){

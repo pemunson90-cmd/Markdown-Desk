@@ -87,7 +87,7 @@ final class ArchiveTranscriptPdf implements AutoCloseable {
                        OutputStream destination)throws IOException {
         if(database==null||conversation==null||destination==null)
             throw new IOException("Missing transcript export source");
-        final String generation=database.exportGeneration(conversation.archiveId);
+        final String generation=database.exportGeneration(conversation);
         try(ArchiveTranscriptPdf pdf=new ArchiveTranscriptPdf()){
             pdf.draw(conversation.name,pdf.title,10);
             pdf.draw("Complete archived conversation · "+conversation.messages+" indexed messages",pdf.caption,8);
