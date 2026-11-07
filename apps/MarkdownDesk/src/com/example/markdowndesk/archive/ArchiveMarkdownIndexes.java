@@ -14,7 +14,7 @@ public final class ArchiveMarkdownIndexes {
         ArrayList<ArchiveJournal.Annotation> rows=filter(all,chatId,false);
         StringBuilder result=new StringBuilder("# ").append(text(chatTitle)).append(" — Reading Notebook\n\n")
                 .append("_Read-only source. Notes and links are stored separately from the original JSON._\n\n")
-                .append(BEGIN).append("\n\n");
+                .append(BEGIN).append("\n").append(ownerMarker(archiveId,chatId)).append("\n\n");
         appendSection(result,"Saved Links",rows,true,archiveId,chatId);
         appendSection(result,"Notes, Highlights and Bookmarks",rows,false,archiveId,chatId);
         return result.append(END).append("\n").toString();
@@ -43,28 +43,70 @@ public final class ArchiveMarkdownIndexes {
         return existing.substring(0,start)+replacement.substring(rp,re+END.length())
                 +existing.substring(end+END.length());
     }
-    public static String fileName(String title,String id) {
+    private static String cleanTitle(String title) {
         String clean=title==null?"Untitled":title.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]"," ")
                 .replaceAll("\\s+"," ").trim();
         if(clean.isEmpty())clean="Untitled";
-        if(clean.length()>64)clean=clean.substring(0,64).trim();
-        // Truncation alone would overwrite indexes for different long IDs
-        // sharing a prefix. Hash the entire canonical identity, not the title.
-        String original=id==null?"no-id":id;
-        String visible=original.replaceAll("[^A-Za-z0-9_-]", "_");
-        // Preserve the filenames already emitted by earlier builds when safe.
-        // Only IDs that the legacy implementation *truncated* need a new hash.
-        if(visible.length()<=64)return clean+"--"+visible+".md";
-        visible=visible.substring(0,42);
+        return clean.length()>64?clean.substring(0,64).trim():clean;
+    }
+    private static String hashPrefix(String value,int bytes) {
         try {
             byte[] hash=java.security.MessageDigest.getInstance("SHA-256")
-                    .digest(original.getBytes(StandardCharsets.UTF_8));
-            StringBuilder digest=new StringBuilder(16);
-            for(int i=0;i<8;i++)digest.append(String.format(Locale.ROOT,"%02x",hash[i]&255));
-            return clean+"--"+visible+"-"+digest+".md";
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder digest=new StringBuilder(bytes*2);
+            for(int i=0;i<bytes;i++)digest.append(String.format(Locale.ROOT,"%02x",hash[i]&255));
+            return digest.toString();
         } catch(java.security.NoSuchAlgorithmException impossible) {
             throw new IllegalStateException("SHA-256 unavailable",impossible);
         }
+    }
+    /** Former filename rule, for detecting old notebooks without overwriting. */
+    public static String legacyFileName(String title,String id) {
+        String original=id==null?"no-id":id;
+        String visible=original.replaceAll("[^A-Za-z0-9_-]","_");
+        if(visible.length()>64)return fileName(title,id);
+        return cleanTitle(title)+"--"+visible+".md";
+    }
+    public static String fileName(String title,String id) {
+        String original=id==null?"no-id":id;
+        String visible=original.replaceAll("[^A-Za-z0-9_-]","_");
+        // Preserve safe canonical short identifiers at their published names.
+        if(original.matches("[A-Za-z0-9_-]{1,64}"))
+            return cleanTitle(title)+"--"+visible+".md";
+        // Sanitization loses information even for short IDs (id/a vs id_a).
+        if(visible.length()>42)visible=visible.substring(0,42);
+        return cleanTitle(title)+"--"+visible+"-"+hashPrefix(original,8)+".md";
+    }
+    private static String ownerMarker(String archiveId,String chatId) {
+        if(archiveId==null||archiveId.isEmpty()||chatId==null||chatId.isEmpty())
+            throw new IllegalArgumentException("Missing sidecar source identity");
+        return "<!-- markdown-desk-owner-sha256:"+
+                hashPrefix(archiveId.length()+":"+archiveId+chatId,16)+" -->";
+    }
+    /** A colliding filename is never evidence of matching source identity.
+     * Old files without an owner marker may be recognized by all generated
+     * deep links; ambiguous legacy files are left unmodified.
+     */
+    public static boolean matchesOwner(String existing,String archiveId,String chatId) {
+        if(existing==null||archiveId==null||chatId==null)return false;
+        int from=existing.indexOf(BEGIN),to=existing.indexOf(END);
+        if(from<0||to<=from)return false;
+        String managed=existing.substring(from+BEGIN.length(),to);
+        String marker="<!-- markdown-desk-owner-sha256:";
+        int position=managed.indexOf(marker);
+        if(position>=0) {
+            return managed.indexOf(marker,position+marker.length())<0 &&
+                    managed.contains(ownerMarker(archiveId,chatId));
+        }
+        String needle="markdowndesk://archive/v1/";
+        String expected=needle+enc(archiveId)+"/"+enc(chatId)+"/";
+        int hit=managed.indexOf(needle), count=0;
+        while(hit>=0) {
+            if(!managed.startsWith(expected,hit))return false;
+            count++;
+            hit=managed.indexOf(needle,hit+needle.length());
+        }
+        return count>0;
     }
     private static ArrayList<ArchiveJournal.Annotation> filter(Collection<ArchiveJournal.Annotation> rows,String chatId,boolean linksOnly){
         ArrayList<ArchiveJournal.Annotation> found=new ArrayList<>();
