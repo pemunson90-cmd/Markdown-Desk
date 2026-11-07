@@ -30,6 +30,19 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn(".setClass(ArchiveWorkspaceActivity.this,MainActivity.class)", source)
         self.assertNotIn("new Intent(Intent.ACTION_VIEW,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)", source)
 
+    def test_unified_search_does_not_treat_markdown_notes_as_archive_messages(self):
+        source = (JAVA / "UnifiedSearchActivity.java").read_text()
+        self.assertIn('ArchiveMarkdownIndexes.deepLink(annotation)', source)
+        self.assertIn('WorkspaceDeepLinks.isDocumentLink(source)', source)
+        self.assertIn('WorkspaceDeepLinks.isArchiveLink(source)', source)
+        self.assertIn('markdown?MainActivity.class:ArchiveWorkspaceActivity.class', source)
+        self.assertEqual(source.count('v->openAnnotationHit(a)'), 2)
+        self.assertNotIn('v->openArchiveHit(a.chatId,a.messageId)', source)
+        region = source.split('private void openAnnotationHit(', 1)[1].split(
+            'private void openArchiveHit(', 1)[0]
+        self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', region)
+        self.assertNotIn('takePersistableUriPermission', region)
+
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()
         self.assertNotIn('android:host="document"', manifest)
