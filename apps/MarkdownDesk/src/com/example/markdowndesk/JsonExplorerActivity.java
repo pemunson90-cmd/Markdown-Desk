@@ -119,7 +119,7 @@ public final class JsonExplorerActivity extends Activity {
         buildUi();
         updateReadingFocus();
         if(noInspectorSlot)showFailure("Twelve JSON Inspector tabs are open. Close one in All workspace tabs before opening another.");
-        if(document==null)showOpenChoices();
+        else if(document==null)showOpenChoices();
         else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
     }
 
