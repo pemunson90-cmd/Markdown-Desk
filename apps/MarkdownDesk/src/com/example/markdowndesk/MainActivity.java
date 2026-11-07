@@ -344,6 +344,17 @@ public class MainActivity extends Activity {
             dismissLaunchSplash();
         } else if (this.focusMode) {
             toggleFocusMode();
+        } else if (this.returnUnifiedSearch) {
+            // Switching back retains the current Markdown tabs, edits and recovery.
+            // Never finish an editor just to revisit read-only search results.
+            Intent results=new Intent(this,UnifiedSearchActivity.class);
+            results.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            try{
+                startActivity(results);
+                this.returnUnifiedSearch=false;
+            }catch(RuntimeException unavailable){
+                Toast.makeText(this,"Search results are unavailable; your document is unchanged",Toast.LENGTH_LONG).show();
+            }
         } else if (this.filesRail != null) {
             // Back closes expanded navigation before considering an unsaved-document exit.
             this.filesRailRequested = false;
@@ -2231,6 +2242,7 @@ public class MainActivity extends Activity {
             return;
         }
         captureUnifiedSearchJump(intent);
+        this.returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
         if(intent.hasExtra(UnifiedTabs.EXTRA_TAB_ID)){
             String logicalId=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
             intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
@@ -3366,6 +3378,7 @@ public class MainActivity extends Activity {
     private SearchLocation searchLocation;
     private SearchLocation searchOpenCall;
     private PendingUnifiedJump pendingUnifiedJump;
+    private boolean returnUnifiedSearch;
     private static final class PendingUnifiedJump {
         final String uri,hash,literal;final int offset;
         PendingUnifiedJump(String uri,String hash,String literal,int offset) {
