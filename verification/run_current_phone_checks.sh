@@ -67,6 +67,7 @@ bash verification/markdown_notes/run_script.sh
 python3 -m unittest discover -s verification -p 'test_markdown_notes_integration.py'
 python3 -m unittest discover -s verification -p 'test_sidecar_publication.py'
 python3 -m unittest discover -s verification -p 'test_document_link_routing.py'
+python3 -m unittest discover -s verification -p 'test_inspector_session_routing.py'
 python3 -m unittest discover -s verification -p 'test_unified_search_state.py'
 python3 -m unittest discover -s verification -p 'test_export_generation_snapshot.py'
 bash verification/workspace_directory_loader/run.sh
