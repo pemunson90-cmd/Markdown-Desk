@@ -13,6 +13,10 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.BackgroundColorSpan;
+import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.WindowManager;
@@ -26,6 +30,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -43,6 +48,8 @@ public final class JsonExplorerActivity extends Activity {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private int offset=0;
     private int revision=0;
+    private boolean sourceHitShown;
+    private long rawHitRequest;
     private UiTheme.Palette palette;
     private LinearLayout root, entries, actionRow;
     private ScrollView entryScroll;
@@ -86,6 +93,7 @@ public final class JsonExplorerActivity extends Activity {
         palette=UiTheme.palette(prefs.getInt("ui_theme",0),prefs.getBoolean("dark_theme",false));
         readingSp=Math.max(12f,Math.min(32f,prefs.getFloat("preview_font_size",18f)));
         focusReading=state!=null&&state.getBoolean("jsonFocusReading",false);
+        sourceHitShown=state!=null&&state.getBoolean("jsonSourceHitShown",false);
         document=getIntent()==null?null:getIntent().getData();
         if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
             document=Uri.parse(state.getString("jsonDocumentUri"));
@@ -102,7 +110,18 @@ public final class JsonExplorerActivity extends Activity {
         }
         buildUi();
         updateReadingFocus();
-        if (document==null) showOpenChoices(); else loadPage();
+        if(document==null)showOpenChoices();
+        else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
+    }
+
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);setIntent(intent);
+        Uri next=intent==null?null:intent.getData();
+        if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
+        if(document==null||!document.equals(next)){
+            document=next;path.clear();offset=0;loadPage();
+        }
+        sourceHitShown=false;rawHitRequest++;showIncomingRawHit(intent);
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -119,6 +138,7 @@ public final class JsonExplorerActivity extends Activity {
         state.putIntArray("jsonPathIndices",indices);
         state.putInt("jsonOffset",offset);
         state.putBoolean("jsonFocusReading",focusReading);
+        state.putBoolean("jsonSourceHitShown",sourceHitShown);
     }
 
     private int dp(int n) { return Math.round(n*getResources().getDisplayMetrics().density); }
@@ -346,6 +366,39 @@ public final class JsonExplorerActivity extends Activity {
     private void showFailure(String msg) {
         new AlertDialog.Builder(this).setTitle("JSON Explorer").setMessage(msg)
                 .setPositiveButton("OK",null).show();
+    }
+
+    /** Bounded raw-offset proof. JSON-path resolution remains a separate parser task. */
+    private void showIncomingRawHit(Intent launch){
+        if(launch==null||document==null||!launch.hasExtra(UnifiedSearchJump.EXTRA_URI))return;
+        final String expectedUri=launch.getStringExtra(UnifiedSearchJump.EXTRA_URI);
+        if(expectedUri==null||!expectedUri.equals(document.toString()))return;
+        final Uri current=document;final int token=revision;
+        final long request=rawHitRequest;
+        final String hash=launch.getStringExtra(UnifiedSearchJump.EXTRA_HASH);
+        final String literal=launch.getStringExtra(UnifiedSearchJump.EXTRA_LITERAL);
+        final int at=launch.getIntExtra(UnifiedSearchJump.EXTRA_OFFSET,-1);
+        worker.execute(()->{
+            try(InputStream input=getContentResolver().openInputStream(current)){
+                JsonRawSearchHit.Hit found=JsonRawSearchHit.verify(input,expectedUri,current.toString(),hash,literal,at);
+                runOnUiThread(()->{
+                    if(token!=revision||request!=rawHitRequest||document==null||!current.equals(document)||isFinishing()||isDestroyed())return;
+                    sourceHitShown=true;
+                    SpannableString highlighted=new SpannableString(found.snippet);
+                    highlighted.setSpan(new BackgroundColorSpan(palette.accentSoft),found.begin,found.end,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    TextView passage=text("",14);passage.setText(highlighted);passage.setTextIsSelectable(true);
+                    ScrollView scroll=new ScrollView(this);scroll.addView(passage);
+                    new AlertDialog.Builder(this).setTitle("Verified raw JSON · line "+found.line)
+                        .setView(scroll).setPositiveButton("Inspect JSON",null)
+                        .setNeutralButton("Copy exact match",(dialog,which)->copy(found.quote)).show();
+                });
+            }catch(Exception failed){runOnUiThread(()->{
+                if(token!=revision||request!=rawHitRequest||document==null||!current.equals(document)||isFinishing()||isDestroyed())return;
+                sourceHitShown=true;
+                showFailure("Raw JSON match unavailable: "+safeError(failed));
+            });}
+        });
     }
 
     private void loadPage() {

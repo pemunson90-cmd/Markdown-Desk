@@ -202,9 +202,9 @@ public final class UnifiedSearchActivity extends Activity {
                         for(WorkspaceLiteralSearch.Match match:file.matches){
                             String label=(file.json?"JSON · ":"MD · ")+file.displayName+
                                     " · line "+match.line+"\n"+match.snippet+
-                                    (file.json?"\nOpen JSON Inspector (line jump unavailable)":"");
+                                    (file.json?"\nOpen verified raw passage in JSON Inspector":"");
                             add(label,v->{
-                                if(file.json)openJsonHit(file);
+                                if(file.json)openJsonHit(file,match,term);
                                 else openMarkdownHit(file,match,term);
                             });
                         }
@@ -216,9 +216,14 @@ public final class UnifiedSearchActivity extends Activity {
     /** JSON files have a separate structured source reader. The literal scan
      * does not mint a JSON node/path identity, so do not claim an exact jump.
      */
-    private void openJsonHit(WorkspaceLiteralSearch.FileHit file){
+    private void openJsonHit(WorkspaceLiteralSearch.FileHit file,
+                             WorkspaceLiteralSearch.Match match,String literal){
         if(file==null||file.uri==null)return;
         Intent intent=new Intent(Intent.ACTION_VIEW,file.uri)
+                .putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString())
+                .putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)
+                .putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)
+                .putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16)
                 .setClass(this,JsonExplorerActivity.class)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try{startActivity(intent);}catch(Exception failed){error("Cannot open JSON Inspector",failed);}

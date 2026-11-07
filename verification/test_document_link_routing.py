@@ -110,7 +110,7 @@ class DocumentRoutingTests(unittest.TestCase):
         search = (JAVA / "UnifiedSearchActivity.java").read_text()
         activity = (JAVA / "MainActivity.java").read_text()
         verify = (JAVA / "workspace/search/UnifiedSearchJump.java").read_text()
-        self.assertIn('v->openMarkdownHit(file,match,term)', search)
+        self.assertIn('else openMarkdownHit(file,match,term)', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString())', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)', search)
@@ -219,21 +219,40 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('if(!awaitingLowSurrogate && Character.isLowSurrogate(ch))', parser)
         self.assertIn('if(awaitingLowSurrogate)throw error(', parser)
 
-    def test_json_folder_search_is_bounded_and_opens_inspector_without_fake_jump(self):
+    def test_json_folder_search_is_bounded_and_opens_verified_raw_match(self):
         source = (JAVA / "WorkspaceLiteralSearch.java").read_text()
         ui = (JAVA / "UnifiedSearchActivity.java").read_text()
         self.assertIn('boolean json="application/json".equalsIgnoreCase(entry.mimeType)||name.endsWith(".json")', source)
         self.assertIn('json=file.json', source)
-        self.assertIn('if(file.json)openJsonHit(file)', ui)
-        self.assertIn('Open JSON Inspector (line jump unavailable)', ui)
+        self.assertIn('if(file.json)openJsonHit(file,match,term)', ui)
+        self.assertIn('Open verified raw passage in JSON Inspector', ui)
         json_route = ui.split("private void openJsonHit(",1)[1].split(
             "private void openMarkdownHit(",1)[0]
         self.assertIn('.setClass(this,JsonExplorerActivity.class)', json_route)
         self.assertIn('new Intent(Intent.ACTION_VIEW,file.uri)',json_route)
-        self.assertNotIn('UnifiedSearchJump.EXTRA_OFFSET',json_route)
+        self.assertIn('.putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString())',json_route)
+        self.assertIn('.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)',json_route)
+        self.assertIn('.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)',json_route)
+        self.assertIn('.putExtra(UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16)',json_route)
         self.assertNotIn('takePersistableUriPermission',json_route)
         self.assertIn('8L<<20',source)
         self.assertIn('16L<<20',source)
+
+    def test_json_inspector_exact_raw_hit_is_bounded_source_verified_and_one_shot(self):
+        inspector=(JAVA / "JsonExplorerActivity.java").read_text()
+        verifier=(JAVA / "JsonRawSearchHit.java").read_text()
+        self.assertIn('private void showIncomingRawHit(Intent launch)',inspector)
+        self.assertIn('JsonRawSearchHit.verify(input,expectedUri,current.toString(),hash,literal,at)',inspector)
+        self.assertIn('new SpannableString(found.snippet)',inspector)
+        self.assertIn('new BackgroundColorSpan(palette.accentSoft)',inspector)
+        self.assertIn('Verified raw JSON · line ',inspector)
+        self.assertIn('state.putBoolean("jsonSourceHitShown",sourceHitShown)',inspector)
+        self.assertIn('request!=rawHitRequest',inspector)
+        self.assertIn('rawHitRequest++;showIncomingRawHit(intent)',inspector)
+        self.assertIn('MAX_BYTES=8*1024*1024',verifier)
+        self.assertIn('UnifiedSearchJump.matches(requestedUri,actualUri,sourceSha,actualSha,',verifier)
+        self.assertIn('onMalformedInput(CodingErrorAction.REPORT)',verifier)
+        self.assertNotIn('openOutputStream(',verifier)
 
     def test_document_deep_link_is_not_externally_exported(self):
         manifest = (ROOT / "apps/MarkdownDesk/AndroidManifest.xml").read_text()

@@ -61,8 +61,8 @@ and buffer-crossing matches. Snippet cuts preserve surrogate pairs.
 
 State precedence is CANCELLED, then FAILED, then LIMITED, then COMPLETE. Enum reasons
 preserve mixed failures. Search candidates include text/*, application/json, and
-.md/.markdown/.txt/.json filenames. JSON files retain their source type and open
-in JSON Inspector; raw-text offset does not imply a JSON-node exact jump. Other
+.md/.markdown/.txt/.json filenames. JSON files retain their source type and open a bounded SHA-verified raw passage
+in JSON Inspector; a raw-text offset is not proof of a structured JSON-node path. Other
 binary types are excluded. Repeated opaque IDs are graph-deduplicated and recorded CYCLE;
 partial reader listing remains incomplete regardless. Root/child authority checks
 and actual provider permissions remain authoritative; no writes/grant mutation.
