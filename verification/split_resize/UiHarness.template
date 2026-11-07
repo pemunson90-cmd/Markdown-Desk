@@ -20,6 +20,7 @@ class MainActivity {
   View(){} View(Object c){} void setContentDescription(String s){description=s;} void setSelected(boolean s){selected=s;} void setFocusable(boolean s){focusable=s;} void setImportantForAccessibility(int i){important=i;} void setAccessibilityDelegate(AccessibilityDelegate d){delegate=d;} void setOnKeyListener(OnKeyListener k){key=k;}
   void setBackgroundColor(int c){} void setOnTouchListener(OnTouchListener l){touch=l;} void setLayoutParams(Object p){layoutParams=p;} void setVisibility(int v){} void setAlpha(float f){} View animate(){return this;} View alpha(float f){return this;} View setDuration(long l){return this;} void start(){} void post(Runnable r){}
  }
+ static class PostQueue extends View { final List<Runnable> pending=new ArrayList<>(); @Override void post(Runnable r){pending.add(r);} }
  static class Button extends View {String text,tooltip; OnClickListener click; void setText(String s){text=s;} void setTooltipText(String s){tooltip=s;} void setTextSize(float f){} void setSingleLine(boolean b){} void setEllipsize(Object o){} void setOnLongClickListener(OnLongClickListener l){} }
  static class TextUtils {static class TruncateAt {static final Object END=new Object();}}
  static class LinearLayout extends View {
