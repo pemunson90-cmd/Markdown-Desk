@@ -87,6 +87,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_CREATE = 1002;
     private static final int REQUEST_OPEN = 1001;
     private static final int REQUEST_JSON = 1013;
+    private static final int REQUEST_READING_NOTES_TREE = 1014;
     private static final int REQUEST_SPLASH_IMPORT = 1003;
     // Accessed only by the single I/O executor; the trusted Android parent may be an OS alias.
     private ProtectionStore protectionStore;
@@ -615,6 +616,8 @@ public class MainActivity extends Activity {
                 v->{if(this.readingNotes!=null)this.readingNotes.annotate();});
         addReadTool("Notes","Browse and edit source-linked reading notes",
                 v->{if(this.readingNotes!=null)this.readingNotes.showNotes();});
+        addReadTool("Index folder","Choose where Markdown note indexes are published",
+                v->chooseReadingNotesFolder());
         configureEditorHistoryActions();
         this.writeFavoriteButton = addFormat("☆", "Toggle current document favorite", new View.OnClickListener() {
             @Override public void onClick(View view) { MainActivity.this.pinCurrentDocumentFavorite(); }
@@ -2092,6 +2095,7 @@ public class MainActivity extends Activity {
         super.onActivityResult(i, i2, intent);
         if (i == REQUEST_DOCX_COPY) { handleDocxResult(i2, intent); return; }
         if(i==REQUEST_WORKSPACE_TREE){handleWorkspaceTreeResult(i2,intent);return;}
+        if(i==REQUEST_READING_NOTES_TREE){handleReadingNotesTreeResult(i2,intent);return;}
         if (i == REQUEST_SPLASH_IMPORT) {
             if (i2 == -1 && intent != null) {
                 importSplashImages(intent);
@@ -4155,6 +4159,39 @@ public class MainActivity extends Activity {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
         }),matchWrap());
     }
+    /** Shared Archive + Markdown note index destination, never the source document. */
+    private void chooseReadingNotesFolder() {
+        if(isFinishing()||isDestroyed())return;
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                |Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try{startActivityForResult(picker,REQUEST_READING_NOTES_TREE);}
+        catch(ActivityNotFoundException missing){showError("No Android folder picker is available.");}
+    }
+
+    private void handleReadingNotesTreeResult(int result,Intent data) {
+        if(isFinishing()||isDestroyed()||result!=RESULT_OK||data==null||data.getData()==null)return;
+        final Uri tree=data.getData();
+        final int required=Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+        if(!"content".equalsIgnoreCase(tree.getScheme())||(data.getFlags()&required)!=required
+                ||(data.getFlags()&Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)==0) {
+            showError("Choose a writable Android notes folder with lasting access.");return;
+        }
+        try {
+            // Refuse malformed/non-tree URIs without replacing the prior destination.
+            if(DocumentsContract.getTreeDocumentId(tree)==null)
+                throw new IllegalArgumentException("Missing tree document identity");
+            getContentResolver().takePersistableUriPermission(tree,required);
+            if(!getSharedPreferences("markdown_desk",Context.MODE_PRIVATE).edit()
+                    .putString("archive_notes_tree",tree.toString()).commit())
+                throw new IllegalStateException("Could not remember the notes folder");
+            Toast.makeText(this,"Notes folder connected; synchronizing saved indexes.",Toast.LENGTH_LONG).show();
+            if(this.readingNotes!=null)this.readingNotes.syncIndexes();
+        }catch(SecurityException|IllegalArgumentException|IllegalStateException failure){
+            showError("Notes folder was not connected: "+failure.getMessage());
+        }
+    }
+
     private void launchWorkspaceFolderPicker() {
         if(isFinishing()||isDestroyed())return;
         cancelWorkspaceNavigation();
