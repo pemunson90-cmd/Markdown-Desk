@@ -45,12 +45,26 @@ public final class RecentStore {
                 }
             }
         } catch (JSONException e) {
-            sharedPreferences.edit().remove(KEY).apply();
+            // Preserve the original bytes for later recovery; reading is never deletion.
         }
         return arrayList;
     }
 
+    /** Never overwrite malformed stored Recents during an unrelated open/remove.
+     * Recovery can inspect the original value; a later explicit repair may replace it.
+     */
+    private static boolean canUpdate(Context context) {
+        String stored = context.getSharedPreferences(PREFS, 0).getString(KEY, "[]");
+        try {
+            new JSONArray(stored);
+            return true;
+        } catch (JSONException damaged) {
+            return false;
+        }
+    }
+
     public static void touch(Context context, String str, String str2) {
+        if (!canUpdate(context)) return;
         ArrayList arrayList = new ArrayList();
         arrayList.add(new Item(str, str2, System.currentTimeMillis()));
         for (Item item : read(context)) {
@@ -62,6 +76,7 @@ public final class RecentStore {
     }
 
     public static void remove(Context context, String str) {
+        if (!canUpdate(context)) return;
         ArrayList arrayList = new ArrayList();
         for (Item item : read(context)) {
             if (!item.uri.equals(str)) {
