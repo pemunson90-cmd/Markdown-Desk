@@ -49,7 +49,7 @@ public final class SidecarIdentityCheck {
                 "archiveA",canonical),"ambiguous markerless empty legacy notebook fails closed");
         String withProse="# Personal notes\n\n"+existing+"\nmanual tail\n";
         String merged=ArchiveMarkdownIndexes.replaceGeneratedRegion(withProse,existing);
-        check(merged.startsWith("# Personal notes") && merged.endsWith("manual tail\\n"),
+        check(merged.startsWith("# Personal notes") && merged.endsWith("manual tail\n"),
                 "user prose must survive generated-region updates");
         System.out.println("PASS: sidecar source ownership, short/long IDs, legacy fail-closed, prose");
     }
