@@ -1274,13 +1274,21 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         io.execute(()->{
             try(OutputStream out=getContentResolver().openOutputStream(destination,"w")){
                 if(out==null)throw new IOException("Selected provider cannot create Markdown file");
-                write(out,"# "+conversation.name+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
+                write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
                 int index=0;
                 for(;;){
                     List<ArchiveDatabase.Message> messages=database.messages(chat,index,50);
                     if(messages.isEmpty())break;
                     for(ArchiveDatabase.Message m:messages){
-                        write(out,"## "+m.role+" · "+safe(m.created)+" · message "+(m.ordinal+1)+"\n\n");
+                        write(out,"## "+transcriptField(m.role)+" · "+transcriptField(m.created)+
+                                " · message "+(m.ordinal+1)+"\\n\\n");
+                        if(conversation.archiveId!=null&&!conversation.archiveId.isEmpty()
+                                &&m.messageId!=null&&!m.messageId.isEmpty()){
+                            Uri source=new Uri.Builder().scheme("markdowndesk").authority("archive")
+                                .appendPath("v1").appendPath(conversation.archiveId)
+                                .appendPath(chat).appendPath(m.messageId).build();
+                            write(out,"Source: [Open original message]("+source.toString()+")\\n\\n");
+                        }
                         for(int part=0;part<m.segments;part+=32)write(out,database.textChunk(m.id,part,32));
                         write(out,"\n\n");
                     }
@@ -1289,6 +1297,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 out.flush();runOnUiThread(()->status("Complete Markdown conversation exported"));
             }catch(Exception e){runOnUiThread(()->fail("Transcript export failed; do not rely on partial document",e));}
         });
+    }
+    /** Metadata only. Source message bodies are streamed without rewriting. */
+    private static String transcriptField(String value){
+        if(value==null)return "Unavailable";
+        return value.replace('\\r',' ').replace('\\n',' ')
+            .replace("\\\\","\\\\\\\\").replace("[","\\\\[")
+            .replace("]","\\\\]").replace("*","\\\\*")
+            .replace("_","\\\\_").replace("#","\\\\#");
     }
     private static void write(OutputStream output,String text)throws IOException{output.write(text.getBytes(StandardCharsets.UTF_8));}
     private void moreMenu(){
