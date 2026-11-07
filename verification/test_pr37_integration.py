@@ -50,6 +50,13 @@ class IntegratedEfficiencyTests(unittest.TestCase):
             self.assertEqual(1, runner.count("test_current_source_guard.py"), name)
             self.assertEqual(1, runner.count("test_pr37_integration.py"), name)
 
+    def test_renderer_host_compilers_include_internal_link_dependency(self):
+        for runner in sorted((ROOT / "verification").rglob("*.sh")):
+            content = runner.read_text(encoding="utf-8")
+            if "MarkdownRenderer.java" in content and "javac" in content:
+                self.assertIn("workspace/WorkspaceDeepLinks.java", content,
+                              "renderer compile missing current link validator: " + str(runner))
+
     def test_deferred_portable_tests_remain_visible(self):
         phone = read("verification/run_current_phone_checks.sh")
         self.assertEqual(18, phone.count("OWNER-DEFERRED PORTABLE TEST:"))
