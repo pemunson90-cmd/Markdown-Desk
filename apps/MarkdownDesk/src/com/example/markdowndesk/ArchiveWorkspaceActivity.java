@@ -234,6 +234,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         b.setTextColor(UiTheme.readableForeground(palette.text,palette.surface));
         b.setBackground(UiTheme.rounded(palette.raised,dp(8),palette.border,dp(1)));
         b.setMinHeight(dp(48));b.setPadding(dp(12),dp(7),dp(12),dp(7));b.setOnClickListener(tap);
+        // Symbol-only controls need meaningful TalkBack names on compact Fold widths.
+        String spoken=label;
+        switch(label){
+            case "‹":spoken="Back to previous Archive screen";break;
+            case "⋮":spoken="More Archive actions";break;
+            case "←":spoken="Previous conversation messages";break;
+            case "→":spoken="Next conversation messages";break;
+            case "A−":spoken="Decrease reading text size";break;
+            case "A+":spoken="Increase reading text size";break;
+            case "Mark":spoken="Bookmark current message";break;
+            case "Style":spoken="Reader appearance settings";break;
+        }
+        b.setContentDescription(spoken);
         return b;
     }
     private void add(LinearLayout target,String label,View.OnClickListener tap){
