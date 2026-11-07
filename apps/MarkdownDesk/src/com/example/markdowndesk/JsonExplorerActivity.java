@@ -34,6 +34,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,11 +62,66 @@ public final class JsonExplorerActivity extends Activity {
     private EditText filter;
     private JsonExplorerEngine.Page page;
     private String pendingExport;
+    private int pendingScrollY;
+    private boolean retiringInspector;
 
     /** Metadata-only session identity; the original JSON remains read-only. */
     public boolean showingDocument(Uri uri){return uri!=null&&uri.equals(document);}
     public void closeInspectorTabForSwitch(){
+        retiringInspector=true;
         if(document!=null)UnifiedTabs.closeInspector(this,document);
+    }
+
+    private static String inspectorPositionKey(Uri uri){
+        return "json_inspector_position_v1:"+uri.toString();
+    }
+    /** Persist only bounded reader navigation; source bytes and provider grants stay outside preferences. */
+    private void saveInspectorPosition(){
+        if(retiringInspector||prefs==null||document==null||path.size()>64)return;
+        try{
+            JSONArray steps=new JSONArray();
+            for(JsonExplorerEngine.Step step:path){
+                String name=step.name==null?"":step.name;
+                if(name.length()>512)return; // no lossy persisted path
+                JSONObject part=new JSONObject();
+                part.put("n",name);part.put("i",step.index);steps.put(part);
+            }
+            JSONObject saved=new JSONObject();
+            saved.put("steps",steps);
+            saved.put("offset",Math.max(0,offset));
+            saved.put("scroll",entryScroll==null?0:Math.max(0,entryScroll.getScrollY()));
+            String f=filter==null?"":filter.getText().toString();
+            if(f.length()>1024)return;
+            saved.put("filter",f);
+            prefs.edit().putString(inspectorPositionKey(document),saved.toString()).apply();
+        }catch(Exception malformed){/* Never mutate the source or overwrite an older valid state. */}
+    }
+    private void restoreInspectorPosition(Uri uri){
+        path.clear();offset=0;pendingScrollY=0;
+        if(filter!=null)filter.setText("");
+        if(uri==null||prefs==null)return;
+        String raw=prefs.getString(inspectorPositionKey(uri),null);
+        if(raw==null||raw.length()>36000)return;
+        try{
+            JSONObject saved=new JSONObject(raw);
+            JSONArray steps=saved.optJSONArray("steps");
+            if(steps==null||steps.length()>64)return;
+            ArrayList<JsonExplorerEngine.Step> candidate=new ArrayList<>();
+            for(int i=0;i<steps.length();i++){
+                JSONObject step=steps.getJSONObject(i);
+                int index=step.getInt("i");
+                String name=step.getString("n");
+                if(name.length()>512||index< -1)return;
+                candidate.add(index<0?JsonExplorerEngine.Step.field(name):
+                        JsonExplorerEngine.Step.element(index));
+            }
+            String f=saved.optString("filter","");
+            if(f.length()>1024)return;
+            path.addAll(candidate);
+            offset=Math.max(0,saved.optInt("offset",0));
+            pendingScrollY=Math.max(0,saved.optInt("scroll",0));
+            if(filter!=null)filter.setText(f);
+        }catch(Exception invalid){path.clear();offset=0;pendingScrollY=0;}
     }
 
     static boolean looksLikeJson(Context context, Uri uri) {
@@ -117,6 +174,12 @@ public final class JsonExplorerActivity extends Activity {
             offset=Math.max(0,state.getInt("jsonOffset",0));
         }
         buildUi();
+        if(state==null)restoreInspectorPosition(document);
+        else{
+            String rememberedFilter=state.getString("jsonFilter","");
+            if(rememberedFilter.length()<=1024)filter.setText(rememberedFilter);
+            pendingScrollY=Math.max(0,state.getInt("jsonScrollY",0));
+        }
         updateReadingFocus();
         if(noInspectorSlot)showFailure("Twelve JSON Inspector tabs are open. Close one in All workspace tabs before opening another.");
         else if(document==null)showOpenChoices();
@@ -124,6 +187,7 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     @Override protected void onNewIntent(Intent intent){
+        saveInspectorPosition();
         super.onNewIntent(intent);setIntent(intent);
         Uri next=intent==null?null:intent.getData();
         if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
@@ -131,7 +195,7 @@ public final class JsonExplorerActivity extends Activity {
             showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
         }
         if(document==null||!document.equals(next)){
-            document=next;path.clear();offset=0;loadPage();
+            document=next;page=null;restoreInspectorPosition(next);loadPage();
         }
         sourceHitShown=false;rawHitRequest++;showIncomingRawHit(intent);
     }
@@ -151,6 +215,9 @@ public final class JsonExplorerActivity extends Activity {
         state.putInt("jsonOffset",offset);
         state.putBoolean("jsonFocusReading",focusReading);
         state.putBoolean("jsonSourceHitShown",sourceHitShown);
+        state.putString("jsonFilter",filter==null?"":filter.getText().toString());
+        state.putInt("jsonScrollY",entryScroll==null?0:Math.max(0,entryScroll.getScrollY()));
+        saveInspectorPosition();
     }
 
     private int dp(int n) { return Math.round(n*getResources().getDisplayMetrics().density); }
@@ -348,8 +415,9 @@ public final class JsonExplorerActivity extends Activity {
             if(!UnifiedTabs.openInspector(this,chosen)){
                 showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
             }
+            saveInspectorPosition();
             document=chosen;
-            path.clear(); offset=0; page=null; filter.setText("");
+            page=null;restoreInspectorPosition(chosen);
             loadPage();
         } else if(request==REQUEST_EXPORT) {
             String value=pendingExport;
@@ -439,6 +507,10 @@ public final class JsonExplorerActivity extends Activity {
                               +(next.hasMore?" · more pages available":""))
                             +" · filter searches this page");
                     renderEntries();
+                    if(pendingScrollY>0){
+                        final int y=pendingScrollY;pendingScrollY=0;
+                        entryScroll.post(()->{if(token==revision)entryScroll.scrollTo(0,y);});
+                    }
                 });
             }catch(Exception error){
                 runOnUiThread(()->{
@@ -604,6 +676,11 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     @Override public void onBackPressed(){back();}
+
+    @Override protected void onPause(){
+        saveInspectorPosition();
+        super.onPause();
+    }
 
     @Override protected void onDestroy(){
         revision++;
