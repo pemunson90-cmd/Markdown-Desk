@@ -552,7 +552,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append(".archive-sentinel{display:block;padding:16px;min-height:44px;text-align:center}")
                 .append("mark.md-archive-highlight{background:").append(css(palette.raised))
                 .append(";color:").append(css(palette.text)).append(";border-bottom:2px solid ")
-                .append(css(palette.accent)).append(";cursor:pointer;border-radius:3px}</style>");
+                .append(css(palette.accent)).append(";cursor:pointer;border-radius:3px}")
+                .append("mark.md-archive-tone-violet{background:rgba(186,106,235,.36)}")
+                .append("mark.md-archive-tone-rose{background:rgba(236,100,152,.32)}")
+                .append("mark.md-archive-tone-mint{background:rgba(82,196,158,.32)}")
+                .append("mark.md-archive-tone-amber{background:rgba(242,180,70,.34)}")
+                .append("mark.md-archive-tone-blue{background:rgba(90,150,245,.33)}")
+                .append("mark.md-archive-tone-slate{background:rgba(132,152,171,.34)}</style>");
         if(continuous){
             html.append("<a id=\"archive-before\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=-1\" data-more=\"")
                 .append(viewport.hasBefore()?"1":"0").append("\"")
