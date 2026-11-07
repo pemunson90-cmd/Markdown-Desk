@@ -264,22 +264,33 @@ final class JsonExplorerEngine {
         if (value==JsonToken.BEGIN_OBJECT) {
             json.beginObject();
             StringBuilder out=new StringBuilder();
+            boolean shortened=false;
             while (json.hasNext()) {
                 String name=json.nextName();
-                if (("text".equals(name)||"content".equals(name))
-                        && out.length()<24000) {
-                    String part=readContent(json);
-                    if (!part.isEmpty()) out.append(part);
+                if ("text".equals(name)||"content".equals(name)) {
+                    if(out.length()>=24000){
+                        json.skipValue();
+                        shortened=true; // Do not silently omit another text value.
+                    }else{
+                        String part=readContent(json);
+                        if(!part.isEmpty())out.append(part);
+                    }
                 } else json.skipValue();
             }
             json.endObject();
+            if(shortened)out.append("\n_[Additional text omitted in this bounded preview]_");
             return out.toString();
         }
         if (value==JsonToken.BEGIN_ARRAY) {
             json.beginArray();
             StringBuilder out=new StringBuilder();
+            boolean shortened=false;
             while (json.hasNext()) {
-                if (out.length()>24000) { json.skipValue(); continue; }
+                if (out.length()>=24000) {
+                    json.skipValue();
+                    shortened=true; // Excluded content must be visible as a limitation.
+                    continue;
+                }
                 String part=readContent(json);
                 if (!part.isEmpty()) {
                     if (out.length()>0) out.append("\n\n");
@@ -287,6 +298,7 @@ final class JsonExplorerEngine {
                 }
             }
             json.endArray();
+            if(shortened)out.append("\n_[Additional content omitted in this bounded preview]_");
             return out.toString();
         }
         json.skipValue();
