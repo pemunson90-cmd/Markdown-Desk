@@ -420,6 +420,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("Copy",v->copySelectedPassage(false));
         action("Share",v->copySelectedPassage(true));
         action("Print quote",v->printSelectedPassage());
+        action("Print transcript",v->printFullTranscript());
         action("Annotate",v->captureSelection());
         action("Mark",v->bookmarkCurrent());
         action("Notes",v->showNotebook(false));
@@ -1453,6 +1454,52 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             importProgress.setProgress((int)Math.min(1000,state.bytes*1000/Math.max(1,state.size)));
         }else importProgress.setIndeterminate(true);
     }
+    /** Bounded full transcript print using existing DocumentPrint; larger
+     * conversations remain exportable in complete PDF form. No partial prints.
+     */
+    private void printFullTranscript(){
+        if(active==null)return;
+        final ArchiveDatabase.Conversation selected=active;
+        final int sourceGeneration=generation;
+        status("Preparing complete conversation for Android printing...");
+        io.execute(()->{
+            java.io.ByteArrayOutputStream prepared=new java.io.ByteArrayOutputStream(32768);
+            OutputStream capped=new OutputStream(){
+                private long remaining=DocumentIO.MAX_DOCUMENT_BYTES;
+                @Override public void write(int value)throws IOException{
+                    if(remaining<1)throw new IOException("Conversation exceeds 8 MiB print budget. Export full PDF instead.");
+                    prepared.write(value);remaining--;
+                }
+                @Override public void write(byte[] data,int at,int length)throws IOException{
+                    if(data==null)throw new NullPointerException("data");
+                    if(at<0||length<0||at>data.length-length)
+                        throw new IndexOutOfBoundsException("Invalid transcript slice");
+                    if(length>remaining)throw new IOException("Conversation exceeds 8 MiB print budget. Export full PDF instead.");
+                    prepared.write(data,at,length);remaining-=length;
+                }
+            };
+            try{
+                streamTranscript(selected,capped);
+                String markdown=StandardCharsets.UTF_8.newDecoder()
+                        .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                        .decode(java.nio.ByteBuffer.wrap(prepared.toByteArray())).toString();
+                runOnUiThread(()->{
+                    if(sourceGeneration!=generation||active==null||!selected.id.equals(active.id)
+                            ||isFinishing()||isDestroyed())return;
+                    DocumentPrint.start(this,
+                        ()->new DocumentPrint.Capture(markdown,selected.name,palette,fontSp,false,typography),
+                        this::status);
+                });
+            }catch(Exception failed){
+                runOnUiThread(()->{
+                    if(sourceGeneration==generation&&!isFinishing()&&!isDestroyed())
+                        fail("Unable to prepare complete transcript for printing; use Export PDF for large conversations",failed);
+                });
+            }
+        });
+    }
+
     private void exportTranscript(){
         if(active==null)return;
         pendingExportChat=active.id;
@@ -1499,14 +1546,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
         });
     }
-    private void writeTranscript(String chat,Uri destination){
-        final ArchiveDatabase.Conversation conversation=findConversation(chat);
-        if(conversation==null){status("Conversation no longer indexed");return;}
-        io.execute(()->{
-            try{
-                ExportReceipt.Sink out=new ExportReceipt.Sink(
-                        getContentResolver().openOutputStream(destination,"w"));
-                try(out){
+    /** The one generation-pinned complete-transcript writer serves both signed-off
+     * SAF exports and the existing bounded local print pipeline. Never use
+     * the on-screen 12-message window or JSON Inspector preview as source.
+     */
+    private void streamTranscript(ArchiveDatabase.Conversation conversation,OutputStream out)throws IOException {
+        final String chat=conversation.id;
                     final String generation=database.exportGeneration(conversation);
                     write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
                     int index=0;
@@ -1538,6 +1583,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     database.requireExportGeneration(conversation.archiveId,generation);
                     ArchiveTranscriptIntegrity.complete(conversation.messages,index);
                     out.flush();
+    }
+
+    private void writeTranscript(String chat,Uri destination){
+        final ArchiveDatabase.Conversation conversation=findConversation(chat);
+        if(conversation==null){status("Conversation no longer indexed");return;}
+        io.execute(()->{
+            try{
+                ExportReceipt.Sink out=new ExportReceipt.Sink(
+                        getContentResolver().openOutputStream(destination,"w"));
+                try(out){
+                    streamTranscript(conversation,out);
                 }
                 try(InputStream check=getContentResolver().openInputStream(destination)){
                     ExportReceipt.verify(check,out.receipt());
