@@ -1,6 +1,6 @@
 # Unified Workspaces — active integration queue
 
-**Checkpoint:** 2026-11-06, batch 02A (all 46 branch tips and ancestry classified; PR/issue/handoff disposition pending, no merges).
+**Checkpoint:** 2026-11-06, batch 02B-1 (27 PRs, 10 standalone issues and stale resume-entry points classified; branch-diff reconciliation remains, no merges).
 **Authority:** Owner-approved full Unified Workspaces contract + existing features + relevant open bugs. Cross-installation private app-state export/import remains EXCLUDED by prior owner decision. No separate future roadmap features included.
 **Execution:** One bounded batch per chat turn. Before any edit: read this file, check GitHub remote head and working tree, reconcile completed work with evidence, then perform the *next unblocked batch only*. After work: commit updated queue and evidence with exact refs. Do not repeat a completed batch or claim background progress. No routine GitHub Actions, no partial user-facing APKs, no destructive branch cleanup without provenance.
 
@@ -11,7 +11,7 @@
 - `feature/unified-workspaces-20261106`, `feature/unified-markdown-annotations-20261106`, and `work/full-unified-parity-20261106` retain unique work. Do not merge blindly; source overlap and missing dependencies are known.
 - `fix/json-recovery-local-20261105` has code33 source and a reported signed binary patch; device acceptance and exact source/binary equivalence are **not established by the branch report**. Prior owner evidence explicitly confirms 2.2.12/code27 download; later accepted installed version needs evidence review. Do not infer acceptance from version number or a candidate signing audit.
 - Draft PR #37 (audit efficiency) remains separate at `a3bc7866190fe72c0918679ef5735ddd5482a7ba`. **Batch 00A inspected its exact 21-file diff and verified none of those changes is included in this integration branch; adopt selectively, not blindly.** GitHub branch search reported 45 existing branches before this integration branch; exhaustive classification still pending.
-- `docs/STATUS.md` is historical/rolling and may be stale; this queue owns the *current* integration checkpoint. Full contract exists on `work/full-unified-parity-20261106` at `docs/design/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md` and on the annotations line at `docs/development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md`.
+- `docs/STATUS.md` now begins with a static historical redirect; its original 71,455 characters remain untouched. `docs/CODEX_START.md` now directs sessions to this queue. This queue alone owns the *current* integration checkpoint. Full contract exists on `work/full-unified-parity-20261106` at `docs/design/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md` and on the annotations line at `docs/development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md`.
 
 ## Batch ledger (single queue, no parallel competing handoffs)
 
@@ -21,7 +21,8 @@
 | 00A | **DONE — PLANNING ONLY** | Inspect PR #37, current heads, prior queue, and classify all 21 changed files; prioritize adaptation without creating a competing status system | PR `#37` at `a3bc7866190fe72c0918679ef5735ddd5482a7ba`; this checkpoint; no code, workflow or merge run |
 | 01 | **DONE — EVIDENCE AUDIT; PROMOTION BLOCKED** | Reconciled code31/32/33 owner observations, signer and binary-patch evidence; enumerated all 11 unique `main` commits; wrote safe alignment proposal. **No verified full stable acceptance or reproducible code33 source-equivalent APK yet.** | This checkpoint and section `Batch 01` below; no main edit |
 | 02A | **DONE — READ-ONLY** | Enumerated all 46 GitHub branches with exact head SHA; compared each against integration head `5fb58ce5ffa837c692db9cdf0b44f78cfa03c947`. Classified 26 ancestry-contained, 19 divergent, one current integration. No branch modified. | Branch table below; this checkpoint |
-| 02B | **NEXT** | Reconcile open/draft/closed PRs, issues, and stale handoff documents. Examine the **19 divergent branches' unique diffs** before final merge/archive/deprecation decisions. Preserve original refs. Do not redo Batch 02A comparisons unless heads change. | Per-branch unique-change disposition and handoff resolution; no premature deletes |
+| 02B-1 | **DONE — TRIAGE + SAFE ROUTING** | Inspected 27 PRs / 10 standalone issues, classified old handoffs, added static authoritative-queue redirects to `CODEX_START.md` and historical `STATUS.md` without changing old history. No merges, releases or issue closures. | Entry-point commits `5b90e086ced9d46ee15caabb4b32755c0867b854` and `982ff0d51cf45dc56fd527c4e3d4d3d51b8990c4`; this queue checkpoint |
+| 02B-2 | **NEXT** | Inspect unique diffs and associated evidence on **19 divergent branches** in bounded groups; determine integrate vs historical-only vs genuinely experimental, then finalize stale-PR/issue deprecations. Reconcile AGENTS/CLAUDE auto-resume references and other historical entry points without competing queue. Do not repeat Batch 02A ancestry or 02B-1 list enumeration unless refs change. | Source/test/history-specific dispositions, safe active queue routing, zero premature branch deletes |
 | 03 | PENDING — **PR #37 FIRST** | On implementation authorization, adapt PR #37's verified source guard, manual-only workflow, tests, AST helper and deduplicated suites **to this queue and current integration head** before broader feature integration. Then reconcile four unified branches plus code37 and recover missing annotation classes/methods. Review conflicts semantically. | Adapted focused checks + full required host gate later on final head; no competing status system; compiling full app; no feature loss |
 | 04 | PENDING | Complete all eight contract areas: shared source/session identity, continuous virtual reading, reader parity, notes/highlights/backlinks, full search/exact jumps, interop incl complete Markdown/PDF, Fold lifecycle, native integration | Requirement-to-code and behavior-test matrix |
 | 05 | PENDING | Safety: exact selection anchors, process-wide journal synchronization, safe sidecar publication/recovery, transaction integrity, 700 MB archive behavior, source immutability, no silent truncation | Behavior/fault tests for all known failure modes |
@@ -167,6 +168,44 @@ Some policy language is already present on both development and main, but the ex
 - **Possible future deprecation:** 26 ancestry-contained historical branches could be retired after associated PR/issue, signed-source and test provenance review and immutable references/tags; **no deletion is approved by this inventory alone**.
 - **Excluded feature line:** the contained `codex/private-backup-integration` branch remains historical evidence; cross-installation private-state export/import stays excluded from the current release.
 - **Next exact work:** Batch 02B PR/issue/handoff inventory, then unique-diff review of the 19 divergent lines, recording each as integrate verified change / historical-only / superseded-with-proof / genuinely experimental. Avoid re-reading the 26 already confirmed ancestors unless new evidence contradicts the ancestry.
+
+
+
+## Batch 02B-1 — GitHub PR, issue and stale-handoff triage (bounded; no code/merge)
+
+**Inspection:** GitHub `/pulls?state=all&per_page=100` returned **27 PRs**, and the `/issues?state=all&per_page=100` collection returned **37 GitHub issue objects**: 27 are the same PRs, leaving **10 standalone issues**. No second GitHub issue index is needed. Do not count PRs as additional standalone issues. These are collection snapshots, **not** proof of feature completion or newer acceptance.
+
+### PR disposition — exhaustive by number
+
+| State | PRs | Disposition / release relevance |
+|---|---|---|
+| **Open, 11** | #37, #36, #35, #34, #32, #31, #30, #29, #28, #26, #24 | All remain open **until individual source/test evidence is reconciled**. #37: **first implementation priority**, 21-file plan in Batch 00A. #36: old code32 JSON/Fold7 candidate; superseded in parts by code33+Archive fixes, do not merge old code32 wholesale. #35/#34: reader links/footnotes; confirm preserved on latest source, then close or retarget with provenance. #31/#30/#29: navigation, native picker and contrast; check parity and dates before supersession. #28/#26: competing Downloads/Recents routes; inspect divergent #28 before closing as duplicate. #32: Foundry G0 tooling evidence, not part of Unified Workspaces release. #24: owner-deferred cross-install private backup stack, **not current release gate**. |
+| **Closed / merged, 15** | #23, #22, #21, #20, #19, #18, #17, #16, #15, #14, #13, #12, #11, #10, #9 | Provenance preserved. Most constituent branches are ancestry-contained, but verify the final integration still retains their behavior/tests; no remerge or replay just because old checklists say “next.” Private portable portions remain inert by owner decision. |
+| **Closed / unmerged, 1** | #27 | Explicitly superseded by #28, retained as historical negative precedent. Do not revive its stale source; unique branch commits still get reviewed under Batch 02B-2 before any branch retirement. |
+
+**Notably, the recent Archive/Unified Workspaces feature branches have no corresponding open PRs in this list.** Their work lives in branches, source history and the full owner contract; do not mistake missing PR cards for missing or completed work. Conversely, no historic open PR may authorize an automatic release.
+
+### Standalone issue disposition — exhaustive by number
+
+| Issues | Disposition |
+|---|---|
+| **Open #25** | Downloads/Recents owner bug; **in-scope**, reconcile with PRs #26/#28/#29/#30 and test current behavior, including inaccessible old provider IDs. |
+| **Open #2, #3, #4, #5, #6, #7, #8** | Older Professional M0–M6 planning issues, with overlapping editor safety, performance, accessibility, history, workspace, reader, print/DOCX tasks. Map only **existing-capability preservation and actual Unified Workspaces intersections** to the current release. Leave unrelated future roadmap work tracked separately; do not declare all of these issues complete or make all of them blocking. |
+| **Open #33** | Foundry G1 / Ubuntu Codex worker activation; **separate tooling campaign**, not prerequisite to shipping Unified Workspaces unless selected implementation workflow actually requires it. Preserve history, prevent unauthorized background agents. |
+| **Closed #1** | Original baseline import historical record; source already in ancestry. No repeat import. |
+
+### Stale handoff locations: classify and route, do not erase history
+
+- **Corrected in this batch:** `docs/CODEX_START.md` now opens with an explicit pointer to **this queue**, single-batch/user-turn rule, current release boundary and PR #37 priority; its old M0–M7 continuation instructions are designated historical/subordinate. Commit `5b90e086ced9d46ee15caabb4b32755c0867b854`.
+- **Corrected in this batch:** `docs/STATUS.md` now opens with a static **historical archive pointer**, not a second live status header. The original 71,455 characters are preserved verbatim after the notice, retaining all signoff and failure records. Commit `982ff0d51cf45dc56fd527c4e3d4d3d51b8990c4`. The earlier PR #37 proposal for a separate generated `CURRENT_SOURCE.json` + dynamic STATUS header remains **superseded in design** by the single queue, while its guard/checking logic is still prioritized.
+- **Canonical scope reference, not a work queue:** `docs/development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md`. It specifies the eight full-scope requirements and has an older “latest feature branch” reference; apply the later single integration-branch decision, not that historical branch selection.
+- **Preserve as historical provenance, not active work orders:** `docs/verification/rescue/CURRENT.md` (starts with October 16/code22 and contradictory historical signing checkpoints), `docs/MOONSHOT_RECOVERY_CHECKPOINT_20261031.md`, `docs/ux/2026-10-16-approved-overhaul-continuation.md`, `docs/superpowers/plans/*`. Their historical “latest/next” sentences do not supersede this queue.
+- **Broader roadmap remains separate:** `docs/ROADMAP.md` M0–M7 and issue #33 Foundry G1. Cross-installation private backup foundation is preserved but excluded.
+- **Still needs safe pointer cleanup:** `AGENTS.md` and `CLAUDE.md` contain older continuing-M0–M7 instructions. At the next safe documentation boundary, add non-destructive priority routing to this queue; preserve useful standing engineering rules. Inspect any additional stale “CURRENT” files while reviewing the 19 divergent branches.
+
+### Next exact step
+
+**Batch 02B-2:** choose one bounded cluster of divergent branches (begin with recent Archive and Unified Workspaces predecessors, then older Downloads/long-press, then Moonshot and history), inspect each unique commit/file diff against the verified integration source and record its disposition **in this queue**. Do not rerun the branch ancestry sweep. PR/issue list counts and the two pointer corrections above are done. No PR/issue was closed and no branch was merged, archived, reset, or deleted.
 
 
 ## Known, not deferred
