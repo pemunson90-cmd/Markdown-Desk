@@ -16,6 +16,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.view.View;
 import com.example.markdowndesk.archive.ArchiveJournal;
+import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
+import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.search.UnifiedSearchScope;
 import java.io.File;
@@ -124,7 +126,7 @@ public final class UnifiedSearchActivity extends Activity {
                     status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
                     for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h.chatId,h.messageId));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
-                    for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openArchiveHit(a.chatId,a.messageId));
+                    for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
                     if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100);});
                 });
             }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Archive search unavailable",failure);});}
@@ -154,7 +156,7 @@ public final class UnifiedSearchActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     for(ArchiveJournal.Annotation a:page)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,
-                        v->openArchiveHit(a.chatId,a.messageId));
+                        v->openAnnotationHit(a));
                     if(page.size()==100)add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,offset+100);});
                     if(page.isEmpty())status("All saved-note matches shown");
                 });
@@ -191,6 +193,25 @@ public final class UnifiedSearchActivity extends Activity {
         intent.setClassName(getPackageName(),"com.example.markdowndesk.MainActivity");
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try{startActivity(intent);}catch(Exception e){error("Cannot open Markdown file",e);}
+    }
+    /** Journal-backed annotations retain a real source kind, unlike indexed
+     * message hits. Never reinterpret a Markdown content URI as an Archive ID.
+     */
+    private void openAnnotationHit(ArchiveJournal.Annotation annotation){
+        if(annotation==null)return;
+        final String source=ArchiveMarkdownIndexes.deepLink(annotation);
+        final boolean markdown=WorkspaceDeepLinks.isDocumentLink(source);
+        final boolean archive=WorkspaceDeepLinks.isArchiveLink(source);
+        if(!markdown&&!archive){
+            error("Cannot open saved note",new IllegalArgumentException("Unrecognized source link"));
+            return;
+        }
+        Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(source))
+                .setClass(this,markdown?MainActivity.class:ArchiveWorkspaceActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        // Opening a saved link does not create or impersonate a provider URI grant.
+        try{startActivity(intent);}
+        catch(Exception e){error("Cannot open saved note",e);}
     }
     private void openArchiveHit(String chatId,String messageId){
         if(chatId==null)return;
