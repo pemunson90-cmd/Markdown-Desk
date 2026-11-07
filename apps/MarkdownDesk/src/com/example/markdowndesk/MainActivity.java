@@ -1720,6 +1720,11 @@ public class MainActivity extends Activity {
             final String longPressId = documentTab.id;
             buttonCreatePillButton.setOnTouchListener((pressedView, event) -> {
                 int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    // Missing UP/CANCEL from an interrupted gesture must not close this tab
+                    // when the next ordinary tap ends. Reset before any new long-click.
+                    this.pendingLongPressedTabId = null;
+                }
                 if ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)
                         && longPressId.equals(this.pendingLongPressedTabId)) {
                     this.pendingLongPressedTabId = null;
