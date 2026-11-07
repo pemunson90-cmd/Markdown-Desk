@@ -32,7 +32,7 @@ public final class MarkdownNoteScript {
     public static String boot() {
         return
             "(function(){if(window.mdNoteDecorate)return;\n" +
-            "var key='markdown-notes',rows=[];\n" +
+            "var rows=[],tones=['violet','rose','mint','amber','blue','slate'];\n" +
             "function owner(){return document.body;}\n" +
             "function find(row){\n" +
             " var root=owner();if(!root||!row||!row.quote)return null;\n" +
@@ -48,10 +48,20 @@ public final class MarkdownNoteScript {
             " var a=null,z=null;for(var i=0;i<nodes.length;i++){var x=nodes[i];if(!a&&begin>=x.start&&begin<x.end)a={node:x.node,offset:begin-x.start};if(a&&end>x.start&&end<=x.end){z={node:x.node,offset:end-x.start};break;}}\n" +
             " if(!a||!z)return null;var range=document.createRange();range.setStart(a.node,a.offset);range.setEnd(z.node,z.offset);return range;\n" +
             "}\n" +
-            "function show(){if(!window.CSS||!CSS.highlights||!window.Highlight)return;var ranges=[];for(var i=0;i<rows.length;i++){var r=find(rows[i]);if(r)ranges.push(r);}CSS.highlights.set(key,new Highlight(...ranges));}\n" +
+            "function show(){if(!window.CSS||!CSS.highlights||!window.Highlight)return;\n" +
+            " for(var t=0;t<tones.length;t++){var tone=tones[t],ranges=[];\n" +
+            " for(var i=0;i<rows.length;i++){if(rows[i].tone!==tone)continue;var r=find(rows[i]);if(r)ranges.push(r);}\n" +
+            " CSS.highlights.set('markdown-notes-'+tone,new Highlight(...ranges));}\n" +
+            "}\n" +
             "window.mdNoteDecorate=function(data){rows=Array.isArray(data)?data:[];show();return rows.length;};\n" +
             "window.mdNoteJump=function(id){for(var i=0;i<rows.length;i++)if(rows[i].id===id){var r=find(rows[i]);if(!r)return false;var n=r.startContainer.parentElement;if(n&&n.scrollIntoView)n.scrollIntoView({block:'center',behavior:'auto'});return true;}return false;};\n" +
-            "var css=document.createElement('style');css.textContent='::highlight(markdown-notes){background:rgba(186,106,235,.36);color:inherit}';document.head.appendChild(css);\n" +
+            "var css=document.createElement('style');css.textContent='"+
+            "::highlight(markdown-notes-violet){background:rgba(186,106,235,.36);color:inherit}"+
+            "::highlight(markdown-notes-rose){background:rgba(236,100,152,.32);color:inherit}"+
+            "::highlight(markdown-notes-mint){background:rgba(82,196,158,.32);color:inherit}"+
+            "::highlight(markdown-notes-amber){background:rgba(242,180,70,.34);color:inherit}"+
+            "::highlight(markdown-notes-blue){background:rgba(90,150,245,.33);color:inherit}"+
+            "::highlight(markdown-notes-slate){background:rgba(132,152,171,.34);color:inherit}';document.head.appendChild(css);\n" +
             "})();\n";
     }
 
@@ -65,7 +75,8 @@ public final class MarkdownNoteScript {
             out.append("{id:").append(quoted(a.id)).append(",quote:").append(quoted(a.quote))
                 .append(",prefix:").append(quoted(a.prefix==null?"":a.prefix))
                 .append(",suffix:").append(quoted(a.suffix==null?"":a.suffix))
-                .append(",start:").append(a.selectionStart).append('}');
+                .append(",start:").append(a.selectionStart)
+                .append(",tone:").append(quoted(AnnotationTone.fromTags(a.tags))).append('}');
         }
         return out.append("]);").toString();
     }
