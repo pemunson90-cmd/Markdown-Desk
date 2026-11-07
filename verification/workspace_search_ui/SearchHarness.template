@@ -2,6 +2,17 @@ package com.example.markdowndesk;
 import android.content.*;import android.view.*;import android.widget.*;import android.net.Uri;import android.provider.DocumentsContract;import android.os.*;import java.util.*;import java.util.concurrent.*;
 class SearchBase {protected void onPause(){}protected void onDestroy(){}}
 final class SearchHarness extends SearchBase {
+    // Unified cross-workspace search results use a separate, independently tested
+    // exact-URI/hash jump gate. This harness tests Workspace Files search only;
+    // its source-extracted open/failed callbacks still need the one-shot boundary.
+    private static final class PendingUnifiedJump { final String uri;
+        PendingUnifiedJump(String uri){this.uri=uri;}
+    }
+    private PendingUnifiedJump pendingUnifiedJump;
+    private void resolveUnifiedSearchJump(Uri uri) {
+        if(pendingUnifiedJump!=null && uri!=null && pendingUnifiedJump.uri.equals(uri.toString()))
+            pendingUnifiedJump=null;
+    }
     void pauseDocxExport() {}
     void cancelDocxExport() {}
     // Favorites has its own lifecycle/UI fixtures; preserve this search-only boundary.
