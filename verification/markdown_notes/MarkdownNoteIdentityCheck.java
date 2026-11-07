@@ -15,6 +15,7 @@ public final class MarkdownNoteIdentityCheck {
         check(!MarkdownNoteIdentity.owns(a,"content://other/document/1"),"no cross-source bleed");
         check(a.selectionEnd-a.selectionStart==a.quote.length(),"exact quote length");
         check(a.createdAt>0&&a.updatedAt==a.createdAt&&ArchiveJournal.validType(a.type),"journal schema");
+        check(com.example.markdowndesk.archive.ArchiveMarkdownIndexes.deepLink(a).startsWith("markdowndesk://document/v1/"),"Markdown note links must route to document not Archive");
         reject(()->MarkdownNoteIdentity.create("file:///secret","n","note","word","","",0,4,"","",""));
         reject(()->MarkdownNoteIdentity.create("content://provider/path","n","note","word","","",0,8,"","",""));
         reject(()->MarkdownNoteIdentity.create(uri,"n","bad","word","","",0,4,"","",""));
