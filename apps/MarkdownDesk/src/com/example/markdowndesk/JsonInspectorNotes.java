@@ -125,6 +125,31 @@ final class JsonInspectorNotes {
             }
         });
     }
+    /** Bookmark the current JSON scalar without requiring the user to manually
+     * select text. A unique quote/context still proves source identity.
+     * Container pages without a stable scalar are intentionally not guessed.
+     */
+    void bookmarkValue(String value){
+        final Uri uri=source.get();
+        if(uri==null||value==null||value.isEmpty()){
+            message.accept("Open a nonempty JSON value before bookmarking.");return;
+        }
+        int end=Math.min(value.length(),128);
+        if(end>0&&Character.isHighSurrogate(value.charAt(end-1)))end--;
+        if(end<=0){message.accept("Cannot safely bookmark this value.");return;}
+        String quote=value.substring(0,end);
+        String suffix=value.substring(end,Math.min(value.length(),end+64));
+        if(!VerifiedTextAnchor.matchesSelected(value,quote,"",suffix,0,end)){
+            message.accept("This value is ambiguous; select a more specific passage to bookmark.");return;
+        }
+        final ArrayList<JsonExplorerEngine.Step> steps=new ArrayList<>(path.get());
+        final String canonical;
+        try{canonical=canonicalPath(steps);}
+        catch(IllegalArgumentException invalid){message.accept("JSON path is too long to bookmark.");return;}
+        showCreation(uri,steps,canonical,value,quote,"",suffix,0,end,
+                revision.getAsInt(),"bookmark");
+    }
+
     void annotateSelection(TextView reader,String selectedValue){
         final Uri uri=source.get();
         if(uri==null||reader==null||selectedValue==null){
