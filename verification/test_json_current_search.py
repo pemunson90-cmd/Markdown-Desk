@@ -41,7 +41,9 @@ class CurrentJsonFind(unittest.TestCase):
         self.assertIn('showIncomingRawHit(verify)',a)
         self.assertIn("UnifiedSearchJump.EXTRA_HASH,result.sha256",a)
         self.assertIn("UnifiedSearchJump.EXTRA_OFFSET,hit.offset",a)
-        self.assertIn("token!=revision||document==null||!current.equals(document)",a)
+        self.assertIn("token!=revision||request!=currentFindRequest||document==null||!current.equals(document)",a)
+        self.assertIn("final long request=++currentFindRequest",a)
+        self.assertIn("currentFindRequest++;",a)
 
     def test_no_new_mutating_json_writer_or_fake_700mb_claim(self):
         s=self.activity
