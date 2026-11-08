@@ -21,6 +21,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
+import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.WindowManager;
@@ -69,6 +70,10 @@ public final class JsonExplorerActivity extends Activity {
     private String pendingExport;
     private int pendingScrollY;
     private boolean retiringInspector;
+    private JsonInspectorNotes readingNotes;
+    private TextView valueReader;
+    private LinearLayout noteActionRow;
+    private String pendingJsonNoteId;
     private boolean openedFromSearch;
     private Button returnResults;
 
@@ -174,6 +179,10 @@ public final class JsonExplorerActivity extends Activity {
         openedFromSearch=state!=null?state.getBoolean("jsonOpenedFromSearch",false):
                 getIntent()!=null&&getIntent().hasExtra(UnifiedSearchJump.EXTRA_URI);
         document=getIntent()==null?null:getIntent().getData();
+        if(document!=null && WorkspaceDeepLinks.isInspectorLink(document.toString())){
+            pendingJsonNoteId=WorkspaceDeepLinks.inspectorNoteId(document.toString());
+            document=Uri.parse(WorkspaceDeepLinks.inspectorTarget(document.toString()));
+        }
         if (state!=null && document==null && state.getString("jsonDocumentUri")!=null)
             document=Uri.parse(state.getString("jsonDocumentUri"));
         if (document!=null && !"content".equalsIgnoreCase(document.getScheme())) document=null;
@@ -191,6 +200,9 @@ public final class JsonExplorerActivity extends Activity {
             offset=Math.max(0,state.getInt("jsonOffset",0));
         }
         buildUi();
+        readingNotes=new JsonInspectorNotes(this,worker,()->document,
+                ()->new ArrayList<>(path),()->revision,
+                message->status.setText(message),this::navigateToSavedJsonNote);
         if(state==null)restoreInspectorPosition(document);
         else{
             String rememberedFilter=state.getString("jsonFilter","");
@@ -200,13 +212,22 @@ public final class JsonExplorerActivity extends Activity {
         updateReadingFocus();
         if(noInspectorSlot)inspectorAdmissionFailure(rejectedSource);
         else if(document==null)showOpenChoices();
-        else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
+        else {
+            loadPage();
+            if(pendingJsonNoteId!=null)readingNotes.jumpToNote(document,pendingJsonNoteId);
+            else if(!sourceHitShown)showIncomingRawHit(getIntent());
+        }
     }
 
     @Override protected void onNewIntent(Intent intent){
         saveInspectorPosition();
         super.onNewIntent(intent);
         Uri next=intent==null?null:intent.getData();
+        String note=null;
+        if(next!=null && WorkspaceDeepLinks.isInspectorLink(next.toString())){
+            note=WorkspaceDeepLinks.inspectorNoteId(next.toString());
+            next=Uri.parse(WorkspaceDeepLinks.inspectorTarget(next.toString()));
+        }
         if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
         if(!UnifiedTabs.openInspector(this,next)){
             inspectorAdmissionFailure(next);return;
@@ -217,7 +238,9 @@ public final class JsonExplorerActivity extends Activity {
         if(document==null||!document.equals(next)){
             document=next;page=null;restoreInspectorPosition(next);loadPage();
         }
-        sourceHitShown=false;rawHitRequest++;showIncomingRawHit(intent);
+        sourceHitShown=false;rawHitRequest++;
+        if(note!=null&&readingNotes!=null)readingNotes.jumpToNote(next,note);
+        else showIncomingRawHit(intent);
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -297,6 +320,7 @@ public final class JsonExplorerActivity extends Activity {
 
     private void updateReadingFocus(){
         if(actionRow!=null)actionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
+        if(noteActionRow!=null)noteActionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(returnResults!=null)returnResults.setVisibility(!focusReading&&openedFromSearch?View.VISIBLE:View.GONE);
         if(filter!=null)filter.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(status!=null)status.setVisibility(focusReading?View.GONE:View.VISIBLE);
@@ -353,6 +377,12 @@ public final class JsonExplorerActivity extends Activity {
         actions.addView(button("Share list",v->shareVisible()),
                 new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(actions);
+        noteActionRow=row();
+        noteActionRow.addView(button("Saved notes",v->{if(readingNotes!=null)readingNotes.showNotes();}),
+                new LinearLayout.LayoutParams(0,dp(48),1));
+        noteActionRow.addView(button("Backlinks",v->{if(readingNotes!=null)readingNotes.showBacklinks();}),
+                new LinearLayout.LayoutParams(0,dp(48),1));
+        root.addView(noteActionRow);
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
         returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
