@@ -65,7 +65,7 @@ final class JsonRawSearchHit {
                 char ch=text.charAt(i);
                 if(ch=='\r'){
                     line++;if(i+1<position&&text.charAt(i+1)=='\n')i++;
-                }else if(ch=='\n')line++;
+                }else if(ch=='\n'&&(i==0||text.charAt(i-1)!='\r'))line++;
             }
             cursor=position;
             int start=Math.max(0,position-110);
