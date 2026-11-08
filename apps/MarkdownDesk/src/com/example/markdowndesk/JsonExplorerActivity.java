@@ -383,6 +383,7 @@ public final class JsonExplorerActivity extends Activity {
                 new LinearLayout.LayoutParams(0,dp(48),1));
         noteActionRow.addView(button("Backlinks",v->{if(readingNotes!=null)readingNotes.showBacklinks();}),
                 new LinearLayout.LayoutParams(0,dp(48),1));
+        noteActionRow.addView(button("Find JSON",v->findCurrentJson()),new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(noteActionRow);
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
@@ -506,6 +507,84 @@ public final class JsonExplorerActivity extends Activity {
         String message=err.getMessage();
         return message==null ? err.getClass().getSimpleName()
                 : (message.length()>180 ? message.substring(0,180) : message);
+    }
+
+    /** Exact current-source literal Find for small general JSON documents.
+     * It is deliberately NOT a 700MB full-text index; larger files fail
+     * visibly and compatible Claude archives can use the existing index.
+     */
+    private void findCurrentJson(){
+        if(document==null){showFailure("Choose a JSON file first.");return;}
+        EditText term=new EditText(this);
+        term.setSingleLine(true);term.setHint("Literal text (case-sensitive)");
+        term.setMaxLines(1);
+        new AlertDialog.Builder(this).setTitle("Find in current JSON (8 MiB maximum)")
+                .setView(term)
+                .setMessage("Searches the authorized JSON file once, exactly. For large Claude exports, use indexed Archive Search.")
+                .setPositiveButton("Find",(d,w)->startCurrentJsonSearch(term.getText().toString()))
+                .setNegativeButton("Cancel",null).show();
+    }
+    private void startCurrentJsonSearch(String literal){
+        if(document==null)return;
+        if(literal==null||literal.isEmpty()||literal.length()>128){
+            showFailure("Choose a nonempty literal phrase of at most 128 UTF-16 units.");return;
+        }
+        final Uri current=document;
+        final int token=revision;
+        status.setText("Finding exact text in the current authorized JSON file...");
+        worker.execute(()->{
+            try(InputStream input=getContentResolver().openInputStream(current)){
+                JsonRawSearchHit.SearchResult found=JsonRawSearchHit.search(input,literal);
+                runOnUiThread(()->{
+                    if(token!=revision||document==null||!current.equals(document)||
+                            isFinishing()||isDestroyed())return;
+                    status.setText(found.hits.size()+" exact source matches"+
+                            (found.limited?" · LIMITED after 500 matches":" · complete bounded scan"));
+                    showCurrentJsonHits(current,literal,found,0,token);
+                });
+            }catch(Exception unavailable){
+                runOnUiThread(()->{
+                    if(token!=revision||document==null||!current.equals(document)||
+                            isFinishing()||isDestroyed())return;
+                    showFailure("Current JSON search is unavailable or exceeds 8 MiB. "+
+                            "Use indexed Archive Search for large Claude files. "+
+                            safeError(unavailable));
+                });
+            }
+        });
+    }
+    private void showCurrentJsonHits(Uri current,String literal,
+                                     JsonRawSearchHit.SearchResult result,int start,int token){
+        if(token!=revision||document==null||!current.equals(document))return;
+        final int end=Math.min(result.hits.size(),start+100);
+        String[] labels=new String[end-start];
+        for(int i=start;i<end;i++){
+            JsonRawSearchHit.Occurrence match=result.hits.get(i);
+            String excerpt=match.snippet.replace('\r',' ').replace('\n',' ');
+            if(excerpt.length()>210)excerpt=excerpt.substring(0,210)+"…";
+            labels[i-start]="Line "+match.line+" · "+excerpt;
+        }
+        String title="Current JSON · "+result.hits.size()+" exact matches"+
+                (result.limited?" (LIMITED to 500; narrow query)":"");
+        if(result.hits.isEmpty())title="No exact source matches (bounded complete scan)";
+        AlertDialog.Builder dialog=new AlertDialog.Builder(this).setTitle(title)
+                .setItems(labels,(d,position)->{
+                    JsonRawSearchHit.Occurrence hit=result.hits.get(start+position);
+                    Intent verify=new Intent(Intent.ACTION_VIEW,current)
+                            .putExtra(UnifiedSearchJump.EXTRA_URI,current.toString())
+                            .putExtra(UnifiedSearchJump.EXTRA_HASH,result.sha256)
+                            .putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)
+                            .putExtra(UnifiedSearchJump.EXTRA_OFFSET,hit.offset);
+                    sourceHitShown=false;rawHitRequest++;
+                    showIncomingRawHit(verify); // SHA + exact offset reverified on click.
+                })
+                .setNegativeButton("Close",null);
+        if(end<result.hits.size())
+            dialog.setPositiveButton("Next 100",(d,w)->showCurrentJsonHits(current,literal,result,end,token));
+        if(start>0)
+            dialog.setNeutralButton("Previous 100",(d,w)->
+                    showCurrentJsonHits(current,literal,result,Math.max(0,start-100),token));
+        dialog.show();
     }
 
     private void showFailure(String msg) {
