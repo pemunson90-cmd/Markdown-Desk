@@ -52,7 +52,10 @@ bash verification/archive_reader/run_transcript_integrity.sh
 bash verification/archive_reader/run_document_links.sh
 bash verification/archive_reader/run_annotation_dom.sh
 bash verification/archive_reader/run_source_encoding.sh
+bash verification/archive_reader/run_core.sh
+bash verification/archive_navigation/run.sh
 bash verification/json_explorer/run_bom.sh
+bash verification/json_explorer/run_streaming_engine.sh
 bash verification/json_explorer/run_raw_hit.sh
 bash verification/json_explorer/run_json_note_identity.sh
 bash verification/archive_reader/run_sidecar_identity.sh

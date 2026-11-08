@@ -1,7 +1,7 @@
 package com.example.markdowndesk;
 
-import android.util.JsonReader;
-import android.util.JsonToken;
+import com.example.markdowndesk.JsonTokenReader;
+import com.example.markdowndesk.JsonTokenReader.Token;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +20,8 @@ import java.util.Set;
  */
 final class JsonExplorerEngine {
     static final int PAGE_SIZE = 100;
+    static final int VALUE_CHARS = 65536;
+    static int valuePage(int at){return (at / VALUE_CHARS) * PAGE_SIZE;}
     static final int MAX_OBJECT_FIELDS = 4096; // bounded duplicate-path proof
     static final int MAX_TRANSCRIPT_MESSAGES = 200;
     private static final int TRANSCRIPT_CHAR_LIMIT = 600_000;
@@ -47,6 +49,7 @@ final class JsonExplorerEngine {
         final ArrayList<Entry> entries = new ArrayList<>();
         String type;
         String value;
+        int valueStart, valueTotal;
         boolean hasMore;
         boolean conversation;
         String messagesKey;
@@ -63,13 +66,13 @@ final class JsonExplorerEngine {
         return out.toString();
     }
 
-    private static JsonReader reader(StreamSource source) throws IOException {
+    private static JsonTokenReader reader(StreamSource source) throws IOException {
         InputStream stream = source.open();
         if (stream == null) throw new IOException("The document provider did not supply a readable stream.");
         // SAF providers may return fewer than three bytes per read, even when
         // a UTF-8 BOM is present. Preserve all non-BOM input exactly.
         InputStream input=JsonUtf8Bom.strip(stream);
-        JsonReader json = new JsonReader(new InputStreamReader(input,
+        JsonTokenReader json = new JsonTokenReader(new InputStreamReader(input,
                 StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                         .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)));
@@ -77,10 +80,10 @@ final class JsonExplorerEngine {
         return json;
     }
 
-    private static void seek(JsonReader json, List<Step> path) throws IOException {
+    private static void seek(JsonTokenReader json, List<Step> path) throws IOException {
         for (Step step : path) {
             if (step.name != null) {
-                if (json.peek() != JsonToken.BEGIN_OBJECT)
+                if (json.peek() != Token.BEGIN_OBJECT)
                     throw new IOException("The selected JSON field is no longer an object.");
                 json.beginObject();
                 boolean found = false;
@@ -92,7 +95,7 @@ final class JsonExplorerEngine {
                 }
                 if (!found) throw new IOException("JSON field missing: " + step.name);
             } else {
-                if (json.peek() != JsonToken.BEGIN_ARRAY)
+                if (json.peek() != Token.BEGIN_ARRAY)
                     throw new IOException("The selected JSON item is no longer an array.");
                 json.beginArray();
                 for (int i=0; i<step.index; i++) {
@@ -108,10 +111,10 @@ final class JsonExplorerEngine {
     static Page scan(StreamSource source, List<Step> path, int offset) throws IOException {
         Page page = new Page();
         page.offset=offset;
-        try (JsonReader json = reader(source)) {
+        try (JsonTokenReader json = reader(source)) {
             seek(json, path);
-            JsonToken token=json.peek();
-            if (token == JsonToken.BEGIN_ARRAY) {
+            Token token=json.peek();
+            if (token == Token.BEGIN_ARRAY) {
                 page.type="Array";
                 json.beginArray();
                 int index=0;
@@ -125,7 +128,7 @@ final class JsonExplorerEngine {
                     if (Thread.currentThread().isInterrupted()) throw new IOException("Navigation cancelled.");
                 }
                 page.hasMore=json.hasNext();
-            } else if (token == JsonToken.BEGIN_OBJECT) {
+            } else if (token == Token.BEGIN_OBJECT) {
                 page.type="Object";
                 json.beginObject();
                 int index=0;
@@ -145,20 +148,26 @@ final class JsonExplorerEngine {
                         throw new IOException("JSON object exceeds bounded field identity scan; original preserved");
                     if(!seenNames.add(key))
                         throw new IOException("Ambiguous duplicate JSON key in this object; original preserved");
-                    JsonToken valueType=json.peek();
+                    Token valueType=json.peek();
                     if (("chat_messages".equals(key) || "messages".equals(key))
-                            && valueType==JsonToken.BEGIN_ARRAY) {
+                            && valueType==Token.BEGIN_ARRAY) {
                         page.conversation=true;
                         page.messagesKey=key;
                     }
-                    if ("mapping".equals(key) && valueType==JsonToken.BEGIN_OBJECT) page.conversation=true;
+                    if ("mapping".equals(key) && valueType==Token.BEGIN_OBJECT) page.conversation=true;
                     page.entries.add(new Entry(Step.field(key), key, summary(json)));
                     if (Thread.currentThread().isInterrupted()) throw new IOException("Navigation cancelled.");
                 }
                 page.hasMore=json.hasNext();
             } else {
                 page.type="Value";
-                page.value=scalar(json);
+                if(token==Token.STRING||token==Token.NUMBER){
+                    long first=(long)(offset/PAGE_SIZE)*VALUE_CHARS;
+                    if(first>Integer.MAX_VALUE)throw new IOException("JSON value offset exceeds supported range");
+                    JsonTokenReader.Window value=json.nextWindow((int)first,VALUE_CHARS);
+                    page.value=value.text;page.valueStart=value.start;page.valueTotal=value.total;
+                    page.hasMore=(long)value.start+value.text.length()<value.total;
+                }else{page.value=scalar(json);page.valueTotal=page.value.length();}
             }
         } catch (IllegalStateException | StackOverflowError badJson) {
             throw new IOException("This JSON is malformed or too deeply nested.", badJson);
@@ -166,11 +175,11 @@ final class JsonExplorerEngine {
         return page;
     }
 
-    private static String scalar(JsonReader json) throws IOException {
-        JsonToken token=json.peek();
-        if (token==JsonToken.STRING || token==JsonToken.NUMBER) return json.nextString();
-        if (token==JsonToken.BOOLEAN) return String.valueOf(json.nextBoolean());
-        if (token==JsonToken.NULL) { json.nextNull(); return "null"; }
+    private static String scalar(JsonTokenReader json) throws IOException {
+        Token token=json.peek();
+        if (token==Token.STRING || token==Token.NUMBER) return json.nextString();
+        if (token==Token.BOOLEAN) return String.valueOf(json.nextBoolean());
+        if (token==Token.NULL) { json.nextNull(); return "null"; }
         throw new IOException("Expected a JSON value.");
     }
 
@@ -180,18 +189,18 @@ final class JsonExplorerEngine {
         return clean.length()>limit ? clean.substring(0,limit)+"…" : clean;
     }
 
-    private static String summary(JsonReader json) throws IOException {
-        JsonToken type=json.peek();
-        if (type==JsonToken.BEGIN_ARRAY) { json.skipValue(); return "Array · tap to explore"; }
-        if (type!=JsonToken.BEGIN_OBJECT) {
+    private static String summary(JsonTokenReader json) throws IOException {
+        Token type=json.peek();
+        if (type==Token.BEGIN_ARRAY) { json.skipValue(); return "Array · tap to explore"; }
+        if (type!=Token.BEGIN_OBJECT) {
             return shortText(scalar(json), 200);
         }
         String name="", timestamp="", sender="", marker="";
         json.beginObject();
         while (json.hasNext()) {
             String key=json.nextName();
-            JsonToken value=json.peek();
-            boolean simple=value==JsonToken.STRING || value==JsonToken.NUMBER;
+            Token value=json.peek();
+            boolean simple=value==Token.STRING || value==Token.NUMBER;
             if (simple && ("name".equals(key)||"title".equals(key))) {
                 String candidate=shortText(json.nextString(),110);
                 if (name.isEmpty()) name=candidate;
@@ -220,17 +229,17 @@ final class JsonExplorerEngine {
         StringBuilder result = new StringBuilder("# Conversation\n\n");
         int count=0;
         boolean more=false;
-        try (JsonReader json=reader(source)) {
+        try (JsonTokenReader json=reader(source)) {
             seek(json, conversationPath);
-            if (json.peek()!=JsonToken.BEGIN_OBJECT) throw new IOException("Select a conversation object.");
+            if (json.peek()!=Token.BEGIN_OBJECT) throw new IOException("Select a conversation object.");
             json.beginObject();
             while (json.hasNext()) {
                 String name=json.nextName();
                 if (("name".equals(name)||"title".equals(name))
-                        && json.peek()==JsonToken.STRING && count==0) {
+                        && json.peek()==Token.STRING && count==0) {
                     String title=json.nextString();
                     result.replace(0, "# Conversation".length(), "# " + shortText(title, 300));
-                } else if (messagesKey.equals(name) && json.peek()==JsonToken.BEGIN_ARRAY) {
+                } else if (messagesKey.equals(name) && json.peek()==Token.BEGIN_ARRAY) {
                     json.beginArray();
                     while (json.hasNext() && count<MAX_TRANSCRIPT_MESSAGES
                             && result.length()<TRANSCRIPT_CHAR_LIMIT) {
@@ -251,16 +260,16 @@ final class JsonExplorerEngine {
         return result.toString();
     }
 
-    private static String readMessage(JsonReader json, int number) throws IOException {
-        if (json.peek()!=JsonToken.BEGIN_OBJECT) { json.skipValue(); return ""; }
+    private static String readMessage(JsonTokenReader json, int number) throws IOException {
+        if (json.peek()!=Token.BEGIN_OBJECT) { json.skipValue(); return ""; }
         String sender="Message "+number, text="", when="";
         json.beginObject();
         while (json.hasNext()) {
             String key=json.nextName();
-            JsonToken value=json.peek();
-            if (("sender".equals(key)||"role".equals(key)) && value==JsonToken.STRING) {
+            Token value=json.peek();
+            if (("sender".equals(key)||"role".equals(key)) && value==Token.STRING) {
                 sender=shortText(json.nextString(),60);
-            } else if ("created_at".equals(key) && value==JsonToken.STRING) {
+            } else if ("created_at".equals(key) && value==Token.STRING) {
                 when=shortText(json.nextString(),70);
             } else if ("content".equals(key)) {
                 text=readContent(json);
@@ -272,10 +281,10 @@ final class JsonExplorerEngine {
         return "## " + sender + (when.isEmpty()?"":" · "+when) + "\n\n" + text + "\n\n";
     }
 
-    private static String readContent(JsonReader json) throws IOException {
-        JsonToken value=json.peek();
-        if (value==JsonToken.STRING) return json.nextString();
-        if (value==JsonToken.BEGIN_OBJECT) {
+    private static String readContent(JsonTokenReader json) throws IOException {
+        Token value=json.peek();
+        if (value==Token.STRING) return json.nextString();
+        if (value==Token.BEGIN_OBJECT) {
             json.beginObject();
             StringBuilder out=new StringBuilder();
             boolean shortened=false;
@@ -295,7 +304,7 @@ final class JsonExplorerEngine {
             if(shortened)out.append("\n_[Additional text omitted in this bounded preview]_");
             return out.toString();
         }
-        if (value==JsonToken.BEGIN_ARRAY) {
+        if (value==Token.BEGIN_ARRAY) {
             json.beginArray();
             StringBuilder out=new StringBuilder();
             boolean shortened=false;

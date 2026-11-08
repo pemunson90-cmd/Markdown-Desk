@@ -8,6 +8,7 @@ function fixture(chunks,beginIndex,beginOffset,endIndex,endOffset,quoteOverride)
    parentElement:{closest(selector){
      if(selector==='[data-message-id]')return foreign?otherSection:section;
      if(selector==='script,style,noscript,template')return exclude?{}:null;
+     if(selector==='.archive-part')return {getAttribute(){return '120'}};
      return null;
    }}}));
  const content={contains(node){return nodes.includes(node)}};
@@ -26,6 +27,7 @@ function run(env){return vm.runInNewContext(script,env.ctx,{timeout:3000})}
  const env=fixture([['first target then target again']],0,18,0,24,'target');
  const result=JSON.parse(run(env));
  assert.equal(result.quote,'target');
+ assert.equal(result.sourcePart,120,'long-message segment preserved');
  assert.equal(result.start,18,'second occurrence, not first occurrence');
  assert.equal(result.end,24);
  assert.equal(result.prefix,'first target then ');

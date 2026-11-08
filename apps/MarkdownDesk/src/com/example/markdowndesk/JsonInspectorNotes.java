@@ -101,7 +101,7 @@ final class JsonInspectorNotes {
             default:return Color.argb(92,186,106,235);
         }
     }
-    void decorateValue(Uri uri,String canonical,String value,int version,
+    void decorateValue(Uri uri,String canonical,String value,int valueStart,int version,
             Consumer<SpannableString> ready) {
         if(uri==null||value==null||value.length()>2_000_000)return;
         io.execute(()->{
@@ -112,8 +112,9 @@ final class JsonInspectorNotes {
                 int decorated=0;
                 for(ArchiveJournal.Annotation a:data.annotations){
                     if(!JsonInspectorNoteIdentity.owns(a,uri.toString())||
-                            !canonical.equals(a.messageId))continue;
-                    int at=VerifiedTextAnchor.locate(value,a.quote,a.prefix,a.suffix,a.selectionStart);
+                            !canonical.equals(a.messageId)||a.selectionStart<valueStart||
+                            a.selectionEnd>valueStart+value.length())continue;
+                    int at=VerifiedTextAnchor.locate(value,a.quote,a.prefix,a.suffix,a.selectionStart-valueStart);
                     if(at<0)continue; // Explicitly unresolved, never guess.
                     spans.setSpan(new BackgroundColorSpan(toneColor(a.tags)),at,at+a.quote.length(),
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -129,7 +130,7 @@ final class JsonInspectorNotes {
      * select text. A unique quote/context still proves source identity.
      * Container pages without a stable scalar are intentionally not guessed.
      */
-    void bookmarkValue(String value){
+    void bookmarkValue(String value,int valueStart){
         final Uri uri=source.get();
         if(uri==null||value==null||value.isEmpty()){
             message.accept("Open a nonempty JSON value before bookmarking.");return;
@@ -147,10 +148,10 @@ final class JsonInspectorNotes {
         try{canonical=canonicalPath(steps);}
         catch(IllegalArgumentException invalid){message.accept("JSON path is too long to bookmark.");return;}
         showCreation(uri,steps,canonical,value,quote,"",suffix,0,end,
-                revision.getAsInt(),"bookmark");
+                revision.getAsInt(),"bookmark",valueStart);
     }
 
-    void annotateSelection(TextView reader,String selectedValue){
+    void annotateSelection(TextView reader,String selectedValue,int valueStart){
         final Uri uri=source.get();
         if(uri==null||reader==null||selectedValue==null){
             message.accept("Open a JSON value first.");return;
@@ -174,11 +175,11 @@ final class JsonInspectorNotes {
         final String[] types={"highlight","note","bookmark","source_link","cross_link","external_link"};
         new AlertDialog.Builder(host).setTitle("Annotate JSON passage")
                 .setItems(names,(dialog,index)->showCreation(uri,steps,canonical,selectedValue,
-                        quote,prefix,suffix,start,end,version,types[index]))
+                        quote,prefix,suffix,start,end,version,types[index],valueStart))
                 .setNegativeButton("Cancel",null).show();
     }
     private void showCreation(Uri uri,ArrayList<JsonExplorerEngine.Step> steps,String canonical,
-            String value,String quote,String prefix,String suffix,int first,int last,int version,String kind){
+            String value,String quote,String prefix,String suffix,int first,int last,int version,String kind,int valueStart){
         LinearLayout form=new LinearLayout(host);form.setOrientation(LinearLayout.VERTICAL);
         TextView selected=new TextView(host);selected.setText("Selected: "+quote);form.addView(selected);
         EditText label=new EditText(host);label.setHint("Label");form.addView(label);
@@ -207,7 +208,7 @@ final class JsonInspectorNotes {
             ArchiveJournal.Annotation row;
             try{
                 row=JsonInspectorNoteIdentity.create(uri.toString(),canonical,
-                        uri.getLastPathSegment(),kind,quote,prefix,suffix,first,last,
+                        uri.getLastPathSegment(),kind,quote,prefix,suffix,first+valueStart,last+valueStart,
                         label.getText().toString(),note.getText().toString(),
                         AnnotationTone.withTone(tags.getText().toString(),
                                 AnnotationTone.byIndex(tone.getSelectedItemPosition())),destination);
@@ -220,7 +221,7 @@ final class JsonInspectorNotes {
             io.execute(()->{
                 try{
                     JsonExplorerEngine.Page latest=JsonExplorerEngine.scan(
-                            ()->host.getContentResolver().openInputStream(uri),steps,0);
+                            ()->host.getContentResolver().openInputStream(uri),steps,JsonExplorerEngine.valuePage(valueStart));
                     if(!"Value".equals(latest.type)||!value.equals(latest.value)||
                             !VerifiedTextAnchor.matchesSelected(latest.value,quote,prefix,suffix,first,last))
                         throw new IOException("JSON value changed; annotation not saved");
@@ -346,10 +347,10 @@ final class JsonInspectorNotes {
                     steps.add(part.key==null?JsonExplorerEngine.Step.element(part.index):
                             JsonExplorerEngine.Step.field(part.key));
                 JsonExplorerEngine.Page found=JsonExplorerEngine.scan(
-                        ()->host.getContentResolver().openInputStream(uri),steps,0);
+                        ()->host.getContentResolver().openInputStream(uri),steps,JsonExplorerEngine.valuePage(match.selectionStart));
                 if(!"Value".equals(found.type))throw new IOException("Saved JSON value is no longer present");
                 int at=VerifiedTextAnchor.locate(found.value,match.quote,match.prefix,
-                        match.suffix,match.selectionStart);
+                        match.suffix,match.selectionStart-found.valueStart);
                 if(at<0)throw new IOException("Quoted passage changed or is ambiguous");
                 Navigation destination=new Navigation(steps,found,at);
                 host.runOnUiThread(()->{if(live(uri,version))onNavigation.accept(destination);});

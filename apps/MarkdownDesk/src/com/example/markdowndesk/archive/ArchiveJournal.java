@@ -23,6 +23,8 @@ public final class ArchiveJournal {
         public String id, archiveId, chatId, chatTitle, messageId, messageDate, type,
                 quote, note, label, target, tags, prefix, suffix;
         public int selectionStart=-1, selectionEnd=-1;
+        /** Indexed message segment hint; quote/context still decides anchor validity. */
+        public int sourcePart=-1;
         public long createdAt, updatedAt;
         public boolean isLink() {
             return "source_link".equals(type)||"cross_link".equals(type)||"external_link".equals(type);
@@ -32,7 +34,7 @@ public final class ArchiveJournal {
             x.chatTitle=chatTitle; x.messageId=messageId; x.messageDate=messageDate;
             x.type=type; x.quote=quote; x.note=note; x.label=label;
             x.target=target; x.tags=tags; x.prefix=prefix; x.suffix=suffix;
-            x.selectionStart=selectionStart; x.selectionEnd=selectionEnd;
+            x.selectionStart=selectionStart; x.selectionEnd=selectionEnd; x.sourcePart=sourcePart;
             x.createdAt=createdAt; x.updatedAt=updatedAt;
             return x;
         }
@@ -133,7 +135,7 @@ public final class ArchiveJournal {
                 Objects.equals(a.prefix,b.prefix) &&
                 Objects.equals(a.suffix,b.suffix) &&
                 a.selectionStart==b.selectionStart &&
-                a.selectionEnd==b.selectionEnd &&
+                a.selectionEnd==b.selectionEnd && a.sourcePart==b.sourcePart &&
                 a.createdAt==b.createdAt && a.updatedAt==b.updatedAt;
     }
 
@@ -218,6 +220,7 @@ public final class ArchiveJournal {
             field(out,a.target);field(out,a.tags);field(out,a.prefix);field(out,a.suffix);
             out.writeInt(a.selectionStart);out.writeInt(a.selectionEnd);
             out.writeLong(a.createdAt);out.writeLong(a.updatedAt);
+            out.writeInt(a.sourcePart);
         }
         byte[] payload=bytes.toByteArray();if(payload.length>MAX_RECORD)throw new IOException("Annotation exceeds 8 MiB");
         File parent=file.getParentFile();
@@ -252,7 +255,13 @@ public final class ArchiveJournal {
         a.note=field(in);a.label=field(in);a.target=field(in);
         a.tags=field(in);a.prefix=field(in);a.suffix=field(in);
         a.selectionStart=in.readInt();a.selectionEnd=in.readInt();
-        a.createdAt=in.readLong();a.updatedAt=in.readLong();return a;
+        a.createdAt=in.readLong();a.updatedAt=in.readLong();
+        // Original AJN2 records end after timestamps. Read their default without
+        // rewriting history; reject partial or unknown extensions as corruption.
+        if(in.available()==4)a.sourcePart=in.readInt();
+        else if(in.available()!=0)throw new IOException("Invalid annotation segment extension");
+        if(a.sourcePart < -1)throw new IOException("Invalid annotation segment hint");
+        return a;
     }
     public static boolean validType(String type) {
         return "note".equals(type)||"highlight".equals(type)||"bookmark".equals(type)

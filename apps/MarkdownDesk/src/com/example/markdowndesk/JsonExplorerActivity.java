@@ -377,9 +377,9 @@ public final class JsonExplorerActivity extends Activity {
         LinearLayout actions=actionRow;
         actions.addView(button("Copy path",v->copy(JsonExplorerEngine.jsonPath(path))),
                 new LinearLayout.LayoutParams(0,dp(48),1));
-        actions.addView(button("Copy list",v->copyVisible()),
+        actions.addView(button("Copy page",v->copyVisible()),
                 new LinearLayout.LayoutParams(0,dp(48),1));
-        actions.addView(button("Share list",v->shareVisible()),
+        actions.addView(button("Share page",v->shareVisible()),
                 new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(actions);
         noteActionRow=row();
@@ -696,10 +696,10 @@ public final class JsonExplorerActivity extends Activity {
     private void navigateToSavedJsonNote(JsonInspectorNotes.Navigation destination){
         if(destination==null||document==null)return;
         saveInspectorPosition();
-        path.clear();path.addAll(destination.path);offset=0;pendingScrollY=0;
+        path.clear();path.addAll(destination.path);offset=destination.page.offset;pendingScrollY=0;
         if(filter!=null)filter.setText("");
         final int token=++revision;
-        displayPage(destination.page,new ArrayList<>(path),0,token);
+        displayPage(destination.page,new ArrayList<>(path),offset,token);
         entryScroll.post(()->{
             if(token!=revision||valueReader==null||isFinishing()||isDestroyed())return;
             android.text.Layout layout=valueReader.getLayout();
@@ -752,21 +752,33 @@ public final class JsonExplorerActivity extends Activity {
             entries.addView(value);
             valueReader=value;
             entries.addView(button("Annotate selected JSON text",v->{
-                if(readingNotes!=null)readingNotes.annotateSelection(value,page.value);
+                if(readingNotes!=null)readingNotes.annotateSelection(value,page.value,page.valueStart);
             }),new LinearLayout.LayoutParams(-1,dp(48)));
             entries.addView(button("Bookmark this JSON value",v->{
-                if(readingNotes!=null)readingNotes.bookmarkValue(page.value);
+                if(readingNotes!=null)readingNotes.bookmarkValue(page.value,page.valueStart);
             }),new LinearLayout.LayoutParams(-1,dp(48)));
             if(readingNotes!=null&&document!=null){
                 try{
                     String canonical=JsonInspectorNotes.canonicalPath(new ArrayList<>(path));
                     final Uri source=document;
                     final int token=revision;
-                    readingNotes.decorateValue(source,canonical,page.value,token,
+                    readingNotes.decorateValue(source,canonical,page.value,page.valueStart,token,
                             styled->{if(valueReader==value)value.setText(styled);});
                 }catch(IllegalArgumentException invalid){
                     status.setText("JSON location cannot be bookmarked: path is too long");
                 }
+            }
+            if(page.offset>0||page.hasMore){
+                entries.addView(text("Value characters "+(page.valueStart+1)+"–"+
+                        (page.valueStart+page.value.length())+" of "+page.valueTotal,12));
+                LinearLayout pager=row();
+                if(page.offset>0)pager.addView(button("Previous text",v->{
+                    offset=Math.max(0,offset-JsonExplorerEngine.PAGE_SIZE);pendingScrollY=0;loadPage();
+                }),new LinearLayout.LayoutParams(0,dp(50),1));
+                if(page.hasMore)pager.addView(button("Next text",v->{
+                    offset+=JsonExplorerEngine.PAGE_SIZE;pendingScrollY=0;loadPage();
+                }),new LinearLayout.LayoutParams(0,dp(50),1));
+                entries.addView(pager);
             }
             return;
         }

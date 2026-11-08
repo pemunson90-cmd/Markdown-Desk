@@ -54,6 +54,8 @@ print(v)
 PY
 )
 bash verification/run_current_phone_checks.sh
+bash verification/archive_reader/run_archive_stream_stress.sh
+bash verification/archive_reader/run_journal_history_memory.sh
 bash verification/compile_native_sources_only.sh
 test -z "$(git status --porcelain)" || {
  echo 'Local verification modified tracked files; package refused' >&2;exit 1;

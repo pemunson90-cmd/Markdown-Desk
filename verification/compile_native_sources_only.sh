@@ -66,6 +66,12 @@ print('Source count:',len(sources))
 PY
 javac --release 11 -encoding UTF-8 -classpath "$ANDROID_JAR" \
  -d "$TMP/classes" @"$TMP/sources.txt"
+# Exercise the actual compiled coordinator terminal cancellation guard on the host.
+javac --release 11 -encoding UTF-8 -classpath "$ANDROID_JAR:$TMP/classes" \
+ -d "$TMP/classes" verification/archive_reader/CoordinatorCancelGuardCheck.java
+java -cp "$TMP/classes:$ANDROID_JAR" com.example.markdowndesk.CoordinatorCancelGuardCheck
+# Test fixture is not application bytecode.
+rm -f "$TMP/classes/com/example/markdowndesk/CoordinatorCancelGuardCheck.class"
 jar --create --file "$TMP/classes.jar" -C "$TMP/classes" .
 "$BT/d8" --min-api "${VERSION[0]}" --release --lib "$ANDROID_JAR" \
  --output "$TMP/dex" "$TMP/classes.jar"

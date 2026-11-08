@@ -17,8 +17,8 @@ class JsonNodeNavigation(unittest.TestCase):
     def test_immutable_verified_raw_source_only(self):
         self.assertIn("JsonNodeLocator.locate(text,offset,literal.length())",self.raw)
         self.assertIn("catch(IOException malformedOrAmbiguous)",self.raw)
-        self.assertIn("keepSnapshot?source:null",self.raw)
-        self.assertIn("sourceSha,actualSha",self.raw)
+        self.assertIn("keepSnapshot?parsed.bytes:null",self.raw)
+        self.assertIn("sourceSha,parsed.sha256",self.raw)
         self.assertIn("MAX_BYTES=8*1024*1024",self.raw)
 
     def test_narrow_bounded_parser_and_unambiguous_identity(self):
@@ -31,7 +31,7 @@ class JsonNodeNavigation(unittest.TestCase):
 
     def test_exact_search_routes_to_inspector(self):
         s=self.search
-        self.assertIn("if(file.json)openJsonHit(file,match,term)",s)
+        self.assertIn("if(hit.file.json)openJsonHit(hit.file,hit.match,hit.term)",s)
         self.assertIn("UnifiedSearchJump.EXTRA_HASH,file.hash",s)
         self.assertIn("UnifiedSearchJump.EXTRA_OFFSET,match.offsetUtf16",s)
         self.assertIn("JsonExplorerActivity.class",s)

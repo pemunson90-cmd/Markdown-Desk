@@ -6,6 +6,7 @@ public final class NavigationHarness {
     static final class Uri {
         final String text;Uri(String text){this.text=text;}
         List<String> getPathSegments(){return Arrays.asList(java.net.URI.create(text).getPath().substring(1).split("/"));}
+        String getQueryParameter(String key){return null;}
         public String toString(){return text;}
     }
     static final class Intent {
@@ -30,6 +31,7 @@ public final class NavigationHarness {
     void showHome(){homeCount++;}
     void showReader(boolean keep){renderCount++;}
     void rememberPriorArchiveVisit(String id){}
+    void restoreAnnotationPassage(String id,ArchiveDatabase.Conversation source,int ordinal){}
     /* METHOD */
     static Intent search(String generation,int part){
         Intent intent=new Intent("markdowndesk://archive/v1/source/chat/message");

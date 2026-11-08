@@ -103,6 +103,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private ScrollView listing;
     private ArchiveDatabase.Conversation active;
     private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
+    private int anchorOrdinal=-1,anchorPart,anchorY;
+    private long lastAnchorCapture;
     private boolean fullscreen, chatLayout, restoreLastPosition;
     /** Shared workspace mode contract: Read(0), Inspect(1), Split(2). */
     private int archiveDisplayMode;
@@ -129,6 +131,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String tree=prefs.getString("archive_notes_tree",null);
         if(tree!=null)try{notesTree=Uri.parse(tree);}catch(RuntimeException ignored){}
         if(state!=null){
+            anchorOrdinal=state.getInt("anchor_ordinal",-1);
+            anchorPart=Math.max(0,state.getInt("anchor_part",0));
+            anchorY=state.getInt("anchor_y",0);
             pendingExportChat=state.getString("pending_export_chat");
             pendingFindTerm=state.getString("pending_find_term");
             windowOffset=Math.max(0,state.getInt("offset",0));
@@ -159,6 +164,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
             String chat=state.getString("chat");
             if(chat!=null)active=findConversation(chat);
+            if(active!=null&&!active.generationId.equals(state.getString("anchor_generation")))anchorOrdinal=-1;
         }
         buildChrome();
         importController=ArchiveImportCoordinator.get(getApplicationContext());
@@ -200,6 +206,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
+        state.putString("anchor_generation",active==null?null:active.generationId);
+        state.putInt("anchor_ordinal",anchorOrdinal);
+        state.putInt("anchor_part",anchorPart);state.putInt("anchor_y",anchorY);
         state.putString("pending_export_chat",pendingExportChat);
         state.putString("pending_find_term",pendingFindTerm);
         state.putString("chat",active==null?null:active.id);
@@ -401,6 +410,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;
+        anchorOrdinal=prefs.getInt("archive_chat_anchor_ordinal_"+c.id,-1);
+        anchorPart=Math.max(0,prefs.getInt("archive_chat_anchor_part_"+c.id,0));
+        anchorY=prefs.getInt("archive_chat_anchor_y_"+c.id,0);
+        if(!c.generationId.equals(prefs.getString("archive_chat_anchor_generation_"+c.id,null)))anchorOrdinal=-1;
         savedScroll=prefs.getInt("archive_chat_scroll_"+c.id,0);
         restoreLastPosition=true;
         prefs.edit().putString("archive_last_chat",c.id).apply();
@@ -413,6 +426,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             showHome();return;
         }
         refreshConversationTabs();
+        final boolean restoreAnchor=(keepScroll||restoreLastPosition)&&anchorOrdinal>=0&&anchorOrdinal<active.messages;
+        final int restoredOrdinal=anchorOrdinal,restoredPart=anchorPart,restoredY=anchorY;
+        if(restoreAnchor){focusOrdinal=anchorOrdinal;chunkOffset=anchorPart;}
+        else if(!keepScroll&&!restoreLastPosition)anchorOrdinal=-1;
         final int token=++generation;
         adjacentLoading=false;chunkLoading=false;
         if(viewport==null||!active.id.equals(viewportChatId)||viewport.total()!=active.messages
@@ -460,8 +477,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             fontSp=size;prefs.edit().putFloat("preview_font_size",fontSp).apply();showReader(true);
         });
         web.setOnScrollChangeListener((view,x,y,oldX,oldY)->{
-            if(token==generation&&reader==web&&"reader".equals(viewMode))
+            if(token==generation&&reader==web&&"reader".equals(viewMode)){
                 savedScroll=Math.max(0,y);
+                long now=android.os.SystemClock.uptimeMillis();
+                if(now-lastAnchorCapture>=100){lastAnchorCapture=now;captureReadingAnchor(web,token);}
+            }
         });
         WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(false);settings.setAllowContentAccess(false);
@@ -506,7 +526,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
             @Override public void onPageFinished(WebView v,String url){
                 if(token==generation&&v==reader){
-                    if(restorePosition)v.post(()->{
+                    if(restoreAnchor)v.evaluateJavascript(
+                            ArchiveScrollScript.restorePosition(restoredOrdinal,restoredPart,restoredY),null);
+                    else if(restorePosition)v.post(()->{
                         if(token==generation&&reader==v)v.scrollTo(0,targetScroll);
                     });
                     if(!restorePosition&&navigationOrdinal>=0)
@@ -1136,6 +1158,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             a.quote=selection.optString("quote","");a.prefix=selection.optString("prefix","");
             a.suffix=selection.optString("suffix","");
             a.selectionStart=selection.optInt("start",-1);a.selectionEnd=selection.optInt("end",-1);
+            a.sourcePart=Math.max(-1,selection.optInt("sourcePart",-1));
             a.type=kind;a.label=label.getText().toString().trim();
             a.note=note.getText().toString();a.target=target.getText().toString().trim();
             a.tags=AnnotationTone.withTone(tags.getText().toString().trim(),
@@ -1304,7 +1327,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 if(position<0){status("Original message no longer indexed. Link needs review.");return;}
                 rememberPriorArchiveVisit(c.id);
                 active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
-                focusOrdinal=position;chunkOffset=0;savedScroll=0;showReader(false);
+                focusOrdinal=position;chunkOffset=Math.max(0,a.sourcePart-1);savedScroll=0;
+                pendingFindTerm=a.quote;showReader(false);
             }else if(index==1){
                 ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
                 clipboard.setPrimaryClip(ClipData.newPlainText("Archive link",ArchiveMarkdownIndexes.deepLink(a)));
@@ -1402,9 +1426,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             if(chat!=null)writeTranscriptPdf(chat,uri);
         }
     }
-    private void importArchive(Uri uri){
+    private void importArchive(Uri uri){importArchive(uri,false);}
+    private void importArchive(Uri uri,boolean genericJson){
         if(importController==null)importController=ArchiveImportCoordinator.get(getApplicationContext());
-        if(!importController.start(uri)){
+        if(!importController.start(uri,genericJson)){
             status("An import is already running, or the selected file cannot be opened");
             showImportScreen();return;
         }
@@ -1693,7 +1718,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             status("Unable to import: original Android document URI is invalid");
             showHome();return true;
         }
-        importArchive(selected);
+        boolean genericJson=intent.getBooleanExtra("com.example.markdowndesk.INDEX_GENERIC_JSON",false);
+        intent.removeExtra("com.example.markdowndesk.INDEX_GENERIC_JSON");
+        intent.setData(null);
+        importArchive(selected,genericJson);
         return true;
     }
 
@@ -1729,7 +1757,32 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         intent.removeExtra(EXTRA_SEARCH_TERM);
         intent.removeExtra(EXTRA_SEARCH_PART);
         intent.removeExtra(EXTRA_SEARCH_GENERATION);
-        showReader(false);return true;
+        showReader(false);
+        final String annotationId=uri.getQueryParameter("link");
+        if(annotationId!=null&&!annotationId.isEmpty())restoreAnnotationPassage(annotationId,c,ordinal);
+        return true;
+    }
+    private void restoreAnnotationPassage(String id,ArchiveDatabase.Conversation source,int ordinal){
+        final int token=generation;
+        io.execute(()->{
+            try{
+                ArchiveJournal.ReadResult notes=journal.load();
+                if(notes.truncatedTail)throw new IOException("Annotation history is incomplete");
+                ArchiveJournal.Annotation match=null;
+                for(ArchiveJournal.Annotation note:notes.annotations)
+                    if(id.equals(note.id)&&source.archiveId.equals(note.archiveId)&&source.id.equals(note.chatId)
+                            &&database.findMessageOrdinal(source.id,note.messageId)==ordinal){match=note;break;}
+                final ArchiveJournal.Annotation found=match;
+                runOnUiThread(()->{
+                    if(token!=generation||active==null||!source.id.equals(active.id)||isFinishing()||isDestroyed())return;
+                    if(found==null){status("Saved annotation no longer resolves; original message opened.");return;}
+                    focusOrdinal=ordinal;chunkOffset=Math.max(0,found.sourcePart-1);
+                    pendingFindTerm=found.quote;savedScroll=0;showReader(false);
+                });
+            }catch(Exception failed){runOnUiThread(()->{
+                if(token==generation&&!isFinishing()&&!isDestroyed())fail("Saved annotation unavailable",failed);
+            });}
+        });
     }
     /** Bounded local navigation history. No URI grants or source text are stored.
      * Reopening always resolves the recorded public chat ID against today's ready index.
@@ -1741,11 +1794,28 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(priorArchiveChats.size()==16)priorArchiveChats.remove(0);
         priorArchiveChats.add(active.id);
     }
+    private void captureReadingAnchor(PreviewWebView web,int token){
+        web.evaluateJavascript(ArchiveScrollScript.position(),result->{
+            if(token!=generation||reader!=web||active==null||isFinishing()||isDestroyed())return;
+            try{
+                Object decoded=new JSONTokener(result).nextValue();
+                if(!(decoded instanceof String)||((String)decoded).isEmpty())return;
+                JSONObject position=new JSONObject((String)decoded);
+                int ordinal=position.optInt("ordinal",-1),part=position.optInt("part",-1);
+                if(ordinal<0||ordinal>=active.messages||part<0)return;
+                anchorOrdinal=ordinal;anchorPart=part;anchorY=position.optInt("y",0);
+            }catch(Exception ignored){/* Keep the last verified local reading anchor. */}
+        });
+    }
     private void rememberReadingPlace(){
         if(active==null||!"reader".equals(viewMode))return;
         int y=reader==null?savedScroll:reader.getScrollY();
         prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset)
-                .putInt("archive_chat_scroll_"+active.id,Math.max(0,y)).apply();
+                .putInt("archive_chat_scroll_"+active.id,Math.max(0,y))
+                .putString("archive_chat_anchor_generation_"+active.id,active.generationId)
+                .putInt("archive_chat_anchor_ordinal_"+active.id,anchorOrdinal)
+                .putInt("archive_chat_anchor_part_"+active.id,anchorPart)
+                .putInt("archive_chat_anchor_y_"+active.id,anchorY).apply();
     }
     @Override protected void onStop(){
         rememberReadingPlace();

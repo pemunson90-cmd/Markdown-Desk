@@ -149,6 +149,22 @@ public final class ArchiveScrollScript {
             "</script>";
     }
 
+    /** Small logical reading position, independent of trimmed DOM pixel height. */
+    public static String position(){
+        return "(function(){var parts=document.querySelectorAll('#archive-stream .archive-part'),chosen=null;"+
+            "for(var i=0;i<parts.length;i++){var r=parts[i].getBoundingClientRect();"+
+            "if(r.bottom>0){chosen=parts[i];break;}}if(!chosen)return '';"+
+            "var section=chosen.closest('[data-ordinal]');if(!section)return '';"+
+            "return JSON.stringify({ordinal:Number(section.getAttribute('data-ordinal')),"+
+            "part:Number(chosen.getAttribute('data-start-part')),y:Math.round(-chosen.getBoundingClientRect().top)});})()";
+    }
+    public static String restorePosition(int ordinal,int part,int offset){
+        if(ordinal<0||part<0)throw new IllegalArgumentException("Invalid reading anchor");
+        return "(function(){var e=document.querySelector('[data-ordinal=\""+ordinal+
+            "\"] .archive-part[data-start-part=\""+part+"\"]');if(!e)return false;"+
+            "e.scrollIntoView();window.scrollBy(0,"+offset+");return true;})()";
+    }
+
     public static String insert(String html,int direction,int remove,boolean hasBefore,boolean hasAfter){
         if(direction!=1 && direction!=-1)throw new IllegalArgumentException("Direction");
         if(remove<0)throw new IllegalArgumentException("Removal count");

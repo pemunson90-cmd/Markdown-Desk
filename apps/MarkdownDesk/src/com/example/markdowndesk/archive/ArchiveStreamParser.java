@@ -169,18 +169,29 @@ public final class ArchiveStreamParser {
                     if (n.message == null) continue;
                     n.message.ordinal = info.messageCount++;
                     sink.beginMessage(n.message.ordinal);
-                    text.seek(n.start);
-                    while (text.getFilePointer() < n.end) {
-                        if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
-                        int length = text.readInt();
-                        byte[] bytes = new byte[length]; text.readFully(bytes);
-                        sink.textSegment(new String(bytes, StandardCharsets.UTF_8));
-                    }
+                    replay(n.start, n.end);
                     sink.endMessage(n.message);
                 }
                 sink.endConversation(info);
             }
             if (covered.size() != nodes.size()) throw error("Disconnected cycle in conversation mapping");
+        }
+        void write(String chunk) throws IOException {
+            if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
+            long free = file.getUsableSpace();
+            if (free > 0 && free < 64L * 1024 * 1024)
+                throw error("Insufficient temporary storage for conversation content");
+            byte[] bytes = chunk.getBytes(StandardCharsets.UTF_8);
+            text.writeInt(bytes.length); text.write(bytes);
+        }
+        void replay(long start, long end) throws IOException {
+            text.seek(start);
+            while (text.getFilePointer() < end) {
+                if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
+                int length = text.readInt();
+                byte[] bytes = new byte[length]; text.readFully(bytes);
+                sink.textSegment(new String(bytes, StandardCharsets.UTF_8));
+            }
         }
         public void close() throws IOException { try {text.close();} finally {file.delete();} }
     }
@@ -205,12 +216,7 @@ public final class ArchiveStreamParser {
                         public void beginConversation(int ordinal) {}
                         public void beginMessage(int ordinal) {}
                         public void textSegment(String chunk) throws IOException {
-                            if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
-                            long free = graph.file.getUsableSpace();
-                            if (free > 0 && free < 64L * 1024 * 1024)
-                                throw error("Insufficient temporary storage for conversation branches");
-                            byte[] bytes = chunk.getBytes(StandardCharsets.UTF_8);
-                            graph.text.writeInt(bytes.length); graph.text.write(bytes);
+                            graph.write(chunk);
                         }
                         public void endMessage(MessageInfo info) { node.message = info; }
                         public void endConversation(ConversationInfo info) {}
@@ -232,27 +238,51 @@ public final class ArchiveStreamParser {
 
     private void message(int ordinal) throws IOException {
         MessageInfo info = new MessageInfo(); info.ordinal = ordinal;
+        final Graph[] fallback = {null};
+        MessageInfo fallbackInfo = new MessageInfo();
+        final boolean[] contentSeen = {false};
         sink.beginMessage(ordinal);
-        object(key -> {
-            switch (key) {
-                case "uuid": case "id": if(info.id == null) info.id = scalar(512); else skipValue(); break;
-                case "sender": case "role": info.sender = scalar(256); break;
-                case "created_at": info.createdAt = scalar(256); break;
+        try {
+            object(key -> {
+                switch (key) {
+                    case "uuid": case "id": if(info.id == null) info.id = scalar(512); else skipValue(); break;
+                    case "sender": case "role": info.sender = scalar(256); break;
+                    case "created_at": info.createdAt = scalar(256); break;
                     case "create_time": info.createdAt = epochDate(scalar(256)); break;
-                case "updated_at": info.updatedAt = scalar(256); break;
+                    case "updated_at": info.updatedAt = scalar(256); break;
                     case "update_time": info.updatedAt = epochDate(scalar(256)); break;
-                case "author":
-                    if (peek() == '{') object(field -> {
-                        if (field.equals("role")) info.sender = scalar(256); else skipValue();
-                    }); else skipValue();
-                    break;
-                case "content": case "parts": content(info, 0); break;
-                default: skipValue();
+                    case "author":
+                        if (peek() == '{') object(field -> {
+                            if (field.equals("role")) info.sender = scalar(256); else skipValue();
+                        }); else skipValue();
+                        break;
+                    case "content": case "parts": contentSeen[0] = true; content(info, 0); break;
+                    case "text":
+                        if (contentSeen[0]) { skipValue(); break; }
+                        if (fallback[0] != null) throw error("Duplicate message text");
+                        fallback[0] = new Graph();
+                        Sink destination = sink;
+                        sink = new Sink() {
+                            public void beginConversation(int ordinal) {}
+                            public void beginMessage(int ordinal) {}
+                            public void textSegment(String chunk) throws IOException { fallback[0].write(chunk); }
+                            public void endMessage(MessageInfo ignored) {}
+                            public void endConversation(ConversationInfo ignored) {}
+                        };
+                        try { content(fallbackInfo, 0); } finally {sink = destination;}
+                        break;
+                    default: skipValue();
+                }
+            });
+            if (!contentSeen[0] && fallback[0] != null) {
+                fallback[0].replay(0, fallback[0].text.length());
+                info.textPresent = fallbackInfo.textPresent;
+                info.unsupportedContent = fallbackInfo.unsupportedContent;
             }
-        });
-        if (info.id == null || info.id.isEmpty()) info.id = "missing-message-id-" + ordinal;
-        if (info.sender == null || info.sender.isEmpty()) info.sender = "unknown";
-        sink.endMessage(info);
+            if (info.id == null || info.id.isEmpty()) info.id = "missing-message-id-" + ordinal;
+            if (info.sender == null || info.sender.isEmpty()) info.sender = "unknown";
+            sink.endMessage(info);
+        } finally { if (fallback[0] != null) fallback[0].close(); }
     }
 
     private void content(MessageInfo info, int nesting) throws IOException {
@@ -269,22 +299,22 @@ public final class ArchiveStreamParser {
             final boolean[] found = {false};
             final String[] type = {null};
             object(key -> {
-                if (key.equals("type") && peek() == '"') type[0] = scalar(128);
+                if ((key.equals("type") || key.equals("content_type")) && peek() == '"') type[0] = scalar(128);
                 else if (key.equals("text") || key.equals("content") || key.equals("parts")) {
                     found[0] = true;
                     content(info, nesting + 1);
                 } else skipValue();
             });
-            if (!found[0]) {
-                info.unsupportedContent = true;
-                if (type[0] != null && !type[0].isEmpty()) {
-                    if (info.textPresent) sink.textSegment("\n\n");
-                    sink.textSegment("[Non-text block: " + safeLabel(type[0]) + "]");
-                    info.textPresent = true;
-                }
-            }
+            if (!found[0]) unsupported(info, type[0]);
         } else if (c == 'n') { literal("null"); }
-        else { info.unsupportedContent = true; skipValue(); }
+        else { skipValue(); unsupported(info, null); }
+    }
+
+    private void unsupported(MessageInfo info, String type) throws IOException {
+        info.unsupportedContent = true;
+        if (info.textPresent) sink.textSegment("\n\n");
+        sink.textSegment("[Non-text block: " + (type == null || type.isEmpty() ? "unknown" : safeLabel(type)) + "]");
+        info.textPresent = true;
     }
 
     private static String safeLabel(String text) {
@@ -338,7 +368,7 @@ public final class ArchiveStreamParser {
         else if (c=='n') literal("null");
         else if (c=='t') literal("true");
         else if (c=='f') literal("false");
-        else if (c=='-' || Character.isDigit(c)) number();
+        else if (c=='-' || digit(c)) number();
         else throw error("Invalid JSON value");
     }
     private String scalar(int max) throws IOException {
@@ -348,18 +378,23 @@ public final class ArchiveStreamParser {
         if(c=='n') { literal("null"); return null; }
         if(c=='t') { literal("true"); return "true"; }
         if(c=='f') { literal("false"); return "false"; }
-        if(c=='-'||Character.isDigit(c)) return number();
+        if(c=='-'||digit(c)) return number();
         skipValue(); return null;
     }
+    private static boolean digit(int value) { return value >= '0' && value <= '9'; }
     private String number() throws IOException {
         StringBuilder s=new StringBuilder();
-        int c=peek();if(c=='-'){s.append((char)consume()); c=peek();}
-        if(!Character.isDigit(c)) throw error("Invalid number");
-        if(c=='0') s.append((char)consume());
-        else while(Character.isDigit(peek())) s.append((char)consume());
-        if(peek()=='.') {s.append((char)consume());if(!Character.isDigit(peek()))throw error("Invalid fraction");while(Character.isDigit(peek()))s.append((char)consume());}
-        if(peek()=='e'||peek()=='E') {s.append((char)consume());if(peek()=='+'||peek()=='-')s.append((char)consume());if(!Character.isDigit(peek()))throw error("Invalid exponent");while(Character.isDigit(peek()))s.append((char)consume());}
+        int c=peek();if(c=='-'){numberChar(s); c=peek();}
+        if(!digit(c)) throw error("Invalid number");
+        if(c=='0') numberChar(s);
+        else while(digit(peek())) numberChar(s);
+        if(peek()=='.') {numberChar(s);if(!digit(peek()))throw error("Invalid fraction");while(digit(peek()))numberChar(s);}
+        if(peek()=='e'||peek()=='E') {numberChar(s);if(peek()=='+'||peek()=='-')numberChar(s);if(!digit(peek()))throw error("Invalid exponent");while(digit(peek()))numberChar(s);}
         return s.toString();
+    }
+    private void numberChar(StringBuilder out) throws IOException {
+        if (out.length() >= 1024) throw error("JSON numeric token exceeds safety limit");
+        out.append((char)consume());
     }
     private String string(int max) throws IOException {
         skipWhitespace();
@@ -404,6 +439,7 @@ public final class ArchiveStreamParser {
             awaitingLowSurrogate=Character.isHighSurrogate(ch);
             buf.append(ch);
             if(buf.length()>=SEGMENT_CHARS && !Character.isHighSurrogate(buf.charAt(buf.length()-1))){
+                if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
                 out.accept(buf.toString());buf.setLength(0);
             }
         }

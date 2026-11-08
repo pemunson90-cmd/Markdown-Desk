@@ -59,6 +59,16 @@ public final class ArchiveUtf8SourceCheck {
         reject("[{\"messages\":[7]}]".getBytes(StandardCharsets.UTF_8),"unsupported message not silently skipped");
         Collector claude=parse("[{\"chat_messages\":[{\"text\":\"same\",\"content\":[{\"text\":\"same\"}]}]}]".getBytes(StandardCharsets.UTF_8));
         eq(claude.content.toString(),"same","Claude redundant text does not duplicate content");
+        String large="ab😈".repeat(100000);
+        Collector fallback=parse(("{\"messages\":[{\"text\":\""+large+"\",\"role\":\"user\"}]}").getBytes(StandardCharsets.UTF_8));
+        eq(fallback.content.toString(),large,"large linear text fallback streams without truncation");
+        Collector contentFirst=parse("{\"messages\":[{\"content\":\"primary\",\"text\":\"duplicate\"}]}".getBytes(StandardCharsets.UTF_8));
+        eq(contentFirst.content.toString(),"primary","content takes precedence regardless field order");
+        Collector nontext=parse("{\"messages\":[{\"content\":[\"before\",{\"content_type\":\"image_asset_pointer\",\"asset_pointer\":\"private\"},{\"unknown\":true},17]}]}".getBytes(StandardCharsets.UTF_8));
+        eq(nontext.content.toString(),"before\n\n[Non-text block: image_asset_pointer]\n\n[Non-text block: unknown]\n\n[Non-text block: unknown]","unsupported blocks explicitly retained in order");
+        reject("{\"unrelated\":١,\"messages\":[]}".getBytes(StandardCharsets.UTF_8),"non-ASCII digit is not JSON number");
+        reject(("{\"unrelated\":"+"7".repeat(1025)+",\"messages\":[]}").getBytes(StandardCharsets.UTF_8),"bounded skipped numeric token");
+        reject("{\"messages\":[{\"text\":\"temporary\",BROKEN}]}".getBytes(StandardCharsets.UTF_8),"failed fallback cleanup");
         java.io.File folder=new java.io.File(System.getProperty("java.io.tmpdir"));
         String[] leftovers=folder.list((dir,name)->name.startsWith("markdown-desk-graph-")&&name.endsWith(".tmp"));
         eq(leftovers.length,0,"success and failed graph import clean private spools");

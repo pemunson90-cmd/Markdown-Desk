@@ -11,8 +11,11 @@ final class MainActivity {
     // Cross-workspace link dispatch is tested in the link-routing suite, not
     // by these outline/source-scroll navigation fixtures.
     static final class ArchiveWorkspaceActivity {}
+    static final class JsonExplorerActivity {}
     static final class ActivityNotFoundException extends RuntimeException {}
     static final class Intent {
+        static final int FLAG_ACTIVITY_REORDER_TO_FRONT=1, FLAG_ACTIVITY_SINGLE_TOP=2;
+        Intent addFlags(int flags){return this;}
         static final String ACTION_VIEW="android.intent.action.VIEW";
         Intent(String action,Uri uri){}
         Intent setClass(Object context,Class<?> destination){return this;}

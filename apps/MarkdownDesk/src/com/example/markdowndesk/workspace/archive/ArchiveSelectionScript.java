@@ -28,7 +28,10 @@ public final class ArchiveSelectionScript {
             " text+=node.nodeValue;at+=node.length;\n" +
             "}\n" +
             "if(start<0||end<=start||end-start!==quote.length||text.slice(start,end)!==quote)return '';\n" +
-            "return JSON.stringify({id:id,quote:quote,start:start,end:end,\n" +
+            "var part=startParent.closest('.archive-part');\n" +
+            "var sourcePart=part?Number(part.getAttribute('data-start-part')):-1;\n" +
+            "if(!Number.isInteger(sourcePart)||sourcePart<0)sourcePart=-1;\n" +
+            "return JSON.stringify({id:id,quote:quote,start:start,end:end,sourcePart:sourcePart,\n" +
             " prefix:text.slice(Math.max(0,start-64),start),suffix:text.slice(end,end+64)});\n" +
             "})()";
     }
