@@ -331,6 +331,30 @@ final class JsonInspectorNotes {
             }catch(Exception e){report(uri,"Cannot jump to saved JSON note: "+e.getMessage());}
         });
     }
+    private void showLinkActions(ArchiveJournal.Annotation linking){
+        final String link=ArchiveMarkdownIndexes.deepLink(linking);
+        final boolean markdown=WorkspaceDeepLinks.isDocumentLink(link);
+        final boolean archive=WorkspaceDeepLinks.isArchiveLink(link);
+        final boolean inspector=WorkspaceDeepLinks.isInspectorLink(link);
+        if(!markdown&&!archive&&!inspector){
+            message.accept("Linking source is invalid; existing note preserved.");return;
+        }
+        new AlertDialog.Builder(host).setTitle("Incoming link source")
+                .setItems(new String[]{"Open linking passage","Copy source link"},(d,which)->{
+                    if(which==1){
+                        ClipboardManager clipboard=(ClipboardManager)host.getSystemService(Context.CLIPBOARD_SERVICE);
+                        if(clipboard!=null)clipboard.setPrimaryClip(ClipData.newPlainText("Linking source",link));
+                    }else{
+                        Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(link))
+                                .setClass(host,markdown?MainActivity.class:
+                                        archive?ArchiveWorkspaceActivity.class:JsonExplorerActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        try{host.startActivity(intent);}
+                        catch(RuntimeException denied){message.accept("Linking source cannot be opened; no file permission was granted.");}
+                    }
+                }).setNegativeButton("Close",null).show();
+    }
+
     void showBacklinks(){
         final Uri uri=source.get();if(uri==null){message.accept("Open a JSON file first.");return;}
         final int version=revision.getAsInt();
@@ -356,13 +380,8 @@ final class JsonInspectorNotes {
                         labels[i]=incoming.get(i).chatTitle+" · "+
                                 (incoming.get(i).label==null?"Saved link":incoming.get(i).label);
                     new AlertDialog.Builder(host).setTitle("Incoming JSON links")
-                            .setItems(labels,(d,which)->{
-                                String link=ArchiveMarkdownIndexes.deepLink(incoming.get(which));
-                                ClipboardManager clipboard=(ClipboardManager)host.getSystemService(Context.CLIPBOARD_SERVICE);
-                                if(clipboard!=null)clipboard.setPrimaryClip(ClipData.newPlainText(
-                                        "Linking source",link));
-                                message.accept("Linking passage address copied");
-                            }).setNegativeButton("Close",null).show();
+                            .setItems(labels,(d,which)->showLinkActions(incoming.get(which)))
+                            .setNegativeButton("Close",null).show();
                 });
             }catch(Exception failure){report(uri,"JSON backlinks unavailable: "+failure.getMessage());}
         });
