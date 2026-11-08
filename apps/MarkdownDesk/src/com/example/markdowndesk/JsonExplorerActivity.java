@@ -131,6 +131,13 @@ public final class JsonExplorerActivity extends Activity {
         }catch(Exception invalid){path.clear();offset=0;pendingScrollY=0;}
     }
 
+    private void inspectorAdmissionFailure(Uri uri){
+        if(!UnifiedTabs.validInspectorSource(uri))
+            showFailure("Invalid JSON document source. Choose a provider-backed file in Android Files.");
+        else
+            showFailure("Twelve JSON Inspector tabs are open. Close one in All workspace tabs before opening another.");
+    }
+
     static boolean looksLikeJson(Context context, Uri uri) {
         if (uri==null || !"content".equalsIgnoreCase(uri.getScheme())) return false;
         try {
@@ -190,7 +197,7 @@ public final class JsonExplorerActivity extends Activity {
             pendingScrollY=Math.max(0,state.getInt("jsonScrollY",0));
         }
         updateReadingFocus();
-        if(noInspectorSlot)showFailure("Twelve JSON Inspector tabs are open. Close one in All workspace tabs before opening another.");
+        if(noInspectorSlot)inspectorAdmissionFailure(getIntent()==null?null:getIntent().getData());
         else if(document==null)showOpenChoices();
         else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
     }
@@ -201,7 +208,7 @@ public final class JsonExplorerActivity extends Activity {
         Uri next=intent==null?null:intent.getData();
         if(next==null||!"content".equalsIgnoreCase(next.getScheme()))return;
         if(!UnifiedTabs.openInspector(this,next)){
-            showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
+            inspectorAdmissionFailure(next);return;
         }
         setIntent(intent); // Never replace the current intent when tab admission failed.
         openedFromSearch=intent.hasExtra(UnifiedSearchJump.EXTRA_URI);
@@ -434,7 +441,7 @@ public final class JsonExplorerActivity extends Activity {
                 }
             }
             if(!UnifiedTabs.openInspector(this,chosen)){
-                showFailure("Twelve JSON Inspector tabs are open. Close one before opening another.");return;
+                inspectorAdmissionFailure(chosen);return;
             }
             saveInspectorPosition();
             document=chosen;
