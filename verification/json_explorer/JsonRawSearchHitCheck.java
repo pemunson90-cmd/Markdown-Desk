@@ -35,6 +35,12 @@ public final class JsonRawSearchHitCheck {
                 new ByteArrayInputStream("a".repeat(600).getBytes(StandardCharsets.UTF_8)),"a");
         ok(limited.hits.size()==500&&limited.limited,"excessive matches explicitly LIMITED");
         reject(()->JsonRawSearchHit.search(new ByteArrayInputStream(bom),""),"empty query rejected");
+        String crlf="line1\r\nline2\r\nline3\r\n";
+        JsonRawSearchHit.SearchResult lineHits=JsonRawSearchHit.search(
+                new ByteArrayInputStream(crlf.getBytes(StandardCharsets.UTF_8)),"\n");
+        ok(lineHits.hits.size()==3,"every CRLF line break found");
+        ok(lineHits.hits.get(0).line==2&&lineHits.hits.get(1).line==3
+                &&lineHits.hits.get(2).line==4,"CRLF across matching newline must be counted once");
         int second=content.lastIndexOf("needle");
         JsonRawSearchHit.Hit result=JsonRawSearchHit.verify(new ByteArrayInputStream(bom),uri,uri,
                 hash(bom),"needle",second);
