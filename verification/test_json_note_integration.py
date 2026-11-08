@@ -50,6 +50,10 @@ class JsonNoteWiring(unittest.TestCase):
         a=self.activity
         self.assertIn('new JsonInspectorNotes(this,worker',a)
         self.assertIn('readingNotes.annotateSelection(value,page.value)',a)
+        self.assertIn('readingNotes.bookmarkValue(page.value)',a)
+        self.assertIn('Bookmark this JSON value',a)
+        self.assertIn('void bookmarkValue(String value)',self.notes)
+        self.assertIn('VerifiedTextAnchor.matchesSelected(value,quote,"",suffix,0,end)',self.notes)
         self.assertIn('readingNotes.decorateValue(source,canonical,page.value,token',a)
         self.assertIn('readingNotes.showNotes()',a)
         self.assertIn('readingNotes.showBacklinks()',a)
