@@ -305,9 +305,11 @@ final class MarkdownReadingNotes {
                 Uri link=Uri.parse(origin);
                 boolean markdown=WorkspaceDeepLinks.isDocumentLink(origin);
                 boolean archive=WorkspaceDeepLinks.isArchiveLink(origin);
-                if(!markdown&&!archive){message("Saved backlink source is invalid.");return;}
+                boolean inspector=WorkspaceDeepLinks.isInspectorLink(origin);
+                if(!markdown&&!archive&&!inspector){message("Saved backlink source is invalid.");return;}
                 Intent view=new Intent(Intent.ACTION_VIEW,link)
-                    .setClass(activity,markdown?MainActivity.class:ArchiveWorkspaceActivity.class)
+                    .setClass(activity,markdown?MainActivity.class:
+                            archive?ArchiveWorkspaceActivity.class:JsonExplorerActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 try{activity.startActivity(view);}
                 catch(ActivityNotFoundException|SecurityException denied){
