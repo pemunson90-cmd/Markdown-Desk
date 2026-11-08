@@ -95,6 +95,15 @@ class JsonReadingParity(unittest.TestCase):
         self.assertNotIn('setOnApplyWindowInsetsListener',a)
         self.assertNotIn('setDecorFitsSystemWindows(false)',a)
 
+    def test_duplicate_json_keys_fail_closed_across_object_pages(self):
+        source=self.engine
+        self.assertIn("Set<String> seenNames=new HashSet<>()",source)
+        self.assertIn("if(!seenNames.add(skipped))",source)
+        self.assertIn("if(!seenNames.add(key))",source)
+        self.assertIn("Ambiguous duplicate JSON key in this object; original preserved",source)
+        self.assertIn("while (index<offset && json.hasNext())",source)
+        self.assertIn("while (page.entries.size()<PAGE_SIZE && json.hasNext())",source)
+
     def test_no_source_mutation_or_silent_page_cap_change(self):
         self.assertIn('final int PAGE_SIZE = 100',self.engine)
         self.assertIn('final int MAX_TRANSCRIPT_MESSAGES = 200',self.engine)
