@@ -1,5 +1,14 @@
 # Markdown Desk — live execution ledger and task queue
 
+## FAST RESUME — operational pointer (update on every committed section)
+
+- **Source branch:** `integration/unified-workspaces-20261106`. **Last verified live source HEAD before this ledger commit:** `b4872228f6126acf3ecb6243a22c52b8122a00f4`. Compare against GitHub before edits. Do not reset/overwrite later work.
+- **Task:** T08 — current-head verification and defect repairs; T01–T07 sources integrated, *not* full Android/native accepted. **Latest completed repair:** Inspector URI identity validator package-visible `24bd7c2`; stale local test expectations fixed `771237e`, `b487222`. No test run or APK/Actions in this recovery section.
+- **NEXT immediate operation:** Audit `verification/compile_native_sources_only.sh` against actual `apps/MarkdownDesk/build.sh` and source tree; run all locally feasible focused exact-source tests, repair real failures, then inspect missing feature gates. Only mark a test PASS after execution, not string checks. If complete current checkout/API37 inaccessible, record exact blocker while continuing source-level fixes.
+- **Hard rules:** Continue automatically, update task queue+this pointer after each completed section. No GitHub Actions, no APK (unsigned or signed) until all required features and locally feasible pre-APK checks pass. Owner-deferred cross-installation private-state export/import only.
+- **Known environment:** GitHub connector supports code read/write; container direct git DNS unavailable. Library root SDK36/build tools accessible but SDK37/source ZIP raw materialization previously denied. Old Java parser 700M synthetic PASS is historical evidence tied to its exact blob, not a green latest-head full app suite.
+
+
 **Authority:** Operational execution state for the existing [approved full feature contract](../development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md). The historical [integration queue](ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) retains provenance; this file is the sole **live** task tracker. No new scope or exception. **Execute continuously**, never stop after a "batch" awaiting another Continue. After each completed task: commit production/test code, run locally executable checks, and **update this ledger immediately**. A chat crashing without a final message must leave recoverable Git state.
 
 **Repo/branch:** `pemunson90-cmd/Markdown-Desk` / `integration/unified-workspaces-20261106`. At start, compare live remote head to latest ledger log, inspect changed blobs, and do NOT undo an unfamiliar/newer commit. Avoid concurrent writes. Git history is definitive.
