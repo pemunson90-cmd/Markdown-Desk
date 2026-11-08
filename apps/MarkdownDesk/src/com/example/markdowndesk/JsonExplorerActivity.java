@@ -752,6 +752,9 @@ public final class JsonExplorerActivity extends Activity {
             entries.addView(button("Annotate selected JSON text",v->{
                 if(readingNotes!=null)readingNotes.annotateSelection(value,page.value);
             }),new LinearLayout.LayoutParams(-1,dp(48)));
+            entries.addView(button("Bookmark this JSON value",v->{
+                if(readingNotes!=null)readingNotes.bookmarkValue(page.value);
+            }),new LinearLayout.LayoutParams(-1,dp(48)));
             if(readingNotes!=null&&document!=null){
                 try{
                     String canonical=JsonInspectorNotes.canonicalPath(new ArrayList<>(path));
