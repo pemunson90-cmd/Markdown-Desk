@@ -56,6 +56,7 @@ bash verification/archive_reader/run_core.sh
 bash verification/archive_navigation/run.sh
 bash verification/json_explorer/run_bom.sh
 bash verification/json_explorer/run_streaming_engine.sh
+bash verification/json_explorer/run_selection.sh
 bash verification/json_explorer/run_document_index.sh
 bash verification/json_explorer/run_raw_hit.sh
 bash verification/json_explorer/run_json_note_identity.sh

@@ -73,6 +73,45 @@ public final class JsonExplorerActivity extends Activity {
     private boolean retiringInspector;
     private JsonInspectorNotes readingNotes;
     private TextView valueReader;
+    private JsonReaderSelection pendingSelection;
+    private String valueSource,valuePath,valueText;
+    private int valueStart,valueTotal;
+
+    private void captureValueSelection(){
+        if(valueReader==null||valueText==null)return;
+        int a=valueReader.getSelectionStart(),b=valueReader.getSelectionEnd();
+        pendingSelection=JsonReaderSelection.capture(valueSource,valuePath,valueStart,valueTotal,
+                valueText,Math.min(a,b),Math.max(a,b));
+    }
+    private void restoreValueSelection(TextView view){
+        JsonReaderSelection saved=pendingSelection;
+        if(saved==null||view!=valueReader)return;
+        int at=saved.locate(valueSource,valuePath,valueStart,valueTotal,valueText);
+        if(at<0){pendingSelection=null;return;}
+        CharSequence text=view.getText();
+        if(!(text instanceof android.text.Spannable)||!valueText.contentEquals(text))return;
+        android.text.Selection.setSelection((android.text.Spannable)text,at,at+saved.quote.length());
+    }
+    private void saveValueSelection(Bundle state){
+        captureValueSelection();
+        if(pendingSelection==null)return;
+        JsonReaderSelection p=pendingSelection;Bundle selected=new Bundle();
+        selected.putString("source",p.source);selected.putString("path",p.path);
+        selected.putString("quote",p.quote);selected.putString("prefix",p.prefix);selected.putString("suffix",p.suffix);
+        selected.putString("digest",p.digest);selected.putInt("pageStart",p.pageStart);
+        selected.putInt("pageTotal",p.pageTotal);selected.putInt("start",p.start);
+        state.putBundle("jsonReaderSelection",selected);
+    }
+    private void loadValueSelection(Bundle state){
+        if(state==null)return;Bundle p=state.getBundle("jsonReaderSelection");if(p==null)return;
+        String source=p.getString("source"),path=p.getString("path"),quote=p.getString("quote"),
+                before=p.getString("prefix"),after=p.getString("suffix"),digest=p.getString("digest");
+        if(source==null||source.length()>8192||path==null||path.length()>32768||quote==null||
+                quote.length()>65536||before==null||before.length()>64||after==null||after.length()>64||
+                digest==null||digest.length()!=64)return;
+        pendingSelection=new JsonReaderSelection(source,path,p.getInt("pageStart",-1),
+                p.getInt("pageTotal",-1),p.getInt("start",-1),quote,before,after,digest);
+    }
     private LinearLayout noteActionRow;
     private String pendingJsonNoteId;
     private boolean openedFromSearch;
@@ -201,6 +240,7 @@ public final class JsonExplorerActivity extends Activity {
             }
             offset=Math.max(0,state.getInt("jsonOffset",0));
         }
+        loadValueSelection(state);
         buildUi();
         readingNotes=new JsonInspectorNotes(this,worker,()->document,
                 ()->new ArrayList<>(path),()->revision,
@@ -250,6 +290,7 @@ public final class JsonExplorerActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
+        saveValueSelection(state);
         if(document!=null) state.putString("jsonDocumentUri",document.toString());
         ArrayList<String> names=new ArrayList<>();
         int[] indices=new int[path.size()];
@@ -318,12 +359,15 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void changeReadingFont(int delta){
+        if(valueReader!=null&&valueReader.getSelectionEnd()>valueReader.getSelectionStart())captureValueSelection();
         readingSp=Math.max(12f,Math.min(32f,readingSp+delta));
         if(prefs!=null)prefs.edit().putFloat("preview_font_size",readingSp).apply();
         if(root!=null)applyReadingFont(root);
+        if(valueReader!=null)restoreValueSelection(valueReader);
     }
 
     private void updateReadingFocus(){
+        if(valueReader!=null&&valueReader.getSelectionEnd()>valueReader.getSelectionStart())captureValueSelection();
         if(actionRow!=null)actionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(noteActionRow!=null)noteActionRow.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(returnResults!=null)returnResults.setVisibility(!focusReading&&openedFromSearch?View.VISIBLE:View.GONE);
@@ -331,9 +375,11 @@ public final class JsonExplorerActivity extends Activity {
         if(status!=null)status.setVisibility(focusReading?View.GONE:View.VISIBLE);
         if(focusReading)getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        if(valueReader!=null)restoreValueSelection(valueReader);
     }
 
     private void showReadingOptions(){
+        captureValueSelection();
         new AlertDialog.Builder(this).setTitle("JSON reading options")
             .setItems(new String[]{"A−  Smaller text","A+  Larger text",
                     focusReading?"Exit Focus mode":"Enter Focus mode"},(d,selected)->{
@@ -745,6 +791,7 @@ public final class JsonExplorerActivity extends Activity {
 
     private void renderEntries() {
         if(entries==null||page==null)return;
+        captureValueSelection();
         entries.removeAllViews();
         valueReader=null;
         String term=filter.getText().toString().toLowerCase(Locale.ROOT).trim();
@@ -754,6 +801,12 @@ public final class JsonExplorerActivity extends Activity {
             value.setTypeface(Typeface.MONOSPACE);
             entries.addView(value);
             valueReader=value;
+            valueSource=document==null?null:document.toString();
+            valuePath=JsonExplorerEngine.jsonPath(new ArrayList<>(path));
+            valueText=page.value==null?"":page.value;
+            valueStart=page.valueStart;valueTotal=page.valueTotal;
+            value.setText(new SpannableString(valueText),TextView.BufferType.SPANNABLE);
+            restoreValueSelection(value);
             entries.addView(button("Annotate selected JSON text",v->{
                 if(readingNotes!=null)readingNotes.annotateSelection(value,page.value,page.valueStart);
             }),new LinearLayout.LayoutParams(-1,dp(48)));
@@ -766,7 +819,11 @@ public final class JsonExplorerActivity extends Activity {
                     final Uri source=document;
                     final int token=revision;
                     readingNotes.decorateValue(source,canonical,page.value,page.valueStart,token,
-                            styled->{if(valueReader==value)value.setText(styled);});
+                            styled->{if(valueReader==value){
+                                captureValueSelection();
+                                value.setText(styled,TextView.BufferType.SPANNABLE);
+                                restoreValueSelection(value);
+                            }});
                 }catch(IllegalArgumentException invalid){
                     status.setText("JSON location cannot be bookmarked: path is too long");
                 }
