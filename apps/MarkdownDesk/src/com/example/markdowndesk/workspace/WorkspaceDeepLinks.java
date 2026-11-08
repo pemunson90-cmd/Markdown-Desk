@@ -58,12 +58,54 @@ public final class WorkspaceDeepLinks {
         }catch(URISyntaxException|IllegalArgumentException invalid){return null;}
     }
 
+    /** Read-only source identity for a JSON Inspector note. The saved link NEVER
+     * grants a ContentProvider permission; Android must already authorize it.
+     */
+    public static String inspectorTarget(String candidate) {
+        if(candidate==null||candidate.length()>8192||candidate.isEmpty())return null;
+        try{
+            URI link=new URI(candidate);
+            if(!"markdowndesk".equalsIgnoreCase(link.getScheme()) ||
+                    !"inspector".equalsIgnoreCase(link.getHost()) ||
+                    link.getUserInfo()!=null||link.getPort()!=-1||
+                    link.getRawFragment()!=null)return null;
+            String path=link.getRawPath();
+            if(path==null||!path.startsWith("/v1/"))return null;
+            String encoded=path.substring(4);
+            if(encoded.isEmpty()||encoded.indexOf('/')>=0||encoded.indexOf(92)>=0||
+                    encoded.contains("..")||
+                    !encoded.matches("[A-Za-z0-9%._~!    public static boolean isDocumentLink(String candidate) {'()*+,;=:@-]+"))return null;
+            String query=link.getRawQuery();
+            if(query==null||!query.matches("note=(?:[A-Za-z0-9._~-]|%[A-Fa-f0-9]{2}){1,512}"))
+                return null;
+            String decoded=URLDecoder.decode(encoded,StandardCharsets.UTF_8);
+            URI source=new URI(decoded);
+            if(!"content".equalsIgnoreCase(source.getScheme())||
+                    source.getRawAuthority()==null||source.getRawAuthority().isEmpty()||
+                    source.getUserInfo()!=null||source.getPort()!=-1||
+                    source.getRawFragment()!=null||source.getRawPath()==null||
+                    source.getRawPath().isEmpty()||source.getRawPath().contains(".."))return null;
+            return decoded;
+        }catch(URISyntaxException|IllegalArgumentException invalid){return null;}
+    }
+    public static String inspectorNoteId(String candidate){
+        if(inspectorTarget(candidate)==null)return null;
+        try{
+            URI link=new URI(candidate);
+            String q=link.getRawQuery();
+            return URLDecoder.decode(q.substring(5),StandardCharsets.UTF_8);
+        }catch(URISyntaxException|IllegalArgumentException invalid){return null;}
+    }
+    public static boolean isInspectorLink(String candidate){
+        return inspectorTarget(candidate)!=null;
+    }
+
     public static boolean isDocumentLink(String candidate) {
         return documentTarget(candidate)!=null;
     }
 
     /** Constrained internal links alone can be rendered as navigable in Reading mode. */
     public static boolean isInternalLink(String candidate) {
-        return isArchiveLink(candidate) || isDocumentLink(candidate);
+        return isArchiveLink(candidate) || isDocumentLink(candidate) || isInspectorLink(candidate);
     }
 }
