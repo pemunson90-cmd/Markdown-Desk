@@ -1,12 +1,14 @@
 # Markdown Desk — live execution ledger and task queue
 
-## FAST RESUME — execution pointer (2026-11-07, phone-candidate gate)
+## FAST RESUME — execution pointer (2026-11-07, live Work recovery)
 
-- **Live branch:** `integration/unified-workspaces-20261106`, **source HEAD immediately before this ledger commit:** `fc441c0e2aafe67394a3bd4c906cebacdd374720`. On any restart, inspect the newer GitHub head first; don't discard/overwrite commits. `main`/Releases remain untouched.
-- **ACTIVE:** T08 — exact current-head full pre-APK regression and Android SDK37 compile; T09 gated signed phone-test candidate not run. T01–T07 code substantially integrated but NOT fully Android accepted. All T01–T08 require `PRE-APK PASS` in this table before first signed candidate.
-- **NEXT:** Obtain a genuinely fresh **latest integration branch** mounted local checkout, Android 37.0 r02 and pinned android-json JAR; run `verification/run_current_phone_checks.sh`, `verification/compile_native_sources_only.sh`; fix any actual failures; only then set pre-APK PASS and run `verification/first_signed_phone_candidate.sh` with private canonical signer. Current container has API36 and build-tools36.1 but not latest repo bytes, API37, pinned JAR or private keystore. Git shell DNS blocked; Library ZIPs not materializable. Historical November 6 source zip is too stale for exact-head verification.
-- **SIGNED CANDIDATE PREPARED:** Fail-closed script `d6f7d84`/`f99545d` + tests `7fb4466`, registered locally, docs `47a609e`. **REAL local validation:** reproduced exact Git blob `b9103b0ab379f31dc5070c9102e0a27836c93669`, `bash -n` PASS. Simulated clean Git integration checkout with T01–T08 open: refused prior to packaging; simulated T01–T08 approved but missing SDK: refused prior to packaging. Both exited nonzero, **0 APK files**. Source-level policy assertions 11/11 PASS. **NOT** a full host/native/phone PASS; do not release.
-- **Hard rules:** zero GitHub Actions, zero intermediate/unsigned/signed APK before complete nondeferred scope + applicable local tests green. Deferred only cross-install private-state transfer. Once phone-tested stable by owner, promote `main` and user publishes GitHub Release.
+- **Recovered source:** `312db56` on `integration/unified-workspaces-20261106`; exact current ledger commit is `git log -1 -- docs/handoffs/LIVE_WORK_LEDGER.md`. Fresh Git checkout and dependency retrieval now work; earlier environment blockers below are historical.
+- **ACTIVE:** T08 full host and SDK37 source-only compiler; T02/T03/T06 arbitrary JSON and common LLM format audit; T04/T05 lifecycle and exact search fixes. No APK produced.
+- **Recovered toolchain:** authenticated SDK37 r02 SHA256 `840b23e827f96e64aea4c89a1194aac3dc5f6bad37edb231c5c795d890330e8d`, build-tools36.1 SHA256 `a7b5889e4a79fcf3b0976bef40d401f4240fb1eed891d9d91169da1111e11d78`, pinned JSON jar, full JDK17.0.21. Local tool roots `/workspace/scratch/d008aa1b2c0c/{jdk,sdk}`; logs `host.log`, `native.log` in that workspace parent.
+- **Signing:** authorized original kit recovered privately and keytool fingerprint matches `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`; no secrets in Git. Signing is not blocked, but remains gated on complete scope/tests.
+- **Executed:** initial full compiler caught missing UnifiedSearchJump import in ArchiveWorkspaceActivity (being repaired). Host suite running under real JDK17; not yet PASS. SDK materialization hashes verified. No device acceptance claim.
+- **NEXT:** finish format/lifecycle fixes, rerun complete host and native source gates; reconcile actual failures and feature matrix before marking any PRE-APK PASS. Use `PATH=<workspace>/jdk/bin:$PATH ANDROID_SDK_ROOT=<workspace>/sdk` for local scripts.
+- **Hard rules:** arbitrary JSON first-class; known LLM schemas preserve coherent structure. No GitHub Actions, APK before gates, main promotion or Release. Cross-install private-state transfer alone deferred.
 
 ## Task queue (update state and exact evidence after EVERY task)
 
