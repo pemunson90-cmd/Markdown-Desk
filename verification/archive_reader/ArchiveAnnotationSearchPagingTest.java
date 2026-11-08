@@ -66,6 +66,19 @@ public final class ArchiveAnnotationSearchPagingTest {
                 throw new AssertionError("ambiguous multi-tag query was accepted");
             }catch(IllegalArgumentException expected){}
             assertOk(ArchiveAnnotationSearch.page(path,"find",null,100,10000).isEmpty(),"end of results");
+            ArchiveJournal.Annotation jsonNote=new ArchiveJournal.Annotation();
+            jsonNote.id="json-note";jsonNote.archiveId="json-document";
+            jsonNote.chatId="content://example.documents/document/chats.json";
+            jsonNote.messageId="$[\\\"data\\\"]";
+            jsonNote.type="note";jsonNote.label="find exact JSON source";
+            jsonNote.quote="source quote";jsonNote.tags="search,md-color:rose";
+            storage.save(jsonNote);
+            assertOk(ArchiveAnnotationSearch.pageFiltered(path,"find exact JSON",null,10,0,
+                    null,null,"json").size()==1,"JSON origin must include a saved JSON note");
+            assertOk(ArchiveAnnotationSearch.pageFiltered(path,"find exact JSON",null,10,0,
+                    null,null,"archive").isEmpty(),"raw JSON notes must not masquerade as Archive");
+            assertOk(ArchiveAnnotationSearch.pageFiltered(path,"find exact JSON",null,10,0,
+                    null,null,"markdown").isEmpty(),"raw JSON notes must not masquerade as Markdown");
             ArchiveJournal.Annotation unowned=new ArchiveJournal.Annotation();
             unowned.id="unnamed-source";unowned.chatId="chat-orphan";unowned.messageId="message";
             unowned.type="note";unowned.label="find an unnamed source";
