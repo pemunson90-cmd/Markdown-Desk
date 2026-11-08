@@ -178,6 +178,7 @@ public final class JsonExplorerActivity extends Activity {
             document=Uri.parse(state.getString("jsonDocumentUri"));
         if (document!=null && !"content".equalsIgnoreCase(document.getScheme())) document=null;
         boolean noInspectorSlot=document!=null&&!UnifiedTabs.openInspector(this,document);
+        final Uri rejectedSource=noInspectorSlot?document:null;
         if(noInspectorSlot)document=null;
         if (state!=null) {
             ArrayList<String> names=state.getStringArrayList("jsonPathNames");
@@ -197,7 +198,7 @@ public final class JsonExplorerActivity extends Activity {
             pendingScrollY=Math.max(0,state.getInt("jsonScrollY",0));
         }
         updateReadingFocus();
-        if(noInspectorSlot)inspectorAdmissionFailure(getIntent()==null?null:getIntent().getData());
+        if(noInspectorSlot)inspectorAdmissionFailure(rejectedSource);
         else if(document==null)showOpenChoices();
         else {loadPage();if(!sourceHitShown)showIncomingRawHit(getIntent());}
     }
