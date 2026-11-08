@@ -58,6 +58,7 @@ public final class JsonExplorerActivity extends Activity {
     private int revision=0;
     private boolean sourceHitShown;
     private long rawHitRequest;
+    private long currentFindRequest;
     private UiTheme.Palette palette;
     private LinearLayout root, entries, actionRow;
     private ScrollView entryScroll;
@@ -221,6 +222,7 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     @Override protected void onNewIntent(Intent intent){
+        currentFindRequest++;
         saveInspectorPosition();
         super.onNewIntent(intent);
         Uri next=intent==null?null:intent.getData();
@@ -531,12 +533,13 @@ public final class JsonExplorerActivity extends Activity {
         }
         final Uri current=document;
         final int token=revision;
+        final long request=++currentFindRequest;
         status.setText("Finding exact text in the current authorized JSON file...");
         worker.execute(()->{
             try(InputStream input=getContentResolver().openInputStream(current)){
                 JsonRawSearchHit.SearchResult found=JsonRawSearchHit.search(input,literal);
                 runOnUiThread(()->{
-                    if(token!=revision||document==null||!current.equals(document)||
+                    if(token!=revision||request!=currentFindRequest||document==null||!current.equals(document)||
                             isFinishing()||isDestroyed())return;
                     status.setText(found.hits.size()+" exact source matches"+
                             (found.limited?" · LIMITED after 500 matches":" · complete bounded scan"));
@@ -544,7 +547,7 @@ public final class JsonExplorerActivity extends Activity {
                 });
             }catch(Exception unavailable){
                 runOnUiThread(()->{
-                    if(token!=revision||document==null||!current.equals(document)||
+                    if(token!=revision||request!=currentFindRequest||document==null||!current.equals(document)||
                             isFinishing()||isDestroyed())return;
                     showFailure("Current JSON search is unavailable or exceeds 8 MiB. "+
                             "Use indexed Archive Search for large Claude files. "+
@@ -994,7 +997,7 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     @Override protected void onDestroy(){
-        revision++;
+        revision++;currentFindRequest++;
         worker.shutdownNow();
         super.onDestroy();
     }
