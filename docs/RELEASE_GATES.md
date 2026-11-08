@@ -7,6 +7,29 @@
 - targetSdkVersion may differ from minSdk and must be separately reviewed for behavior changes; user-data compatibility and non-destructive in-place upgrades remain mandatory on supported devices.
 
 
+## First signed phone candidate — gated command (NOT YET AUTHORIZED)
+
+After the eight live queue rows **T01–T08** have each been independently updated to
+`PRE-APK PASS` with exact, executable local test evidence, run on an authorized
+machine with the complete current Git checkout, Android SDK37 and canonical private
+signing environment:
+
+```bash
+bash verification/first_signed_phone_candidate.sh
+```
+
+This refuses a dirty or nonintegration checkout, checks that no required feature
+or pre-APK test is open, requires a manifest `versionCode` above 38, verifies the
+original signing certificate **before packaging**, reruns the applicable host suite
+and the full AAPT2/Java/D8 **source-only** gate, and only then creates the **first**
+signed phone-test APK. It verifies the resulting APK certificate again. No credential
+is committed to GitHub. The command neither starts GitHub Actions nor promotes
+`main` nor publishes a Release. Folding, real provider, accessibility, upgrade and
+data-preservation acceptance must happen **after** installing this first candidate.
+Only an accepted phone build may then be merged/promoted and published manually.
+
+**As of this checkpoint the feature queue is NOT approved; do not execute this command.**
+
 ## Owner reaffirmation: local tests, complete plan, one APK (2026-11-07)
 - **No GitHub Actions during ordinary Markdown Desk development or release preparation.** Use the available chat/local JDK, Android SDK and direct production-path tests. A required external exception must be explicitly owner-approved, not inferred from an existing workflow.
 - **Do not generate a Markdown Desk APK, including an intermediate unsigned candidate, until the complete approved Unified Workspaces feature scope is implemented and the applicable local host/dependency/safety tests are green.** SDK/compiler smoke fixtures are not app builds and do not satisfy this gate.
