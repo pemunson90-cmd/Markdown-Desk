@@ -24,7 +24,7 @@ public final class ArchiveAnnotationSearch {
     /** Filter before applying the offset: never skip matching records merely
      * because earlier unqualified records occupied a page.
      * kind is an AJN2 note type, tag is one exact comma-separated tag,
-     * and source is "markdown", "archive" or null (all).
+     * and source is "markdown", "archive", "json" or null (all).
      */
     public static List<ArchiveJournal.Annotation> pageFiltered(File journal,String needle,String chat,
             int limit,int offset,String kind,String tag,String source) throws IOException {
@@ -39,7 +39,7 @@ public final class ArchiveAnnotationSearch {
         if(desiredTag.length()>128||desiredTag.indexOf(',')>=0||desiredTag.indexOf('\n')>=0||
                 desiredTag.indexOf('\r')>=0)
             throw new IllegalArgumentException("Select one bounded tag");
-        if(!origin.isEmpty()&&!"markdown".equals(origin)&&!"archive".equals(origin))
+        if(!origin.isEmpty()&&!"markdown".equals(origin)&&!"archive".equals(origin)&&!"json".equals(origin))
             throw new IllegalArgumentException("Invalid note source filter");
         final int start=Math.max(0,offset),cap=Math.max(1,Math.min(limit,200));
         ArchiveJournal.ReadResult result=new ArchiveJournal(journal).load();
@@ -52,7 +52,8 @@ public final class ArchiveAnnotationSearch {
             if(!desiredTag.isEmpty()&&!hasTag(a.tags,desiredTag))continue;
             if("markdown".equals(origin)&&!"markdown-document".equals(a.archiveId))continue;
             if("archive".equals(origin)&&(a.archiveId==null||a.archiveId.isEmpty()||
-                    "markdown-document".equals(a.archiveId)))continue;
+                    "markdown-document".equals(a.archiveId)||"json-document".equals(a.archiveId)))continue;
+            if("json".equals(origin)&&!"json-document".equals(a.archiveId))continue;
             if(contains(a.label,term)||contains(a.quote,term)||contains(a.note,term)
                     ||contains(a.tags,term)||contains(a.target,term)||contains(a.chatTitle,term)) {
                 if(seen++<start)continue;
