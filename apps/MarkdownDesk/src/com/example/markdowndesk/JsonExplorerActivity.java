@@ -821,11 +821,14 @@ public final class JsonExplorerActivity extends Activity {
                 String value=link.toString();
                 if("markdown.local".equals(link.getHost())&&link.getFragment()!=null)return false;
                 if(com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(value)
-                        ||com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(value)){
+                        ||com.example.markdowndesk.workspace.WorkspaceDeepLinks.isDocumentLink(value)
+                        ||com.example.markdowndesk.workspace.WorkspaceDeepLinks.isInspectorLink(value)){
                     Intent open=new Intent(Intent.ACTION_VIEW,link)
                             .setClass(JsonExplorerActivity.this,
                                     com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(value)
-                                            ?ArchiveWorkspaceActivity.class:MainActivity.class)
+                                            ?ArchiveWorkspaceActivity.class:
+                                    com.example.markdowndesk.workspace.WorkspaceDeepLinks.isInspectorLink(value)
+                                            ?JsonExplorerActivity.class:MainActivity.class)
                             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                     try{startActivity(open);}catch(RuntimeException unavailable){
                         showFailure("Linked Markdown Desk source is unavailable.");
