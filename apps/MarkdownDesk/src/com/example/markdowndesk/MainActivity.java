@@ -2258,6 +2258,18 @@ public class MainActivity extends Activity {
             openMarkdownDocumentLink(intent.getData());
             return;
         }
+        if(Intent.ACTION_VIEW.equals(action)&&intent.getData()!=null
+                &&com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                    .isInspectorLink(intent.getData().toString())){
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,intent.getData())
+                        .setClass(this,JsonExplorerActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+            }catch(ActivityNotFoundException|SecurityException denied){
+                Toast.makeText(this,"Saved JSON note source is unavailable",Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if ("android.intent.action.VIEW".equals(action) || "android.intent.action.EDIT".equals(action)) {
             if (intent.getData() != null) {
                 takePermission(intent.getData(), intent.getFlags());
@@ -6203,6 +6215,17 @@ public class MainActivity extends Activity {
                         .setClass(this,ArchiveWorkspaceActivity.class));
             } catch (ActivityNotFoundException|SecurityException unavailable) {
                 Toast.makeText(this,"Archive Reader is unavailable",Toast.LENGTH_LONG).show();
+            }
+            return true;
+        }
+        if (uri != null && com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                .isInspectorLink(uri.toString())) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,uri)
+                        .setClass(this,JsonExplorerActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+            } catch (ActivityNotFoundException|SecurityException unavailable) {
+                Toast.makeText(this,"JSON Inspector is unavailable",Toast.LENGTH_LONG).show();
             }
             return true;
         }
