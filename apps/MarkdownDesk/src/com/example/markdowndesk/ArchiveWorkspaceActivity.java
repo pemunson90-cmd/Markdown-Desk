@@ -477,6 +477,17 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     }
                     return true;
                 }
+                if(com.example.markdowndesk.workspace.WorkspaceDeepLinks
+                        .isInspectorLink(uri.toString())){
+                    try{
+                        startActivity(new Intent(Intent.ACTION_VIEW,uri)
+                                .setClass(ArchiveWorkspaceActivity.this,JsonExplorerActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                    }catch(ActivityNotFoundException|SecurityException denied){
+                        status("Saved JSON source unavailable; no file grant was created");
+                    }
+                    return true;
+                }
                 if("https".equals(scheme)||"http".equals(scheme)||"mailto".equals(scheme)){
                     try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}
                     catch(ActivityNotFoundException e){status("No browser available");}
@@ -1255,6 +1266,20 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                                 .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
                     }catch(ActivityNotFoundException|SecurityException denied){
                         status("Markdown source is unavailable. No new file permission was granted.");
+                    }
+                    return;
+                }
+                if("json-document".equals(a.archiveId)){
+                    String link=ArchiveMarkdownIndexes.deepLink(a);
+                    if(!com.example.markdowndesk.workspace.WorkspaceDeepLinks.isInspectorLink(link)){
+                        status("Saved JSON note link is invalid; original note preserved");return;
+                    }
+                    try{
+                        startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link))
+                                .setClass(this,JsonExplorerActivity.class)
+                                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                    }catch(ActivityNotFoundException|SecurityException denied){
+                        status("JSON source is unavailable; no new file grant was created");
                     }
                     return;
                 }
