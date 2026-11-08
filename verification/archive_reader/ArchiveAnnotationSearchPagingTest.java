@@ -69,7 +69,7 @@ public final class ArchiveAnnotationSearchPagingTest {
             ArchiveJournal.Annotation jsonNote=new ArchiveJournal.Annotation();
             jsonNote.id="json-note";jsonNote.archiveId="json-document";
             jsonNote.chatId="content://example.documents/document/chats.json";
-            jsonNote.messageId="$[\\\"data\\\"]";
+            jsonNote.messageId="$[\"data\"]";
             jsonNote.type="note";jsonNote.label="find exact JSON source";
             jsonNote.quote="source quote";jsonNote.tags="search,md-color:rose";
             storage.save(jsonNote);
