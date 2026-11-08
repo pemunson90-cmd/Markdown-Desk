@@ -46,7 +46,7 @@ public final class UnifiedSearchActivity extends Activity {
     private EditText query,speaker,fromDate,toDate,noteTag;
     private Spinner scope,folder,noteKind,noteSource;
     private static final String[] NOTE_TYPES={"","note","highlight","bookmark","source_link","cross_link","external_link"};
-    private static final String[] NOTE_SOURCES={"","markdown","archive"};
+    private static final String[] NOTE_SOURCES={"","markdown","archive","json"};
     private List<WorkspaceRootStore.RootState> roots=new ArrayList<>();
     private int generation;
     private boolean searchExecuted;
@@ -149,7 +149,7 @@ public final class UnifiedSearchActivity extends Activity {
         noteKind.setContentDescription("Saved annotation kind");
         body.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
         noteTag=field("Exact tag (optional)");body.addView(noteTag);
-        noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations"});
+        noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations","General JSON files"});
         noteSource.setContentDescription("Saved annotation origin");
         body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
         body.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
@@ -400,12 +400,14 @@ public final class UnifiedSearchActivity extends Activity {
         final String source=ArchiveMarkdownIndexes.deepLink(annotation);
         final boolean markdown=WorkspaceDeepLinks.isDocumentLink(source);
         final boolean archive=WorkspaceDeepLinks.isArchiveLink(source);
-        if(!markdown&&!archive){
+        final boolean inspector=WorkspaceDeepLinks.isInspectorLink(source);
+        if(!markdown&&!archive&&!inspector){
             error("Cannot open saved note",new IllegalArgumentException("Unrecognized source link"));
             return;
         }
         Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(source))
-                .setClass(this,markdown?MainActivity.class:ArchiveWorkspaceActivity.class)
+                .setClass(this,markdown?MainActivity.class:
+                        archive?ArchiveWorkspaceActivity.class:JsonExplorerActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         // Opening a saved link does not create or impersonate a provider URI grant.
