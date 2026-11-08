@@ -178,7 +178,8 @@ public final class JsonExplorerActivity extends Activity {
         focusReading=state!=null&&state.getBoolean("jsonFocusReading",false);
         sourceHitShown=state!=null&&state.getBoolean("jsonSourceHitShown",false);
         openedFromSearch=state!=null?state.getBoolean("jsonOpenedFromSearch",false):
-                getIntent()!=null&&getIntent().hasExtra(UnifiedSearchJump.EXTRA_URI);
+                getIntent()!=null&&(getIntent().hasExtra(UnifiedSearchJump.EXTRA_URI)||
+                        getIntent().getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false));
         document=getIntent()==null?null:getIntent().getData();
         if(document!=null && WorkspaceDeepLinks.isInspectorLink(document.toString())){
             pendingJsonNoteId=WorkspaceDeepLinks.inspectorNoteId(document.toString());
@@ -236,7 +237,8 @@ public final class JsonExplorerActivity extends Activity {
             inspectorAdmissionFailure(next);return;
         }
         setIntent(intent); // Never replace the current intent when tab admission failed.
-        openedFromSearch=intent.hasExtra(UnifiedSearchJump.EXTRA_URI);
+        openedFromSearch=intent.hasExtra(UnifiedSearchJump.EXTRA_URI)||
+                intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
         if(returnResults!=null)returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
         if(document==null||!document.equals(next)){
             document=next;page=null;restoreInspectorPosition(next);loadPage();
