@@ -1,128 +1,58 @@
-# Reproducible unsigned baseline validation
+# Local build and verification
 
-> **ACTIVE UNIFIED WORKSPACES GATE — 2026-11-07:** This page retains historical source-build and unsigned APK recipes. For the current integration branch, those recipes are **not authorization to build an APK**. Owner requires the complete approved feature plan and applicable local host/security tests finished first; only then build the single phone-testable APK and conduct the signing/in-place-upgrade gate. Before then use `aapt2 compile/link` to disposable resource objects, `javac --release 11` on all actual sources, D8 to disposable DEX, and focused host/native-source tests **without** assembling an APK. No routine GitHub Actions or Codex requirement. Current authority: [Unified Workspaces queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) and [release gates](RELEASE_GATES.md).
+The accepted 2.5.0/code39 APK is published as `V2.5.0`. Reuse that artifact when distributing the release; publishing or changing documentation does not require a rebuild. Current work and evidence belong in [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md).
 
+## Toolchain used for 2.5.0
 
-## No-APK current source gate (November 7, 2026)
+- JDK 17, compiling application Java with `--release 11`.
+- Android API 37 platform (installed folder `android-37.0`).
+- Android build-tools **36.1.0**: AAPT2, D8, zipalign, and apksigner.
+- Python 3, Bash, and ZIP utilities.
+- Host tests that use `org.json`: pinned `com.vaadin.external.google:android-json:0.0.20131108.vaadin1`. This JAR is **host-only**, never packaged in the APK; Android supplies the runtime JSON API.
 
-For the full Unified Workspaces release preflight, **before all features are approved**, use:
+Reuse existing installations. Set these explicitly so standalone build and source-verification commands use the same toolchain:
 
 ```bash
-export ANDROID_SDK_ROOT="/path/to/installed/sdk"
+export JAVA_HOME="/path/to/jdk17"
+export PATH="$JAVA_HOME/bin:$PATH"
+export ANDROID_SDK_ROOT="/path/to/sdk"
 export ANDROID_PLATFORM=android-37.0
 export ANDROID_BUILD_TOOLS=36.1.0
+```
+
+If the host JAR is missing, `bash verification/setup_host_deps.sh` downloads it once from Maven Central and checks SHA-256 `dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79`. Subsequent tests use local inputs. Do not fetch replacements or change the dependency because its version looks old without identifying a relevant incompatibility or defect.
+
+## Choose verification for the change
+
+Follow the testing stop rule in [AGENTS.md](../AGENTS.md). Use affected maintained suites, reuse valid prior results, and stop when the selected checks pass. Documentation edits need wording/link/diff review, not app compilation. The broad `run_current_phone_checks.sh` is an integration/release gate, not the default response to every edit. `run_host_checks.sh` additionally includes the deferred cross-install private-state families and is not the ordinary current-phone gate.
+
+For changed Android code/resources when a full source compile is relevant:
+
+```bash
 bash verification/compile_native_sources_only.sh
 ```
 
-This verifies the actual source compilation with API37 AAPT2 resource objects, generated
-`R.java`, Java `--release 11`, and D8 `--min-api 35`. Every intermediate is
-isolated and deleted. **It never assembles or signs an APK** and does not run
-GitHub Actions. A successful compile is evidence only for that exact source checkout,
-not full host, physical provider, Fold7, or release acceptance. First run the
-authoritative live task queue's applicable local host regressions; only after all
-required features and pre-APK checks pass may the documented full build be invoked.
+This runs API37 AAPT2 resource compilation/linking, generated `R.java`, Java compilation, and D8 without producing an installable APK. Its disposable outputs are removed. It proves source compilation, not physical Fold behavior or file-provider behavior.
 
-## Current development Android support policy (2026-11-06)
+Do not use GitHub Actions without explicit owner authorization. Browser layout probes are optional host diagnostics and may need a separately provisioned Playwright installation; they do not establish Android WebView acceptance.
 
-The supported OS range is the latest stable Android release and its two predecessors: **Android 15 (API 35), Android 16 (API 36), and Android 17 (API 37)**. The current development manifest uses `minSdkVersion=35`. `build.sh` derives the minimum and target API levels for aapt2 and D8 directly from that manifest; the old hardcoded API 26 minimum no longer applies to current development. **targetSdkVersion is independently reviewed** before targeting a new platform, especially for folding/window behavior, storage, and background imports.
+## New signed builds
 
-The archived 2.2.5 baseline and its original Android 8 minimum remain historical evidence, not today's compatibility requirement. Maintain non-destructive in-place upgrades and existing user data on supported Android versions. Update this rolling support range when a newer stable Android major release arrives. No intermediate APK is authorized by this policy update.
+Finish the assigned feature/fix scope and applicable local checks before producing any APK. Follow [RELEASE_GATES.md](RELEASE_GATES.md). New updates must keep package `com.example.markdowndesk`, use the original signing identity, and increase versionCode beyond the published **39**. The manifest currently uses minSdk35 and targetSdk37; preserve non-destructive upgrades and existing user data.
 
+`apps/MarkdownDesk/build.sh` is the maintained packaging implementation. Its signed path requires these private environment settings:
 
-Validated on Linux with Temurin **17.0.16+8**, Python **3.12.14**, Android SDK
-platform **37.0 revision 2** (installed folder `android-37.0`), build-tools
-**36.0.0** (aapt2 2.20-13193326; D8 8.10.9-dev). The original SDK 36/tooling
-36.1.0 release records are historical provenance, not minimum requirements.
-SDK input hashes are in `provenance/2.2.5/toolchain-SHA256SUMS.txt`.
+- `MARKDOWN_DESK_KEYSTORE`
+- `MARKDOWN_DESK_STORE_PASSWORD`
+- `MARKDOWN_DESK_KEY_ALIAS`
+- `MARKDOWN_DESK_KEY_PASSWORD`
 
-Use the already configured `JAVA_HOME` and `ANDROID_SDK_ROOT` (or set them to
-these installed versions on a fresh Linux runner). Do not generate signing keys.
-The platform folder is `android-37.0` here, not `android-37`.
+Never print or commit their values. Never substitute a new/debug signer. After the required gates and authorization, invoke `bash apps/MarkdownDesk/build.sh <output-name>` and verify identity, signature, alignment, and upgrade compatibility. The script replaces its disposable `apps/MarkdownDesk/build/` directory; preserve any deliverable outside it first.
 
-```bash
-export PATH="$JAVA_HOME/bin:$PATH"
-export ANDROID_PLATFORM=android-37.0
-export ANDROID_BUILD_TOOLS=36.0.0
-export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-java -version
-javac -version
-# One-time dependency setup; no SDK/JDK reinstall on this environment:
-bash verification/setup_host_deps.sh
-# All subsequent commands use installed/local inputs only:
-python3 verification/check_baseline_inventory.py
-bash verification/run_host_checks.sh
-python3 verification/check_unsigned_build.py
-python3 verification/check_clean_rebuild.py
-```
+`verification/first_signed_phone_candidate.sh` records the **2.5.0 first-candidate** workflow. It pins the old integration branch, checklist, version floor, and output naming. It must be reviewed for a future release rather than blindly rerun as a general release command. This documentation does not authorize an intermediate APK.
 
-The host-only JSON JAR is `com.vaadin.external.google:android-json:0.0.20131108.vaadin1`,
-SHA-256 `dfb7bae2f404cfe0b72b4d23944698cb716b7665171812a0a4d0f5926c0fac79`.
-Setup downloads from Maven Central and verifies the pinned digest; host checks
-reverify it and never fetch. It is ignored by Git and never included in the APK.
-The host Android stubs simulate limited APIs; their passing tests are not
-Android runtime, image decoding, SAF-provider or Fold-device proof.
+Historical unsigned baseline/reproducibility scripts remain available for a specific packaging investigation. They build APKs and must not be invoked as routine source checks. Historical baseline/toolchain provenance is under [docs/provenance/2.2.5](provenance/2.2.5/README.md).
 
-## Build interface
+## Evidence
 
-```bash
-bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.2.5-UNSIGNED
-# Equivalent validation wrapper:
-bash verification/compile_unsigned.sh
-```
-
-`--unsigned` bypasses all four private signing-variable requirements and does
-not require or invoke apksigner. It uses aapt2, javac `--release 11`, D8 and
-zipalign. The full baseline's 25 splash files are required; missing assets fail
-rather than producing a parity claim. No manifest/version or app behavior is
-changed. ZIP ordering/timestamps are normalized for unsigned reproducibility.
-Outputs are disposable, ignored files under `apps/MarkdownDesk/build/`.
-
-`check_unsigned_build.py` clears all four signing variables before the real
-build. It verifies package/version/min/target, alignment, every splash byte,
-DEX presence, absence of JAR signature entries and APK signing blocks, and
-expected apksigner verification failure. It invokes apksigner only to audit the
-absence of a signature, never to sign. The unsigned APK is not a release or an
-installable upgrade; do not distribute it as a shipping build.
-
-`check_clean_rebuild.py` archives **committed HEAD** twice into fresh directories
-(with spaces in their paths), copies only the pre-provisioned host JAR, runs
-host tests once on the first identical checkout and unsigned APK audits on both,
-then compares full APK SHA-256s. Commit
-changes first. It does not fetch dependencies or reuse build outputs. These
-runs were not performed inside an independently enforced network sandbox.
-
-## Signed path
-
-The default build path retains the original canonical signing requirements.
-It was not executed here. Signing credentials must remain outside this public
-repository and hosted CI. Never use a generated replacement/debug key to make
-these validation artifacts installable. The PM-cleared source-only baseline may be merged/tagged independently of
-future device/release acceptance. This tag never authorizes a new signed release.
-
-## M0 regression and safety commands
-
-`bash verification/run_host_checks.sh` now includes provider/session/renderer/
-AST-extracted mode and strict inventory fixtures. These include required production recoverability within host boundaries. Their green result does not establish physical-device acceptance or universal provider atomicity.
-Run `bash verification/document_io/run.sh --safety` for the retained raw-provider
-truncation diagnostic. The legacy aggregate `run_safety_gates.sh` mixes primitive
-and application contracts; its RED status does not represent a failure of
-protected recoverability. Earlier oversize/nullmetadata, renderer and contrast
-findings are historical; consult `CI_AND_WORKFLOW_POLICY.md` and live `STATUS.md`
-for current production gates and observed evidence.
-
-`PATH="$JAVA_HOME/bin:$PATH" bash verification/benchmarks/run.sh` records a matched
-host-only benchmark; do not repeat it for unrelated edits or claim device latency.
-
-### Active branch versus immutable baseline
-
-On behavior-changing branches the host suite invokes
-`check_baseline_inventory.py --baseline-ref v2.2.5-baseline`: it verifies the
-pinned baseline commit independently and current exact cleared assets. It does
-not claim modified current Java is unchanged. Default invocation remains strict
-for an exact-import checkout. Clean rebuilds obtain the baseline tag only from
-local Git into temporary repositories; no remote fetch is used.
-
-A SHA-pinned GitHub host workflow provides the roadmap's independent-runner
-portability check for meaningful source/test changes. It uses no Android signing,
-SDK build or benchmark, and preserves the failing desired provider-safety gate.
-No CI success is inferred from creating the workflow. Local work remains default.
+[2.5.0 executed gate log](verification/PHONE_CANDIDATE_20261107.txt) and [artifact identity](verification/PHONE_CANDIDATE_20261107.json) record the released candidate. Host stubs and bounded memory fixtures do not establish every Android provider/device behavior. The owner's acceptance is recorded separately in the live ledger.

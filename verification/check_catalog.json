@@ -1,0 +1,2510 @@
+{
+  "schema": 1,
+  "checks": [
+    {
+      "id": "test_current_source_guard.py",
+      "command": [
+        "python3",
+        "verification/test_current_source_guard.py"
+      ],
+      "question": "Does current source guard retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "tooling",
+      "family": "verification/test_current_source_guard.py"
+    },
+    {
+      "id": "test_pr37_integration.py",
+      "command": [
+        "python3",
+        "verification/test_pr37_integration.py"
+      ],
+      "question": "Does pr37 integration retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "tooling",
+      "family": "verification/test_pr37_integration.py"
+    },
+    {
+      "id": "test_android_platform_contract.py",
+      "command": [
+        "python3",
+        "verification/test_android_platform_contract.py"
+      ],
+      "question": "Does android platform contract retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_android_platform_contract.py"
+    },
+    {
+      "id": "test_source_only_gate.py",
+      "command": [
+        "python3",
+        "verification/test_source_only_gate.py"
+      ],
+      "question": "Does source only gate retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "tooling",
+      "family": "verification/test_source_only_gate.py"
+    },
+    {
+      "id": "test_signed_phone_gate.py",
+      "command": [
+        "python3",
+        "verification/test_signed_phone_gate.py"
+      ],
+      "question": "Does signed phone gate retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "tooling",
+      "family": "verification/test_signed_phone_gate.py"
+    },
+    {
+      "id": "source_extraction::run.sh",
+      "command": [
+        "bash",
+        "verification/source_extraction/run.sh"
+      ],
+      "question": "Do host fixtures execute the intended slices of production source?",
+      "kind": "behavior",
+      "family": "verification/source_extraction"
+    },
+    {
+      "id": "navigation_choices::run.sh",
+      "command": [
+        "bash",
+        "verification/navigation_choices/run.sh"
+      ],
+      "question": "Does navigation choices preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/navigation_choices"
+    },
+    {
+      "id": "navigation_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/navigation_ui/run.sh"
+      ],
+      "question": "Does navigation ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/navigation_ui"
+    },
+    {
+      "id": "downloads_browser::run.sh",
+      "command": [
+        "bash",
+        "verification/downloads_browser/run.sh"
+      ],
+      "question": "Does downloads browser preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/downloads_browser"
+    },
+    {
+      "id": "document_io::run.sh",
+      "command": [
+        "bash",
+        "verification/document_io/run.sh"
+      ],
+      "question": "Can document I/O failures be recovered without losing content?",
+      "kind": "behavior",
+      "family": "verification/document_io"
+    },
+    {
+      "id": "session_recovery::run.sh",
+      "command": [
+        "bash",
+        "verification/session_recovery/run.sh"
+      ],
+      "question": "Does session recovery preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/session_recovery"
+    },
+    {
+      "id": "renderer_golden::run.sh",
+      "command": [
+        "bash",
+        "verification/renderer_golden/run.sh"
+      ],
+      "question": "Does renderer golden preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/renderer_golden"
+    },
+    {
+      "id": "footnotes::run.sh",
+      "command": [
+        "bash",
+        "verification/footnotes/run.sh"
+      ],
+      "question": "Does footnotes preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/footnotes"
+    },
+    {
+      "id": "autolinks::run.sh",
+      "command": [
+        "bash",
+        "verification/autolinks/run.sh"
+      ],
+      "question": "Does autolinks preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/autolinks"
+    },
+    {
+      "id": "reader_typography::run.sh",
+      "command": [
+        "bash",
+        "verification/reader_typography/run.sh"
+      ],
+      "question": "Does reader typography preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/reader_typography"
+    },
+    {
+      "id": "reader_positions::run.sh",
+      "command": [
+        "bash",
+        "verification/reader_positions/run.sh"
+      ],
+      "question": "Does reader positions preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/reader_positions"
+    },
+    {
+      "id": "reader_typography_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/reader_typography_ui/run.sh"
+      ],
+      "question": "Does reader typography ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/reader_typography_ui"
+    },
+    {
+      "id": "mode_behavior::run.sh",
+      "command": [
+        "bash",
+        "verification/mode_behavior/run.sh"
+      ],
+      "question": "Does mode behavior preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/mode_behavior"
+    },
+    {
+      "id": "editor_undo::run.sh",
+      "command": [
+        "bash",
+        "verification/editor_undo/run.sh"
+      ],
+      "question": "Does editing preserve undo and redo behavior?",
+      "kind": "behavior",
+      "family": "verification/editor_undo"
+    },
+    {
+      "id": "workspace_tree_reader::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_tree_reader/run.sh"
+      ],
+      "question": "Does workspace tree reader preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_tree_reader"
+    },
+    {
+      "id": "workspace_roots::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_roots/run.sh"
+      ],
+      "question": "Does workspace roots preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_roots"
+    },
+    {
+      "id": "workspace_favorites::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_favorites/run.sh"
+      ],
+      "question": "Does workspace favorites preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_favorites"
+    },
+    {
+      "id": "recents_integrity::run.sh",
+      "command": [
+        "bash",
+        "verification/recents_integrity/run.sh"
+      ],
+      "question": "Does recents integrity preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/recents_integrity"
+    },
+    {
+      "id": "archive_reader::run_journal_concurrency.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_journal_concurrency.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_journal_conditional.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_journal_conditional.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_journal_history.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_journal_history.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_transcript_integrity.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_transcript_integrity.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_document_links.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_document_links.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_annotation_dom.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_annotation_dom.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_source_encoding.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_source_encoding.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_reader::run_core.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_core.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "archive_navigation::run.sh",
+      "command": [
+        "bash",
+        "verification/archive_navigation/run.sh"
+      ],
+      "question": "Does archive navigation retain the correct source and target?",
+      "kind": "behavior",
+      "family": "verification/archive_navigation"
+    },
+    {
+      "id": "json_explorer::run_bom.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_bom.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "json_explorer::run_streaming_engine.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_streaming_engine.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "json_explorer::run_selection.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_selection.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "json_explorer::run_document_index.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_document_index.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "json_explorer::run_raw_hit.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_raw_hit.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "json_explorer::run_json_note_identity.sh",
+      "command": [
+        "bash",
+        "verification/json_explorer/run_json_note_identity.sh"
+      ],
+      "question": "Does JSON reading preserve values, source identity, selection and search anchors?",
+      "kind": "behavior",
+      "family": "verification/json_explorer"
+    },
+    {
+      "id": "archive_reader::run_sidecar_identity.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_sidecar_identity.sh"
+      ],
+      "question": "Do archive imports, journal edits, source identity and transcript output preserve their tested data and navigation contracts?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
+      "id": "markdown_notes::run_identity.sh",
+      "command": [
+        "bash",
+        "verification/markdown_notes/run_identity.sh"
+      ],
+      "question": "Do Markdown annotations retain verified source anchors?",
+      "kind": "behavior",
+      "family": "verification/markdown_notes"
+    },
+    {
+      "id": "markdown_notes::run_script.sh",
+      "command": [
+        "bash",
+        "verification/markdown_notes/run_script.sh"
+      ],
+      "question": "Do Markdown annotations retain verified source anchors?",
+      "kind": "behavior",
+      "family": "verification/markdown_notes"
+    },
+    {
+      "id": "test_markdown_notes_integration.py",
+      "command": [
+        "python3",
+        "verification/test_markdown_notes_integration.py"
+      ],
+      "question": "Does markdown notes integration retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_markdown_notes_integration.py"
+    },
+    {
+      "id": "test_annotation_integrity.py",
+      "command": [
+        "python3",
+        "verification/test_annotation_integrity.py"
+      ],
+      "question": "Does annotation integrity retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_annotation_integrity.py"
+    },
+    {
+      "id": "test_archive_output_integration.py",
+      "command": [
+        "python3",
+        "verification/test_archive_output_integration.py"
+      ],
+      "question": "Does archive output integration retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_archive_output_integration.py"
+    },
+    {
+      "id": "test_sidecar_publication.py",
+      "command": [
+        "python3",
+        "verification/test_sidecar_publication.py"
+      ],
+      "question": "Does sidecar publication retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_sidecar_publication.py"
+    },
+    {
+      "id": "test_document_link_routing.py",
+      "command": [
+        "python3",
+        "verification/test_document_link_routing.py"
+      ],
+      "question": "Does document link routing retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_document_link_routing.py"
+    },
+    {
+      "id": "test_inspector_session_routing.py",
+      "command": [
+        "python3",
+        "verification/test_inspector_session_routing.py"
+      ],
+      "question": "Does inspector session routing retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_inspector_session_routing.py"
+    },
+    {
+      "id": "test_json_note_integration.py",
+      "command": [
+        "python3",
+        "verification/test_json_note_integration.py"
+      ],
+      "question": "Does json note integration retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_json_note_integration.py"
+    },
+    {
+      "id": "test_json_current_search.py",
+      "command": [
+        "python3",
+        "verification/test_json_current_search.py"
+      ],
+      "question": "Does json current search retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_json_current_search.py"
+    },
+    {
+      "id": "test_unified_all_roots_search.py",
+      "command": [
+        "python3",
+        "verification/test_unified_all_roots_search.py"
+      ],
+      "question": "Does unified all roots search retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_unified_all_roots_search.py"
+    },
+    {
+      "id": "test_search_result_return.py",
+      "command": [
+        "python3",
+        "verification/test_search_result_return.py"
+      ],
+      "question": "Does search result return retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_search_result_return.py"
+    },
+    {
+      "id": "test_json_structured_search.py",
+      "command": [
+        "python3",
+        "verification/test_json_structured_search.py"
+      ],
+      "question": "Does json structured search retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_json_structured_search.py"
+    },
+    {
+      "id": "test_unified_search_state.py",
+      "command": [
+        "python3",
+        "verification/test_unified_search_state.py"
+      ],
+      "question": "Does unified search state retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_unified_search_state.py"
+    },
+    {
+      "id": "test_json_reading_parity.py",
+      "command": [
+        "python3",
+        "verification/test_json_reading_parity.py"
+      ],
+      "question": "Does json reading parity retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_json_reading_parity.py"
+    },
+    {
+      "id": "test_accessibility_contract.py",
+      "command": [
+        "python3",
+        "verification/test_accessibility_contract.py"
+      ],
+      "question": "Does accessibility contract retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_accessibility_contract.py"
+    },
+    {
+      "id": "test_export_generation_snapshot.py",
+      "command": [
+        "python3",
+        "verification/test_export_generation_snapshot.py"
+      ],
+      "question": "Does export generation snapshot retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_export_generation_snapshot.py"
+    },
+    {
+      "id": "workspace_directory_loader::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_directory_loader/run.sh"
+      ],
+      "question": "Does workspace directory loader preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_directory_loader"
+    },
+    {
+      "id": "workspace_search::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_search/run.sh"
+      ],
+      "question": "Does authorized document search return correct matches?",
+      "kind": "behavior",
+      "family": "verification/workspace_search"
+    },
+    {
+      "id": "workspace_search_loader::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_search_loader/run.sh"
+      ],
+      "question": "Does workspace search loader preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_search_loader"
+    },
+    {
+      "id": "workspace_search_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_search_ui/run.sh"
+      ],
+      "question": "Does workspace search ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_search_ui"
+    },
+    {
+      "id": "search_hit_verifier::run.sh",
+      "command": [
+        "bash",
+        "verification/search_hit_verifier/run.sh"
+      ],
+      "question": "Does search hit verifier preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/search_hit_verifier"
+    },
+    {
+      "id": "workspace_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/workspace_ui/run.sh"
+      ],
+      "question": "Does workspace ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/workspace_ui"
+    },
+    {
+      "id": "contrast::run.sh",
+      "command": [
+        "bash",
+        "verification/contrast/run.sh",
+        "--gate"
+      ],
+      "question": "Does contrast preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/contrast"
+    },
+    {
+      "id": "recovery_loader::run.sh",
+      "command": [
+        "bash",
+        "verification/recovery_loader/run.sh"
+      ],
+      "question": "Does recovery loader preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/recovery_loader"
+    },
+    {
+      "id": "status_behavior::run.sh",
+      "command": [
+        "bash",
+        "verification/status_behavior/run.sh",
+        "test"
+      ],
+      "question": "Does status behavior preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/status_behavior"
+    },
+    {
+      "id": "statistics::run.sh",
+      "command": [
+        "bash",
+        "verification/statistics/run.sh"
+      ],
+      "question": "Does statistics preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/statistics"
+    },
+    {
+      "id": "preview_behavior::run.sh",
+      "command": [
+        "bash",
+        "verification/preview_behavior/run.sh"
+      ],
+      "question": "Does preview behavior preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/preview_behavior"
+    },
+    {
+      "id": "preview_navigation::run.sh",
+      "command": [
+        "bash",
+        "verification/preview_navigation/run.sh"
+      ],
+      "question": "Does preview navigation preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/preview_navigation"
+    },
+    {
+      "id": "outline_navigation::run.sh",
+      "command": [
+        "bash",
+        "verification/outline_navigation/run.sh"
+      ],
+      "question": "Does outline navigation preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/outline_navigation"
+    },
+    {
+      "id": "preview_navigation::run_print.sh",
+      "command": [
+        "bash",
+        "verification/preview_navigation/run_print.sh"
+      ],
+      "question": "Does preview navigation preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/preview_navigation"
+    },
+    {
+      "id": "print_layout::run.sh",
+      "command": [
+        "bash",
+        "verification/print_layout/run.sh",
+        "--java-only"
+      ],
+      "question": "Does print layout preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/print_layout"
+    },
+    {
+      "id": "docx_export::run.sh",
+      "command": [
+        "bash",
+        "verification/docx_export/run.sh",
+        "--core-only"
+      ],
+      "question": "Does docx export preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/docx_export"
+    },
+    {
+      "id": "docx_publication::run.sh",
+      "command": [
+        "bash",
+        "verification/docx_publication/run.sh"
+      ],
+      "question": "Does docx publication preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/docx_publication"
+    },
+    {
+      "id": "docx_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/docx_ui/run.sh"
+      ],
+      "question": "Does docx ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/docx_ui"
+    },
+    {
+      "id": "line_index::run.sh",
+      "command": [
+        "bash",
+        "verification/line_index/run.sh"
+      ],
+      "question": "Does line index preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/line_index"
+    },
+    {
+      "id": "syntax::run.sh",
+      "command": [
+        "bash",
+        "verification/syntax/run.sh"
+      ],
+      "question": "Does syntax preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/syntax"
+    },
+    {
+      "id": "save_lifecycle::run.sh",
+      "command": [
+        "bash",
+        "verification/save_lifecycle/run.sh",
+        "--safety"
+      ],
+      "question": "Does save lifecycle preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/save_lifecycle"
+    },
+    {
+      "id": "protection_store::run.sh",
+      "command": [
+        "bash",
+        "verification/protection_store/run.sh"
+      ],
+      "question": "Do protected saves preserve recoverable content under failure?",
+      "kind": "behavior",
+      "family": "verification/protection_store"
+    },
+    {
+      "id": "protection_store::run_adapter.sh",
+      "command": [
+        "bash",
+        "verification/protection_store/run_adapter.sh"
+      ],
+      "question": "Do protected saves preserve recoverable content under failure?",
+      "kind": "behavior",
+      "family": "verification/protection_store"
+    },
+    {
+      "id": "save_coordinator::run.sh",
+      "command": [
+        "bash",
+        "verification/save_coordinator/run.sh"
+      ],
+      "question": "Does save coordinator preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/save_coordinator"
+    },
+    {
+      "id": "save_coordinator::run_memory.sh",
+      "command": [
+        "bash",
+        "verification/save_coordinator/run_memory.sh"
+      ],
+      "question": "Does save coordinator preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/save_coordinator"
+    },
+    {
+      "id": "protection_restart::run.sh",
+      "command": [
+        "bash",
+        "verification/protection_restart/run.sh"
+      ],
+      "question": "Does protection restart preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/protection_restart"
+    },
+    {
+      "id": "split_resize::run.sh",
+      "command": [
+        "bash",
+        "verification/split_resize/run.sh"
+      ],
+      "question": "Does split resize preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/split_resize"
+    },
+    {
+      "id": "history_catalog::run.sh",
+      "command": [
+        "bash",
+        "verification/history_catalog/run.sh"
+      ],
+      "question": "Does history catalog preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_catalog"
+    },
+    {
+      "id": "history_index::run.sh",
+      "command": [
+        "bash",
+        "verification/history_index/run.sh"
+      ],
+      "question": "Does history index preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_index"
+    },
+    {
+      "id": "history_diff::run.sh",
+      "command": [
+        "bash",
+        "verification/history_diff/run.sh"
+      ],
+      "question": "Does history diff preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_diff"
+    },
+    {
+      "id": "history_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/history_ui/run.sh"
+      ],
+      "question": "Does history ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_ui"
+    },
+    {
+      "id": "local_protection_status::run.sh",
+      "command": [
+        "bash",
+        "verification/local_protection_status/run.sh"
+      ],
+      "question": "Does local protection status preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/local_protection_status"
+    },
+    {
+      "id": "local_protection_policy::run.sh",
+      "command": [
+        "bash",
+        "verification/local_protection_policy/run.sh"
+      ],
+      "question": "Does local protection policy preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/local_protection_policy"
+    },
+    {
+      "id": "history_ui_integration::run.sh",
+      "command": [
+        "bash",
+        "verification/history_ui_integration/run.sh"
+      ],
+      "question": "Does history ui integration preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_ui_integration"
+    },
+    {
+      "id": "protected_saves_ui::run.sh",
+      "command": [
+        "bash",
+        "verification/protected_saves_ui/run.sh"
+      ],
+      "question": "Does protected saves ui preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/protected_saves_ui"
+    },
+    {
+      "id": "history_retention::run.sh",
+      "command": [
+        "bash",
+        "verification/history_retention/run.sh"
+      ],
+      "question": "Does history retention preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_retention"
+    },
+    {
+      "id": "history_planner::run.sh",
+      "command": [
+        "bash",
+        "verification/history_planner/run.sh"
+      ],
+      "question": "Does history planner preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_planner"
+    },
+    {
+      "id": "history_capacity::run.sh",
+      "command": [
+        "bash",
+        "verification/history_capacity/run.sh",
+        "all"
+      ],
+      "question": "Does history capacity preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_capacity"
+    },
+    {
+      "id": "automatic_retention_policy::run.sh",
+      "command": [
+        "bash",
+        "verification/automatic_retention_policy/run.sh"
+      ],
+      "question": "Does automatic retention policy preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/automatic_retention_policy"
+    },
+    {
+      "id": "control_inspection_bounds::run.sh",
+      "command": [
+        "bash",
+        "verification/control_inspection_bounds/run.sh"
+      ],
+      "question": "Does control inspection bounds preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/control_inspection_bounds"
+    },
+    {
+      "id": "history_pins::run.sh",
+      "command": [
+        "bash",
+        "verification/history_pins/run.sh"
+      ],
+      "question": "Does history pins preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_pins"
+    },
+    {
+      "id": "native_terminal_validation::run.sh",
+      "command": [
+        "bash",
+        "verification/native_terminal_validation/run.sh"
+      ],
+      "question": "Does native terminal validation preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/native_terminal_validation"
+    },
+    {
+      "id": "native_terminal_workspace::run.sh",
+      "command": [
+        "bash",
+        "verification/native_terminal_workspace/run.sh"
+      ],
+      "question": "Does native terminal workspace preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/native_terminal_workspace"
+    },
+    {
+      "id": "history_operations::run.sh",
+      "command": [
+        "bash",
+        "verification/history_operations/run.sh"
+      ],
+      "question": "Does history operations preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_operations"
+    },
+    {
+      "id": "history_operation_data::run.sh",
+      "command": [
+        "bash",
+        "verification/history_operation_data/run.sh"
+      ],
+      "question": "Does history operation data preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_operation_data"
+    },
+    {
+      "id": "history_maintenance::run.sh",
+      "command": [
+        "bash",
+        "verification/history_maintenance/run.sh"
+      ],
+      "question": "Does history maintenance preserve its production behavior under the existing fixtures?",
+      "kind": "behavior",
+      "family": "verification/history_maintenance"
+    },
+    {
+      "id": "history_executor::run.sh",
+      "command": [
+        "bash",
+        "verification/history_executor/run.sh"
+      ],
+      "question": "Do interrupted history operations reopen safely?",
+      "kind": "behavior",
+      "family": "verification/history_executor"
+    },
+    {
+      "id": "automatic_retention::run.sh",
+      "command": [
+        "bash",
+        "verification/automatic_retention/run.sh"
+      ],
+      "question": "Does interrupted automatic retention preserve protected history?",
+      "kind": "behavior",
+      "family": "verification/automatic_retention"
+    },
+    {
+      "id": "test_baseline_inventory.py",
+      "command": [
+        "python3",
+        "verification/test_baseline_inventory.py"
+      ],
+      "question": "Does baseline inventory retain its declared source-level integration contract? (Static evidence only.)",
+      "kind": "static",
+      "family": "verification/test_baseline_inventory.py"
+    },
+    {
+      "id": "test_check_selection.py",
+      "command": [
+        "python3",
+        "verification/test_check_selection.py"
+      ],
+      "family": "verification/test_check_selection.py",
+      "kind": "tooling",
+      "question": "Does change selection avoid silent skips, detect stale ownership and avoid app tests for documentation?"
+    }
+  ],
+  "families": {
+    "verification/test_current_source_guard.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_current_source_guard.py",
+        "verification/check_current_source.py"
+      ]
+    },
+    "verification/test_pr37_integration.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_pr37_integration.py",
+        "verification/run_host_checks.sh",
+        "verification/run_current_phone_checks.sh",
+        ".github/workflows/json-explorer-unsigned.yml",
+        "verification/source_extraction/ParsedJavaSource.java"
+      ]
+    },
+    "verification/test_android_platform_contract.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_android_platform_contract.py"
+      ]
+    },
+    "verification/test_source_only_gate.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_source_only_gate.py",
+        "verification/compile_native_sources_only.sh"
+      ]
+    },
+    "verification/test_signed_phone_gate.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_signed_phone_gate.py",
+        "verification/first_signed_phone_candidate.sh",
+        "apps/MarkdownDesk/build.sh"
+      ]
+    },
+    "verification/source_extraction": {
+      "inputs": [],
+      "test_paths": [
+        "verification/source_extraction/run.sh",
+        "verification/source_extraction/ParsedJavaSource.java",
+        "verification/source_extraction/ParsedJavaSourceCheck.java"
+      ]
+    },
+    "verification/navigation_choices": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/NavigationChoices.java"
+      ],
+      "test_paths": [
+        "verification/navigation_choices/run.sh",
+        "verification/navigation_choices/NavigationChoicesCheck.java",
+        "verification/navigation_choices/check_release_identity.py"
+      ]
+    },
+    "verification/navigation_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownStructure.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/NavigationChoices.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/NavigationPicker.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/RecentStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/navigation_ui/native_smoke.py",
+        "verification/navigation_ui/ExtractNavigation.java",
+        "verification/navigation_ui/run.sh",
+        "verification/navigation_ui/reader_links_smoke.py",
+        "verification/navigation_ui/NavigationUiCheck.java"
+      ]
+    },
+    "verification/downloads_browser": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DownloadsPaths.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java"
+      ],
+      "test_paths": [
+        "verification/downloads_browser/DownloadsPathsCheck.java",
+        "verification/downloads_browser/native_reopen.py",
+        "verification/downloads_browser/run.sh"
+      ]
+    },
+    "verification/document_io": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java"
+      ],
+      "test_paths": [
+        "verification/document_io/DocumentIOCheck.java",
+        "verification/document_io/run.sh",
+        "verification/document_io/stubs/android/content/ContentResolver.java",
+        "verification/document_io/stubs/android/database/Cursor.java",
+        "verification/document_io/stubs/android/os/ParcelFileDescriptor.java",
+        "verification/document_io/stubs/android/net/Uri.java"
+      ]
+    },
+    "verification/session_recovery": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AtomicCommit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/RecoveryStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java"
+      ],
+      "test_paths": [
+        "verification/session_recovery/run.sh",
+        "verification/session_recovery/SessionRecoveryCheck.java",
+        "verification/session_recovery/stubs/android/content/Context.java"
+      ]
+    },
+    "verification/renderer_golden": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/renderer_golden/TableDividerGolden.java",
+        "verification/renderer_golden/run.sh",
+        "verification/renderer_golden/RendererGolden.java",
+        "verification/renderer_golden/NestedListKnownFailure.java"
+      ]
+    },
+    "verification/footnotes": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/footnotes/run.sh",
+        "verification/footnotes/footnote_sync.cjs",
+        "verification/footnotes/FootnoteSyncDump.java",
+        "verification/footnotes/FootnoteGolden.java"
+      ]
+    },
+    "verification/autolinks": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/autolinks/AutolinkGolden.java",
+        "verification/autolinks/run.sh"
+      ]
+    },
+    "verification/reader_typography": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/reader_typography/ReaderTypographyCheck.java",
+        "verification/reader_typography/run.sh",
+        "verification/reader_typography/Capture.java"
+      ]
+    },
+    "verification/reader_positions": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderAnchor.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderPositionStore.java"
+      ],
+      "test_paths": [
+        "verification/reader_positions/run.sh",
+        "verification/reader_positions/ReaderPositionCheck.java"
+      ]
+    },
+    "verification/reader_typography_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/reader_typography_ui/ExtractReaderUi.java",
+        "verification/reader_typography_ui/ReaderExportCheck.java",
+        "verification/reader_typography_ui/run.sh",
+        "verification/reader_typography_ui/ReaderUiCheck.java",
+        "verification/reader_typography_ui/ReaderPreviewCheck.java"
+      ]
+    },
+    "verification/mode_behavior": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java"
+      ],
+      "test_paths": [
+        "verification/mode_behavior/ExtractMethods.java",
+        "verification/mode_behavior/run.sh",
+        "verification/mode_behavior/ModeBehaviorTest.java",
+        "verification/mode_behavior/ExtractAppearance.java",
+        "verification/mode_behavior/LabelBehaviorTest.java",
+        "verification/mode_behavior/AppearanceBehaviorTest.java",
+        "verification/mode_behavior/ExtractLabels.java"
+      ]
+    },
+    "verification/editor_undo": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/KineticEditText.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java"
+      ],
+      "test_paths": [
+        "verification/editor_undo/run.sh",
+        "verification/editor_undo/EditorUndoCheck.java",
+        "verification/editor_undo/ExtractUndo.java"
+      ]
+    },
+    "verification/workspace_tree_reader": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_tree_reader/WorkspaceTreeReaderCheck.java",
+        "verification/workspace_tree_reader/run.sh",
+        "verification/workspace_tree_reader/stubs/android/content/ContentResolver.java",
+        "verification/workspace_tree_reader/stubs/android/database/Cursor.java",
+        "verification/workspace_tree_reader/stubs/android/provider/DocumentsContract.java",
+        "verification/workspace_tree_reader/stubs/android/os/CancellationSignal.java",
+        "verification/workspace_tree_reader/stubs/android/os/OperationCanceledException.java",
+        "verification/workspace_tree_reader/stubs/android/net/Uri.java"
+      ]
+    },
+    "verification/workspace_roots": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceRootStore.java"
+      ],
+      "test_paths": [
+        "verification/workspace_roots/run.sh",
+        "verification/workspace_roots/WorkspaceRootStoreCheck.java",
+        "verification/workspace_roots/stubs/android/content/ContentResolver.java",
+        "verification/workspace_roots/stubs/android/content/SharedPreferences.java",
+        "verification/workspace_roots/stubs/android/content/UriPermission.java",
+        "verification/workspace_roots/stubs/android/content/Context.java"
+      ]
+    },
+    "verification/workspace_favorites": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceFavoritesStore.java"
+      ],
+      "test_paths": [
+        "verification/workspace_favorites/run.sh",
+        "verification/workspace_favorites/FavoritesCheck.java",
+        "verification/workspace_favorites/stubs/android/content/Context.java"
+      ]
+    },
+    "verification/recents_integrity": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/RecentStore.java"
+      ],
+      "test_paths": [
+        "verification/recents_integrity/run.sh",
+        "verification/recents_integrity/RecentStoreIntegrityCheck.java",
+        "verification/recents_integrity/stubs/android/content/SharedPreferences.java",
+        "verification/recents_integrity/stubs/android/content/Context.java"
+      ]
+    },
+    "verification/archive_reader": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveImportCoordinator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptIntegrity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ExportReceipt.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/PreviewWebView.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveStreamParser.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/UnifiedTabIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/AnnotationTone.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveAnnotationSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveCitations.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveHighlightScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveOverlap.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveScrollScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchSpec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSelectionScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveTextCodec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveViewport.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/archive_reader/ArchiveTranscriptIntegrityCheck.java",
+        "verification/archive_reader/run_journal_history_memory.sh",
+        "verification/archive_reader/ArchiveAnnotationSearchPagingTest.java",
+        "verification/archive_reader/ArchiveScrollBrowserFixture.java",
+        "verification/archive_reader/run_journal_concurrency.sh",
+        "verification/archive_reader/ArchiveStreamStressCheck.java",
+        "verification/archive_reader/stress_compact700.py",
+        "verification/archive_reader/run_sidecar_identity.sh",
+        "verification/archive_reader/WorkspaceDeepLinksTest.java",
+        "verification/archive_reader/ArchiveSegmentHintTest.java",
+        "verification/archive_reader/archive_position_dom.cjs",
+        "verification/archive_reader/ArchiveWorkspaceFeaturesTest.java",
+        "verification/archive_reader/LongIdIndexCheck.java",
+        "verification/archive_reader/UnifiedTabIndexTest.java",
+        "verification/archive_reader/ArchiveJournalHistoryCheck.java",
+        "verification/archive_reader/ArchiveHighlightScriptTest.java",
+        "verification/archive_reader/archive_selection_restore_dom.cjs",
+        "verification/archive_reader/ArchiveInlineJsDump.java",
+        "verification/archive_reader/run_journal_conditional.sh",
+        "verification/archive_reader/run_document_links.sh",
+        "verification/archive_reader/ExportReceiptCheck.java",
+        "verification/archive_reader/archive_selection_dom.cjs",
+        "verification/archive_reader/test_generation_sql.py",
+        "verification/archive_reader/SidecarIdentityCheck.java",
+        "verification/archive_reader/ArchiveSelectionScriptDump.java",
+        "verification/archive_reader/ArchiveTextCodecTest.java",
+        "verification/archive_reader/ArchiveCoreTest.java",
+        "verification/archive_reader/ArchiveJournalConcurrencyCheck.java",
+        "verification/archive_reader/ArchiveJournalConditionalCheck.java",
+        "verification/archive_reader/run_journal_history.sh",
+        "verification/archive_reader/ArchiveViewportTest.java",
+        "verification/archive_reader/ArchiveSearchSpecTest.java",
+        "verification/archive_reader/run_archive_stream_stress.sh",
+        "verification/archive_reader/ArchiveOverlapTest.java",
+        "verification/archive_reader/archive_highlight_dom.cjs",
+        "verification/archive_reader/ArchiveUtf8SourceCheck.java",
+        "verification/archive_reader/UnifiedSearchJumpCheck.java",
+        "verification/archive_reader/ArchiveJournalHistoryMemoryCheck.java",
+        "verification/archive_reader/ArchiveHighlightDump.java",
+        "verification/archive_reader/run_core.sh",
+        "verification/archive_reader/check_dex_linkage.py",
+        "verification/archive_reader/ArchiveScrollScriptTest.java",
+        "verification/archive_reader/WorkspaceDocumentLinksTest.java",
+        "verification/archive_reader/ArchivePositionDump.java",
+        "verification/archive_reader/run_annotation_dom.sh",
+        "verification/archive_reader/ArchiveSelectionScriptCheck.java",
+        "verification/archive_reader/run_source_encoding.sh",
+        "verification/archive_reader/test_exact_hit_window.py",
+        "verification/archive_reader/CoordinatorCancelGuardCheck.java",
+        "verification/archive_reader/run_transcript_integrity.sh"
+      ]
+    },
+    "verification/archive_navigation": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/archive_navigation/ExtractNavigation.java",
+        "verification/archive_navigation/run.sh"
+      ]
+    },
+    "verification/json_explorer": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonDocumentIndexer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerEngine.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonNodeLocator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonRawSearchHit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonReaderSelection.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonTokenReader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonUtf8Bom.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveStreamParser.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/JsonInspectorNoteIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/JsonPathCodec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/VerifiedTextAnchor.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/json_explorer/run_json_note_identity.sh",
+        "verification/json_explorer/JsonRawSearchHitCheck.java",
+        "verification/json_explorer/extract_crash.py",
+        "verification/json_explorer/JsonStreamingEngineCheck.java",
+        "verification/json_explorer/JsonNodeLocatorTest.java",
+        "verification/json_explorer/JsonInspectorNoteIdentityCheck.java",
+        "verification/json_explorer/JsonUtf8BomCheck.java",
+        "verification/json_explorer/run_bom.sh",
+        "verification/json_explorer/run_selection.sh",
+        "verification/json_explorer/JsonReaderSelectionCheck.java",
+        "verification/json_explorer/run_document_index.sh",
+        "verification/json_explorer/run_raw_hit.sh",
+        "verification/json_explorer/run_streaming_engine.sh",
+        "verification/json_explorer/JsonDocumentIndexCheck.java"
+      ]
+    },
+    "verification/markdown_notes": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/AnnotationTone.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/MarkdownNoteIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/MarkdownNoteScript.java"
+      ],
+      "test_paths": [
+        "verification/markdown_notes/run_script.sh",
+        "verification/markdown_notes/MarkdownNoteScriptCheck.java",
+        "verification/markdown_notes/MarkdownNoteIdentityCheck.java",
+        "verification/markdown_notes/AnnotationToneCheck.java",
+        "verification/markdown_notes/run_identity.sh",
+        "verification/markdown_notes/dom_contract.cjs",
+        "verification/markdown_notes/MarkdownNoteScriptDump.java"
+      ]
+    },
+    "verification/test_markdown_notes_integration.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AnnotationHistoryDialog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveSidecarPublisher.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownReadingNotes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/MarkdownNoteIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/MarkdownNoteScript.java"
+      ],
+      "test_paths": [
+        "verification/test_markdown_notes_integration.py"
+      ]
+    },
+    "verification/test_annotation_integrity.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveSidecarPublisher.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownReadingNotes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/AnnotationTone.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/MarkdownNoteScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveHighlightScript.java"
+      ],
+      "test_paths": [
+        "verification/test_annotation_integrity.py"
+      ]
+    },
+    "verification/test_archive_output_integration.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptIntegrity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptPdf.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentPrint.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ExportReceipt.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveCitations.java"
+      ],
+      "test_paths": [
+        "verification/test_archive_output_integration.py"
+      ]
+    },
+    "verification/test_sidecar_publication.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveSidecarPublisher.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java"
+      ],
+      "test_paths": [
+        "verification/test_sidecar_publication.py"
+      ]
+    },
+    "verification/test_document_link_routing.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveImportCoordinator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptIntegrity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptPdf.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonRawSearchHit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceLiteralSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveStreamParser.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveAnnotationSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveHighlightScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchSpec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSelectionScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveViewport.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/test_document_link_routing.py"
+      ]
+    },
+    "verification/test_inspector_session_routing.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedTabs.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/UnifiedTabIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceRouter.java"
+      ],
+      "test_paths": [
+        "verification/test_inspector_session_routing.py"
+      ]
+    },
+    "verification/test_json_note_integration.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AnnotationHistoryDialog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveSidecarPublisher.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerEngine.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonInspectorNotes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedTabs.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveMarkdownIndexes.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/JsonInspectorNoteIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/JsonPathCodec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/annotations/VerifiedTextAnchor.java"
+      ],
+      "test_paths": [
+        "verification/test_json_note_integration.py"
+      ]
+    },
+    "verification/test_json_current_search.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonRawSearchHit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/test_json_current_search.py"
+      ]
+    },
+    "verification/test_unified_all_roots_search.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceRootStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceSearchLoader.java"
+      ],
+      "test_paths": [
+        "verification/test_unified_all_roots_search.py"
+      ]
+    },
+    "verification/test_search_result_return.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/test_search_result_return.py"
+      ]
+    },
+    "verification/test_json_structured_search.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonNodeLocator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonRawSearchHit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
+      ],
+      "test_paths": [
+        "verification/test_json_structured_search.py"
+      ]
+    },
+    "verification/test_unified_search_state.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceSearchLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchScope.java"
+      ],
+      "test_paths": [
+        "verification/test_unified_search_state.py"
+      ]
+    },
+    "verification/test_json_reading_parity.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveImportCoordinator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonDocumentIndexer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerEngine.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/PreviewWebView.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceRouter.java"
+      ],
+      "test_paths": [
+        "verification/test_json_reading_parity.py"
+      ]
+    },
+    "verification/test_accessibility_contract.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java"
+      ],
+      "test_paths": [
+        "verification/test_accessibility_contract.py"
+      ]
+    },
+    "verification/test_export_generation_snapshot.py": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptIntegrity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptPdf.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java"
+      ],
+      "test_paths": [
+        "verification/test_export_generation_snapshot.py"
+      ]
+    },
+    "verification/workspace_directory_loader": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceDirectoryLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_directory_loader/run.sh",
+        "verification/workspace_directory_loader/WorkspaceDirectoryLoaderCheck.java",
+        "verification/workspace_directory_loader/stubs/android/os/CancellationSignal.java",
+        "verification/workspace_directory_loader/stubs/android/os/Looper.java"
+      ]
+    },
+    "verification/workspace_search": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceLiteralSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_search/WorkspaceSearchCheck.java",
+        "verification/workspace_search/run.sh",
+        "verification/workspace_search/stubs/android/content/ContentResolver.java"
+      ]
+    },
+    "verification/workspace_search_loader": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceDirectoryLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceLiteralSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceSearchLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_search_loader/WorkspaceSearchLoaderCheck.java",
+        "verification/workspace_search_loader/run.sh",
+        "verification/workspace_search_loader/stubs/android/content/Context.java",
+        "verification/workspace_search_loader/stubs/android/os/Handler.java"
+      ]
+    },
+    "verification/workspace_search_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SearchHitVerifier.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceDirectoryLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceLiteralSearch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceRootStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceSearchLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_search_ui/run.sh",
+        "verification/workspace_search_ui/SearchUiCheck.java",
+        "verification/workspace_search_ui/ExtractSearchUi.java",
+        "verification/workspace_search_ui/stubs/android/widget/EditText.java",
+        "verification/workspace_search_ui/stubs/android/widget/Button.java",
+        "verification/workspace_search_ui/stubs/android/content/ContentResolver.java",
+        "verification/workspace_search_ui/stubs/android/text/InputFilter.java"
+      ]
+    },
+    "verification/search_hit_verifier": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SearchHitVerifier.java"
+      ],
+      "test_paths": [
+        "verification/search_hit_verifier/run.sh",
+        "verification/search_hit_verifier/SearchHitVerifierCheck.java",
+        "verification/search_hit_verifier/stubs/android/os/Handler.java"
+      ]
+    },
+    "verification/workspace_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderAnchor.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderPositionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceDirectoryLoader.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceFavoritesStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceRootStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/WorkspaceTreeReader.java"
+      ],
+      "test_paths": [
+        "verification/workspace_ui/WorkspaceUiCheck.java",
+        "verification/workspace_ui/ExtractWorkspace.java",
+        "verification/workspace_ui/WorkspaceFavoritesUiCheck.java",
+        "verification/workspace_ui/run.sh",
+        "verification/workspace_ui/ReaderPlacesUiCheck.java",
+        "verification/workspace_ui/stubs/android/R.java",
+        "verification/workspace_ui/stubs/android/view/View.java",
+        "verification/workspace_ui/stubs/android/view/ViewGroup.java",
+        "verification/workspace_ui/stubs/android/widget/LinearLayout.java",
+        "verification/workspace_ui/stubs/android/widget/EditText.java",
+        "verification/workspace_ui/stubs/android/widget/Toast.java",
+        "verification/workspace_ui/stubs/android/widget/Button.java",
+        "verification/workspace_ui/stubs/android/widget/TextView.java",
+        "verification/workspace_ui/stubs/android/widget/ArrayAdapter.java",
+        "verification/workspace_ui/stubs/android/widget/ScrollView.java",
+        "verification/workspace_ui/stubs/android/content/Intent.java",
+        "verification/workspace_ui/stubs/android/content/ContentResolver.java",
+        "verification/workspace_ui/stubs/android/content/Context.java",
+        "verification/workspace_ui/stubs/android/text/InputFilter.java",
+        "verification/workspace_ui/stubs/android/os/CancellationSignal.java",
+        "verification/workspace_ui/stubs/android/os/Build.java",
+        "verification/workspace_ui/stubs/android/os/Handler.java",
+        "verification/workspace_ui/stubs/android/graphics/drawable/GradientDrawable.java"
+      ]
+    },
+    "verification/contrast": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/contrast/PaletteContrastAudit.java",
+        "verification/contrast/ExtractStyle.java",
+        "verification/contrast/run.sh",
+        "verification/contrast/StyleContrastCheck.java",
+        "verification/contrast/ReadableForegroundCheck.java",
+        "verification/contrast/run_style.sh",
+        "verification/contrast/SplashHintContrastCheck.java",
+        "verification/contrast/stubs/android/graphics/drawable/GradientDrawable.java"
+      ]
+    },
+    "verification/recovery_loader": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AtomicCommit.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/RecoveryStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SessionStore.java"
+      ],
+      "test_paths": [
+        "verification/recovery_loader/ExtractMethods.java",
+        "verification/recovery_loader/run.sh",
+        "verification/recovery_loader/RecoveryLoaderCheck.java",
+        "verification/recovery_loader/RecoveryUiCheck.java",
+        "verification/recovery_loader/stubs/android/content/Context.java"
+      ]
+    },
+    "verification/status_behavior": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestStatistics.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/status_behavior/run.sh",
+        "verification/status_behavior/StatusBehavior.java",
+        "verification/status_behavior/ExtractStatus.java"
+      ]
+    },
+    "verification/statistics": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestStatistics.java"
+      ],
+      "test_paths": [
+        "verification/statistics/run.sh",
+        "verification/statistics/StatisticsDeliveryCheck.java",
+        "verification/statistics/StatisticsBehavior.java"
+      ]
+    },
+    "verification/preview_behavior": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/preview_behavior/ExtractPreview.java",
+        "verification/preview_behavior/run_benchmark.sh",
+        "verification/preview_behavior/run.sh",
+        "verification/preview_behavior/PreviewBenchmark.java",
+        "verification/preview_behavior/PreviewBehavior.java"
+      ]
+    },
+    "verification/preview_navigation": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentPrint.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentPrintLayout.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/preview_navigation/BlockingMarkdownRenderer.java",
+        "verification/preview_navigation/WrapBenchmark.java",
+        "verification/preview_navigation/run_benchmark.sh",
+        "verification/preview_navigation/ExtractNavigation.java",
+        "verification/preview_navigation/run.sh",
+        "verification/preview_navigation/ExtractPrint.java",
+        "verification/preview_navigation/NavigationCheck.java",
+        "verification/preview_navigation/run_print.sh",
+        "verification/preview_navigation/PrintRenderCheck.java",
+        "verification/preview_navigation/PrintCheck.java",
+        "verification/preview_navigation/print_stubs/android/app/Activity.java",
+        "verification/preview_navigation/print_stubs/android/print/PrintJob.java",
+        "verification/preview_navigation/print_stubs/android/print/PageRange.java",
+        "verification/preview_navigation/print_stubs/android/print/PrintManager.java",
+        "verification/preview_navigation/print_stubs/android/print/PrintAttributes.java",
+        "verification/preview_navigation/print_stubs/android/print/PrintDocumentAdapter.java",
+        "verification/preview_navigation/print_stubs/android/print/FrameworkCallbacks.java",
+        "verification/preview_navigation/print_stubs/android/os/Bundle.java",
+        "verification/preview_navigation/print_stubs/android/os/ParcelFileDescriptor.java",
+        "verification/preview_navigation/print_stubs/android/os/CancellationSignal.java",
+        "verification/preview_navigation/print_stubs/android/os/Looper.java",
+        "verification/preview_navigation/print_stubs/android/os/Handler.java",
+        "verification/preview_navigation/print_stubs/android/os/SystemClock.java",
+        "verification/preview_navigation/print_stubs/android/net/Uri.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebResourceError.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebViewClient.java",
+        "verification/preview_navigation/print_stubs/android/webkit/ValueCallback.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebResourceRequest.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebSettings.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebResourceResponse.java",
+        "verification/preview_navigation/print_stubs/android/webkit/WebView.java"
+      ]
+    },
+    "verification/outline_navigation": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownStructure.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/NavigationChoices.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SearchEngine.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/outline_navigation/OutlineCheck.java",
+        "verification/outline_navigation/run.sh",
+        "verification/outline_navigation/ExtractOutline.java",
+        "verification/outline_navigation/baseline/OutlineCheck.java",
+        "verification/outline_navigation/baseline/ExtractOutline.java"
+      ]
+    },
+    "verification/print_layout": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentPrintLayout.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownRenderer.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ReaderTypography.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceDeepLinks.java"
+      ],
+      "test_paths": [
+        "verification/print_layout/PrintLayoutCheck.java",
+        "verification/print_layout/run.sh",
+        "verification/print_layout/pdf_check.py"
+      ]
+    },
+    "verification/docx_export": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownDocx.java"
+      ],
+      "test_paths": [
+        "verification/docx_export/check_pdf.py",
+        "verification/docx_export/ReviewRegression.java",
+        "verification/docx_export/check.py",
+        "verification/docx_export/run.sh",
+        "verification/docx_export/DocxCheck.java"
+      ]
+    },
+    "verification/docx_publication": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentDocxExport.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocxNewCopy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocxStage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownDocx.java"
+      ],
+      "test_paths": [
+        "verification/docx_publication/run.sh",
+        "verification/docx_publication/DocxPublicationCheck.java",
+        "verification/docx_publication/stubs/android/content/ContentResolver.java",
+        "verification/docx_publication/stubs/android/content/Context.java",
+        "verification/docx_publication/stubs/android/provider/DocumentsContract.java",
+        "verification/docx_publication/stubs/android/os/Looper.java",
+        "verification/docx_publication/stubs/android/os/Handler.java",
+        "verification/docx_publication/stubs/android/system/StructStat.java",
+        "verification/docx_publication/stubs/android/system/Os.java",
+        "verification/docx_publication/stubs/android/system/OsConstants.java",
+        "verification/docx_publication/stubs/android/system/ErrnoException.java"
+      ]
+    },
+    "verification/docx_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentDocxExport.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocxPickerActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownDocx.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/docx_ui/Intent.java",
+        "verification/docx_ui/ExtractDocxUi.java",
+        "verification/docx_ui/run.sh",
+        "verification/docx_ui/DocxPickerCheck.java",
+        "verification/docx_ui/DocxUiCheck.java",
+        "verification/docx_ui/proxy_stubs/android/app/Activity.java",
+        "verification/docx_ui/proxy_stubs/android/os/Bundle.java"
+      ]
+    },
+    "verification/line_index": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/KineticEditText.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/LogicalLineIndex.java"
+      ],
+      "test_paths": [
+        "verification/line_index/LineIndexMemoryCheck.java",
+        "verification/line_index/LineIndexBenchmark.java",
+        "verification/line_index/run.sh",
+        "verification/line_index/LineIndexCheck.java",
+        "verification/line_index/extract.py"
+      ]
+    },
+    "verification/syntax": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MarkdownSyntaxHighlighter.java"
+      ],
+      "test_paths": [
+        "verification/syntax/SyntaxBenchmark.java",
+        "verification/syntax/extract_schedule.py",
+        "verification/syntax/run.sh",
+        "verification/syntax/SyntaxCheck.java",
+        "verification/syntax/SchedulingCheck.java",
+        "verification/syntax/stubs/android/text/Editable.java",
+        "verification/syntax/stubs/android/graphics/Color.java",
+        "verification/syntax/stubs/android/text/style/StyleSpan.java",
+        "verification/syntax/stubs/android/text/style/ForegroundColorSpan.java",
+        "verification/syntax/stubs/android/text/style/BackgroundColorSpan.java",
+        "verification/syntax/stubs/android/text/style/CharacterStyle.java"
+      ]
+    },
+    "verification/save_lifecycle": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AndroidDurability.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/save_lifecycle/run.sh",
+        "verification/save_lifecycle/SaveLifecycleCheck.java",
+        "verification/save_lifecycle/ExtractSaveMethods.java"
+      ]
+    },
+    "verification/protection_store": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/AndroidDurability.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java"
+      ],
+      "test_paths": [
+        "verification/protection_store/run_completion_restart.py",
+        "verification/protection_store/ProtectionStoreCheck.java",
+        "verification/protection_store/ProtectionMemoryProbe.java",
+        "verification/protection_store/run.sh",
+        "verification/protection_store/CompletionReservationCheck.java",
+        "verification/protection_store/CompletionRestartProbe.java",
+        "verification/protection_store/run_adapter.sh",
+        "verification/protection_store/run_memory.sh",
+        "verification/protection_store/AndroidDurabilityCheck.java",
+        "verification/protection_store/stubs/android/system/StructStat.java",
+        "verification/protection_store/stubs/android/system/Os.java",
+        "verification/protection_store/stubs/android/system/OsConstants.java",
+        "verification/protection_store/stubs/android/system/ErrnoException.java"
+      ]
+    },
+    "verification/save_coordinator": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java"
+      ],
+      "test_paths": [
+        "verification/save_coordinator/ProtectionMemoryProbe.java",
+        "verification/save_coordinator/run.sh",
+        "verification/save_coordinator/SaveCoordinatorCheck.java",
+        "verification/save_coordinator/run_memory.sh",
+        "verification/save_coordinator/ProtectionBenchmark.java"
+      ]
+    },
+    "verification/protection_restart": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java"
+      ],
+      "test_paths": [
+        "verification/protection_restart/run.sh",
+        "verification/protection_restart/run.py",
+        "verification/protection_restart/RestartProbe.java"
+      ]
+    },
+    "verification/split_resize": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SplitResizeController.java"
+      ],
+      "test_paths": [
+        "verification/split_resize/run.sh",
+        "verification/split_resize/UiTest.java",
+        "verification/split_resize/ExtractUi.java",
+        "verification/split_resize/SplitResizeControllerTest.java"
+      ]
+    },
+    "verification/history_catalog": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_catalog/run.sh",
+        "verification/history_catalog/HistoryCatalogCheck.java"
+      ]
+    },
+    "verification/history_index": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMetadataIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java"
+      ],
+      "test_paths": [
+        "verification/history_index/run.sh",
+        "verification/history_index/HistoryIndexCheck.java"
+      ]
+    },
+    "verification/history_diff": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryDiff.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_diff/run.sh",
+        "verification/history_diff/HistoryDiffCheck.java"
+      ]
+    },
+    "verification/history_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/EditorTools.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryController.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryDiff.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruneIntent.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/SaveCoordinator.java"
+      ],
+      "test_paths": [
+        "verification/history_ui/HistoryControllerCheck.java",
+        "verification/history_ui/run.sh",
+        "verification/history_ui/CaptureRaceCheck.java"
+      ]
+    },
+    "verification/local_protection_status": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryController.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/local_protection_status/LocalProtectionStatusCheck.java",
+        "verification/local_protection_status/run.sh"
+      ]
+    },
+    "verification/local_protection_policy": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryController.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/local_protection_policy/LocalProtectionPolicyCheck.java",
+        "verification/local_protection_policy/run.sh"
+      ]
+    },
+    "verification/history_ui_integration": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/DocumentTab.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryController.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryDiff.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/history_ui_integration/run_mutations.py",
+        "verification/history_ui_integration/run.sh",
+        "verification/history_ui_integration/ExtractHistoryMethods.java",
+        "verification/history_ui_integration/HistoryActionsCheck.java",
+        "verification/history_ui_integration/stubs/android/R.java",
+        "verification/history_ui_integration/stubs/android/view/View.java",
+        "verification/history_ui_integration/stubs/android/view/ViewGroup.java",
+        "verification/history_ui_integration/stubs/android/widget/EditText.java",
+        "verification/history_ui_integration/stubs/android/widget/TextView.java",
+        "verification/history_ui_integration/stubs/android/widget/ArrayAdapter.java",
+        "verification/history_ui_integration/stubs/android/widget/ScrollView.java"
+      ]
+    },
+    "verification/protected_saves_ui": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java"
+      ],
+      "test_paths": [
+        "verification/protected_saves_ui/Intent.java",
+        "verification/protected_saves_ui/run.sh",
+        "verification/protected_saves_ui/ProtectedSavesCheck.java",
+        "verification/protected_saves_ui/ExtractProtectedSaves.java"
+      ]
+    },
+    "verification/history_retention": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMetadataIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_retention/HistoryGraphCheck.java",
+        "verification/history_retention/run.sh"
+      ]
+    },
+    "verification/history_planner": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMetadataIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruner.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_planner/HistoryPrunerCheck.java",
+        "verification/history_planner/HistoryPressureCheck.java",
+        "verification/history_planner/run.sh"
+      ]
+    },
+    "verification/history_capacity": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMetadataIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_capacity/run_restart.py",
+        "verification/history_capacity/CapacityRestartProbe.java",
+        "verification/history_capacity/run.sh",
+        "verification/history_capacity/HistoryCapacityCheck.java",
+        "verification/history_capacity/HistoryControlCodecCheck.java"
+      ]
+    },
+    "verification/automatic_retention_policy": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/PrivateOperationRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/automatic_retention_policy/AutomaticRetentionPolicyCheck.java",
+        "verification/automatic_retention_policy/run.sh"
+      ]
+    },
+    "verification/control_inspection_bounds": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java"
+      ],
+      "test_paths": [
+        "verification/control_inspection_bounds/run.sh",
+        "verification/control_inspection_bounds/ControlInspectionBoundsCheck.java"
+      ]
+    },
+    "verification/history_pins": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceRecovery.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPins.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruneIntent.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruner.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_pins/run_restart.py",
+        "verification/history_pins/HistoryPinsCheck.java",
+        "verification/history_pins/PinMaintenanceProbe.java",
+        "verification/history_pins/PinRestartProbe.java",
+        "verification/history_pins/run.sh",
+        "verification/history_pins/PinLifecycleCheck.java",
+        "verification/history_pins/PinManifestCheck.java"
+      ]
+    },
+    "verification/native_terminal_validation": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/native_terminal_validation/NativeTerminalValidationCheck.java",
+        "verification/native_terminal_validation/run.sh"
+      ]
+    },
+    "verification/native_terminal_workspace": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMetadataIO.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/NativeTerminalWorkspace.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/native_terminal_workspace/run.sh",
+        "verification/native_terminal_workspace/NativeTerminalWorkspaceCheck.java"
+      ]
+    },
+    "verification/history_operations": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinTerminalRecovery.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPins.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_operations/ClosePrefixCheck.java",
+        "verification/history_operations/run_restart.py",
+        "verification/history_operations/run.sh",
+        "verification/history_operations/OperationTerminalCheck.java",
+        "verification/history_operations/OperationRestartProbe.java",
+        "verification/history_operations/OperationQuiescenceCheck.java"
+      ]
+    },
+    "verification/history_operation_data": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryArchiveManifest.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPins.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/PrivateOperationRecord.java"
+      ],
+      "test_paths": [
+        "verification/history_operation_data/run.sh",
+        "verification/history_operation_data/OperationDataCheck.java"
+      ]
+    },
+    "verification/history_maintenance": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceRecovery.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruneIntent.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruner.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_maintenance/run_restart.py",
+        "verification/history_maintenance/MaintenanceRecoveryCheck.java",
+        "verification/history_maintenance/run.sh",
+        "verification/history_maintenance/MaintenanceRestartProbe.java",
+        "verification/history_maintenance/IntentCodecCheck.java"
+      ]
+    },
+    "verification/history_executor": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCatalog.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryGraph.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIdentity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryIndex.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceExecutor.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceRecovery.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryOperations.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPins.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruneIntent.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruner.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/history_executor/run_restart.py",
+        "verification/history_executor/ExecutorRestartProbe.java",
+        "verification/history_executor/ExecutorCheck.java",
+        "verification/history_executor/run.sh"
+      ]
+    },
+    "verification/automatic_retention": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryCapacity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryControlStore.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceExecutor.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryMaintenanceRecovery.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPinRecord.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPins.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPolicy.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruneIntent.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryPruner.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/HistoryStorage.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ProtectionStore.java"
+      ],
+      "test_paths": [
+        "verification/automatic_retention/AutomaticRetentionCheck.java",
+        "verification/automatic_retention/run_restart.py",
+        "verification/automatic_retention/run.sh",
+        "verification/automatic_retention/AutomaticRestartProbe.java"
+      ]
+    },
+    "verification/test_baseline_inventory.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_baseline_inventory.py"
+      ]
+    },
+    "verification/test_check_selection.py": {
+      "inputs": [],
+      "test_paths": [
+        "verification/test_check_selection.py",
+        "verification/select_checks.py",
+        "verification/check_catalog.json"
+      ]
+    }
+  }
+}

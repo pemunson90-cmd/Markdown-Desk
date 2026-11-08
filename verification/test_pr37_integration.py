@@ -28,18 +28,9 @@ class IntegratedEfficiencyTests(unittest.TestCase):
         self.assertEqual(1, queue.count("<!-- source-contract:begin -->"))
         self.assertEqual(1, queue.count("<!-- source-contract:end -->"))
         self.assertFalse((ROOT / "docs/CURRENT_SOURCE.json").exists())
-        self.assertTrue(read("docs/STATUS.md").startswith("<!-- historical-status-redirect:"))
         guard = read("verification/check_current_source.py")
         self.assertIn("source_record(root)", guard)
         self.assertNotIn("CURRENT_SOURCE.json", guard)
-
-    def test_manifest_checks_keep_historical_allowlist(self):
-        for script in ("check_layout.py", "check_live_appearance.py"):
-            content = read("verification/" + script)
-            self.assertIn("from check_current_source import current_release_pair", content)
-            self.assertIn("('18','2.2.5')", content)
-            self.assertIn("('30','2.3.2-emaillinks1')", content)
-            self.assertIn("current_release_pair(root)", content)
 
     def test_single_downloads_invocation_and_guard_registration(self):
         for name in ("run_host_checks.sh", "run_current_phone_checks.sh"):
@@ -47,8 +38,6 @@ class IntegratedEfficiencyTests(unittest.TestCase):
             self.assertEqual(1, runner.count("bash verification/downloads_browser/run.sh"), name)
             self.assertEqual(1, runner.count("python3 verification/check_current_source.py"), name)
             self.assertEqual(1, runner.count("bash verification/source_extraction/run.sh"), name)
-            self.assertEqual(1, runner.count("test_current_source_guard.py"), name)
-            self.assertEqual(1, runner.count("test_pr37_integration.py"), name)
 
     def test_renderer_host_compilers_include_internal_link_dependency(self):
         for runner in sorted((ROOT / "verification").rglob("*.sh")):

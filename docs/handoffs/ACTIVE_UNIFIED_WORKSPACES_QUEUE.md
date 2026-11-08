@@ -228,7 +228,7 @@ The read-only guard reads this *single* fenced record. Update this entry only wh
 {
   "schema_version": 1,
   "development": {
-    "branch": "integration/unified-workspaces-20261106",
+    "branch": "main",
     "anchor_commit": "6f9f8b6cc3003305f7a9c1697291a4f49b84126e",
     "manifest": {
       "package": "com.example.markdowndesk",
@@ -239,12 +239,12 @@ The read-only guard reads this *single* fenced record. Update this entry only wh
     }
   },
   "installed": {
-    "status": "unconfirmed",
-    "source_commit": null,
-    "apk_sha256": null,
-    "certificate_sha256": null,
-    "owner_accepted": false,
-    "evidence": null
+    "status": "verified",
+    "source_commit": "7b8a88cb80f293bf5b78e65174fc98b555bed537",
+    "apk_sha256": "1ffb374eef2b9e685ac1b71cea811470320dc6fe1e3ae1072d0bd3ac68d0b47b",
+    "certificate_sha256": "a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01",
+    "owner_accepted": true,
+    "evidence": "docs/handoffs/LIVE_WORK_LEDGER.md"
   },
   "evidence": [
     "docs/development/UNIFIED_WORKSPACES_COMPLETE_IMPLEMENTATION.md",

@@ -6,6 +6,7 @@
 
 **Every test must answer a specific unresolved question whose answer could change the next engineering or delivery decision.** “Being thorough,” reassurance, and increasing test counts are not sufficient reasons to run more checks.
 
+- Start with `python3 verification/select_checks.py --base <last-verified-commit>` and [the selection procedure](docs/TEST_SELECTION.md). An unmapped change requires an explicit verification decision; it is never an automatic pass.
 - Define the smallest relevant verification set and its stopping condition for the actual change. Use maintained tests and existing evidence; do not create a new audit campaign by default.
 - Once the relevant checks and applicable required gates pass, **stop testing and proceed to delivery or the next authorized task**. Do not make the owner enforce this stopping point.
 - Reopen verification only for changed code or dependencies that affect the evidence, a failure, or a concrete new concern. Identify the question and run the affected checks; do not automatically restart every legacy suite.
@@ -16,19 +17,13 @@
 
 Keep the rationale brief and reuse the existing ledger when needed. This rule must not become another checklist bureaucracy or a reason to write tests for the testing policy itself.
 
-> **Active Unified Workspaces handoff (2026-11-06; overrides conflicting auto-resume or old roadmap instructions below).** Read [the one authoritative integration queue](docs/handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) FIRST, verify its current remote head and next incomplete batch, then perform only the bounded work explicitly requested for this turn. Preserve dirty/local work; never assume `main` or an old “current” status is the working integration head. PR #37 source guards, workflow efficiency and test helpers are first implementation priority **after** reconciliation planning; do not blindly merge its older branch.
-> **Active release boundary:** entire approved Unified Workspaces contract, existing capabilities and relevant unresolved bugs; **exclude** cross-installation private-state export/import, retain inert code/history. `main` must contain only the latest owner-accepted stable source. No automatic M0–M7 continuation, secret/CI spending, intermediate APK, or unrequested branch retirement. The rest of this document preserves standing engineering policies and historical context when not contradictory.
+> **Current baseline:** owner-accepted Markdown Desk 2.5.0 / versionCode 39, published as `V2.5.0`. Read [LIVE_WORK_LEDGER.md](docs/handoffs/LIVE_WORK_LEDGER.md) for the active task and evidence, then inspect the actual branch and source. The old integration queue, STATUS chronology, and M0–M7 roadmap are historical context, not automatic task orders. Work only within the current owner-authorized scope; do not restart completed work or retire branches/PRs without authorization.
+> **Release boundary:** preserve all working capabilities and user data. Cross-installation private application-state export/import remains deferred. Local save/history/recovery and ordinary exports remain required. No GitHub Actions without explicit owner authorization.
 
 ## Owner Android compatibility policy (2026-11-06)
 
 Support the latest **stable** major Android release and the **two preceding major releases**, not older versions. As of this directive Android 17 is current (API 37), so Markdown Desk's active development minimum is **Android 15 (API 35)**, with required Android 15/16/17 compatibility checks. When a new stable major version arrives, review and advance the floor accordingly; don't retain legacy API workarounds solely for unsupported Android versions. The *minimum supported OS* and *targetSdkVersion* are separate decisions: raise minSdk to 35 now; adjust targetSdk only after evaluating behavior changes, especially Fold/window insets, storage permissions, and background imports. Preserve all previously working features and user data **on supported versions**, including in-place upgrades. Historical Android 8 / minSdk26 baselines remain provenance, not a requirement to support Android 8 in new versions.
 
-
-## Android OS support window — owner directive (2026-11-06)
-
-**Support only the current stable Android major version and the two immediately preceding major versions.** As of 2026-11-06, Android 17 (API 37) is stable, so the supported range is **Android 15–17 (minimum API 35)**. No requirement to maintain, run compatibility checks for, or design new workarounds specifically for Android 14/API 34 or earlier. Raise the minimum OS floor as the stable Android major-version window advances, with deliberate integration/testing rather than silently during an active build. This applies to manifests, build scripts, dependency choices, and device-test matrices. The *target SDK* is a distinct decision and may change only with relevant behavior checks.
-
-**This is an OS-support policy only.** Preserve existing user data, in-place app upgrades, documents, notes, annotations, saved states, current functional features, and the canonical signing identity. Dropping old Android OS compatibility never authorizes destructive data migration or loss of working features.
 
 ## Owner hard rule — complete the whole assigned task before delivery (2026-11-06)
 
@@ -47,14 +42,13 @@ Give brief progress reports at meaningful milestones and on real blockers, not a
 **Before coding**, identify the actual most recent owner-accepted/installed usable baseline and the current authoritative development/integration branch; verify commit ancestry and inspect existing successful implementations, including playable prototypes, simulators and branches that the new work replaces. Neither `main` nor the newest-looking version number alone establishes the full feature set. For replacements or substantial refactors, account for each relevant existing capability and preserve behavior or explicitly approved improvements; check meaningful parity/regressions against the old working path. Recheck on the final integration head. If preservation and the requested change conflict, retain the old working functionality and seek Pat's explicit ruling on that **specific** loss; continue independent non-destructive work. Do not substitute extra paperwork or indiscriminate test campaigns for actual continuity checks. Apply updated guidance at the next safe work boundary without disrupting active writers.
 
 
-This file governs every Codex session in this repository. **Read it first**, then `docs/STATUS.md`, `docs/ROADMAP.md`, `docs/RELEASE_GATES.md`, and relevant current decisions/source. Do not obey historical one-shot kickoff notes over this contract. Git source and observed tests outrank AI summaries.
+This file governs every agent session in this repository. **Read it first**, then `docs/handoffs/LIVE_WORK_LEDGER.md` and the source and guidance relevant to the authorized task. Read `docs/RELEASE_GATES.md` when preparing a new release. Do not obey historical one-shot kickoff notes over this contract. Git source and observed tests outrank AI summaries.
 
-## Mission and ongoing authorization
-Build the complete **Markdown Desk Professional** M0–M7 roadmap as one sustained engineering campaign, not one prompt per issue. The protected shipping baseline is 2.2.5 / versionCode 18, package `com.example.markdowndesk`, historical minSdk26/targetSdk35 (provenance only, superseded for current active development by the Android 15+ floor). The exact baseline source was imported on PR #9; never recreate it from memory. The current progress and next executable action live in `docs/STATUS.md`.
+## Mission and task scope
 
-Continue to the next eligible, approved roadmap task immediately after each bounded change, PR, or milestone. A successful test or closed issue is a checkpoint, **not** the end of the assignment. Within the available run, pursue as much verified work as feasible. When context/runtime/usage ends, leave committed, recoverable work and precise next steps; instructions cannot make an ended session keep running.
+Complete the owner's current assignment and stop when its acceptance conditions are met. Continue through its independent unblocked work without requiring repeated “Continue” prompts. A roadmap is not standing authorization to start unrelated expansion. Preserve `v2.2.5-baseline` as historical provenance and the accepted `V2.5.0` release as the current shipping baseline until superseded by an owner-accepted release.
 
-Stop and request input only for a genuine external dependency, a new material product decision, irreversible/destructive action, unavailable private input, or required owner/device acceptance. When blocked on one item, record it and execute independent unblocked work. Never bypass failing safety/release gates to keep moving.
+If blocked by an external dependency, material product decision, unavailable private input, or necessary device acceptance, record the blocker and next executable action in the live ledger. Never bypass a failing relevant safety gate or misrepresent host tests as device acceptance.
 
 ## Agent leadership, reasoning effort and delegation
 - **Orchestration:** when model/agent selection is available, assign the strongest *capable* available agent/model to overall planning, integration, risk ownership and final synthesis. The orchestrator should keep repository context and make coherent architectural decisions.
@@ -65,20 +59,20 @@ Stop and request input only for a genuine external dependency, a new material pr
 - Optimize **total** wall time and token/compute spend, including rework and context reloads—not the appearance of maximizing subagent utilization.
 
 ## Codex environment first; GitHub as durable remote
-- **Do routine work inside the existing Codex workspace:** inspect files with local search, edit files locally, use local shell and git, build, run tests, diff, benchmark, debug, examine manifests and verify artifacts. Reuse installed JDK17 / Android SDK37 / build-tools36.0.0 when compatible; do not repeatedly reprovision or download already available tools.
+- **Do routine work inside the existing Codex workspace:** inspect files with local search, edit files locally, use local shell and git, build, run tests, diff, benchmark, debug, examine manifests and verify artifacts. Reuse installed JDK17 / Android SDK37 / build-tools36.1.0 when compatible; do not repeatedly reprovision or download already available tools.
 - Use **local Git** for commits, branches, diffs, history and code review preparation. Use **GitHub remote** for pushing/synchronizing, PRs, code review, issue tracking, tags, durable documentation, and authorized releases. Prefer `git`/local filesystem to remote GitHub API calls for everyday reading/writing/searching.
-- **GitHub Actions and external tools are exceptions, not the default workbench.** Invoke them when required by branch protections, portability/independent-runner verification, hardware/test infrastructure unavailable locally, or a specific integration/release gate. Do not trigger Actions for every trivial edit, duplicate local tests in CI without value, or use web/API round trips to inspect files already in the checkout.
+- **No GitHub Actions without explicit owner authorization.** Use local verification and reuse valid evidence. A historical workflow or branch-protection note is not authorization to execute hosted jobs.
 - Avoid unnecessary agent calls, repeated broad repository scans, duplicate benchmark runs, verbose logs in context, and needless PR/issue fragmentation. Capture short reproducible commands and evidence once, then reuse it until inputs change.
 - Offline-first builds/tests where practical. Never send signing material or personal content to hosted CI/PRs/issues.
-- **CI and safety classification:** follow [docs/CI_AND_WORKFLOW_POLICY.md](docs/CI_AND_WORKFLOW_POLICY.md). Draft PR work uses local tests; review-ready PRs trigger hosted validation. Keep generic-provider destructive-write probes visibly RED as raw hazard evidence, while actual protected transaction/recovery behavior must pass required production-path tests. Neither test class may silently replace or excuse the other.
+- **CI and safety classification:** follow [docs/CI_AND_WORKFLOW_POLICY.md](docs/CI_AND_WORKFLOW_POLICY.md). Use local tests; historical hosted-validation recipes do not override the no-Actions rule. Keep generic-provider destructive-write probes visibly RED as raw hazard evidence, while actual protected transaction/recovery behavior must pass required production-path tests. Neither test class may silently replace or excuse the other.
 
 ## Continuous implementation loop
-1. Resolve the **current** checked-out branch/PR/issue and current status; consult `docs/STATUS.md` before planning. Inspect modified files, not the full project from scratch every turn.
-2. Pick the next unblocked, high-value slice in `docs/ROADMAP.md` (safety and tests before feature expansion). Plan bounded implementation with test criteria and ownership.
+1. Resolve the **current** checked-out branch/PR/issue and current status; consult `docs/handoffs/LIVE_WORK_LEDGER.md` before planning. Inspect modified files, not the full project from scratch every turn.
+2. Pick the next unblocked part of the owner-authorized task. Define its smallest relevant verification set, stopping condition, and file ownership.
 3. Implement with explicit non-destructive migration and backward-compatibility requirements. Add behavioral tests before or with code; prefer meaningful functional tests over static source-string assertions.
 4. Run the *smallest relevant* local tests early; run broader host/build/regression suites at integration gates. Benchmark on matched fixtures when performance is affected. State exactly what ran, failed or was unavailable.
 5. Have an independent critical review where it improves correctness; fix defects, re-test and inspect final diff. Merge only when applicable code-review and safety gates pass.
-6. Commit in coherent units; use one PR per meaningful integrated slice, not one per tiny edit. When gatekeeping permits, merge, reconcile documents and continue to the next task **without asking for a new prompt**.
+6. Commit in coherent units; use one PR per meaningful integrated change. Merge only within the authorized scope. Continue the assigned work; stop when it is complete.
 7. Maintain a reproducible checkpoint before long context compaction, task transition or interruption. If unable to proceed anywhere, give a concise factual blocker report and the next exact action.
 
 A completed import of unchanged source is not a new app release. Host builds are not device/Fold acceptance. Do not hold safe, already verified source/version-control housekeeping hostage to unrelated future physical-device tests; keep those gates explicit for user-facing releases.
@@ -86,7 +80,7 @@ A completed import of unchanged source is not a new app release. Host builds are
 ## Documents are a living control plane — prevent staleness
 - `AGENTS.md`: durable global engineering behavior, tool routing and safety rules; never copy the whole roadmap here.
 - `docs/ROADMAP.md`: authorized features, dependencies, sequencing and completion gates. It is the full multi-milestone campaign scope.
-- `docs/STATUS.md`: **single current-state checkpoint**: current verified baseline, active branch/PR, achieved test evidence, blockers, next runnable task, and true not-run gates. Refresh whenever task state changes or before pausing.
+- `docs/handoffs/LIVE_WORK_LEDGER.md`: single current execution checkpoint: baseline, branch, task, executed evidence, blockers, and next action. `docs/STATUS.md` retains historical chronology and redirects here.
 - `docs/DECISIONS.md`: append-only significant decisions, including revised decisions with links; retain chronology. Use scoped ADRs for material architecture.
 - `README.md`: brief durable project introduction and pointers to authoritative live docs; do **not** freeze stale "start issue #1" instructions or claim implementation/release status based on plans.
 - `docs/CODEX_START.md`: reusable short resume recipe, never an obsolete one-task mandate.
@@ -102,6 +96,6 @@ A completed import of unchanged source is not a new app release. Host builds are
 - Document all behavior changed/preserved/deferred in code review; do not conflate compile, host, emulator, phone and Fold results. `docs/RELEASE_GATES.md` controls production readiness.
 - Reuse existing non-Gradle `build.sh` (`javac`, `aapt2`, D8, `zipalign`, `apksigner`) unless measured benefits and an approved ADR warrant a migration. The canonical signed path requires four private environment variables named in build scripts; never print their values.
 
-## Current campaign checkpoint
+## Resume checkpoint
 
-PR #9 merged the verified source baseline; `v2.2.5-baseline` is a source-only provenance tag, not a new APK release. Issue #1 is complete. Resume active M0 behavioral safety tests and benchmarks from `docs/STATUS.md`, then continue eligible M1–M7 slices. Physical Fold/SAF/upgrade acceptance remains a user-facing release gate, not a reason to halt independent local tests/design work.
+Use the live ledger and current owner request. The Professional campaign and PR #9 import are completed historical context, not instructions to resume M0. Shipping an unchanged verified artifact or editing documentation does not require rebuilding or rerunning application tests.

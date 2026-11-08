@@ -1,3 +1,17 @@
+# FAST RESUME — POST-RELEASE MAINTENANCE COMPLETE
+
+- **Shipping baseline:** `V2.5.0` / code39, accepted and published by Pat (owner report). Original APK unchanged. Latest pre-maintenance guidance commit: `3775af3323ae97c133ef1969ca7e504356f9f833`.
+- **Active task:** completed bounded bug/dependency/documentation audit and change-based test selection. Work branch `maintenance/test-selection-audit`; use its latest Git head for the exact maintenance commit.
+- **Completed:** 106-check inventory/planner, conditional tooling self-tests, two obsolete assertion retirements, active guidance cleanup, build-tools default alignment, installed-source record reconciliation.
+- **Executed checks:** 8 selector behavior cases, 6 PR37 tooling checks, 3 signing-gate structure checks PASS; source-record guard PASS; inventory, shell syntax and whitespace review PASS. No app rebuild, stress run, Actions, new APK or new device-test claim.
+- **Open findings:** two confirmed indexed-search defects need existing-index-safe repair. No runtime fix yet. Future-release wrapper also needs adaptation beyond the completed code39 flow.
+- **Next executable operation:** read [search reproductions and repair acceptance](../maintenance/SEARCH_FINDINGS.md), then implement the bounded source-span/boundary repair. Start verification planning with `python3 verification/select_checks.py --base <last-verified-commit>`; do not rerun unrelated suites.
+- **Handoff:** [maintenance results](../maintenance/MAINTENANCE_20261107.md), [test selection](../TEST_SELECTION.md), [dependency findings](../maintenance/DEPENDENCY_AUDIT.md).
+
+---
+
+## Historical publication handoff (publication subsequently confirmed by owner)
+
 # FAST RESUME — 2.5.0 OWNER ACCEPTED; PUBLICATION IN PROGRESS
 
 - **Owner decision (2026-11-07):** Pat reported “Looks like it works to me!” and requested release publication and a README. This authorizes main promotion and a GitHub Release; it is not an exhaustive device-matrix result.

@@ -1,3 +1,5 @@
+> **Current:** owner reports V2.5.0 published. Post-release maintenance and the two confirmed search findings are recorded in [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md). Older publication-pending statements below are historical.
+
 > **Current 2.5.0 status:** owner accepted the signed code39 APK and authorized release. See [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md) for publication status and [release notes](releases/2.5.0.md). Earlier status entries are historical.
 
 <!-- historical-status-redirect: 2026-11-06 -->
