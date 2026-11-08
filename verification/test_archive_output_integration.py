@@ -42,7 +42,7 @@ class ArchiveOutputIntegration(unittest.TestCase):
     def test_receipt_is_streaming_and_fails_on_mismatch(self):
         r=self.receipt
         self.assertIn("MessageDigest.getInstance(\"SHA-256\")",r)
-        self.assertIn("if(!closed||bytes<=0)",r)
+        self.assertIn("if(!closed||!closeSucceeded||bytes<=0)",r)
         self.assertIn("if(total!=receipt.length||!Arrays.equals",r)
         self.assertIn("Export output readback differs",r)
         self.assertIn("if(read==0)",r)
