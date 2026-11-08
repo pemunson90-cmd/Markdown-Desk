@@ -1,0 +1,18 @@
+Source count: 138
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+verification/archive_reader/CoordinatorCancelGuardCheck.java:15: warning: Unsafe is internal proprietary API and may be removed in a future release
+    sun.misc.Unsafe unsafe;
+            ^
+verification/archive_reader/CoordinatorCancelGuardCheck.java:16: warning: Unsafe is internal proprietary API and may be removed in a future release
+    Field theUnsafe=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+                            ^
+verification/archive_reader/CoordinatorCancelGuardCheck.java:17: warning: Unsafe is internal proprietary API and may be removed in a future release
+    theUnsafe.setAccessible(true);unsafe=(sun.misc.Unsafe)theUnsafe.get(null);
+                                                  ^
+3 warnings
+PASS: idle and terminal-state Cancel are inert
+SOURCE-ONLY PASS: full Java/AAPT2/D8; no APK produced
+classes.dex 1535164 090bf9f19bfd19642cffd1b097a4c1652187668a7bf49701f33720298dabdc71

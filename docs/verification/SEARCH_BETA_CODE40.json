@@ -1,0 +1,16 @@
+{
+  "apk": "MarkdownDesk-2.5.1-beta1-v40.apk",
+  "sha256": "63b0f46854bf04a3d984d28435cb64e59242600d1de1d90dcdf066e61d9f437a",
+  "bytes": 5659584,
+  "certificate_sha256": "a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01",
+  "version_code": 40,
+  "version_name": "2.5.1-beta1-search",
+  "package": "com.example.markdowndesk",
+  "min_sdk": 35,
+  "target_sdk": 37,
+  "source_commit": "3e34f115c2cc0d15422f870a4a990c9276775128",
+  "local_compile_commit": "27197f7",
+  "verification": "signature, alignment, package/version, ZIP CRC, DEX and 25 splash assets passed",
+  "library_file_id": "libfile_3c4676732df4819195d8c2b73425f88d",
+  "download_url": "https://chatgpt.com/library?file_id=libfile_3c4676732df4819195d8c2b73425f88d&account_id=personal"
+}

@@ -1,13 +1,14 @@
-# FAST RESUME — SEARCH BETA IMPLEMENTATION ACTIVE
+# FAST RESUME — CODE40 SEARCH BETA DELIVERED
 
-- **Baseline:** `80cbd77d795e07e4bbca18d387ca54fbea312b5c` on main; released V2.5.0/code39 unchanged.
-- **Branch:** `beta/search-index-v3`.
-- **Owner decision:** older derived indexes may be rebuilt after an explicit Yes/No warning. Seamless legacy-index compatibility is deferred separately. Original JSON, annotation journals, bookmarks and source identities must be preserved.
-- **Chunk B1 — COMPLETE:** implement per-source index-format metadata, consented reimport using existing atomic generations/progress/cancellation, bounded search overlap repair, actual matched-span navigation.
-- **Chunk B2 — ACTIVE:** targeted SQL/offset/DOM/consent regressions and one SDK37 source-only compile. Reuse unaffected code39 test evidence; no broad legacy suite/stress reruns.
-- **Chunk B3 — QUEUED:** increase upgrade code to40, original-sign beta only after B1/B2 pass, verify identity/alignment, deliver APK; no main promotion or GitHub Release.
-- **Stop condition:** beta delivered with device-only acceptance and explicit beta limits; no further audit campaign.
-- **Next operation:** complete B1 source and focused fixtures. Focused SQL/Unicode, emitted DOM, extracted navigation and five return-to-results wiring checks PASS. Initial source compile PASS; final compile pending after DB entry validation edit. Previous maintenance evidence below is historical.
+- **Exact tested source:** `3e34f115c2cc0d15422f870a4a990c9276775128` on `beta/search-index-v3`, same tree as locally compiled `27197f7`. Main/released V2.5.0 code39 unchanged.
+- **Active task:** B1 implementation COMPLETE; B2 focused verification COMPLETE; B3 original-signed beta delivery COMPLETE. Await owner phone acceptance; do not rerun unaffected tests.
+- **Implemented:** explicit Yes/No legacy-index rebuild, existing importer progress/cancellation and atomic replacement, 1,024-unit overlap repair, actual FTS matched-span navigation, generation validation and visible ambiguous-rendering refusal. Source JSON and notes/bookmarks preserved.
+- **Executed evidence:** search-v3 SQL/Unicode and metadata preservation PASS; emitted search DOM PASS; extracted navigation PASS after harness update; five return-to-results static checks PASS; final SDK37 AAPT2/Java/D8 source-only compile PASS; original signer preflight and final APK signature/alignment/package/version/contents PASS. No Actions or broad legacy/stress reruns.
+- **Artifact:** `MarkdownDesk-2.5.1-beta1-v40.apk`, 5,659,584 bytes; SHA-256 `63b0f46854bf04a3d984d28435cb64e59242600d1de1d90dcdf066e61d9f437a`; original certificate `a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01`.
+- **Download:** [signed code40 beta](https://chatgpt.com/library?file_id=libfile_3c4676732df4819195d8c2b73425f88d&account_id=personal). [Verification and beta limits](../verification/SEARCH_BETA_CODE40.md), [artifact identity](../verification/SEARCH_BETA_CODE40.json).
+- **Next executable operation:** owner installs over code39; verify No leaves old index/notes, Yes rebuilds, cancellation keeps previous index, normalized/boundary search hits navigate, fold/rotation/return-to-results work. No stable promotion or release without acceptance.
+- **Separate follow-up:** seamless old-index compatibility remains deferred; token-normalized spans with >1,024 source units of separators and raw Markdown spans that cannot be uniquely mapped to rendered text remain explicit beta limits. These are not reasons to rerun unrelated host suites.
+
 
 ---
 

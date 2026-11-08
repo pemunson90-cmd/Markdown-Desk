@@ -22,7 +22,7 @@ Selected checks and actual results:
 | archive_reader/run_search_hit_dom.sh | Does Java-emitted JS highlight/scroll the actual quote in its own message/part and refuse ambiguity? | PASS |
 | archive_navigation/run.sh | Do extracted production navigation methods preserve source/generation and consume actual hit payload correctly? | PASS after updating harness fields for the new payload |
 | test_search_result_return.py | Does changed Android routing retain return-to-results and verified span wiring? | 5 PASS; static wiring evidence only |
-| compile_native_sources_only.sh | Do the complete manifest/resources and production Java compile through SDK37 AAPT2/javac/D8? | Initial PASS; final frozen-source run pending |
+| compile_native_sources_only.sh | Do the complete manifest/resources and production Java compile through SDK37 AAPT2/javac/D8? | PASS on frozen local source 27197f7; mirrored remote source 3e34f115c2cc0d15422f870a4a990c9276775128 |
 | original certificate preflight | Is the original authorized signer available before packaging? | PASS |
 
 The manifest is an explicit manual mapping in this plan: final source compilation and APK package/version inspection verify it. The selector's unmapped warning is not a test pass. No full host/stress rerun, dependency install, Actions, or APK before these gates complete.
@@ -44,3 +44,7 @@ Seamless old-index upgrades remain deferred by owner decision. Rebuild requires 
 3. Search a known boundary-spanning quotation and accent/punctuation variants. Open hit, return to results, rotate/fold, and inspect any explicit highlight warning.
 
 Original-signed APK delivery metadata is recorded in the live ledger after the final gates.
+
+## Signed delivery
+
+Original-signed code40 APK completed after the selected gates. Signature, 16 KiB alignment check, package/version/min/target identity, ZIP CRC, DEX and 25 splash entries verified. See [artifact identity](SEARCH_BETA_CODE40.json). Native verification log is [retained here](SEARCH_BETA_CODE40_NATIVE.txt). No main promotion or GitHub Release.
