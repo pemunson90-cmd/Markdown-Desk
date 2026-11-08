@@ -1,0 +1,15 @@
+{
+  "filename": "MarkdownDesk-2.5.0-phone-v39.apk",
+  "size": 5655488,
+  "sha256": "1ffb374eef2b9e685ac1b71cea811470320dc6fe1e3ae1072d0bd3ac68d0b47b",
+  "source_commit": "7b8a88cb80f293bf5b78e65174fc98b555bed537",
+  "local_source_commit": "01ee67e2f8b0b3bf96dff48d9825f5733cae4cc3",
+  "certificate_sha256": "a163cea419108eb595f3dcb01de16feca878368d4ffc6efc58eb9a8358b6be01",
+  "package": "com.example.markdowndesk",
+  "versionCode": 39,
+  "minSdk": 35,
+  "targetSdk": 37,
+  "entries": 38,
+  "library_file_id": "libfile_58c27c4e5d308191a68d2abca283f8f8",
+  "download_url": "https://chatgpt.com/library?file_id=libfile_58c27c4e5d308191a68d2abca283f8f8&account_id=personal"
+}
