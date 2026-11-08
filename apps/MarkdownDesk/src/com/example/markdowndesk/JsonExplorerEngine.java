@@ -20,6 +20,7 @@ import java.util.Set;
  */
 final class JsonExplorerEngine {
     static final int PAGE_SIZE = 100;
+    static final int MAX_OBJECT_FIELDS = 4096; // bounded duplicate-path proof
     static final int MAX_TRANSCRIPT_MESSAGES = 200;
     private static final int TRANSCRIPT_CHAR_LIMIT = 600_000;
 
@@ -131,6 +132,8 @@ final class JsonExplorerEngine {
                 Set<String> seenNames=new HashSet<>();
                 while (index<offset && json.hasNext()) {
                     String skipped=json.nextName();
+                    if(seenNames.size()>=MAX_OBJECT_FIELDS)
+                        throw new IOException("JSON object exceeds bounded field identity scan; original preserved");
                     if(!seenNames.add(skipped))
                         throw new IOException("Ambiguous duplicate JSON key in this object; original preserved");
                     json.skipValue(); index++;
@@ -138,6 +141,8 @@ final class JsonExplorerEngine {
                 }
                 while (page.entries.size()<PAGE_SIZE && json.hasNext()) {
                     String key=json.nextName();
+                    if(seenNames.size()>=MAX_OBJECT_FIELDS)
+                        throw new IOException("JSON object exceeds bounded field identity scan; original preserved");
                     if(!seenNames.add(key))
                         throw new IOException("Ambiguous duplicate JSON key in this object; original preserved");
                     JsonToken valueType=json.peek();
