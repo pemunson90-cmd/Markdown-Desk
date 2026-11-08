@@ -9,6 +9,9 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /** Bounded read-only verification of raw JSON search hits and optional strict node identity. */
 final class JsonRawSearchHit {
@@ -22,6 +25,58 @@ final class JsonRawSearchHit {
             this.node=node;this.snapshot=snapshot;
         }
     }
+    static final int MAX_HITS=500;
+    static final class Occurrence {
+        final int offset,line;
+        final String snippet;
+        Occurrence(int offset,int line,String snippet){
+            this.offset=offset;this.line=line;this.snippet=snippet;
+        }
+    }
+    static final class SearchResult {
+        final String sha256;
+        final List<Occurrence> hits;
+        final boolean limited;
+        SearchResult(String sha256,List<Occurrence> hits,boolean limited){
+            this.sha256=sha256;
+            this.hits=Collections.unmodifiableList(new ArrayList<>(hits));
+            this.limited=limited;
+        }
+    }
+    private static final class Snapshot {
+        final byte[] bytes;final String sha256,text;
+        Snapshot(byte[] bytes,String sha256,String text){
+            this.bytes=bytes;this.sha256=sha256;this.text=text;
+        }
+    }
+    /** Exact UTF-16 literal scan of one read-only, bounded, strictly decoded
+     * source. Large files and excess result sets return an explicit limitation;
+     * never pretend an 8MiB scan searched a 700MB archive.
+     */
+    static SearchResult search(InputStream stream,String literal)throws IOException {
+        if(literal==null||literal.isEmpty()||literal.length()>128)
+            throw new IOException("Enter a search phrase between 1 and 128 UTF-16 units");
+        Snapshot source=read(stream);
+        String text=source.text;
+        ArrayList<Occurrence> matches=new ArrayList<>();
+        int position=text.indexOf(literal),cursor=0,line=1;
+        while(position>=0&&matches.size()<MAX_HITS){
+            for(int i=cursor;i<position;i++){
+                char ch=text.charAt(i);
+                if(ch=='\r'){
+                    line++;if(i+1<position&&text.charAt(i+1)=='\n')i++;
+                }else if(ch=='\n')line++;
+            }
+            cursor=position;
+            int start=Math.max(0,position-110);
+            int end=Math.min(text.length(),position+literal.length()+110);
+            if(start>0&&Character.isLowSurrogate(text.charAt(start)))start--;
+            if(end<text.length()&&end>0&&Character.isHighSurrogate(text.charAt(end-1)))end++;
+            matches.add(new Occurrence(position,line,text.substring(start,end)));
+            position=text.indexOf(literal,position+1);
+        }
+        return new SearchResult(source.sha256,matches,position>=0);
+    }
     private JsonRawSearchHit(){}
 
     static Hit verify(InputStream stream,String requestedUri,String actualUri,
@@ -33,8 +88,7 @@ final class JsonRawSearchHit {
             String sourceSha,String literal,int offset)throws IOException {
         return verify(stream,requestedUri,actualUri,sourceSha,literal,offset,true);
     }
-    private static Hit verify(InputStream stream,String requestedUri,String actualUri,
-            String sourceSha,String literal,int offset,boolean keepSnapshot)throws IOException {
+    private static Snapshot read(InputStream stream)throws IOException {
         if(stream==null)throw new IOException("JSON source permission unavailable");
         ByteArrayOutputStream received=new ByteArrayOutputStream(16384);
         byte[] buffer=new byte[8192];int count;
@@ -62,7 +116,14 @@ final class JsonRawSearchHit {
         }catch(java.nio.charset.CharacterCodingException damaged){
             throw new IOException("JSON source contains malformed UTF-8",damaged);
         }
-        if(!UnifiedSearchJump.matches(requestedUri,actualUri,sourceSha,actualSha,
+
+        return new Snapshot(source,actualSha,text);
+    }
+    private static Hit verify(InputStream stream,String requestedUri,String actualUri,
+            String sourceSha,String literal,int offset,boolean keepSnapshot)throws IOException {
+        Snapshot parsed=read(stream);
+        String text=parsed.text;
+        if(!UnifiedSearchJump.matches(requestedUri,actualUri,sourceSha,parsed.sha256,
                 text,literal,offset,false))
             throw new IOException("JSON passage moved or file changed; search again");
         int line=1;
@@ -80,6 +141,6 @@ final class JsonRawSearchHit {
         try{node=JsonNodeLocator.locate(text,offset,literal.length());}
         catch(IOException malformedOrAmbiguous){/* Keep the verified raw passage only. */}
         return new Hit(literal,text.substring(start,end),line,offset-start,
-                offset-start+literal.length(),node,keepSnapshot?source:null);
+                offset-start+literal.length(),node,keepSnapshot?parsed.bytes:null);
     }
 }
