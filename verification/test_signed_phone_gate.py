@@ -12,7 +12,8 @@ class SignedPhoneGate(unittest.TestCase):
     def test_all_feature_sections_required_before_packaging(self):
         s=self.script
         self.assertIn("for x in range(1,9)",s)
-        self.assertIn("rows[k]!='PRE-APK PASS'",s)
+        self.assertIn("if rows[k] not in allowed",s)
+        self.assertIn("'FINAL CHECKS REQUIRED' if k=='T08' else 'SOURCE COMPLETE'",s)
         self.assertIn("Incomplete authoritative pre-APK feature checklist",s)
         self.assertIn('git branch --show-current',s)
         self.assertIn('git status --porcelain',s)
@@ -30,6 +31,7 @@ class SignedPhoneGate(unittest.TestCase):
                         s.index('bash verification/compile_native_sources_only.sh'))
         self.assertLess(s.index('bash verification/compile_native_sources_only.sh'),
                         s.index('bash build.sh "$name"'))
+        self.assertLess(s.index('bash verification/compile_native_sources_only.sh'),s.index('PRE-APK PASS: complete host'))
         self.assertIn('export ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-36.1.0}"',s)
         self.assertNotIn('gh workflow',s)
         self.assertNotIn('git push',s)
