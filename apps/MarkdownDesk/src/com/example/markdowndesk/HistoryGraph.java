@@ -28,25 +28,48 @@ public final class HistoryGraph {
         public final List<String> diagnostics;
         public final long actualBytes, reservedCompletionBytes, reservedCompletionSlots, chargedBytes;
         public final boolean complete, pruneBlocked, usageComplete;
+        /** Full typed historical accounting, not a source-owner/publication capability. */
+        final boolean historicalCancelledOnly;
         public final String fingerprint;
+        public final String operationFingerprint;
+        public final long operationActualBytes,operationReservedBytes,operationOccupiedEntries,operationReservedEntries;
         /** Compatibility profile only; it grants no registered mutation authority. */
         public final HistoryPolicy policy,desiredProfile;
         public final HistoryCapacity.EffectivePolicy effectivePolicy;
         public final long controlActualBytes;
         public final int controlActualEntries;
-        private Graph(Builder builder,String fingerprint,HistoryPolicy policy){
+        private final HistoryStorage.Budget originalCaptureBudget;
+        private final PrivateCapturePlan.HashInput originalCaptureInput;
+        private final HistoryControlStore.Inspection originalCaptureControl;
+        private final PrivateOperationStore.Ledger originalCaptureLedger;
+        HistoryControlStore.Inspection originalControl(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            requireOriginalCapture(budget,input);return originalCaptureControl;
+        }
+        PrivateOperationStore.Ledger originalLedger(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            requireOriginalCapture(budget,input);return originalCaptureLedger;
+        }
+        void requireOriginalCapture(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+            if(input==null||originalCaptureBudget!=budget||originalCaptureInput!=input||!fingerprint.equals(input.hash()))
+                throw new IOException("Graph requires its original funded scan witness");
+        }
+        private Graph(Builder builder,String fingerprint,HistoryPolicy policy,HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input){
+            originalCaptureBudget=input==null?null:budget;originalCaptureInput=input;
+            originalCaptureControl=input==null?null:builder.control;originalCaptureLedger=input==null?null:builder.operations;
             registeredRoleNames=freeze(builder.roleNames);occupiedEntries=builder.occupied;
+            PrivateOperationStore.Ledger op=builder.operations;operationFingerprint=op==null?"":op.fingerprint;operationActualBytes=op==null?0:op.actualBytes;operationReservedBytes=op==null?0:op.reservedBytes;operationOccupiedEntries=op==null?0:op.occupiedEntries;operationReservedEntries=op==null?0:op.reservedEntries;
             records=freeze(builder.records);snapshots=freeze(builder.snapshots);transactions=freeze(builder.transactions);
             checkpoints=freeze(builder.checkpoints);identities=freeze(builder.identities);ownerships=freeze(builder.ownerships);
             pinnedSnapshotIds=freezeSet(builder.pins);orphanSnapshotIds=freezeSet(builder.orphans);unresolvedTransactionIds=freezeSet(builder.unresolved);
             unindexedTransactionIds=freezeSet(builder.unindexed);protectedSnapshotIds=freezeSet(builder.protectedSources);
             diagnostics=freeze(builder.diagnostics);actualBytes=builder.actual;reservedCompletionBytes=builder.reserved;
             reservedCompletionSlots=builder.slots;chargedBytes=builder.charged;usageComplete=builder.usageComplete;
-            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete;this.fingerprint=fingerprint;this.policy=policy;desiredProfile=policy;
+            historicalCancelledOnly=builder.historicalCancelledOnly;
+            complete=diagnostics.isEmpty()&&usageComplete;pruneBlocked=!complete||op!=null&&op.pending;this.fingerprint=fingerprint;this.policy=policy;desiredProfile=policy;
             effectivePolicy=builder.effective;controlActualBytes=builder.control==null?0:builder.control.actualBytes;controlActualEntries=builder.control==null?0:builder.control.actualEntries;
         }
     }
     private static final class Builder {
+        boolean historicalCancelledOnly;
         final List<ProtectionStore.StoredRecord> records=new ArrayList<>();
         final List<ProtectionStore.Snapshot> snapshots=new ArrayList<>();
         final List<ProtectionStore.Transaction> transactions=new ArrayList<>();
@@ -57,7 +80,7 @@ public final class HistoryGraph {
         final Set<String> pins=new TreeSet<>(),orphans=new TreeSet<>(),unresolved=new TreeSet<>(),unindexed=new TreeSet<>(),protectedSources=new TreeSet<>();
         final List<String> roleNames=new ArrayList<>();int occupied;
         long actual,reserved,slots,charged;boolean usageComplete=true;
-        HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;
+        HistoryControlStore.Inspection control;HistoryCapacity.EffectivePolicy effective;PrivateOperationStore.Ledger operations;
     }
     private final ProtectionStore store;
     private final HistoryCatalog catalog;
@@ -80,10 +103,26 @@ public final class HistoryGraph {
         synchronized(monitor){return scan(HistoryStorage.readView(store.storageRoot()));}
     }
     Graph scan(HistoryTombstoneView view)throws IOException {
+        return scan(view,new HistoryStorage.Budget(metadataBudget),null);
+    }
+    /** Producer-only emission at the original scan; no projected or reconstructed Graph. */
+    Graph scan(HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
+        try {
+            HistoryStorage.requireMutation(store.storageRoot());
+            if(budget==null||input==null)throw new IOException("Missing shared scan budget/witness");
+            input.requireEmpty(budget);
+            // Control.inspect has bounded physical envelopes/clones/decoded tables but no budget API.
+            // Prepay its full <=1MiB/256-entry workspace, native decode transients and graph scaffolding.
+            budget.charge((6L<<20)+(512L<<10));
+            return scan(null,budget,input);
+        }catch(IOException|RuntimeException|Error failure){if(input!=null)input.invalidate();throw failure;}
+    }
+    private Graph scan(HistoryTombstoneView view,HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
         synchronized(monitor){
             HistoryStorage.siblings(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot());
-            HistoryStorage.Budget budget=new HistoryStorage.Budget(metadataBudget);
             return store.withValidatedSources(budget,view,sources->{
+                // Shared entry prepays copies before allocating Builder, indexes or immutable Graph lists.
+                if(input!=null)budget.charge(4096L*sources.inventory.occupiedEntries);
                 Builder builder=new Builder();
                 for(File role:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))builder.roleNames.add(role.getName());
                 try{
@@ -110,7 +149,7 @@ public final class HistoryGraph {
                     builder.records.addAll(files.records);builder.diagnostics.addAll(files.diagnostics);builder.usageComplete&=files.usageComplete;
                     try{builder.actual=Math.addExact(builder.actual,files.bytes);
                         // Covers decoded strings, maps, reference lists, immutable copies and fingerprint buffers.
-                        budget.charge(Math.addExact(Math.multiplyExact(files.bytes,8),files.records.size()*2048L));
+                        budget.charge(Math.addExact(Math.multiplyExact(files.bytes,input==null?8:32),files.records.size()*(input==null?2048L:8192L)));
                     }catch(IOException|ArithmeticException exceeded){builder.diagnostics.add(role+": metadata budget or accounting limit");metadataValid=false;}
                     metadataValid&=files.diagnostics.isEmpty()&&files.usageComplete;
                 }
@@ -128,35 +167,44 @@ public final class HistoryGraph {
                 }
                 for(ProtectionStore.Snapshot snapshot:builder.snapshots){builder.protectedSources.add(snapshot.id);if(!grouped.contains(snapshot.id))builder.orphans.add(snapshot.id);}
                 for(HistoryCatalog.Checkpoint checkpoint:builder.checkpoints)builder.pins.add(checkpoint.snapshotId);
-                try{builder.charged=Math.addExact(builder.actual,builder.reserved);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
+                try{HistoryControlStore.Inspection control=builder.control==null?new HistoryControlStore(store.storageRoot().getParentFile()).inspect():builder.control;
+                    builder.operations=PrivateOperationStore.inspect(store.storageRoot(),control,budget);builder.actual=Math.addExact(builder.actual,builder.operations.actualBytes);
+                    builder.usageComplete&=builder.operations.complete;builder.diagnostics.addAll(builder.operations.diagnostics);
+                    builder.historicalCancelledOnly=PrivateOperationStore.historicalCancelledOnly(control,builder.operations);
+                    if(builder.operations.pending&&!builder.historicalCancelledOnly)builder.diagnostics.add("graph: incomplete operation preparation");
+                }catch(IOException|ArithmeticException invalid){builder.usageComplete=false;builder.diagnostics.add("graph: operation accounting unavailable");}
+                try{builder.charged=Math.addExact(Math.addExact(builder.actual,builder.reserved),builder.operations==null?0:builder.operations.reservedBytes);}catch(ArithmeticException overflow){builder.diagnostics.add("graph: accounting overflow");builder.usageComplete=false;builder.charged=Long.MAX_VALUE;}
                 builder.records.sort(Comparator.comparing((ProtectionStore.StoredRecord record)->record.rootRole).thenComparing(record->record.filename));
                 Collections.sort(builder.diagnostics);
-                return new Graph(builder,fingerprint(builder),policy);
+                return new Graph(builder,fingerprint(builder,budget,input),policy,budget,input);
             });
         }
     }
-    private String fingerprint(Builder builder)throws IOException {
+    private String fingerprint(Builder builder,HistoryStorage.Budget budget,PrivateCapturePlan.HashInput input)throws IOException {
         MessageDigest digest=HistoryStorage.digest();
-        try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(new OutputStream(){@Override public void write(int value){} @Override public void write(byte[] bytes,int offset,int length){}},digest))){
-            text(out,"read-only-history-graph-v1");
-            for(File root:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))text(out,root.getName());
-            out.writeLong(store.constructorQuotaBytes());out.writeBoolean(policy!=null);
-            if(policy!=null){out.writeLong(policy.quotaBytes);out.writeInt(policy.automaticCount);}
-            out.writeBoolean(builder.control!=null);
-            if(builder.control!=null){
-                out.writeLong(builder.control.actualBytes);out.writeInt(builder.control.actualEntries);out.writeBoolean(builder.control.usageComplete);text(out,builder.control.state.name());
-                for(HistoryControlStore.Entry entry:builder.control.entries){text(out,entry.filename);out.writeLong(entry.length);text(out,entry.envelopeHash);out.writeBoolean(entry.stage);}
-            }
-            out.writeBoolean(builder.effective!=null);
-            if(builder.effective!=null){text(out,builder.effective.bundleId);out.writeLong(builder.effective.generation);text(out,builder.effective.controlRecordHash);out.writeLong(builder.effective.quotaBytes);out.writeInt(builder.effective.automaticCount);}
-            out.writeLong(builder.actual);out.writeLong(builder.reserved);out.writeLong(builder.slots);out.writeBoolean(builder.usageComplete);
-            out.writeInt(builder.records.size());
-            for(ProtectionStore.StoredRecord record:builder.records){text(out,record.rootRole);text(out,record.filename);text(out,record.id);text(out,record.kind);out.writeLong(record.serializedBytes);text(out,record.envelopeHash);}
-            // The exact envelope hashes bind all source fields, checkpoint labels, FORK edges and persisted ownership sequences.
-            for(ProtectionStore.Transaction transaction:builder.transactions){text(out,transaction.id);text(out,transaction.original.id);text(out,transaction.attempted.id);out.writeBoolean(transaction.verified);}
-            for(String diagnostic:builder.diagnostics)text(out,diagnostic);
+        OutputStream target=input==null?new OutputStream(){public void write(int b){}public void write(byte[] b,int off,int len){}}:input.writer(budget);
+        try(DataOutputStream out=new DataOutputStream(new java.security.DigestOutputStream(target,digest))){writeFingerprintInput(builder,out);}
+        String hash=HistoryStorage.hex(digest.digest());if(input!=null)input.seal(hash);return hash;
+    }
+    private void writeFingerprintInput(Builder builder,DataOutputStream out)throws IOException {
+        text(out,"read-only-history-graph-v1");
+        for(File root:Arrays.asList(store.storageRoot(),catalog.storageRoot(),identity.storageRoot(),index.storageRoot()))text(out,root.getName());
+        out.writeLong(store.constructorQuotaBytes());out.writeBoolean(policy!=null);
+        if(policy!=null){out.writeLong(policy.quotaBytes);out.writeInt(policy.automaticCount);}
+        out.writeBoolean(builder.control!=null);
+        if(builder.control!=null){
+            out.writeLong(builder.control.actualBytes);out.writeInt(builder.control.actualEntries);out.writeBoolean(builder.control.usageComplete);text(out,builder.control.state.name());
+            for(HistoryControlStore.Entry entry:builder.control.entries){text(out,entry.filename);out.writeLong(entry.length);text(out,entry.envelopeHash);out.writeBoolean(entry.stage);}
         }
-        return HistoryStorage.hex(digest.digest());
+        out.writeBoolean(builder.effective!=null);
+        if(builder.effective!=null){text(out,builder.effective.bundleId);out.writeLong(builder.effective.generation);text(out,builder.effective.controlRecordHash);out.writeLong(builder.effective.quotaBytes);out.writeInt(builder.effective.automaticCount);}
+        out.writeLong(builder.actual);out.writeLong(builder.reserved);out.writeLong(builder.slots);out.writeBoolean(builder.usageComplete);
+        out.writeInt(builder.records.size());
+        for(ProtectionStore.StoredRecord record:builder.records){text(out,record.rootRole);text(out,record.filename);text(out,record.id);text(out,record.kind);out.writeLong(record.serializedBytes);text(out,record.envelopeHash);}
+        // The exact envelope hashes bind all source fields, checkpoint labels, FORK edges and persisted ownership sequences.
+        for(ProtectionStore.Transaction transaction:builder.transactions){text(out,transaction.id);text(out,transaction.original.id);text(out,transaction.attempted.id);out.writeBoolean(transaction.verified);}
+        for(String diagnostic:builder.diagnostics)text(out,diagnostic);
+        if(builder.operations!=null&&builder.operations.present){text(out,"operation-ledger-binding-v1");text(out,builder.operations.fingerprint);}
     }
     private static void text(DataOutputStream out,String value)throws IOException {if(value==null){out.writeInt(-1);return;}byte[] bytes=value.getBytes(StandardCharsets.UTF_8);out.writeInt(bytes.length);out.write(bytes);}
     private static <T> List<T> freeze(Collection<T> values){return Collections.unmodifiableList(new ArrayList<>(values));}

@@ -143,8 +143,10 @@ public final class HistoryManifestCheck {
         java.lang.reflect.Field names=builderType.getDeclaredField("roleNames");names.setAccessible(true);
         ((List<String>)names.get(builder)).addAll(roles);
         java.lang.reflect.Field policy=builderType.getDeclaredField("effective");policy.setAccessible(true);policy.set(builder,base.effectivePolicy);
-        java.lang.reflect.Constructor<HistoryGraph.Graph> graph=HistoryGraph.Graph.class.getDeclaredConstructor(builderType,String.class,HistoryPolicy.class);
-        graph.setAccessible(true);return graph.newInstance(builder,base.fingerprint,base.policy);
+        // Synthetic malformed-descriptor fixture carries no funded capture authority.
+        java.lang.reflect.Constructor<HistoryGraph.Graph> graph=HistoryGraph.Graph.class.getDeclaredConstructor(
+                builderType,String.class,HistoryPolicy.class,HistoryStorage.Budget.class,PrivateCapturePlan.HashInput.class);
+        graph.setAccessible(true);return graph.newInstance(builder,base.fingerprint,base.policy,null,null);
     }
     static void descriptorAdmission(HistoryGraph.Graph base,HistoryControlStore.Inspection control)throws Exception {
         String id="00000000-0000-0000-0000-000000000001",hash="00".repeat(32);

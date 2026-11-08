@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="18"
-    android:versionName="2.2.5"
+    android:versionCode="39"
+    android:versionName="2.5.0-unified-workspaces"
     package="com.example.markdowndesk">
     <uses-sdk
-        android:minSdkVersion="26"
-        android:targetSdkVersion="35"/>
+        android:minSdkVersion="35"
+        android:targetSdkVersion="37"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <queries><package android:name="net.patosullivan.mothership" /></queries>
     <application
+        android:name="com.example.markdowndesk.workspace.MarkdownDeskApplication"
         android:theme="@style/Theme.MarkdownDesk"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
@@ -47,6 +49,46 @@
                 <data android:mimeType="application/markdown"/>
             </intent-filter>
         </activity>
+        <provider android:name=".DownloadsFileProvider"
+            android:authorities="com.example.markdowndesk.downloads"
+            android:exported="false"
+            android:grantUriPermissions="false" />
+        <activity
+            android:name=".JsonExplorerActivity"
+            android:exported="true"
+            android:screenOrientation="unspecified"
+            android:configChanges="uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/json"/>
+                <data android:mimeType="text/json"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ArchiveWorkspaceActivity"
+            android:label="Archive Reader"
+            android:exported="true"
+            android:screenOrientation="unspecified"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="markdowndesk"
+                      android:host="archive"
+                      android:pathPrefix="/v1/" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".UnifiedSearchActivity"
+            android:exported="false"
+            android:screenOrientation="unspecified"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DocxPickerActivity" android:exported="false" android:launchMode="standard" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name=".SuiteEditorActivity" android:exported="true" android:resizeableActivity="true" android:windowSoftInputMode="adjustResize" />
         <provider android:name=".SuiteResultProvider" android:authorities="com.example.markdowndesk.suite" android:exported="false" android:grantUriPermissions="true"><grant-uri-permission android:pathPrefix="/session/" /></provider>
     </application>

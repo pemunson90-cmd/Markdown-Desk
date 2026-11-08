@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Static safety contract for JSON Explorer controls; native Fold/TalkBack still require testing."""
+from pathlib import Path
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+SRC=ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerActivity.java'
+ENGINE=ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/JsonExplorerEngine.java'
+
+class JsonReadingParity(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.activity=SRC.read_text(encoding='utf-8')
+        cls.engine=ENGINE.read_text(encoding='utf-8')
+
+    def test_persistent_shared_scalable_reading(self):
+        a=self.activity
+        self.assertIn('prefs.getFloat("preview_font_size",18f)',a)
+        self.assertIn('prefs.edit().putFloat("preview_font_size",readingSp).apply()',a)
+        self.assertIn('return Math.max(12f,Math.min(32f,original*readingSp/18f))',a)
+        self.assertIn('if(root!=null)applyReadingFont(root)',a)
+        self.assertIn('if(base instanceof Float)((TextView)target).setTextSize(scaleFont((Float)base))',a)
+        self.assertIn('b.setTag(Float.valueOf(14))',a)
+        self.assertIn('v.setTag(Float.valueOf(size))',a)
+
+    def test_focus_can_be_reversed_and_does_not_destroy_reader(self):
+        a=self.activity
+        self.assertIn('focusReading?"Exit Focus mode":"Enter Focus mode"',a)
+        self.assertIn('focusReading=!focusReading;updateReadingFocus()',a)
+        self.assertIn('actionRow.setVisibility(focusReading?View.GONE:View.VISIBLE)',a)
+        self.assertIn('if(focusReading)getWindow().addFlags',a)
+        self.assertIn('else getWindow().clearFlags',a)
+        self.assertNotIn('entries.removeAllViews()',a.split('private void updateReadingFocus()',1)[1].split('private void showReadingOptions()',1)[0])
+
+    def test_state_retains_reading_mode_and_json_path(self):
+        a=self.activity
+        self.assertIn('state.getBoolean("jsonFocusReading",false)',a)
+        self.assertIn('state.putBoolean("jsonFocusReading",focusReading)',a)
+        self.assertIn('state.putStringArrayList("jsonPathNames",names)',a)
+        self.assertIn('state.putIntArray("jsonPathIndices",indices)',a)
+        self.assertIn('state.putInt("jsonOffset",offset)',a)
+        self.assertIn('options.setContentDescription("JSON reading options")',a)
+
+    def test_full_archive_reader_is_explicit_and_reuses_process_owned_import(self):
+        a=self.activity
+        archive=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java').read_text(encoding='utf-8')
+        router=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceRouter.java').read_text(encoding='utf-8')
+        self.assertIn('Index conversation export for complete reading',a)
+        self.assertIn('showFullArchiveImportChoice()',a)
+        self.assertIn('setPositiveButton("Index for full reading"',a)
+        self.assertIn('Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP',a)
+        self.assertIn('putExtra(com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_IMPORT_JSON_URI',a)
+        self.assertIn('EXTRA_IMPORT_JSON_URI',router)
+        self.assertIn('private boolean handleIncomingInspectorImport(Intent intent)',archive)
+        self.assertIn('if(incomingNavigationConsumed || (!handleIncomingInspectorImport(getIntent())',archive)
+        self.assertIn('state.putBoolean("incoming_navigation_consumed",incomingNavigationConsumed)',archive)
+        self.assertIn('if(handleIncomingInspectorImport(intent))return',archive)
+        self.assertIn('importArchive(selected,genericJson);',archive)
+        coordinator=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveImportCoordinator.java').read_text(encoding='utf-8')
+        self.assertIn('genericJson=saved.getBoolean("generic_json",false)',coordinator)
+        self.assertIn('return start(Uri.parse(sourceUri),genericJson)',coordinator)
+        self.assertIn('putBoolean("generic_json",genericJson)',coordinator)
+        self.assertIn('JsonDocumentIndexer.sourceIdentity(selected,genericJson)',coordinator)
+        self.assertIn('advertised.equals(selected.toString())',archive)
+        self.assertIn('!"content".equalsIgnoreCase(selected.getScheme())',archive)
+        self.assertIn('Preview is limited to 200 messages',a)
+
+    def test_preview_reuses_reader_typography_and_safe_html(self):
+        a=self.activity
+        self.assertIn('PreviewWebView rendered=new PreviewWebView(this)',a)
+        self.assertIn('MarkdownRenderer.render(visible,palette,readingSp,typography)',a)
+        self.assertIn('ReaderTypography.fromValues(',a)
+        self.assertIn('settings.setJavaScriptEnabled(false)',a)
+        self.assertIn('settings.setAllowFileAccess(false)',a)
+        self.assertIn('settings.setAllowContentAccess(false)',a)
+        self.assertIn('settings.setBlockNetworkLoads(true)',a)
+        self.assertIn('dialog.setOnDismissListener(ignored->rendered.destroy())',a)
+        self.assertIn('rendered.setOnTextScaleListener(size->',a)
+        self.assertIn('Copy excerpt',a)
+        self.assertIn('Save excerpt .md',a)
+
+    def test_bounded_preview_never_masquerades_as_complete_output(self):
+        a=self.activity
+        e=self.engine
+        self.assertIn('On-screen preview limited.',a)
+        self.assertIn('Read this conversation preview',a)
+        self.assertIn('Index conversation export for complete reading',a)
+        self.assertIn('Additional text omitted in this bounded preview',e)
+        self.assertIn('Additional content omitted in this bounded preview',e)
+        self.assertIn('Message truncated in preview',e)
+
+    def test_fold_window_insets_reuse_proven_root_fitting(self):
+        a=self.activity
+        main=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java').read_text(encoding='utf-8')
+        archive=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java').read_text(encoding='utf-8')
+        search=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java').read_text(encoding='utf-8')
+        self.assertIn('root.setFitsSystemWindows(true)',a)
+        self.assertIn('this.root.setFitsSystemWindows(true)',main)
+        self.assertIn('screen.setFitsSystemWindows(true)',archive)
+        self.assertIn('root.setFitsSystemWindows(true)',search)
+        self.assertNotIn('setOnApplyWindowInsetsListener',a)
+        self.assertNotIn('setDecorFitsSystemWindows(false)',a)
+
+    def test_duplicate_json_keys_fail_closed_across_object_pages(self):
+        source=self.engine
+        self.assertIn("Set<String> seenNames=new HashSet<>()",source)
+        self.assertIn("MAX_OBJECT_FIELDS = 4096",source)
+        self.assertEqual(source.count("if(seenNames.size()>=MAX_OBJECT_FIELDS)"),2)
+        self.assertIn("JSON object exceeds bounded field identity scan; original preserved",source)
+        self.assertIn("if(!seenNames.add(skipped))",source)
+        self.assertIn("if(!seenNames.add(key))",source)
+        self.assertIn("Ambiguous duplicate JSON key in this object; original preserved",source)
+        self.assertIn("while (index<offset && json.hasNext())",source)
+        self.assertIn("while (page.entries.size()<PAGE_SIZE && json.hasNext())",source)
+
+    def test_no_source_mutation_or_silent_page_cap_change(self):
+        self.assertIn('final int PAGE_SIZE = 100',self.engine)
+        self.assertIn('final int MAX_TRANSCRIPT_MESSAGES = 200',self.engine)
+        self.assertIn('onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)',self.engine)
+        self.assertNotIn('openOutputStream(document',self.activity)
+
+if __name__=='__main__':unittest.main()

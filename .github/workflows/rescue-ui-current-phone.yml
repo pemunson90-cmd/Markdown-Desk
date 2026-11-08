@@ -1,0 +1,50 @@
+name: Markdown Desk UI completion current-phone regression
+on:
+  push:
+    branches:
+      - 'rescue/md-unsigned-build-proof-*'
+    paths:
+      - 'apps/MarkdownDesk/**'
+      - 'shared/**'
+      - 'verification/**'
+      - '.github/workflows/rescue-ui-current-phone.yml'
+permissions:
+  contents: read
+concurrency:
+  group: markdown-desk-ui-current-phone-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  owner-scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - name: Check out exact committed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned JDK17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: Install Android SDK37 for host source fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?SDK unavailable}"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+      - name: Install host fixture prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          bash verification/setup_host_deps.sh
+      - name: Execute all current-phone host tests (portable deferrals explicit)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash verification/run_current_phone_checks.sh
+          echo 'Required current-phone host checks PASS. Eighteen owner-deferred portable cross-installation families remain NOT RUN.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Physical Fold7, Samsung provider, IME and private signing require owner acceptance.' >> "$GITHUB_STEP_SUMMARY"

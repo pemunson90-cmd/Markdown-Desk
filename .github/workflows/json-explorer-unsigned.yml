@@ -1,0 +1,71 @@
+name: Markdown Desk JSON Explorer unsigned acceptance
+
+on:
+  # Expensive packaging is deliberate; ordinary checkpoint pushes must not build APKs.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: markdown-desk-json-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+
+      - name: Provision public Android toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?Android SDK missing from runner}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install "platforms;android-37.0" "build-tools;36.0.0"
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      - name: Compile full app without signing
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: '36.0.0'
+        run: |
+          set -euo pipefail
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-acceptance-UNSIGNED
+          APK="apps/MarkdownDesk/build/MarkdownDesk-acceptance-UNSIGNED.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" | grep -E "package:|sdkVersion:|targetSdkVersion:"
+          sha256sum "$APK"
+
+      - name: Host regression checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash verification/setup_host_deps.sh
+          bash verification/document_io/run.sh
+          bash verification/navigation_choices/run.sh
+          bash verification/reader_positions/run.sh
+          echo "Host checks are not Android emulator or Fold7 acceptance." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unsigned APK for private, canonical local signing
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: markdown-desk-acceptance-${{ github.sha }}-unsigned
+          path: apps/MarkdownDesk/build/MarkdownDesk-acceptance-UNSIGNED.apk
+          if-no-files-found: error
+          retention-days: 7

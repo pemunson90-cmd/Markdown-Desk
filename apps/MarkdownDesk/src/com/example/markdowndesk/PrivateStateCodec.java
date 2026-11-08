@@ -199,25 +199,33 @@ public final class PrivateStateCodec {
     }
 
     private static byte[] tabMetadata(Tab tab) throws IOException {
-        validateTab(tab);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(buffer);
+        writeTabMetadata(new DataOutputStream(buffer), tab);
+        return buffer.toByteArray();
+    }
+
+    private static void writeTabMetadata(DataOutputStream out, Tab tab) throws IOException {
+        if (tab == null) throw new IOException("Missing tab metadata");
+        validateTab(tab);
         writeCommon(out, tab.displayName, tab.provenance, tab.utf8Bom, tab.selectionStart, tab.selectionEnd);
         writeString(out, tab.sourceTabId, false); out.writeBoolean(tab.sourceDirty); out.writeBoolean(tab.editorLocked);
         out.writeInt(tab.editorScrollY); out.writeInt(tab.previewScrollY); out.writeInt(tab.mode);
         writeString(out, tab.findQuery, false); writeString(out, tab.replaceQuery, false);
         out.writeBoolean(tab.findCaseSensitive); out.writeBoolean(tab.findWholeWord); out.writeBoolean(tab.findRegex);
-        return buffer.toByteArray();
     }
 
     private static byte[] recoveryMetadata(Recovery recovery) throws IOException {
-        validateRecovery(recovery);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(buffer);
+        writeRecoveryMetadata(new DataOutputStream(buffer), recovery);
+        return buffer.toByteArray();
+    }
+
+    private static void writeRecoveryMetadata(DataOutputStream out, Recovery recovery) throws IOException {
+        if (recovery == null) throw new IOException("Missing recovery metadata");
+        validateRecovery(recovery);
         writeCommon(out, recovery.displayName, recovery.provenance, recovery.utf8Bom,
                 recovery.selectionStart, recovery.selectionEnd);
         out.writeLong(recovery.timestamp);
-        return buffer.toByteArray();
     }
 
     private static void validateTab(Tab tab) throws IOException {
@@ -267,13 +275,18 @@ public final class PrivateStateCodec {
     }
 
     private static byte[] preferencesMetadata(Map<String, Object> values) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        writePreferencesMetadata(new DataOutputStream(buffer), values);
+        return buffer.toByteArray();
+    }
+
+    private static void writePreferencesMetadata(DataOutputStream out, Map<String, Object> values) throws IOException {
         if (values == null || values.size() > 8) throw new IOException("Invalid preference count");
         TreeMap<String, Object> sorted = new TreeMap<>();
         for (Map.Entry<String, Object> entry : values.entrySet()) {
             preferenceType(entry.getKey(), entry.getValue()); sorted.put(entry.getKey(), entry.getValue());
         }
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(buffer); out.writeInt(sorted.size());
+        out.writeInt(sorted.size());
         for (Map.Entry<String, Object> entry : sorted.entrySet()) {
             writeString(out, entry.getKey(), false);
             int type = preferenceType(entry.getKey(), entry.getValue()); out.writeByte(type);
@@ -281,7 +294,49 @@ public final class PrivateStateCodec {
             else if (type == 2) out.writeInt((Integer) entry.getValue());
             else out.writeInt(Float.floatToIntBits((Float) entry.getValue()));
         }
-        return buffer.toByteArray();
+    }
+
+    /** Conservative admission from bounded UTF16 lengths before canonical encoding. Twelve bytes
+     * per UTF16 unit covers encoder growth/copies even at three UTF8 bytes per unit; fixed
+     * workspace covers digest/wrappers/sort, plus explicit256B for the retained64-char hash. */
+    static long scalarCommitmentCharge(Kind kind, Tab tab, Recovery recovery, Map<String, Object> preferences)
+            throws IOException {
+        long bytes = 4096 + 256;
+        if (kind == Kind.SESSION_TAB && tab != null && tab.provenance != null) {
+            bytes += scalarStringCharge(tab.displayName, false) + scalarStringCharge(tab.sourceTabId, false)
+                    + scalarStringCharge(tab.findQuery, false) + scalarStringCharge(tab.replaceQuery, false)
+                    + scalarStringCharge(tab.provenance.sourceUri, true) + scalarStringCharge(tab.provenance.sourceBaselineHash, true);
+        } else if (kind == Kind.RECOVERY && recovery != null && recovery.provenance != null) {
+            bytes += scalarStringCharge(recovery.displayName, false) + scalarStringCharge(recovery.provenance.sourceUri, true)
+                    + scalarStringCharge(recovery.provenance.sourceBaselineHash, true);
+        } else if (kind == Kind.PREFERENCES && preferences != null && preferences.size() <= 8) {
+            for (String key : preferences.keySet()) bytes += 256 + scalarStringCharge(key, false);
+        } else throw new IOException("Missing scalar metadata");
+        return bytes;
+    }
+
+    private static long scalarStringCharge(String value, boolean nullable) throws IOException {
+        if (value == null) { if (nullable) return 256;throw new IOException("Missing metadata string"); }
+        if (value.length() > MAX_STRING_BYTES) throw new IOException("Metadata string exceeds bound");
+        return 256 + 12L * value.length();
+    }
+
+    /** Internal scalar equality only; kind is checked separately. No payload/source authority.
+     * Caller prepays scalarCommitmentCharge from its original owner before this allocation. */
+    static String scalarCommitment(Kind kind, Tab tab, Recovery recovery, Map<String, Object> preferences)
+            throws IOException {
+        MessageDigest digest = sha256();
+        DataOutputStream out = new DataOutputStream(new DigestOutputStream(new OutputStream() {
+            public void write(int b) { }
+            public void write(byte[] b, int off, int len) { }
+        }, digest));
+        if (kind == Kind.SESSION_TAB) writeTabMetadata(out, tab);
+        else if (kind == Kind.RECOVERY) writeRecoveryMetadata(out, recovery);
+        else if (kind == Kind.PREFERENCES) writePreferencesMetadata(out, preferences);
+        else throw new IOException("Missing scalar metadata kind");
+        byte[] hash = digest.digest();StringBuilder hex = new StringBuilder(64);
+        for (byte b : hash) { hex.append(Character.forDigit((b >>> 4) & 15, 16));hex.append(Character.forDigit(b & 15, 16)); }
+        return hex.toString();
     }
 
     private static Map<String, Object> readPreferences(DataInputStream in) throws IOException {

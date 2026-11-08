@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Packaging repair only: portable, fail-fast, no generated signing identity.
-# Requires JDK 17+, Android SDK platform 35+ and build-tools 35+ (choose exact pins).
+# Requires JDK 17+, stable Android 17 SDK platform (API 37), and compatible stable build-tools.
+# Compile/target SDK 37; minSdk 35 supports Android 15, 16, and 17.
+# The Android minimum and target are read from AndroidManifest.xml, not hardcoded.
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 PROJ="$PWD"
@@ -9,8 +11,8 @@ if [[ "${1:-}" == --unsigned ]]; then UNSIGNED=true; shift; fi
 [[ $# -le 1 ]] || { echo 'Usage: build.sh [--unsigned] [output-name]' >&2; exit 1; }
 : "${ANDROID_SDK_ROOT:=${ANDROID_HOME:-}}"
 : "${ANDROID_SDK_ROOT:?Set ANDROID_SDK_ROOT to an installed SDK}"
-ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-35}"
-ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-35.0.0}"
+ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-37.0}"
+ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-36.0.0}"
 BT="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS"
 ANDROID_JAR="$ANDROID_SDK_ROOT/platforms/$ANDROID_PLATFORM/android.jar"
 if ! $UNSIGNED; then
@@ -48,13 +50,18 @@ mapfile -t VERSION < <(python3 - <<'XML'
 import xml.etree.ElementTree as E
 r=E.parse('AndroidManifest.xml').getroot();a='{http://schemas.android.com/apk/res/android}'
 print(r.attrib[a+'versionCode']);print(r.attrib[a+'versionName'])
+sdk=r.find('uses-sdk')
+if sdk is None: raise SystemExit('Manifest must declare uses-sdk')
+minimum=int(sdk.attrib[a+'minSdkVersion']);target=int(sdk.attrib[a+'targetSdkVersion'])
+if minimum<35 or target<37: raise SystemExit('Unsupported Android SDK contract; require minSdk 35+ and targetSdk 37+')
+print(minimum);print(target)
 XML
 )
-[[ ${#VERSION[@]} == 2 ]]
+[[ ${#VERSION[@]} == 4 ]]
 "$BT/aapt2" compile --dir "$PROJ/res" -o "$OUT/compiled/res.zip"
 "$BT/aapt2" link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
  --manifest "$PROJ/AndroidManifest.xml" -A "$PROJ/assets" --java "$OUT/gen" \
- --min-sdk-version 26 --target-sdk-version 35 \
+ --min-sdk-version "${VERSION[2]}" --target-sdk-version "${VERSION[3]}" \
  --version-code "${VERSION[0]}" --version-name "${VERSION[1]}" "$OUT/compiled/res.zip"
 # Javac argfile paths are quoted; an ordinary extracted path may contain spaces.
 python3 - <<'SOURCES'
@@ -74,7 +81,7 @@ if not files:raise SystemExit('No class files')
 with ZipFile('build/classes.jar','w') as z:
  for p in files:z.writestr(ZipInfo(str(p.relative_to(root)),(1980,1,1,0,0,0)),p.read_bytes())
 CLASSES
-"$BT/d8" --min-api 26 --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
+"$BT/d8" --min-api "${VERSION[2]}" --release --lib "$ANDROID_JAR" --output "$OUT/dex" "$OUT/classes.jar"
 test -s "$OUT/dex/classes.dex"
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
 (cd "$OUT/dex" && zip -q -X "$OUT/unsigned.apk" classes*.dex)

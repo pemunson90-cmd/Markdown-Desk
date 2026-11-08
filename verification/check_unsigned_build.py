@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 env = os.environ.copy()
@@ -13,13 +14,20 @@ for name in ('MARKDOWN_DESK_KEYSTORE', 'MARKDOWN_DESK_KEY_ALIAS',
     env.pop(name, None)
 env['PATH'] = str(Path(env['JAVA_HOME']) / 'bin') + os.pathsep + env['PATH']
 subprocess.run(['bash', str(ROOT / 'apps/MarkdownDesk/build.sh'), '--unsigned',
-                'MarkdownDesk-2.2.5-UNSIGNED'], env=env, check=True)
-apk = ROOT / 'apps/MarkdownDesk/build/MarkdownDesk-2.2.5-UNSIGNED.apk'
+                'MarkdownDesk-validation-UNSIGNED'], env=env, check=True)
+apk = ROOT / 'apps/MarkdownDesk/build/MarkdownDesk-validation-UNSIGNED.apk'
+manifest = ET.parse(ROOT / 'apps/MarkdownDesk/AndroidManifest.xml').getroot()
+a='{http://schemas.android.com/apk/res/android}'
+sdk=manifest.find('uses-sdk')
+assert sdk is not None
+version_code,version_name=manifest.attrib[a+'versionCode'],manifest.attrib[a+'versionName']
+minimum,target=sdk.attrib[a+'minSdkVersion'],sdk.attrib[a+'targetSdkVersion']
+assert int(minimum) >= 35 and int(target) >= int(minimum), 'Support Android 15+ only'
 bt = Path(env['ANDROID_SDK_ROOT']) / 'build-tools' / env['ANDROID_BUILD_TOOLS']
 badging = subprocess.check_output([str(bt / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
-assert "package: name='com.example.markdowndesk' versionCode='18' versionName='2.2.5'" in badging
-assert "minSdkVersion:'26'" in badging or "\nsdkVersion:'26'" in badging
-assert "targetSdkVersion:'35'" in badging
+assert f"package: name='com.example.markdowndesk' versionCode='{version_code}' versionName='{version_name}'" in badging
+assert f"minSdkVersion:'{minimum}'" in badging or f"\nsdkVersion:'{minimum}'" in badging
+assert f"targetSdkVersion:'{target}'" in badging
 subprocess.run([str(bt / 'zipalign'), '-c', '-p', '4', str(apk)], check=True)
 with zipfile.ZipFile(apk) as z:
     names = z.namelist()

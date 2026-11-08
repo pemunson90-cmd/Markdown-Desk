@@ -11,11 +11,11 @@ if [ "$phase" = baseline ]; then
   source="$out/MainActivity.java"
   extra=(baseline)
 fi
-javac -d "$out" verification/preview_behavior/ExtractPreview.java
+javac --release 11 -d "$out" verification/source_extraction/ParsedJavaSource.java verification/preview_behavior/ExtractPreview.java
 java -cp "$out" ExtractPreview "$source" verification/preview_behavior/PreviewHarness.template "$out/PreviewHarness.java" "${extra[@]}"
 helper=()
 if [ "$phase" != baseline ]; then helper=(apps/MarkdownDesk/src/com/example/markdowndesk/LatestPreview.java); fi
 javac --release 11 -d "$out" verification/stubs/android/graphics/drawable/GradientDrawable.java \
-  apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,MarkdownRenderer}.java "${helper[@]}" \
+  apps/MarkdownDesk/src/com/example/markdowndesk/{UiTheme,ReaderTypography,MarkdownRenderer}.java "${helper[@]}" \
   "$out/PreviewHarness.java" verification/preview_behavior/PreviewBenchmark.java
 java -Xms128m -Xmx1g -cp "$out" com.example.markdowndesk.PreviewBenchmark "$phase"

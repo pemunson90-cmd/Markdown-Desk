@@ -34,5 +34,7 @@ final class SchedulingHarness {
  final List<DocumentTab> tabs=new ArrayList<>();int activeTab=-1;
  boolean suppressChanges,dirty,dark;Runnable highlightRunnable;
  void invalidateStatistics(){}void invalidatePreview(){}void updateStatus(){}void updateTabsUi(){}
+ // Workspace search is independently tested; this harness isolates syntax scheduling.
+ void searchContentChanged(){}
  void scheduleRecovery(){}void schedulePreview(){}void scheduleSession(){}
 ''' + source_revision + '\n' + field + '\n' + '\n'.join(methods) + '\n}\n')

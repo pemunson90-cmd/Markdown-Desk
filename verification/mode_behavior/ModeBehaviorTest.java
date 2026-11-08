@@ -34,6 +34,7 @@ public final class ModeBehaviorTest {
             check("tools hidden on " + mode, h.formatScroll.visibility==8 && h.readToolsScroll.visibility==8);
             check("tight header on " + mode, h.header.left==28 && h.header.right==28 && h.header.top==8 && h.header.bottom==8);
             check("chrome refreshed on " + mode, h.chromeStyleCalls==5 && h.focusButton.styledActive);
+            check("focus re-evaluates responsive Files rail " + mode, h.filesRailRefreshes==1);
             check("focus preserved scroll on " + mode, h.editor.scrollY==456 && h.readToolsScroll.scrollY==654 && h.previewScrollY==777);
             invoke(h, "toggleFocusMode");
             check("focus off " + mode, !h.focusMode);
@@ -44,6 +45,7 @@ public final class ModeBehaviorTest {
             check("read tools visibility " + mode, h.readToolsScroll.visibility==(mode==1?0:8));
             check("header restored " + mode, h.header.top==16 && h.header.bottom==16);
             check("chrome refreshed twice " + mode, h.chromeStyleCalls==10 && !h.focusButton.styledActive);
+            check("focus exit re-evaluates responsive Files rail " + mode, h.filesRailRefreshes==2);
             check("retained scroll twice " + mode, h.editor.scrollY==456 && h.previewScrollY==777);
         }
         for (int mode=0; mode<3; mode++) {

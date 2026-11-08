@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+OUT="$(mktemp -d)"
+trap 'rm -rf -- "$OUT"' EXIT
+"${JAVAC:-javac}" --release 11 -d "$OUT" \
+  apps/MarkdownDesk/src/com/example/markdowndesk/archive/ArchiveJournal.java \
+  apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveAnnotationSearch.java \
+  verification/archive_reader/ArchiveJournalConcurrencyCheck.java \
+  verification/archive_reader/ArchiveAnnotationSearchPagingTest.java
+"${JAVA:-java}" -Xmx128m -cp "$OUT" \
+  com.example.markdowndesk.archive.ArchiveJournalConcurrencyCheck
+"${JAVA:-java}" -Xmx128m -cp "$OUT" \
+  com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearchPagingTest

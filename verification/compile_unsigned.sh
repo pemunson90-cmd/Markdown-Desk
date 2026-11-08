@@ -4,4 +4,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [[ $# == 0 ]] || { echo 'Configure SDK through environment; no positional arguments' >&2; exit 1; }
-exec bash "$ROOT/apps/MarkdownDesk/build.sh" --unsigned MarkdownDesk-2.2.5-UNSIGNED
+exec bash "$ROOT/apps/MarkdownDesk/build.sh" --unsigned MarkdownDesk-validation-UNSIGNED

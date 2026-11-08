@@ -1,0 +1,153 @@
+name: Moonshot recovery source and Android verification
+on:
+  push:
+    branches: [moonshot/professional-upgrade-20261031]
+    paths: ['.github/workflows/moonshot-recovery-verify.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: moonshot-recovery-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  recover:
+    if: github.ref == 'refs/heads/moonshot/professional-upgrade-20261031'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    outputs:
+      source: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Apply only checksum-bound recovery on the dedicated branch
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAYLOAD=verification/moonshot_transport/navigation-recovery.patch.gz.b64
+          if test -f "$PAYLOAD"; then
+            base64 -d "$PAYLOAD" | gzip -d > "$RUNNER_TEMP/navigation.patch"
+            echo '6c65ac94d84ee55ff5d9b20861a7ddfc81bdd37d5cd6fbd4532a16684d1b1bff  '"$RUNNER_TEMP/navigation.patch" | sha256sum -c
+            git apply --check "$RUNNER_TEMP/navigation.patch"
+            git apply --index "$RUNNER_TEMP/navigation.patch"
+            test "$(git write-tree | xargs -I{} git rev-parse '{}:apps/MarkdownDesk')" = 8457b064ebddcaebbfd4360116d99a11d1533585
+            git rm "$PAYLOAD"
+            git config user.name 'pemunson90-cmd'
+            git config user.email '272409536+pemunson90-cmd@users.noreply.github.com'
+            git commit -m 'feat: restore searchable commands, outline and Recents with recovery tests'
+            # Ordinary fast-forward push rejects any concurrently advanced remote.
+            git push origin HEAD:refs/heads/moonshot/professional-upgrade-20261031
+          fi
+          test "$(git rev-parse HEAD:apps/MarkdownDesk)" = 8457b064ebddcaebbfd4360116d99a11d1533585
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/source-proof"
+          git rev-parse HEAD > "$RUNNER_TEMP/source-proof/SOURCE_COMMIT.txt"
+          git diff 877facadce54247f38aa29d8b7c1cb5f055f813b HEAD -- apps/MarkdownDesk verification docs > "$RUNNER_TEMP/source-proof/recovered-source.diff"
+          git bundle create "$RUNNER_TEMP/source-proof/source.bundle" HEAD
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: moonshot-recovered-source-${{ steps.source.outputs.sha }}
+          path: ${{ runner.temp }}/source-proof/
+          retention-days: 7
+  host:
+    needs: recover
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.recover.outputs.source }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: Host prerequisites
+        run: |
+          bash verification/setup_host_deps.sh
+          command -v rg || { sudo apt-get update -qq; sudo apt-get install -y -qq ripgrep; }
+      - name: Run current-phone scope and repaired private-frame fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/host-proof"
+          bash verification/run_current_phone_checks.sh 2>&1 | tee "$RUNNER_TEMP/host-proof/current-phone.log"
+          bash verification/private_frame_preflight/run.sh 2>&1 | tee "$RUNNER_TEMP/host-proof/private-frame.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: moonshot-host-proof-${{ needs.recover.outputs.source }}
+          path: ${{ runner.temp }}/host-proof/
+          retention-days: 7
+  android:
+    needs: recover
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.recover.outputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: SDK and disposable emulator inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" --install 'platforms;android-37.0' 'build-tools;36.0.0' platform-tools emulator 'system-images;android-35;google_apis;x86_64'
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+      - name: Compile exact candidate and retain unsigned APK
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: '36.0.0'
+        run: |
+          set -euo pipefail
+          bash apps/MarkdownDesk/build.sh --unsigned MarkdownDesk-2.3.0-UNSIGNED
+          mkdir -p "$RUNNER_TEMP/android-proof"
+          cp apps/MarkdownDesk/build/MarkdownDesk-2.3.0-UNSIGNED.apk "$RUNNER_TEMP/android-proof/"
+          git rev-parse HEAD > "$RUNNER_TEMP/android-proof/SOURCE_COMMIT.txt"
+          sha256sum "$RUNNER_TEMP/android-proof/"*.apk > "$RUNNER_TEMP/android-proof/UNSIGNED-SHA256.txt"
+      - name: Disposable emulator-only identity (never a release signer)
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt -storetype JKS -keystore "$RUNNER_TEMP/test-only.jks" -storepass android -alias smoke -keypass android -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=Disposable navigation fixture'
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$RUNNER_TEMP/test-only.jks" --ks-pass pass:android --key-pass pass:android --ks-key-alias smoke --out "$RUNNER_TEMP/test-only.apk" apps/MarkdownDesk/build/MarkdownDesk-2.3.0-UNSIGNED.apk
+      - name: Start isolated API35 Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/navigation-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n navigation -p "$ANDROID_AVD_HOME/navigation.avd" -k 'system-images;android-35;google_apis;x86_64'
+          nohup "$ANDROID_HOME/emulator/emulator" -avd navigation -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel on > "$RUNNER_TEMP/android-proof/emulator.log" 2>&1 &
+          timeout 150 "$ANDROID_HOME/platform-tools/adb" wait-for-device
+          timeout 480 bash -c 'while [ "$("$1" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" != 1 ]; do sleep 4; done' _ "$ANDROID_HOME/platform-tools/adb"
+          for s in window_animation_scale transition_animation_scale animator_duration_scale; do "$ANDROID_HOME/platform-tools/adb" shell settings put global "$s" 0; done
+          "$ANDROID_HOME/platform-tools/adb" install --no-streaming "$RUNNER_TEMP/test-only.apk"
+      - name: Exercise real native navigation and preserved file routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ADB="$ANDROID_HOME/platform-tools/adb"
+          export NATIVE_EVIDENCE="$RUNNER_TEMP/android-proof/native"
+          python3 verification/navigation_ui/native_smoke.py 2>&1 | tee "$RUNNER_TEMP/android-proof/native.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: moonshot-android-proof-${{ needs.recover.outputs.source }}
+          path: ${{ runner.temp }}/android-proof/
+          retention-days: 7
+          if-no-files-found: warn

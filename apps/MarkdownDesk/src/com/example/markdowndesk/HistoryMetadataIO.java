@@ -78,16 +78,18 @@ final class HistoryMetadataIO {
     }
     void commit(String id,byte[] record,Check check)throws IOException {
         HistoryStorage.requireMutation(root);id(id);Inventory inventory=inventory();
+        PrivateOperationStore.Ledger operationBefore=HistoryStorage.operationWriteProof(root);
         if(inventory.files.size()>=MAX_ENTRIES||record.length>MAX_BYTES-inventory.bytes)throw new IOException("History metadata quota exhausted including stages");
         File destination=new File(root,id+extension),stage=new File(root,UUID.randomUUID()+".stage");
         if(Files.exists(destination.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Immutable history record exists");
         if(HistoryStorage.controlled(root))HistoryStorage.capacity(root).admit(root,record.length,0,1,0);
         HistoryStorage.changed(root);Files.createFile(stage.toPath());
         try(FileOutputStream out=new FileOutputStream(stage)){out.write(record);out.flush();durability.syncFile(out.getFD());}
-        check.validate();durability.move(stage,destination);
+        check.validate();HistoryStorage.verifyOperationWrite(root,operationBefore);durability.move(stage,destination);
         if(Files.exists(stage.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Atomic history move did not consume stage");
         durability.syncDirectory(root);
         if(!Arrays.equals(record,read(destination)))throw new IOException("Committed history metadata differs");
+        HistoryStorage.verifyOperationWrite(root,operationBefore);
     }
     private byte[] read(File file)throws IOException {
         ancestors(root.toPath());BasicFileAttributes before=attributes(file.toPath());long size=before.size();

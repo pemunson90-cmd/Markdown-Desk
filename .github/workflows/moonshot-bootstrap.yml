@@ -1,0 +1,72 @@
+name: Markdown Desk moonshot baseline and local bootstrap
+on:
+  push:
+    branches: [moonshot/professional-upgrade-20261031]
+    paths: ['.github/workflows/moonshot-bootstrap.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: moonshot-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Read exact isolated source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.16+8'
+      - name: Retain source and exact baseline identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/moonshot-bootstrap"
+          mkdir -p "$OUT"
+          BASE=877facadce54247f38aa29d8b7c1cb5f055f813b
+          git merge-base --is-ancestor "$BASE" HEAD
+          test "$(git rev-parse "$BASE:apps/MarkdownDesk")" = "$(git rev-parse HEAD:apps/MarkdownDesk)"
+          git rev-parse HEAD > "$OUT/SOURCE_COMMIT.txt"
+          git rev-parse "$BASE:apps/MarkdownDesk" > "$OUT/APPLICATION_TREE.txt"
+          git bundle create "$OUT/source.bundle" HEAD
+          git bundle verify "$OUT/source.bundle"
+      - name: Prepare existing build inputs for the offline workbench
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/moonshot-bootstrap"
+          : "${ANDROID_HOME:?Missing runner SDK}"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKM" --install 'platforms;android-37.0' 'build-tools;36.0.0'
+          bash verification/setup_host_deps.sh
+          cp verification/build/deps/android-json-0.0.20131108.vaadin1.jar "$OUT/"
+          tar -czf "$OUT/android-build-inputs.tgz" -C "$ANDROID_HOME" \
+            build-tools/36.0.0 platforms/android-37.0/android.jar
+          command -v rg >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y -qq ripgrep; }
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+      - name: Reproduce current full required host baseline
+        shell: bash
+        run: |
+          set -uo pipefail
+          OUT="$RUNNER_TEMP/moonshot-bootstrap"
+          bash verification/run_host_checks.sh > "$OUT/host-baseline.log" 2>&1
+          code=$?
+          printf '%s\n' "$code" > "$OUT/host-baseline-exit.txt"
+          tail -n 100 "$OUT/host-baseline.log"
+          echo "Full host baseline exit: $code (not a release or device acceptance)" >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Retain source, tools and truthful baseline evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: markdown-desk-moonshot-bootstrap-${{ github.sha }}
+          path: ${{ runner.temp }}/moonshot-bootstrap/
+          retention-days: 3
+          if-no-files-found: error

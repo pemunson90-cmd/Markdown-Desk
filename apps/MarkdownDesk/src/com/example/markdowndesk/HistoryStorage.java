@@ -12,9 +12,29 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Private single-process history coordination. A JVM monitor is not a process lock. */
 final class HistoryStorage {
     private static final ConcurrentHashMap<String,State> MONITORS=new ConcurrentHashMap<>();
-    private static final class State {long generation;Thread mutator;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;HistoryMaintenanceExecutor.Retirement retirement;}
+    private static final class State {long generation;Thread mutator;MutationScope mutationScope;HistoryCapacity capacity;HistoryTombstoneView tombstones;HistoryPins pins;HistoryOperations operations;PreparationSources preparationSources;HistoryMaintenanceExecutor.Retirement retirement;Map<String,String> operationControl=Collections.emptyMap(),operationData=Collections.emptyMap();long operationEvidenceBytes;}
     static final long METADATA_BUDGET=16L*1024*1024;
     private HistoryStorage() {}
+    static void requireOperationControl(File root,HistoryControlStore.Inspection control)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
+        for(Map.Entry<String,String> retained:state.operationControl.entrySet()){
+            boolean found=false;for(HistoryControlStore.Entry e:control.entries)if(retained.getKey().equals(e.filename)&&retained.getValue().equals(e.envelopeHash)&&!e.stage)found=true;
+            if(!found)throw new IOException("Retained operation control disappeared/changed");
+        }
+    }
+    static long operationEvidenceBytes(File root)throws IOException{return ((State)monitorFor(root)).operationEvidenceBytes;}
+    static void requireOperationEvidence(File root,HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger)throws IOException {
+        requireOperationControl(root,control);State state=(State)monitorFor(root);
+        for(Map.Entry<String,String> e:state.operationData.entrySet())if(!Objects.equals(e.getValue(),ledger.entries.get(e.getKey())))throw new IOException("Retained operation data disappeared/changed");
+    }
+    static void rememberOperationEvidence(File root,HistoryControlStore.Inspection control,PrivateOperationStore.Ledger ledger)throws IOException {
+        requireMutation(root);requireOperationEvidence(root,control,ledger);if(!ledger.complete||!control.operations.valid)throw new IOException("Incomplete operation evidence");
+        State state=(State)monitorFor(root);
+        Map<String,String> records=new TreeMap<>(),files=new TreeMap<>();long bytes=0;
+        for(HistoryControlStore.Entry e:control.entries)if(!e.stage&&PrivateOperationStore.operationEntry(e)){records.put(e.filename,e.envelopeHash);bytes=PrivateOperationStore.add(bytes,1024L+e.filename.length()*2L);}
+        for(Map.Entry<String,String> e:ledger.entries.entrySet())if(!e.getKey().endsWith(".stage")||state.operationData.containsKey(e.getKey())||PrivateOperationStore.retainHistoricalStageLocked(root,control,ledger,e.getKey())){files.put(e.getKey(),e.getValue());bytes=PrivateOperationStore.add(bytes,1024L+e.getKey().length()*2L);}
+        state.operationControl=Collections.unmodifiableMap(records);state.operationData=Collections.unmodifiableMap(files);state.operationEvidenceBytes=bytes;
+    }
     static File canonicalRoot(File root)throws IOException {
         if(root==null)throw new IOException("Missing history root");
         File absolute=root.getAbsoluteFile();Path path=absolute.toPath();
@@ -32,6 +52,19 @@ final class HistoryStorage {
     static HistoryOperations operations(File root)throws IOException{return ((State)monitorFor(root)).operations;}
     static void operations(File root,HistoryOperations operations)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.operations!=null)throw new IOException("Operation coordinator already installed or unlocked");state.operations=operations;
+    }
+    static PreparationSources preparationSources(File root)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");return state.preparationSources;
+    }
+    static void preparationSources(File root,PreparationSources value)throws IOException {
+        State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.preparationSources!=null||value==null)throw new IOException("Preparation owner already installed or unlocked");state.preparationSources=value;
+    }
+    /** No generic reset: only the still-registered old owner, exact claim and durable receipt. */
+    static void removePreparationSourcesLocked(File root,PreparationSources expected,PreparationSources.Proof claim,
+            PrivateCaptureWriter.CapturedBinding binding)throws IOException {
+        requireMutation(root);HistoryOperations.rejectParticipant();State state=(State)monitorFor(root);
+        if(expected==null||claim==null||binding==null||!canonicalRoot(root).equals(binding.root)||state.preparationSources!=expected)throw new IOException("Preparation handoff registration changed");
+        claim.validateHandoffLocked(expected,binding);binding.consumeHandoffLocked(claim);state.preparationSources=null;
     }
     static HistoryPins pins(File root)throws IOException{return ((State)monitorFor(root)).pins;}
     static void pins(File root,HistoryPins pins)throws IOException{requireMutation(root);((State)monitorFor(root)).pins=pins;}
@@ -85,12 +118,12 @@ final class HistoryStorage {
     static final class MutationScope implements AutoCloseable {
         private State state;
         MutationScope(State state){this.state=state;}
-        public void close(){if(state!=null){state.mutator=null;state=null;}}
+        public void close(){if(state!=null){state.mutator=null;state.mutationScope=null;state=null;}}
     }
     static MutationScope administration(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state))throw new IOException("History monitor required");
         if(state.mutator!=null)throw new IOException("Nested history mutation rejected");
-        state.mutator=Thread.currentThread();return new MutationScope(state);
+        MutationScope scope=new MutationScope(state);state.mutator=Thread.currentThread();state.mutationScope=scope;return scope;
     }
     static MutationScope mutation(File root)throws IOException {
         MutationScope scope=administration(root);
@@ -107,6 +140,20 @@ final class HistoryStorage {
     }
     static void requireMutation(File root)throws IOException {
         State state=(State)monitorFor(root);if(!Thread.holdsLock(state)||state.mutator!=Thread.currentThread())throw new IOException("History mutation scope required");
+    }
+    /** Passive opaque identity for evidence confined to the current mutation lease. */
+    static Object mutationIdentityLocked(File root)throws IOException {
+        requireMutation(root);return ((State)monitorFor(root)).mutationScope;
+    }
+    /** Native writers keep operation evidence stable across their external durability callbacks. */
+    static PrivateOperationStore.Ledger operationWriteProof(File root)throws IOException {
+        requireMutation(root);return controlled(root)?PrivateOperationStore.completeDataLocked(root):null;
+    }
+    static void verifyOperationWrite(File root,PrivateOperationStore.Ledger proof)throws IOException {
+        requireMutation(root);
+        if(proof==null){if(controlled(root))throw new IOException("History authority appeared during legacy write");return;}
+        if(!controlled(root))throw new IOException("History authority disappeared during write");
+        PrivateOperationStore.unchangedDataLocked(root,proof);
     }
     static boolean constructorReadOnly(File root,int role,Long bootstrap)throws IOException {
         requireMutation(root);if(!controlled(root))return false;
@@ -136,7 +183,7 @@ final class HistoryStorage {
     static final class Budget {
         private long remaining;
         Budget(long maximum)throws IOException {if(maximum<0||maximum>METADATA_BUDGET)throw new IOException("Invalid history metadata budget");remaining=maximum;}
-        void charge(long amount)throws IOException {if(amount<0||amount>remaining)throw new BudgetExceeded();remaining-=amount;}
+        synchronized void charge(long amount)throws IOException {if(amount<0||amount>remaining)throw new BudgetExceeded();remaining-=amount;}
     }
     static final class FilesView {
         final List<ProtectionStore.StoredRecord> records=new ArrayList<>();

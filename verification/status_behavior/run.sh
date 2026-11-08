@@ -5,7 +5,7 @@ out="$PWD/verification/build/status-behavior"
 javac_bin="${JAVAC:-javac}"
 java_bin="${JAVA:-java}"
 mkdir -p "$out/classes"
-"$javac_bin" --release 11 -d "$out/classes" verification/status_behavior/ExtractStatus.java
+"$javac_bin" --release 11 -d "$out/classes" verification/source_extraction/ParsedJavaSource.java verification/status_behavior/ExtractStatus.java
 "$java_bin" -cp "$out/classes" ExtractStatus \
   apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java \
   verification/status_behavior/StatusHarness.template "$out/StatusHarness.java"
