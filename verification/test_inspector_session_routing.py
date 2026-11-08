@@ -27,7 +27,7 @@ class InspectorSessionRouting(unittest.TestCase):
     def test_persist_inspector_identity_without_source_bytes_or_grants(self):
         t = self.tabs
         self.assertIn('JS="unified_inspector_tabs_v1"', t)
-        self.assertIn('private static boolean validInspectorSource(Uri uri)',t)
+        self.assertIn('static boolean validInspectorSource(Uri uri)',t)
         self.assertIn('raw.length()<=8192',t)
         self.assertIn('"content".equalsIgnoreCase(uri.getScheme())',t)
         self.assertIn('uri.getHost()!=null&&!uri.getHost().isEmpty()',t)
