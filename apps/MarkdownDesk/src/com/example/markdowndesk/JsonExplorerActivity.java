@@ -388,6 +388,7 @@ public final class JsonExplorerActivity extends Activity {
         noteActionRow.addView(button("Backlinks",v->{if(readingNotes!=null)readingNotes.showBacklinks();}),
                 new LinearLayout.LayoutParams(0,dp(48),1));
         noteActionRow.addView(button("Find JSON",v->findCurrentJson()),new LinearLayout.LayoutParams(0,dp(48),1));
+        noteActionRow.addView(button("Index JSON",v->showGenericJsonImportChoice()),new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(noteActionRow);
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
@@ -551,9 +552,11 @@ public final class JsonExplorerActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=revision||request!=currentFindRequest||document==null||!current.equals(document)||
                             isFinishing()||isDestroyed())return;
-                    showFailure("Current JSON search is unavailable or exceeds 8 MiB. "+
-                            "Use indexed Archive Search for large conversation files. "+
-                            safeError(unavailable));
+                    new AlertDialog.Builder(this).setTitle("Full JSON search")
+                        .setMessage("Current raw search is unavailable or exceeds 8 MiB. "+
+                            "Index this JSON for complete on-device search across every value. "+safeError(unavailable))
+                        .setPositiveButton("Index JSON",(dialog,which)->showGenericJsonImportChoice())
+                        .setNegativeButton("Cancel",null).show();
                 });
             }
         });
@@ -853,6 +856,26 @@ public final class JsonExplorerActivity extends Activity {
     /** Explicit user choice to reuse the existing generation-safe full Archive reader.
      * JSON Inspector itself remains usable and does not silently start a large import.
      */
+    private void showGenericJsonImportChoice(){
+        final Uri uri=document;
+        if(uri==null||!"content".equalsIgnoreCase(uri.getScheme())){
+            showFailure("Choose a readable JSON file first.");return;
+        }
+        new AlertDialog.Builder(this).setTitle("Index JSON for full search")
+            .setMessage("Read every JSON path, type and value into the local search index. "+
+                "Large values stream without a preview cap. You can read, annotate, search and export the indexed values. "+
+                "The original JSON stays unchanged. For a coherent LLM conversation, use the conversation import option instead.")
+            .setPositiveButton("Index JSON",(dialog,which)->{
+                Intent launch=new Intent(this,ArchiveWorkspaceActivity.class)
+                    .setAction(Intent.ACTION_VIEW).setData(uri)
+                    .putExtra(com.example.markdowndesk.workspace.WorkspaceRouter.EXTRA_IMPORT_JSON_URI,uri.toString())
+                    .putExtra("com.example.markdowndesk.INDEX_GENERIC_JSON",true)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                try{startActivity(launch);}
+                catch(RuntimeException failed){showFailure("JSON index unavailable: "+safeError(failed));}
+            }).setNegativeButton("Cancel",null).show();
+    }
+
     private void showFullArchiveImportChoice(){
         final Uri uri=document;
         if(uri==null||!"content".equalsIgnoreCase(uri.getScheme())){

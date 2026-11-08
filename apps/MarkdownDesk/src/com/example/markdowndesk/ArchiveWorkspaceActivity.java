@@ -105,6 +105,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
     private int anchorOrdinal=-1,anchorPart,anchorY;
     private long lastAnchorCapture;
+    private volatile String savedSelectionJson;
+    private boolean incomingNavigationConsumed;
     private boolean fullscreen, chatLayout, restoreLastPosition;
     /** Shared workspace mode contract: Read(0), Inspect(1), Split(2). */
     private int archiveDisplayMode;
@@ -131,6 +133,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String tree=prefs.getString("archive_notes_tree",null);
         if(tree!=null)try{notesTree=Uri.parse(tree);}catch(RuntimeException ignored){}
         if(state!=null){
+            incomingNavigationConsumed=state.getBoolean("incoming_navigation_consumed",false);
+            savedSelectionJson=state.getString("archive_selection");
             anchorOrdinal=state.getInt("anchor_ordinal",-1);
             anchorPart=Math.max(0,state.getInt("anchor_part",0));
             anchorY=state.getInt("anchor_y",0);
@@ -164,7 +168,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
             String chat=state.getString("chat");
             if(chat!=null)active=findConversation(chat);
-            if(active!=null&&!active.generationId.equals(state.getString("anchor_generation")))anchorOrdinal=-1;
+            if(active!=null&&!active.generationId.equals(state.getString("anchor_generation"))){anchorOrdinal=-1;savedSelectionJson=null;}
         }
         buildChrome();
         importController=ArchiveImportCoordinator.get(getApplicationContext());
@@ -175,7 +179,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
-        if(!handleIncomingInspectorImport(getIntent()) && !handleDeepLink(getIntent()) && !openUnifiedTab(getIntent())){
+        if(incomingNavigationConsumed || (!handleIncomingInspectorImport(getIntent()) && !handleDeepLink(getIntent()) && !openUnifiedTab(getIntent()))){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
                 searchDialog(null);return;
@@ -198,6 +202,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(intent==null||!intent.hasExtra(UnifiedTabs.EXTRA_TAB_ID))return false;
         String id=intent.getStringExtra(UnifiedTabs.EXTRA_TAB_ID);
         intent.removeExtra(UnifiedTabs.EXTRA_TAB_ID);
+        incomingNavigationConsumed=true;
         ArchiveDatabase.Conversation target=findConversation(id);
         if(target==null)status("This conversation is not indexed; reimport its source");
         else openChat(target);
@@ -206,6 +211,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
+        state.putBoolean("incoming_navigation_consumed",incomingNavigationConsumed);
+        state.putString("archive_selection",savedSelectionJson);
         state.putString("anchor_generation",active==null?null:active.generationId);
         state.putInt("anchor_ordinal",anchorOrdinal);
         state.putInt("anchor_part",anchorPart);state.putInt("anchor_y",anchorY);
@@ -407,6 +414,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void openChat(ArchiveDatabase.Conversation c){
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
+        savedSelectionJson=null;
         active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;
@@ -426,10 +434,22 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             showHome();return;
         }
         refreshConversationTabs();
+        if((keepScroll||restoreLastPosition)&&savedSelectionJson!=null){
+            try{
+                JSONObject selected=new JSONObject(savedSelectionJson);
+                int selectedOrdinal=database.findMessageOrdinal(active.id,selected.optString("id",""));
+                int selectedPart=selected.optInt("sourcePart",-1);
+                // Ensure a selection near the end of a trimmed 36-message DOM
+                // is present in the new bounded window before restoring its range.
+                if(selectedOrdinal>=0&&selectedPart>=0){
+                    anchorOrdinal=selectedOrdinal;anchorPart=Math.max(0,selectedPart-1);anchorY=0;
+                }
+            }catch(Exception invalid){savedSelectionJson=null;}
+        }
         final boolean restoreAnchor=(keepScroll||restoreLastPosition)&&anchorOrdinal>=0&&anchorOrdinal<active.messages;
         final int restoredOrdinal=anchorOrdinal,restoredPart=anchorPart,restoredY=anchorY;
         if(restoreAnchor){focusOrdinal=anchorOrdinal;chunkOffset=anchorPart;}
-        else if(!keepScroll&&!restoreLastPosition)anchorOrdinal=-1;
+        else if(!keepScroll&&!restoreLastPosition){anchorOrdinal=-1;savedSelectionJson=null;}
         final int token=++generation;
         adjacentLoading=false;chunkLoading=false;
         if(viewport==null||!active.id.equals(viewportChatId)||viewport.total()!=active.messages
@@ -473,6 +493,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         action("Style",v->appearanceDialog());
         PreviewWebView web=new PreviewWebView(this);
         reader=web;web.setBackgroundColor(palette.canvas);
+        web.addJavascriptInterface(new SelectionStateBridge(web,token),"ArchiveSelectionState");
         web.setTextSp(fontSp);web.setOnTextScaleListener(size->{
             fontSp=size;prefs.edit().putFloat("preview_font_size",fontSp).apply();showReader(true);
         });
@@ -534,6 +555,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(!restorePosition&&navigationOrdinal>=0)
                         v.evaluateJavascript("(function(){var e=document.querySelector('[data-ordinal=\""+
                                 navigationOrdinal+"\"]');if(e)e.scrollIntoView();})()",null);
+                    restoreReadingSelection(web,token);
                     refreshHighlights(web,new ArrayList<>(visibleMessages),token);
                     if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
                         v.findAllAsync(pendingFindTerm);
@@ -819,7 +841,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 String script=ArchiveHighlightScript.add(matched);
                 runOnUiThread(()->{
                     if(token==generation&&reader==web&&active!=null&&chat.equals(active.id))
-                        web.evaluateJavascript(script,null);
+                        web.evaluateJavascript(script,ignored->restoreReadingSelection(web,token));
                 });
             }catch(Exception ignored){/* Journal remains untouched. */}
         });
@@ -1327,6 +1349,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 if(position<0){status("Original message no longer indexed. Link needs review.");return;}
                 rememberPriorArchiveVisit(c.id);
                 active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
+                restoreLastPosition=false;
                 focusOrdinal=position;chunkOffset=Math.max(0,a.sourcePart-1);savedScroll=0;
                 pendingFindTerm=a.quote;showReader(false);
             }else if(index==1){
@@ -1712,6 +1735,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(intent==null||!intent.hasExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI))return false;
         String advertised=intent.getStringExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI);
         intent.removeExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI);
+        incomingNavigationConsumed=true;
         Uri selected=intent.getData();
         if(selected==null||advertised==null||!advertised.equals(selected.toString())
                 ||!"content".equalsIgnoreCase(selected.getScheme())){
@@ -1733,7 +1757,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(segments.size()!=4||!"v1".equals(segments.get(0)))return false;
         // Consume this navigation once. Rotation must restore the current reader
         // position, rather than replay the original search/deep-link destination.
-        intent.setData(null);
+        intent.setData(null);incomingNavigationConsumed=true;restoreLastPosition=false;
         String sourceArchive=segments.get(1),chat=segments.get(2),message=segments.get(3);
         ArchiveDatabase.Conversation c=findConversation(chat);
         if(c==null||c.archiveId==null||!sourceArchive.equals(c.archiveId)){
@@ -1793,6 +1817,33 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         rememberReadingPlace();
         if(priorArchiveChats.size()==16)priorArchiveChats.remove(0);
         priorArchiveChats.add(active.id);
+    }
+    /** The bridge only accepts bounded inert selection data; no file/network APIs. */
+    private final class SelectionStateBridge {
+        private final PreviewWebView web;private final int token;
+        SelectionStateBridge(PreviewWebView web,int token){this.web=web;this.token=token;}
+        @android.webkit.JavascriptInterface public void update(String snapshot){
+            if(token!=generation||reader!=web)return;
+            if(snapshot==null||snapshot.isEmpty()){savedSelectionJson=null;return;}
+            if(snapshot.length()>262144)return;
+            try{
+                JSONObject state=new JSONObject(snapshot);
+                String id=state.optString("id",""),quote=state.optString("quote","");
+                if(id.isEmpty()||id.length()>2048||quote.isEmpty()||quote.length()>65536||
+                        state.optString("prefix","").length()>64||state.optString("suffix","").length()>64)return;
+                savedSelectionJson=snapshot;
+            }catch(Exception invalid){/* An invalid selection never replaces valid state. */}
+        }
+    }
+    private void restoreReadingSelection(PreviewWebView web,int token){
+        if(token!=generation||reader!=web)return;
+        String selected=savedSelectionJson;
+        if(selected!=null&&!selected.isEmpty())web.evaluateJavascript(
+                com.example.markdowndesk.workspace.archive.ArchiveSelectionScript.restore(selected),resolved->{
+                    if(token!=generation||reader!=web)return;
+                    if(!"true".equals(resolved))status("Previous selection no longer uniquely resolves in the loaded passage.");
+                });
+        web.evaluateJavascript(com.example.markdowndesk.workspace.archive.ArchiveSelectionScript.observe(),null);
     }
     private void captureReadingAnchor(PreviewWebView web,int token){
         web.evaluateJavascript(ArchiveScrollScript.position(),result->{

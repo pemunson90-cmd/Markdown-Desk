@@ -54,6 +54,7 @@ final class ArchiveImportCoordinator {
     private volatile Thread runningThread;
     private volatile boolean busy;
     private volatile String sourceUri;
+    private volatile boolean genericJson;
     private volatile Snapshot snapshot;
     private volatile long lastPersist;
     private int conversations,messages;
@@ -63,6 +64,7 @@ final class ArchiveImportCoordinator {
         saved=app.getSharedPreferences("archive_import_v2",Context.MODE_PRIVATE);
         String state=saved.getString("state","idle");
         sourceUri=saved.getString("uri",null);
+        genericJson=saved.getBoolean("generic_json",false);
         snapshot=new Snapshot("running".equals(state)?"interrupted":state,
                 "running".equals(state)?"Previous import was interrupted. Safe restart available.":"",
                 saved.getString("error",null),saved.getLong("bytes",0),saved.getLong("size",-1),
@@ -75,9 +77,10 @@ final class ArchiveImportCoordinator {
         if(listener.get()==detached)listener=new WeakReference<>(null);
     }
     Snapshot snapshot(){return snapshot;}
-    synchronized boolean start(Uri uri){
+    synchronized boolean start(Uri uri){return start(uri,false);}
+    synchronized boolean start(Uri uri,boolean generic){
         if(busy||uri==null||!"content".equalsIgnoreCase(uri.getScheme()))return false;
-        sourceUri=uri.toString();busy=true;cancellation.set(false);bytes.set(0);
+        sourceUri=uri.toString();genericJson=generic;busy=true;cancellation.set(false);bytes.set(0);
         conversations=0;messages=0;
         update("checking","Inspecting archive size and available storage",null,-1,true);
         worker.execute(()->importSource(sourceUri));
@@ -85,7 +88,7 @@ final class ArchiveImportCoordinator {
     }
     synchronized boolean retryInterrupted(){
         if(busy||sourceUri==null||sourceUri.isEmpty())return false;
-        return start(Uri.parse(sourceUri));
+        return start(Uri.parse(sourceUri),genericJson);
     }
     synchronized void cancel(){
         // A stale Cancel tap must not transition an idle or completed job into
@@ -118,7 +121,7 @@ final class ArchiveImportCoordinator {
             if (abandoned != null) for (File file : abandoned)
                 if (!file.delete()) throw new IOException("Unable to clean interrupted conversation import");
             Uri uri=Uri.parse(selected);
-            String id=UUID.nameUUIDFromBytes(selected.getBytes(StandardCharsets.UTF_8)).toString();
+            String id=JsonDocumentIndexer.sourceIdentity(selected,genericJson);
             long size=sourceLength(uri);
             // Cleanup must be available even if an old interrupted import
             // occupied most of the phone. Do not reject before safe cleanup.
@@ -138,7 +141,7 @@ final class ArchiveImportCoordinator {
                     conversations=n;throttled(size);
                 }
             });
-            db.beginImport(selected,"Conversation JSON export");
+            db.beginImport(selected,genericJson?"JSON path index":"Conversation JSON export");
             try(InputStream input=app.getContentResolver().openInputStream(uri)){
                 if(input==null)throw new IOException("The file provider returned no data");
                 sourceStream=input;
@@ -156,7 +159,8 @@ final class ArchiveImportCoordinator {
                         return n;
                     }
                 };
-                new ArchiveStreamParser(ArchiveStreamParser.strictUtf8Reader(counting),db).parse();
+                if(genericJson)JsonDocumentIndexer.index(counting,uri.getLastPathSegment(),db);
+                else new ArchiveStreamParser(ArchiveStreamParser.strictUtf8Reader(counting),db).parse();
             }finally{sourceStream=null;}
             if(cancellation.get())throw new IOException("Import cancelled");
             update("publishing","Switching to completed index without deleting the previous one",null,size,true);
@@ -216,7 +220,7 @@ final class ArchiveImportCoordinator {
         if(persist){
             lastPersist=now;
             saved.edit().putString("state",snapshot.running()?"running":state)
-                    .putString("uri",sourceUri).putString("error",error)
+                    .putString("uri",sourceUri).putBoolean("generic_json",genericJson).putString("error",error)
                     .putLong("bytes",snapshot.bytes).putLong("size",size)
                     .putLong("changed",now).putInt("conversations",conversations)
                     .putInt("messages",messages).apply();

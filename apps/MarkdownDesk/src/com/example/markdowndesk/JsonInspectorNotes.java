@@ -220,8 +220,9 @@ final class JsonInspectorNotes {
             dialog.dismiss();
             io.execute(()->{
                 try{
-                    JsonExplorerEngine.Page latest=JsonExplorerEngine.scan(
-                            ()->host.getContentResolver().openInputStream(uri),steps,JsonExplorerEngine.valuePage(valueStart));
+                    JsonExplorerEngine.Page latest=JsonExplorerEngine.scanWindow(
+                            ()->host.getContentResolver().openInputStream(uri),steps,
+                            JsonExplorerEngine.valuePage(valueStart),valueStart,value.length());
                     if(!"Value".equals(latest.type)||!value.equals(latest.value)||
                             !VerifiedTextAnchor.matchesSelected(latest.value,quote,prefix,suffix,first,last))
                         throw new IOException("JSON value changed; annotation not saved");
@@ -346,8 +347,12 @@ final class JsonInspectorNotes {
                 for(JsonPathCodec.Step part:decoded)
                     steps.add(part.key==null?JsonExplorerEngine.Step.element(part.index):
                             JsonExplorerEngine.Step.field(part.key));
-                JsonExplorerEngine.Page found=JsonExplorerEngine.scan(
-                        ()->host.getContentResolver().openInputStream(uri),steps,JsonExplorerEngine.valuePage(match.selectionStart));
+                int first=(match.selectionStart/JsonExplorerEngine.VALUE_CHARS)*JsonExplorerEngine.VALUE_CHARS;
+                int count=(int)Math.min(2L*JsonExplorerEngine.VALUE_CHARS+128,
+                        Math.max(JsonExplorerEngine.VALUE_CHARS,(long)match.selectionEnd-first+64));
+                JsonExplorerEngine.Page found=JsonExplorerEngine.scanWindow(
+                        ()->host.getContentResolver().openInputStream(uri),steps,
+                        JsonExplorerEngine.valuePage(match.selectionStart),first,count);
                 if(!"Value".equals(found.type))throw new IOException("Saved JSON value is no longer present");
                 int at=VerifiedTextAnchor.locate(found.value,match.quote,match.prefix,
                         match.suffix,match.selectionStart-found.valueStart);

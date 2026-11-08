@@ -22,6 +22,8 @@ public final class JsonStreamingEngineCheck {
         for(int page=0;;page+=100){JsonExplorerEngine.Page p=scan(json,path,page);joined.append(p.value);if(!p.hasMore)break;}
         eq(joined.toString(),value);
         eq(scan(json,path,100).valueStart,65537);
+        JsonExplorerEngine.Page legacy=JsonExplorerEngine.scanWindow(()->new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)),path,0,0,66064);
+        eq(legacy.value.substring(65000,66000),value.substring(65000,66000));
         eq(scan("{\"n\":-1.2e+3}",Arrays.asList(JsonExplorerEngine.Step.field("n")),0).value,"-1.2e+3");
         for(String s:new String[]{"[1,]","{\"a\":1,}","[01]","[.1]","[1e]","[1.]","[truex]","[\"\\uD800\"]","[\"\\uDC00\"]"})bad(s);
         // Generate a 70MB scalar without allocating it, then read a late window

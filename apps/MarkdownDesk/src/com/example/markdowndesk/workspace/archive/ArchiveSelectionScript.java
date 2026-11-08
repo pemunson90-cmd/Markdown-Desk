@@ -35,4 +35,36 @@ public final class ArchiveSelectionScript {
             " prefix:text.slice(Math.max(0,start-64),start),suffix:text.slice(end,end+64)});\n" +
             "})()";
     }
+    /** Observe bounded selection data in the app-owned offline preview only. */
+    public static String observe(){
+        return "(function(){if(window.mdSelectionObserved)return;window.mdSelectionObserved=true;"+
+            "function send(value){if(window.ArchiveSelectionState)window.ArchiveSelectionState.update(value);}"+
+            "document.addEventListener('selectionchange',function(){var selected="+capture()+
+            ";if(selected)send(selected);});"+
+            "document.addEventListener('pointerdown',function(){send('');},true);"+
+            "document.addEventListener('keydown',function(){send('');},true);})()";
+    }
+    /** Match one unique quote with both contexts before reconstructing a DOM
+     * range. Selection text is data; source changes and duplicate matches refuse. */
+    public static String restore(String snapshot){
+        return "(function(){var record=JSON.parse("+ArchiveScrollScript.quote(snapshot)+
+            "),sections=document.querySelectorAll('section[data-message-id]');"+
+            "if(!record.quote||record.quote.length>65536)return false;var found=null;"+
+            "for(var s=0;s<sections.length;s++){if(sections[s].getAttribute('data-message-id')!==record.id)continue;"+
+            "var content=sections[s].querySelector('.archive-content');if(!content)continue;"+
+            "var walker=document.createTreeWalker(content,NodeFilter.SHOW_TEXT),nodes=[],text='',node;"+
+            "while((node=walker.nextNode())){if(node.parentElement&&node.parentElement.closest('script,style,noscript,template'))continue;"+
+            "nodes.push(node);text+=node.nodeValue;}var at=-1,next=0,index;"+
+            "while((index=text.indexOf(record.quote,next))!==-1){next=index+1;var before=record.prefix||'',after=record.suffix||'';"+
+            "if(index<before.length||text.slice(index-before.length,index)!==before||"+
+            "text.slice(index+record.quote.length,index+record.quote.length+after.length)!==after)continue;"+
+            "if(at>=0||found)return false;at=index;}if(at<0)continue;"+
+            "function point(offset){var count=0;for(var i=0;i<nodes.length;i++){var end=count+nodes[i].nodeValue.length;"+
+            "if(offset<end||(offset===end&&i===nodes.length-1))return [nodes[i],offset-count];count=end;}return null;}"+
+            "var first=point(at),last=point(at+record.quote.length);if(!first||!last)return false;found=[first,last];}"+
+            "if(!found)return false;var range=document.createRange();range.setStart(found[0][0],found[0][1]);"+
+            "range.setEnd(found[1][0],found[1][1]);var selection=window.getSelection();"+
+            "selection.removeAllRanges();selection.addRange(range);return true;})()";
+    }
+
 }

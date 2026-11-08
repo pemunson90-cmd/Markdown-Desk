@@ -21,7 +21,7 @@ public final class ArchiveMarkdownIndexes {
     }
     public static String master(Collection<ArchiveJournal.Annotation> all) {
         ArrayList<ArchiveJournal.Annotation> links=filter(all,null,null,true);
-        StringBuilder result=new StringBuilder("# Master Saved Links — Claude Archive\n\n")
+        StringBuilder result=new StringBuilder("# Master Saved Links — Markdown Desk\n\n")
                 .append("_Only links deliberately saved by the reader appear here._\n\n")
                 .append(BEGIN).append("\n\n");
         if(links.isEmpty())result.append("_No saved links._\n\n");

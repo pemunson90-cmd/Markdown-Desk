@@ -109,6 +109,14 @@ final class JsonExplorerEngine {
     }
 
     static Page scan(StreamSource source, List<Step> path, int offset) throws IOException {
+        long first=(long)(offset/PAGE_SIZE)*VALUE_CHARS;
+        if(first>Integer.MAX_VALUE)throw new IOException("JSON value offset exceeds supported range");
+        return scanWindow(source,path,offset,(int)first,VALUE_CHARS);
+    }
+
+    /** A bounded expanded window keeps older saved selections spanning a page boundary resolvable. */
+    static Page scanWindow(StreamSource source,List<Step> path,int offset,int first,int count)throws IOException {
+        if(first<0||count<0||count>2*VALUE_CHARS+128)throw new IOException("Invalid JSON value window");
         Page page = new Page();
         page.offset=offset;
         try (JsonTokenReader json = reader(source)) {
@@ -162,9 +170,7 @@ final class JsonExplorerEngine {
             } else {
                 page.type="Value";
                 if(token==Token.STRING||token==Token.NUMBER){
-                    long first=(long)(offset/PAGE_SIZE)*VALUE_CHARS;
-                    if(first>Integer.MAX_VALUE)throw new IOException("JSON value offset exceeds supported range");
-                    JsonTokenReader.Window value=json.nextWindow((int)first,VALUE_CHARS);
+                    JsonTokenReader.Window value=json.nextWindow(first,count);
                     page.value=value.text;page.valueStart=value.start;page.valueTotal=value.total;
                     page.hasMore=(long)value.start+value.text.length()<value.total;
                 }else{page.value=scalar(json);page.valueTotal=page.value.length();}

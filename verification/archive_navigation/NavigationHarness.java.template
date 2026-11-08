@@ -24,7 +24,7 @@ public final class NavigationHarness {
     }
     ArchiveDatabase database=new ArchiveDatabase();ArchiveDatabase.Conversation active;
     int windowOffset,focusOrdinal,chunkOffset,savedScroll=999,renderCount,homeCount;
-    boolean returnUnifiedSearch;String pendingFindTerm,status;
+    boolean returnUnifiedSearch,incomingNavigationConsumed,restoreLastPosition;String pendingFindTerm,status;
     ArchiveDatabase.Conversation candidate=new ArchiveDatabase.Conversation();
     ArchiveDatabase.Conversation findConversation(String id){return candidate;}
     void status(String text){status=text;}
@@ -41,8 +41,9 @@ public final class NavigationHarness {
     }
     static void require(boolean ok,String message){if(!ok)throw new AssertionError(message);}
     public static void main(String[] args){
-        NavigationHarness h=new NavigationHarness();Intent intent=search("generation-2",18);
+        NavigationHarness h=new NavigationHarness();h.restoreLastPosition=true;Intent intent=search("generation-2",18);
         require(h.handleDeepLink(intent),"valid source accepted");
+        require(h.incomingNavigationConsumed&&!h.restoreLastPosition,"explicit intent overrides old reading position");
         require(h.focusOrdinal==85&&h.windowOffset==84&&h.chunkOffset==17,"exact message and overlap predecessor");
         require("needle".equals(h.pendingFindTerm)&&h.returnUnifiedSearch&&h.savedScroll==0,"find/return state");
         require(intent.getData()==null&&!intent.extras.containsKey(EXTRA_SEARCH_TERM),"one-shot navigation consumed");

@@ -4622,18 +4622,18 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchOpen();
         }), matchWrap());
-        content.addView(filesAction("Explore JSON / Claude export",
-                "Browse JSON and read Claude conversations without editing the source", view -> {
+        content.addView(filesAction("Explore JSON",
+                "Browse any JSON and read LLM archives without editing the source", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchJsonOpen();
         }), matchWrap());
-        content.addView(filesAction("Claude Archive & Research",
+        content.addView(filesAction("JSON Archives & Research",
                 "Full conversations · search · annotations · saved links · Markdown indexes", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             startActivity(new Intent(this, ArchiveWorkspaceActivity.class));
         }), matchWrap());
         content.addView(filesAction("All workspace tabs",
-                "Switch between open Markdown documents and Archive conversations", view -> {
+                "Switch between Markdown, JSON documents and indexed conversations", view -> {
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
             captureActiveTab();
             UnifiedTabs.updateMarkdown(this,this.tabs,this.activeTab);

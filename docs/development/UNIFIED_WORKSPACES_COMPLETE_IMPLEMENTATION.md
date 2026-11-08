@@ -4,6 +4,10 @@
 
 **Authoritative source:** Latest Unified Workspaces feature branch (post 2026-11-06 owner directive), plus code-37 importer and reader-safety follow-up. Do not rebuild from stale main, replace owner-accepted features, or silently drop the Markdown editor, JSON Inspector or signed-update identity. Existing Read/Inspect/Split Archive layouts remain selectable.
 
+## Arbitrary JSON clarification (owner, 2026-11-07)
+
+JSON is first-class regardless of provider. The Inspector reads arbitrary JSON trees and complete scalar windows without mutating source. Explicit **Index JSON** maps every node to a path/type record using the existing streaming index, full search, annotations, reader and exports. This generic representation has a distinct source identity from conversation interpretation. Known Claude/linear-message and ChatGPT graph formats retain coherent conversation structure; selected ChatGPT branch is first and alternate branches remain separately readable. Unknown packages do not silently become empty conversations. Existing private `claude-archive` storage paths stay unchanged for upgrade compatibility; they are not a product format restriction.
+
 ## Definition of done
 
 One installed native Android package, two optional launcher shortcuts to the same app, optional original Archive UI, fully consistent appearance/navigation/commands/files/settings, working source-specific modes, all applicable Markdown reader functionality in JSON/Archive, and no outstanding owner-requested feature gap. Source JSON immutable. No data loss, silent truncation, or misleading success state. Clean local compilation/dependencies/behavioral regressions and repeat 700 MB-class tests before preparing ONE signed APK for phone acceptance.

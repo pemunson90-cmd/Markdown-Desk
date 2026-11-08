@@ -35,7 +35,7 @@ class JsonNoteWiring(unittest.TestCase):
     def test_source_bound_selection_and_reanchor(self):
         n=self.notes
         self.assertIn('JsonInspectorNoteIdentity.create(uri.toString(),canonical',n)
-        self.assertIn('JsonExplorerEngine.scan(',n)
+        self.assertIn('JsonExplorerEngine.scanWindow(',n)
         self.assertIn('VerifiedTextAnchor.matchesSelected(latest.value',n)
         self.assertIn('VerifiedTextAnchor.locate(found.value,match.quote',n)
         self.assertIn('if(at<0)throw new IOException("Quoted passage changed or is ambiguous")',n)
