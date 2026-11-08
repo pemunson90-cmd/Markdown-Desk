@@ -98,6 +98,9 @@ class JsonReadingParity(unittest.TestCase):
     def test_duplicate_json_keys_fail_closed_across_object_pages(self):
         source=self.engine
         self.assertIn("Set<String> seenNames=new HashSet<>()",source)
+        self.assertIn("MAX_OBJECT_FIELDS = 4096",source)
+        self.assertEqual(source.count("if(seenNames.size()>=MAX_OBJECT_FIELDS)"),2)
+        self.assertIn("JSON object exceeds bounded field identity scan; original preserved",source)
         self.assertIn("if(!seenNames.add(skipped))",source)
         self.assertIn("if(!seenNames.add(key))",source)
         self.assertIn("Ambiguous duplicate JSON key in this object; original preserved",source)
