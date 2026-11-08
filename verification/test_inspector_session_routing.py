@@ -56,7 +56,8 @@ class InspectorSessionRouting(unittest.TestCase):
         self.assertIn("!UnifiedTabs.openInspector(this,chosen)", s)
         self.assertIn("showFailure(\"Twelve JSON Inspector tabs", s)
         self.assertIn("state.putString(\"jsonDocumentUri\",document.toString())", s)
-        self.assertIn("closeInspectorTabForSwitch();finish()", s)
+        self.assertIn("if(!openedFromSearch)closeInspectorTabForSwitch()", s)
+        self.assertIn("finish();",s)
         self.assertNotIn("closeInspectorTabForSwitch();\n        worker.shutdownNow()", s)
 
     def test_bounded_per_document_navigation_restore(self):
