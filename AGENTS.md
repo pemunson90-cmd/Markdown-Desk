@@ -1,5 +1,21 @@
 # Markdown Desk — standing Codex engineering contract
 
+## Mandatory testing stop rule — all agents (owner directive, 2026-11-07)
+
+**Every agent working in this repository must read and follow this section before planning or running verification.** The lead agent must include this rule in delegated task instructions. It overrides broader or repetitive testing language elsewhere in repository guidance.
+
+**Every test must answer a specific unresolved question whose answer could change the next engineering or delivery decision.** “Being thorough,” reassurance, and increasing test counts are not sufficient reasons to run more checks.
+
+- Define the smallest relevant verification set and its stopping condition for the actual change. Use maintained tests and existing evidence; do not create a new audit campaign by default.
+- Once the relevant checks and applicable required gates pass, **stop testing and proceed to delivery or the next authorized task**. Do not make the owner enforce this stopping point.
+- Reopen verification only for changed code or dependencies that affect the evidence, a failure, or a concrete new concern. Identify the question and run the affected checks; do not automatically restart every legacy suite.
+- Reuse valid results across sessions, documentation edits, merges with unchanged application inputs, and publication of the same verified artifact. A new commit SHA alone does not invalidate test evidence; record the tested source/artifact and what changed.
+- Run required release gates once at the appropriate boundary. Do not bypass a failed gate or omit a genuinely required check, but do not multiply equivalent checks or add gates without a specific risk they resolve.
+- When the remaining question requires the phone, Fold layout, or a real file provider, move to that device acceptance step after the applicable local gates pass. More host testing cannot answer it.
+- For documentation-only changes, review the wording, links, and diff as relevant. Do not build the app or run application regression suites.
+
+Keep the rationale brief and reuse the existing ledger when needed. This rule must not become another checklist bureaucracy or a reason to write tests for the testing policy itself.
+
 > **Active Unified Workspaces handoff (2026-11-06; overrides conflicting auto-resume or old roadmap instructions below).** Read [the one authoritative integration queue](docs/handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) FIRST, verify its current remote head and next incomplete batch, then perform only the bounded work explicitly requested for this turn. Preserve dirty/local work; never assume `main` or an old “current” status is the working integration head. PR #37 source guards, workflow efficiency and test helpers are first implementation priority **after** reconciliation planning; do not blindly merge its older branch.
 > **Active release boundary:** entire approved Unified Workspaces contract, existing capabilities and relevant unresolved bugs; **exclude** cross-installation private-state export/import, retain inert code/history. `main` must contain only the latest owner-accepted stable source. No automatic M0–M7 continuation, secret/CI spending, intermediate APK, or unrequested branch retirement. The rest of this document preserves standing engineering policies and historical context when not contradictory.
 
