@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.graphics.Color;
 import android.text.SpannableString;
@@ -54,13 +55,15 @@ final class JsonInspectorNotes {
     private final IntSupplier revision;
     private final Consumer<String> message;
     private final Consumer<Navigation> onNavigation;
+    private final Runnable onChanged;
     private final ArchiveJournal journal;
 
     JsonInspectorNotes(Activity host,ExecutorService io,Supplier<Uri> source,
             Supplier<List<JsonExplorerEngine.Step>> path,IntSupplier revision,
-            Consumer<String> message,Consumer<Navigation> onNavigation) {
+            Consumer<String> message,Consumer<Navigation> onNavigation,Runnable onChanged) {
         this.host=host;this.io=io;this.source=source;this.path=path;
         this.revision=revision;this.message=message;this.onNavigation=onNavigation;
+        this.onChanged=onChanged;
         journal=new ArchiveJournal(new File(host.getFilesDir(),"claude-archive/annotations-v2.journal"));
     }
     static String canonicalPath(List<JsonExplorerEngine.Step> current){
@@ -78,6 +81,14 @@ final class JsonInspectorNotes {
         host.runOnUiThread(()->{
             if(uri!=null&&uri.equals(source.get())&&!host.isFinishing()&&!host.isDestroyed())
                 message.accept(line);
+        });
+    }
+    private void reportChanged(Uri uri,String line){
+        host.runOnUiThread(()->{
+            if(uri!=null&&uri.equals(source.get())&&!host.isFinishing()&&!host.isDestroyed()){
+                message.accept(line);
+                if(onChanged!=null)onChanged.run();
+            }
         });
     }
     private static int toneColor(String tags){
@@ -175,6 +186,8 @@ final class JsonInspectorNotes {
                         label.getText().toString(),note.getText().toString(),
                         AnnotationTone.withTone(tags.getText().toString(),
                                 AnnotationTone.byIndex(tone.getSelectedItemPosition())),destination);
+                if(!WorkspaceDeepLinks.isInspectorLink(ArchiveMarkdownIndexes.deepLink(row)))
+                    throw new IllegalArgumentException("JSON URI is too long for a safe saved link");
             }catch(IllegalArgumentException invalid){
                 message.accept("Note cannot be saved: "+invalid.getMessage());return;
             }
@@ -188,7 +201,7 @@ final class JsonInspectorNotes {
                         throw new IOException("JSON value changed; annotation not saved");
                     journal.save(row);
                     String publish=publish(uri,row.chatTitle);
-                    report(uri,"JSON note saved locally. "+publish);
+                    reportChanged(uri,"JSON note saved locally. "+publish);
                 }catch(Exception failed){report(uri,"JSON note not saved: "+failed.getMessage());}
             });
         }));
@@ -267,7 +280,7 @@ final class JsonInspectorNotes {
                                 try{
                                     journal.deleteIfCurrent(row);
                                     String synced=publish(uri,row.chatTitle);
-                                    report(uri,"JSON note deleted. "+synced);
+                                    reportChanged(uri,"JSON note deleted. "+synced);
                                 }catch(Exception e){report(uri,"Cannot delete note: "+e.getMessage());}
                             })).setNegativeButton("Cancel",null).show();
                     }else if(which==5){
@@ -287,7 +300,7 @@ final class JsonInspectorNotes {
             try{
                 journal.saveIfCurrent(before,changed);
                 String publication=publish(uri,changed.chatTitle);
-                report(uri,"JSON note updated. "+publication);
+                reportChanged(uri,"JSON note updated. "+publication);
             }catch(Exception e){report(uri,"JSON note update rejected: "+e.getMessage());}
         });
     }
