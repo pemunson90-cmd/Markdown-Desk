@@ -2,11 +2,11 @@
 
 ## FAST RESUME — operational pointer (update on every committed section)
 
-- **Authoritative branch:** `integration/unified-workspaces-20261106`. **Exact last source HEAD:** `15ea0b7175a7badf521a2b7f4121cacad16862f1` before this ledger commit; recheck remote before editing, never undo later work.
-- **Current task:** T08 pre-APK verification and remaining feature integrity. T01–T07 implemented at source level but not fully compiled/accepted on Android. Do **not** release an APK.
-- **JUST COMPLETED:** T01 Inspector SAF tab URI bounds / authority / fragment guard `f5b8b50`, package-visible helper `24bd7c2`; fixed stale fixture assertions `771237e`, `b487222`; differentiated quota vs invalid URI `1c98538`, correctly report restored rejected URI `15ea0b7`. Existing root log has older T08 context. This set has exact source checks but **full Python/Android test NOT RUN**. A new chat should validate/repair these changes before proceeding.
-- **NEXT NOW:** Audit source-only compile script against real `apps/MarkdownDesk/build.sh`, then exercise all feasible locally available direct-source tests; identify/fix production compile errors, complete outstanding feature checklist. Source-only gate is `verification/compile_native_sources_only.sh`, with AAPT2 resource object + javac + D8 only.
-- **HARD RULES:** Run continuously, save this pointer and task queue after each completed section. No GitHub Actions and no unsigned/signed APK until full feature list (except owner-deferred cross-installation private-state export/import) and applicable local pre-APK checks are complete. Previous SDK37/full source Library materialization denied; GitHub connector works, container shell DNS blocked. Physical Fold7 acceptance follows first feature-complete APK.
+- **Branch:** `integration/unified-workspaces-20261106`. Last source HEAD before ledger commit `9027f8ae7aca1aec3c7459c8e503e3c2624255cd`; refresh current remote head, never reset newer commits.
+- **Task T08:** exact current source gates, no intermediate APK. T01–T07 integrated but NOT accepted native/Fold. Work continuously; make short ledger updates after every completed section.
+- **Recently completed:** Inspector URI validation/UX `f5b8b50`, `24bd7c2`, `1c98538`, `15ea0b7`; stale Inspector assertions repaired `771237e`, `b487222`; direct comparison of source-only compile script against `apps/MarkdownDesk/build.sh` found matching SDK37 AAPT2/Java/D8 layout; stale ExportReceipt test expectation fixed `9027f8a` after required `closeSucceeded` protection. **No real full test execution in this recovery segment.**
+- **NEXT:** Source-audit current registered tests for stale assertions and repair only verified failures. Then run feasible exact-source local Java/Python checks; finish pre-APK feature/correctness audit. Full checkout/API37 raw materialization remains unavailable here; do not claim green native build.
+- **Hard:** NO GitHub Actions, NO APK until every required nondeferred feature + locally feasible host gates pass. Only owner-deferred cross-install private-state export/import excluded.
 
 ## Task queue (update state and exact evidence after EVERY task)
 
