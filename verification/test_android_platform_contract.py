@@ -27,7 +27,7 @@ class ToolchainContract(unittest.TestCase):
         manifest = ET.parse(MANIFEST).getroot()
         sdk = manifest.find("uses-sdk")
         self.assertEqual(manifest.get("package"), "com.example.markdowndesk")
-        self.assertEqual(int(manifest.get(ANDROID + "versionCode")), 38)
+        self.assertEqual(int(manifest.get(ANDROID + "versionCode")), 39)
         self.assertEqual(manifest.get(ANDROID + "versionName"), "2.5.0-unified-workspaces")
         self.assertEqual(int(sdk.get(ANDROID + "minSdkVersion")), 35)
         self.assertEqual(int(sdk.get(ANDROID + "targetSdkVersion")), 37)

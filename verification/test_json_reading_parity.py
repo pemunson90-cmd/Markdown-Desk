@@ -45,7 +45,7 @@ class JsonReadingParity(unittest.TestCase):
         a=self.activity
         archive=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java').read_text(encoding='utf-8')
         router=(ROOT/'apps/MarkdownDesk/src/com/example/markdowndesk/workspace/WorkspaceRouter.java').read_text(encoding='utf-8')
-        self.assertIn('Index full Claude export for complete reading',a)
+        self.assertIn('Index conversation export for complete reading',a)
         self.assertIn('showFullArchiveImportChoice()',a)
         self.assertIn('setPositiveButton("Index for full reading"',a)
         self.assertIn('Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_SINGLE_TOP',a)
@@ -78,7 +78,7 @@ class JsonReadingParity(unittest.TestCase):
         e=self.engine
         self.assertIn('On-screen preview limited.',a)
         self.assertIn('Read this conversation preview',a)
-        self.assertIn('Index full Claude export for complete reading',a)
+        self.assertIn('Index conversation export for complete reading',a)
         self.assertIn('Additional text omitted in this bounded preview',e)
         self.assertIn('Additional content omitted in this bounded preview',e)
         self.assertIn('Message truncated in preview',e)

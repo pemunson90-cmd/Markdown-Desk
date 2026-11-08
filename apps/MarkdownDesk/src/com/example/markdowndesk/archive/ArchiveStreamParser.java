@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.CodingErrorAction;
 import java.util.Objects;
 
-/** Bounded-memory, one-pass parser for Claude conversation exports.
+/** Bounded-memory parser for linear LLM exports and ChatGPT conversation graphs.
  * No Android dependency; suitable for host tests and Android 26+.
  * The caller persists each text segment immediately, rather than holding whole conversations.
  * It accepts a top-level conversation array or an object with a conversations array.
@@ -37,7 +37,7 @@ public final class ArchiveStreamParser {
     private interface ElementHandler { void read(int index) throws IOException; }
     private interface ChunkHandler { void accept(String chunk) throws IOException; }
     private final Reader input;
-    private final Sink sink;
+    private Sink sink;
     private int lookahead = Integer.MIN_VALUE;
     private int depth = 0;
     private int totalConversations = 0;
@@ -61,43 +61,173 @@ public final class ArchiveStreamParser {
         if (peek() == '\ufeff') consume();
         skipWhitespace();
         if (peek() == '[') conversations();
-        else if (peek() == '{') object(key -> {
-            if (key.equals("conversations") && peek() == '[') conversations();
-            else skipValue();
-        });
-        else throw error("Expected Claude export array or object");
+        else if (peek() == '{') conversation(true);
+        else throw error("Expected a conversation export; open arbitrary JSON in Inspector");
         skipWhitespace();
         if (peek() != -1) throw error("Unexpected data after JSON root");
-        if (totalConversations == 0) throw error("No conversations found in export");
+        if (totalConversations == 0) throw error("No supported conversations found; open this JSON in Inspector");
         return totalConversations;
     }
 
     private void conversations() throws IOException {
         array(index -> {
-            if (peek() != '{') { skipValue(); return; }
-            ConversationInfo info = new ConversationInfo();
-            info.ordinal = totalConversations++;
-            sink.beginConversation(info.ordinal);
+            if (peek() != '{') throw error("Conversation entry is not an object");
+            conversation(false);
+        });
+    }
+
+    private void conversation(boolean wrapperAllowed) throws IOException {
+        ConversationInfo info = new ConversationInfo();
+        final boolean[] messages = {false}, wrapper = {false};
+        final String[] current = {null};
+        final Graph[] graph = {null};
+        try {
             object(key -> {
                 switch (key) {
                     case "uuid": case "id": if(info.id == null) info.id = scalar(512); else skipValue(); break;
                     case "name": case "title": if(info.title == null) info.title = scalar(8192); else skipValue(); break;
                     case "created_at": info.createdAt = scalar(256); break;
+                    case "create_time": info.createdAt = epochDate(scalar(256)); break;
                     case "updated_at": info.updatedAt = scalar(256); break;
+                    case "update_time": info.updatedAt = epochDate(scalar(256)); break;
+                    case "current_node": current[0] = scalar(512); break;
+                    case "conversations":
+                        if (!wrapperAllowed || wrapper[0] || messages[0] || graph[0] != null || peek() != '[')
+                            throw error("Ambiguous conversation wrapper");
+                        wrapper[0] = true; conversations(); break;
+                    case "mapping":
+                        if (messages[0] || wrapper[0] || graph[0] != null || peek() != '{')
+                            throw error("Ambiguous conversation mapping");
+                        graph[0] = new Graph();
+                        readGraph(graph[0]); break;
                     case "chat_messages": case "messages":
-                        if (peek() == '[') array(messageIndex -> {
-                            if (peek() == '{') message(info.messageCount++);
-                            else skipValue();
+                        if (messages[0] || wrapper[0] || graph[0] != null || peek() != '[')
+                            throw error("Ambiguous or invalid message array");
+                        messages[0] = true;
+                        info.ordinal = totalConversations++;
+                        sink.beginConversation(info.ordinal);
+                        array(messageIndex -> {
+                            if (peek() != '{') throw error("Message entry is not an object");
+                            message(info.messageCount++);
                         });
-                        else skipValue();
                         break;
                     default: skipValue();
                 }
             });
-            if (info.id == null || info.id.isEmpty()) info.id = "missing-id-" + info.ordinal;
+            if (info.id == null || info.id.isEmpty()) info.id = "missing-id-" + (messages[0] ? info.ordinal : totalConversations);
             if (info.title == null || info.title.isEmpty()) info.title = "Untitled conversation " + (info.ordinal + 1);
-            sink.endConversation(info);
+            if (graph[0] != null) graph[0].emit(info, current[0]);
+            else if (messages[0]) sink.endConversation(info);
+            else if (!wrapper[0]) throw error("No supported message structure; open this JSON in Inspector");
+        } finally {
+            if (graph[0] != null) graph[0].close();
+        }
+    }
+
+    /** Disk-backed text, bounded graph metadata. Each leaf is a complete branch,
+     * with the selected branch first. Nothing is silently discarded on import. */
+    private final class Graph implements java.io.Closeable {
+        final java.io.File file;
+        final java.io.RandomAccessFile text;
+        final java.util.LinkedHashMap<String, Node> nodes = new java.util.LinkedHashMap<>();
+        Graph() throws IOException {
+            file = java.io.File.createTempFile("markdown-desk-graph-", ".tmp");
+            try { text = new java.io.RandomAccessFile(file, "rw"); }
+            catch(IOException e) { file.delete(); throw e; }
+        }
+        void emit(ConversationInfo original, String current) throws IOException {
+            if (nodes.isEmpty()) throw error("Empty conversation mapping");
+            java.util.HashSet<String> parents = new java.util.HashSet<>();
+            for (Node n : nodes.values()) if (n.parent != null) {
+                if (!nodes.containsKey(n.parent)) throw error("Missing conversation parent: " + n.parent);
+                parents.add(n.parent);
+            }
+            if (current != null && !nodes.containsKey(current)) throw error("Missing selected conversation branch");
+            java.util.ArrayList<String> ends = new java.util.ArrayList<>();
+            if (current != null) ends.add(current);
+            for (String id : nodes.keySet()) if (!parents.contains(id) && !id.equals(current)) ends.add(id);
+            if (ends.isEmpty()) throw error("Conversation mapping has no branch endpoint");
+            java.util.HashSet<String> covered = new java.util.HashSet<>();
+            long emitted = 0;
+            for (String end : ends) {
+                java.util.ArrayList<Node> path = new java.util.ArrayList<>();
+                java.util.HashSet<String> seen = new java.util.HashSet<>();
+                for (Node n = nodes.get(end); n != null; n = nodes.get(n.parent)) {
+                    if (!seen.add(n.id)) throw error("Cycle in conversation mapping");
+                    path.add(n); covered.add(n.id);
+                }
+                if ((emitted += path.size()) > 1_000_000L) throw error("Conversation branch expansion exceeds safety limit");
+                ConversationInfo info = new ConversationInfo();
+                info.ordinal = totalConversations++;
+                info.id = original.id + "/branch/" + end;
+                info.title = original.title + (end.equals(current) ? " [selected branch]" : " [branch " + end + "]");
+                info.createdAt = original.createdAt; info.updatedAt = original.updatedAt;
+                sink.beginConversation(info.ordinal);
+                for (int i = path.size()-1; i >= 0; i--) {
+                    if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
+                    Node n = path.get(i);
+                    if (n.message == null) continue;
+                    n.message.ordinal = info.messageCount++;
+                    sink.beginMessage(n.message.ordinal);
+                    text.seek(n.start);
+                    while (text.getFilePointer() < n.end) {
+                        if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
+                        int length = text.readInt();
+                        byte[] bytes = new byte[length]; text.readFully(bytes);
+                        sink.textSegment(new String(bytes, StandardCharsets.UTF_8));
+                    }
+                    sink.endMessage(n.message);
+                }
+                sink.endConversation(info);
+            }
+            if (covered.size() != nodes.size()) throw error("Disconnected cycle in conversation mapping");
+        }
+        public void close() throws IOException { try {text.close();} finally {file.delete();} }
+    }
+    private static final class Node {
+        String id, parent; MessageInfo message; long start, end;
+    }
+    private void readGraph(Graph graph) throws IOException {
+        object(id -> {
+            if (graph.nodes.size() >= 100_000) throw error("Conversation mapping exceeds 100000-node safety limit");
+            if (id.length() > 512) throw error("Conversation node identity exceeds safety limit");
+            if (graph.nodes.containsKey(id)) throw error("Duplicate conversation node");
+            if (peek() != '{') throw error("Invalid conversation node");
+            Node node = new Node(); node.id = id;
+            graph.nodes.put(id, node);
+            object(key -> {
+                if (key.equals("parent")) node.parent = scalar(512);
+                else if (key.equals("message") && peek() != 'n') {
+                    if (node.message != null || peek() != '{') throw error("Invalid graph message");
+                    Sink destination = sink;
+                    node.start = graph.text.getFilePointer();
+                    sink = new Sink() {
+                        public void beginConversation(int ordinal) {}
+                        public void beginMessage(int ordinal) {}
+                        public void textSegment(String chunk) throws IOException {
+                            if (Thread.currentThread().isInterrupted()) throw error("Import cancelled");
+                            long free = graph.file.getUsableSpace();
+                            if (free > 0 && free < 64L * 1024 * 1024)
+                                throw error("Insufficient temporary storage for conversation branches");
+                            byte[] bytes = chunk.getBytes(StandardCharsets.UTF_8);
+                            graph.text.writeInt(bytes.length); graph.text.write(bytes);
+                        }
+                        public void endMessage(MessageInfo info) { node.message = info; }
+                        public void endConversation(ConversationInfo info) {}
+                    };
+                    try { message(0); } finally { sink = destination; }
+                    node.end = graph.text.getFilePointer();
+                    if (node.message.id.equals("missing-message-id-0")) node.message.id = id;
+                } else skipValue();
+            });
         });
+    }
+
+    private static String epochDate(String value) {
+        if (value == null) return null;
+        try { return java.time.Instant.ofEpochMilli(new java.math.BigDecimal(value)
+                .multiply(java.math.BigDecimal.valueOf(1000)).setScale(0, java.math.RoundingMode.DOWN).longValueExact()).toString(); }
+        catch (RuntimeException invalid) { return value; }
     }
 
     private void message(int ordinal) throws IOException {
@@ -108,8 +238,15 @@ public final class ArchiveStreamParser {
                 case "uuid": case "id": if(info.id == null) info.id = scalar(512); else skipValue(); break;
                 case "sender": case "role": info.sender = scalar(256); break;
                 case "created_at": info.createdAt = scalar(256); break;
+                    case "create_time": info.createdAt = epochDate(scalar(256)); break;
                 case "updated_at": info.updatedAt = scalar(256); break;
-                case "content": content(info, 0); break;
+                    case "update_time": info.updatedAt = epochDate(scalar(256)); break;
+                case "author":
+                    if (peek() == '{') object(field -> {
+                        if (field.equals("role")) info.sender = scalar(256); else skipValue();
+                    }); else skipValue();
+                    break;
+                case "content": case "parts": content(info, 0); break;
                 default: skipValue();
             }
         });
@@ -133,7 +270,7 @@ public final class ArchiveStreamParser {
             final String[] type = {null};
             object(key -> {
                 if (key.equals("type") && peek() == '"') type[0] = scalar(128);
-                else if (key.equals("text") || key.equals("content")) {
+                else if (key.equals("text") || key.equals("content") || key.equals("parts")) {
                     found[0] = true;
                     content(info, nesting + 1);
                 } else skipValue();

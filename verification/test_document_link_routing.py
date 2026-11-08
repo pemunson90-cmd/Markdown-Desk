@@ -35,7 +35,8 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('ArchiveMarkdownIndexes.deepLink(annotation)', source)
         self.assertIn('WorkspaceDeepLinks.isDocumentLink(source)', source)
         self.assertIn('WorkspaceDeepLinks.isArchiveLink(source)', source)
-        self.assertIn('markdown?MainActivity.class:ArchiveWorkspaceActivity.class', source)
+        self.assertIn('markdown?MainActivity.class:', source)
+        self.assertIn('archive?ArchiveWorkspaceActivity.class:JsonExplorerActivity.class', source)
         self.assertEqual(source.count('v->openAnnotationHit(a)'), 2)
         self.assertNotIn('v->openArchiveHit(a.chatId,a.messageId)', source)
         region = source.split('private void openAnnotationHit(', 1)[1].split(
@@ -63,14 +64,14 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('if(!desiredTag.isEmpty()&&!hasTag(a.tags,desiredTag))continue', engine)
         self.assertIn('if("markdown".equals(origin)&&!"markdown-document".equals(a.archiveId))continue', engine)
         self.assertIn('if("archive".equals(origin)&&(a.archiveId==null||a.archiveId.isEmpty()||', engine)
-        self.assertIn('"markdown-document".equals(a.archiveId)))continue', engine)
+        self.assertIn('"markdown-document".equals(a.archiveId)||"json-document".equals(a.archiveId)))continue', engine)
         self.assertLess(engine.index('if(!type.isEmpty()&&!type.equals(a.type))continue'),
                         engine.index('if(seen++<start)continue'))
         self.assertIn('part.trim().equalsIgnoreCase(wanted)', engine)
 
     def test_transcript_export_streams_full_messages_with_exact_source_links(self):
         source = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
-        export = source.split("private void writeTranscript(", 1)[1].split(
+        export = source.split("private void streamTranscript(", 1)[1].split(
             "private static void write(OutputStream", 1)[0]
         self.assertIn('database.messages(chat,index,50)', export)
         self.assertIn('for(int part=0;part<m.segments;part+=32)', export)
@@ -95,7 +96,7 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('REQUEST_TRANSCRIPT_PDF=8204', activity)
         self.assertIn('setType("application/pdf")', activity)
         self.assertIn('ArchiveTranscriptPdf.export(database,conversation,out)', activity)
-        self.assertIn('PDF export incomplete; do not rely on any partial document', activity)
+        self.assertIn('PDF export incomplete or could not be verified; do not rely on the selected document', activity)
         self.assertIn('ArchiveTranscriptIntegrity.message(index+row,m.ordinal,m.segments)', pdf)
         self.assertIn('database.textChunkVerified(m.id,part,count)', pdf)
         self.assertIn('ArchiveTranscriptIntegrity.complete(conversation.messages,index)', pdf)
@@ -110,7 +111,7 @@ class DocumentRoutingTests(unittest.TestCase):
         search = (JAVA / "UnifiedSearchActivity.java").read_text()
         activity = (JAVA / "MainActivity.java").read_text()
         verify = (JAVA / "workspace/search/UnifiedSearchJump.java").read_text()
-        self.assertIn('else openMarkdownHit(file,match,term)', search)
+        self.assertIn('else openMarkdownHit(hit.file,hit.match,hit.term)', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_URI,file.uri.toString())', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_HASH,file.hash)', search)
         self.assertIn('intent.putExtra(UnifiedSearchJump.EXTRA_LITERAL,literal)', search)
@@ -224,8 +225,7 @@ class DocumentRoutingTests(unittest.TestCase):
         ui = (JAVA / "UnifiedSearchActivity.java").read_text()
         self.assertIn('boolean json="application/json".equalsIgnoreCase(entry.mimeType)||name.endsWith(".json")', source)
         self.assertIn('json=file.json', source)
-        self.assertIn('if(file.json)openJsonHit(file,match,term)', ui)
-        self.assertIn('Open verified raw passage in JSON Inspector', ui)
+        self.assertIn('if(hit.file.json)openJsonHit(hit.file,hit.match,hit.term)', ui)
         json_route = ui.split("private void openJsonHit(",1)[1].split(
             "private void openMarkdownHit(",1)[0]
         self.assertIn('.setClass(this,JsonExplorerActivity.class)', json_route)
@@ -248,9 +248,10 @@ class DocumentRoutingTests(unittest.TestCase):
         self.assertIn('Verified raw JSON · line ',inspector)
         self.assertIn('state.putBoolean("jsonSourceHitShown",sourceHitShown)',inspector)
         self.assertIn('request!=rawHitRequest',inspector)
-        self.assertIn('rawHitRequest++;showIncomingRawHit(intent)',inspector)
+        self.assertIn('sourceHitShown=false;rawHitRequest++;',inspector)
+        self.assertIn('else showIncomingRawHit(intent)',inspector)
         self.assertIn('MAX_BYTES=8*1024*1024',verifier)
-        self.assertIn('UnifiedSearchJump.matches(requestedUri,actualUri,sourceSha,actualSha,',verifier)
+        self.assertIn('UnifiedSearchJump.matches(requestedUri,actualUri,sourceSha,parsed.sha256,',verifier)
         self.assertIn('onMalformedInput(CodingErrorAction.REPORT)',verifier)
         self.assertNotIn('openOutputStream(',verifier)
 

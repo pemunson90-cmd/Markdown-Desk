@@ -9,6 +9,7 @@ import android.provider.OpenableColumns;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
 import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -110,6 +111,12 @@ final class ArchiveImportCoordinator {
         ArchiveDatabase db=null;
         try{
             if(cancellation.get())throw new IOException("Import cancelled");
+            // Only this coordinator imports at once. Remove private graph spools
+            // left by process death before checking space or starting new work.
+            File[] abandoned = new File(System.getProperty("java.io.tmpdir", app.getCacheDir().getPath()))
+                    .listFiles((dir, name) -> name.startsWith("markdown-desk-graph-") && name.endsWith(".tmp"));
+            if (abandoned != null) for (File file : abandoned)
+                if (!file.delete()) throw new IOException("Unable to clean interrupted conversation import");
             Uri uri=Uri.parse(selected);
             String id=UUID.nameUUIDFromBytes(selected.getBytes(StandardCharsets.UTF_8)).toString();
             long size=sourceLength(uri);
@@ -131,7 +138,7 @@ final class ArchiveImportCoordinator {
                     conversations=n;throttled(size);
                 }
             });
-            db.beginImport(selected,"Claude export");
+            db.beginImport(selected,"Conversation JSON export");
             try(InputStream input=app.getContentResolver().openInputStream(uri)){
                 if(input==null)throw new IOException("The file provider returned no data");
                 sourceStream=input;

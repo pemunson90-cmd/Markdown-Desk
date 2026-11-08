@@ -1,6 +1,7 @@
 package com.example.markdowndesk;
 
 import android.app.Activity;
+import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
@@ -105,6 +106,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private boolean fullscreen, chatLayout, restoreLastPosition;
     /** Shared workspace mode contract: Read(0), Inspect(1), Split(2). */
     private int archiveDisplayMode;
+    static final String EXTRA_SEARCH_PART="archive_search_part";
+    static final String EXTRA_SEARCH_TERM="archive_search_term";
+    static final String EXTRA_SEARCH_GENERATION="archive_search_generation";
     private String pendingExportChat, query="";
     private Uri notesTree;
     private String viewMode="home";
@@ -125,6 +129,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         String tree=prefs.getString("archive_notes_tree",null);
         if(tree!=null)try{notesTree=Uri.parse(tree);}catch(RuntimeException ignored){}
         if(state!=null){
+            pendingExportChat=state.getString("pending_export_chat");
+            pendingFindTerm=state.getString("pending_find_term");
             windowOffset=Math.max(0,state.getInt("offset",0));
             chunkOffset=Math.max(0,state.getInt("chunk",0));
             focusOrdinal=state.getInt("focused",-1);
@@ -194,6 +200,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
 
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);
+        state.putString("pending_export_chat",pendingExportChat);
+        state.putString("pending_find_term",pendingFindTerm);
         state.putString("chat",active==null?null:active.id);
         state.putInt("offset",windowOffset);state.putInt("chunk",chunkOffset);
         state.putInt("focused",focusOrdinal);
@@ -265,7 +273,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         header.setBackgroundColor(palette.surface);
         header.addView(button("‹",v->back()),new LinearLayout.LayoutParams(dp(52),dp(48)));
         LinearLayout headings=vertical();
-        title=text("Claude Archive",18);title.setTypeface(null,Typeface.BOLD);headings.addView(title);
+        title=text("Conversation Archive",18);title.setTypeface(null,Typeface.BOLD);headings.addView(title);
         subtitle=text("Read · Search · Link",11);subtitle.setTextColor(palette.muted);headings.addView(subtitle);
         header.addView(headings,new LinearLayout.LayoutParams(0,-2,1));
         header.addView(button("⋮",v->moreMenu()),new LinearLayout.LayoutParams(dp(55),dp(48)));
@@ -336,7 +344,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void status(String message){Toast.makeText(this,message,Toast.LENGTH_LONG).show();}
     private void fail(String label,Exception ex){
         String message=ex==null?label:label+"\n"+safe(ex.getMessage());
-        new AlertDialog.Builder(this).setTitle("Claude Archive").setMessage(message)
+        new AlertDialog.Builder(this).setTitle("Conversation Archive").setMessage(message)
                 .setPositiveButton("OK",null).show();
     }
     private static String safe(String s){return s==null?"Unavailable":(s.length()>400?s.substring(0,400):s);}
@@ -347,14 +355,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
-        commonActions();refreshConversationTabs();setTitle("Claude Archive","All imported conversations");
+        commonActions();refreshConversationTabs();setTitle("Conversation Archive","All imported conversations");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
-        add(body,"Import Claude conversations.json",v->chooseImport());
+        add(body,"Import LLM JSON archive",v->chooseImport());
         add(body,"Continue reading",v->continueReading());
         TextView h=text("CONVERSATIONS",14);h.setTypeface(null,Typeface.BOLD);body.addView(h);
         List<ArchiveDatabase.Conversation> chats=database.conversations("",150,0);
-        if(chats.isEmpty())body.addView(text("Import a Claude export to build a local, offline conversation library. The original file remains unchanged.",14));
+        if(chats.isEmpty())body.addView(text("Import Claude, linear messages, or ChatGPT JSON. ChatGPT branches are kept as separate conversations, selected branch first. Other JSON opens in Inspector. The original file remains unchanged.",14));
         for(ArchiveDatabase.Conversation chat:chats){
             add(body,chat.name+"\n"+safe(chat.updated)+"  ·  "+chat.messages+" messages",v->openChat(chat));
         }
@@ -407,7 +415,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         refreshConversationTabs();
         final int token=++generation;
         adjacentLoading=false;chunkLoading=false;
-        if(viewport==null||!active.id.equals(viewportChatId)||viewport.total()!=active.messages){
+        if(viewport==null||!active.id.equals(viewportChatId)||viewport.total()!=active.messages
+                ||(focusOrdinal>=0&&(focusOrdinal<viewport.start()||focusOrdinal>=viewport.end()))){
             viewport=new ArchiveViewport(active.messages,
                     focusOrdinal>=0?focusOrdinal:windowOffset);
             viewportChatId=active.id;
@@ -415,6 +424,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(keepScroll && reader!=null)savedScroll=reader.getScrollY();
         final boolean restorePosition=keepScroll||restoreLastPosition;
         final int targetScroll=Math.max(0,savedScroll);
+        final int navigationOrdinal=focusOrdinal;
         restoreLastPosition=false;
         viewMode="reader";reloadAppearance();applyFocusChrome();
         setTitle(active.name,active.messages+" messages · read-only");
@@ -499,6 +509,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(restorePosition)v.post(()->{
                         if(token==generation&&reader==v)v.scrollTo(0,targetScroll);
                     });
+                    if(!restorePosition&&navigationOrdinal>=0)
+                        v.evaluateJavascript("(function(){var e=document.querySelector('[data-ordinal=\""+
+                                navigationOrdinal+"\"]');if(e)e.scrollIntoView();})()",null);
                     refreshHighlights(web,new ArrayList<>(visibleMessages),token);
                     if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
                         v.findAllAsync(pendingFindTerm);
@@ -1414,7 +1427,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void showImportScreen(){
         ++generation;viewMode="import";reader=null;active=null;
         controls.removeAllViews();
-        setTitle("Importing Claude archive","Indexing offline · original unchanged");
+        setTitle("Importing JSON archive","Indexing offline · original unchanged");
         FrameLayout wrapper=new FrameLayout(this);
         ScrollView scroll=new ScrollView(this);
         LinearLayout body=vertical();body.setPadding(dp(18),dp(18),dp(18),dp(22));
@@ -1474,7 +1487,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void renderImportProgress(ArchiveImportCoordinator.Snapshot state){
         if(importSummary==null||!"import".equals(viewMode))return;
-        String stage="indexing".equals(state.state)?"Indexing Claude conversations":
+        String stage="indexing".equals(state.state)?"Indexing conversations":
                 "cleaning".equals(state.state)?"Cleaning index generations":
                 "publishing".equals(state.state)?"Publishing completed archive":
                 "checking".equals(state.state)?"Checking free space":state.detail;
@@ -1591,7 +1604,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void streamTranscript(ArchiveDatabase.Conversation conversation,OutputStream out)throws IOException {
         final String chat=conversation.id;
                     final String generation=database.exportGeneration(conversation);
-                    write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only Claude Archive. Original JSON unchanged.\n\n");
+                    write(out,"# "+transcriptField(conversation.name)+"\n\nExported from read-only JSON Archive. Original JSON unchanged.\n\n");
                     int index=0;
                     for(;;){
                         if(Thread.currentThread().isInterrupted())throw new IOException("Transcript export cancelled");
@@ -1656,7 +1669,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void moreMenu(){
         new AlertDialog.Builder(this).setTitle("Archive reader")
             .setItems(new String[]{"Library","Search all","Master links","Choose Markdown index folder",
-                    "Reader appearance","Full screen / Focus","Import Claude export","View raw JSON (existing explorer)"},(d,i)->{
+                    "Reader appearance","Full screen / Focus","Import LLM JSON archive","View raw JSON (existing explorer)"},(d,i)->{
                 switch(i){
                     case 0:showHome();break;case 1:searchDialog(null);break;
                     case 2:showNotebook(true);break;case 3:chooseNotesFolder();break;
@@ -1668,7 +1681,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     /** Explicit user-requested handoff of a granted JSON content URI.
      * Reuse the process-owned importer, never convert or mutate the original.
-     * A general JSON file unsupported by the Claude indexer fails visibly.
+     * A general JSON file unsupported by the conversation indexer fails visibly.
      */
     private boolean handleIncomingInspectorImport(Intent intent){
         if(intent==null||!intent.hasExtra(WorkspaceRouter.EXTRA_IMPORT_JSON_URI))return false;
@@ -1690,6 +1703,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(!com.example.markdowndesk.workspace.WorkspaceDeepLinks.isArchiveLink(uri.toString()))return false;
         List<String> segments=uri.getPathSegments();
         if(segments.size()!=4||!"v1".equals(segments.get(0)))return false;
+        // Consume this navigation once. Rotation must restore the current reader
+        // position, rather than replay the original search/deep-link destination.
+        intent.setData(null);
         String sourceArchive=segments.get(1),chat=segments.get(2),message=segments.get(3);
         ArchiveDatabase.Conversation c=findConversation(chat);
         if(c==null||c.archiveId==null||!sourceArchive.equals(c.archiveId)){
@@ -1701,7 +1717,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
         rememberPriorArchiveVisit(c.id);
         active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
-        focusOrdinal=ordinal;chunkOffset=0;showReader(false);return true;
+        focusOrdinal=ordinal;chunkOffset=0;savedScroll=0;
+        String searchTerm=intent.getStringExtra(EXTRA_SEARCH_TERM);
+        String searchGeneration=intent.getStringExtra(EXTRA_SEARCH_GENERATION);
+        if(searchTerm!=null&&!searchTerm.isEmpty()&&searchTerm.length()<=4096){
+            if(c.generationId.equals(searchGeneration)){
+                chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1);
+                pendingFindTerm=searchTerm;
+            }else status("The indexed source changed; search again for an exact passage match.");
+        }
+        intent.removeExtra(EXTRA_SEARCH_TERM);
+        intent.removeExtra(EXTRA_SEARCH_PART);
+        intent.removeExtra(EXTRA_SEARCH_GENERATION);
+        showReader(false);return true;
     }
     /** Bounded local navigation history. No URI grants or source text are stored.
      * Reopening always resolves the recorded public chat ID against today's ready index.

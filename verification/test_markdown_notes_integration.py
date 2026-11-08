@@ -72,7 +72,8 @@ class MarkdownNotesIntegrationCheck(unittest.TestCase):
         self.assertIn('WorkspaceDeepLinks.isDocumentLink(origin)', controller)
         self.assertIn('WorkspaceDeepLinks.isArchiveLink(origin)', controller)
         self.assertIn('Intent.ACTION_VIEW,link', controller)
-        self.assertIn('MainActivity.class:ArchiveWorkspaceActivity.class', controller)
+        self.assertIn('markdown?MainActivity.class:', controller)
+        self.assertIn('archive?ArchiveWorkspaceActivity.class:JsonExplorerActivity.class', controller)
         self.assertNotIn('FLAG_GRANT_READ_URI_PERMISSION', controller)
         self.assertNotIn('FLAG_GRANT_WRITE_URI_PERMISSION', controller)
 

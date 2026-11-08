@@ -30,6 +30,14 @@ class ArchiveOutputIntegration(unittest.TestCase):
             self.assertIn("do not rely on the selected document",method)
         self.assertIn("out.flush()",s)
 
+    def test_pending_export_survives_picker_recreation(self):
+        self.assertIn('pendingExportChat=state.getString("pending_export_chat")',self.activity)
+        self.assertIn('state.putString("pending_export_chat",pendingExportChat)',self.activity)
+        self.assertIn('pendingFindTerm=state.getString("pending_find_term")',self.activity)
+        self.assertIn('state.putString("pending_find_term",pendingFindTerm)',self.activity)
+        link=self.activity.split('private boolean handleDeepLink(Intent intent)',1)[1]
+        self.assertLess(link.index('intent.setData(null)'),link.index('findConversation(chat)'))
+
     def test_complete_pdf_does_not_depend_on_preview_cap(self):
         p=self.pdf
         self.assertIn("database.exportGeneration(conversation)",p)

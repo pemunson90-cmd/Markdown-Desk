@@ -515,7 +515,7 @@ public final class JsonExplorerActivity extends Activity {
 
     /** Exact current-source literal Find for small general JSON documents.
      * It is deliberately NOT a 700MB full-text index; larger files fail
-     * visibly and compatible Claude archives can use the existing index.
+     * visibly and compatible conversation archives can use the existing index.
      */
     private void findCurrentJson(){
         if(document==null){showFailure("Choose a JSON file first.");return;}
@@ -524,7 +524,7 @@ public final class JsonExplorerActivity extends Activity {
         term.setMaxLines(1);
         new AlertDialog.Builder(this).setTitle("Find in current JSON (8 MiB maximum)")
                 .setView(term)
-                .setMessage("Searches the authorized JSON file once, exactly. For large Claude exports, use indexed Archive Search.")
+                .setMessage("Searches the authorized JSON file once, exactly. For large conversation exports, use indexed Archive Search.")
                 .setPositiveButton("Find",(d,w)->startCurrentJsonSearch(term.getText().toString()))
                 .setNegativeButton("Cancel",null).show();
     }
@@ -552,7 +552,7 @@ public final class JsonExplorerActivity extends Activity {
                     if(token!=revision||request!=currentFindRequest||document==null||!current.equals(document)||
                             isFinishing()||isDestroyed())return;
                     showFailure("Current JSON search is unavailable or exceeds 8 MiB. "+
-                            "Use indexed Archive Search for large Claude files. "+
+                            "Use indexed Archive Search for large conversation files. "+
                             safeError(unavailable));
                 });
             }
@@ -770,13 +770,13 @@ public final class JsonExplorerActivity extends Activity {
             }
             return;
         }
-        if(page.conversation && page.messagesKey!=null) {
+        if(page.conversation) {
             final String messages=page.messagesKey;
-            entries.addView(button("Read this conversation preview",v->showTranscript(messages)),
+            if(messages!=null) entries.addView(button("Read this conversation preview",v->showTranscript(messages)),
                     new LinearLayout.LayoutParams(-1,dp(54)));
-            entries.addView(button("Index full Claude export for complete reading",
+            entries.addView(button("Index conversation export for complete reading",
                     v->showFullArchiveImportChoice()),new LinearLayout.LayoutParams(-1,dp(54)));
-            entries.addView(text("Preview is limited to 200 messages, 600,000 characters and "
+            if(messages!=null) entries.addView(text("Preview is limited to 200 messages, 600,000 characters and "
                     +"24,000 characters per message. The complete on-device Archive Reader uses "
                     +"the existing streaming index instead; it does not convert original JSON to Markdown.",12));
         }
@@ -847,8 +847,9 @@ public final class JsonExplorerActivity extends Activity {
             showFailure("Choose a readable JSON file first.");return;
         }
         new AlertDialog.Builder(this)
-            .setTitle("Read the complete Claude archive")
-            .setMessage("The full reader streams and indexes a compatible Claude export on this device. "+
+            .setTitle("Read the complete conversation archive")
+            .setMessage("The full reader streams and indexes a compatible LLM conversation export on this device. "+
+                    "Claude and linear messages are supported. ChatGPT graphs keep each branch separately, with the selected branch first. "+
                     "The original JSON is never changed. Indexing may require substantial local storage; "+
                     "an unsupported general JSON file will report an error. Your previous completed index stays available.")
             .setPositiveButton("Index for full reading",(dialog,which)->{
@@ -945,7 +946,7 @@ public final class JsonExplorerActivity extends Activity {
             redraw.run();
         });
         redraw.run();
-        TextView title=text("Claude preview · read only",18);
+        TextView title=text("Conversation preview · read only",18);
         title.setTypeface(null,Typeface.BOLD);
         title.setPadding(dp(20),dp(16),dp(20),dp(4));
         AlertDialog dialog=new AlertDialog.Builder(this)
@@ -979,7 +980,7 @@ public final class JsonExplorerActivity extends Activity {
         Intent create=new Intent(Intent.ACTION_CREATE_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE)
                 .setType("text/markdown")
-                .putExtra(Intent.EXTRA_TITLE,"Claude-conversation.md");
+                .putExtra(Intent.EXTRA_TITLE,"Conversation.md");
         try{startActivityForResult(create,REQUEST_EXPORT);}
         catch(ActivityNotFoundException missing){pendingExport=null;showFailure("No document picker is available.");}
     }

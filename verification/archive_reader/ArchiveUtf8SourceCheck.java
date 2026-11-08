@@ -9,11 +9,14 @@ import java.util.Arrays;
 public final class ArchiveUtf8SourceCheck {
     private static final class Collector implements ArchiveStreamParser.Sink {
         final StringBuilder content=new StringBuilder();int chats,messages;
+        final java.util.List<String> titles=new java.util.ArrayList<>();
+        final java.util.List<String> senders=new java.util.ArrayList<>();
+        final java.util.List<String> dates=new java.util.ArrayList<>();
         public void beginConversation(int ordinal){}
         public void beginMessage(int ordinal){}
         public void textSegment(String text){content.append(text);}
-        public void endMessage(ArchiveStreamParser.MessageInfo m){messages++;}
-        public void endConversation(ArchiveStreamParser.ConversationInfo c){chats++;}
+        public void endMessage(ArchiveStreamParser.MessageInfo m){messages++;senders.add(m.sender);dates.add(m.createdAt);}
+        public void endConversation(ArchiveStreamParser.ConversationInfo c){chats++;titles.add(c.title);}
     }
     private static Collector parse(byte[] bytes)throws Exception {
         Collector sink=new Collector();
@@ -30,7 +33,39 @@ public final class ArchiveUtf8SourceCheck {
     private static void eq(Object value,Object expected,String why){
         if(!expected.equals(value))throw new AssertionError(why+": "+value);
     }
+    private static String node(String parent,String text) {
+        return "{\"parent\":"+(parent==null?"null":"\""+parent+"\"")+",\"message\":{"+
+            "\"author\":{\"role\":\"assistant\"},\"create_time\":1.25,"+
+            "\"content\":{\"content_type\":\"text\",\"parts\":[\""+text+"\"]}}}";
+    }
+    private static void formats()throws Exception {
+        Collector linear=parse("{\"title\":\"Linear\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}".getBytes(StandardCharsets.UTF_8));
+        eq(linear.content.toString(),"hello","root linear conversation");
+        eq(linear.senders.get(0),"user","linear role");
+        String graph="{\"title\":\"Branches\",\"id\":\"chat\",\"mapping\":{"+
+            "\"b\":"+node("a","B😈")+",\"r\":{\"parent\":null,\"message\":null},"+
+            "\"c\":"+node("a","C")+",\"a\":"+node("r","A")+"},\"current_node\":\"c\"}";
+        Collector branched=parse(graph.getBytes(StandardCharsets.UTF_8));
+        eq(branched.chats,2,"all branches retained");
+        eq(branched.messages,4,"common ancestry replayed");
+        eq(branched.content.toString(),"ACAB😈","selected branch first, parent order independent of object order");
+        eq(branched.titles.get(0),"Branches [selected branch]","selected branch labeled");
+        eq(branched.senders.get(0),"assistant","ChatGPT author role");
+        eq(branched.dates.get(0),"1970-01-01T00:00:01.250Z","epoch timestamp normalized");
+        reject("[{\"arbitrary\":true}]".getBytes(StandardCharsets.UTF_8),"arbitrary object must not import as empty chat");
+        reject(graph.replace("\"parent\":\"a\"","\"parent\":\"missing\"").getBytes(StandardCharsets.UTF_8),"missing graph ancestry");
+        reject(graph.replace("\"parent\":\"r\"","\"parent\":\"a\"").getBytes(StandardCharsets.UTF_8),"graph cycle");
+        reject(graph.replace("\"current_node\":\"c\"","\"current_node\":\"missing\"").getBytes(StandardCharsets.UTF_8),"missing current node");
+        reject("[{\"messages\":[7]}]".getBytes(StandardCharsets.UTF_8),"unsupported message not silently skipped");
+        Collector claude=parse("[{\"chat_messages\":[{\"text\":\"same\",\"content\":[{\"text\":\"same\"}]}]}]".getBytes(StandardCharsets.UTF_8));
+        eq(claude.content.toString(),"same","Claude redundant text does not duplicate content");
+        java.io.File folder=new java.io.File(System.getProperty("java.io.tmpdir"));
+        String[] leftovers=folder.list((dir,name)->name.startsWith("markdown-desk-graph-")&&name.endsWith(".tmp"));
+        eq(leftovers.length,0,"success and failed graph import clean private spools");
+        System.out.println("PASS: linear LLM exports, ChatGPT branches/selection/Unicode/roles/dates, malformed graphs and spool cleanup");
+    }
     public static void main(String[] ignored)throws Exception {
+        formats();
         Collector ascii=parse(json("ascii"));eq(ascii.content.toString(),"ascii","ASCII content");
         byte[] emoji=json("a😀z");byte[] bom=new byte[emoji.length+3];
         bom[0]=(byte)0xef;bom[1]=(byte)0xbb;bom[2]=(byte)0xbf;

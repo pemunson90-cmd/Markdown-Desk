@@ -216,7 +216,7 @@ public final class UnifiedSearchActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
-                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h.chatId,h.messageId));
+                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h,term));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
                     if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100,type,tag,origin);});
@@ -232,7 +232,7 @@ public final class UnifiedSearchActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     for(ArchiveDatabase.Hit h:page)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,
-                        v->openArchiveHit(h.chatId,h.messageId));
+                        v->openArchiveHit(h,term));
                     if(page.size()==100)add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,speaker,from,to,offset+100);});
                     if(page.isEmpty())status("All indexed message matches shown");
                 });
@@ -414,14 +414,18 @@ public final class UnifiedSearchActivity extends Activity {
         try{startActivity(intent);}
         catch(Exception e){error("Cannot open saved note",e);}
     }
-    private void openArchiveHit(String chatId,String messageId){
-        if(chatId==null)return;
+    private void openArchiveHit(ArchiveDatabase.Hit hit,String term){
+        if(hit==null||hit.chatId==null)return;
+        String chatId=hit.chatId,messageId=hit.messageId;
         String archiveId=chatId.contains("/")?chatId.substring(0,chatId.indexOf('/')):"session";
         Intent intent=new Intent();intent.setClassName(getPackageName(),"com.example.markdowndesk.ArchiveWorkspaceActivity");
         intent.setAction(Intent.ACTION_VIEW);
         Uri uri=new Uri.Builder().scheme("markdowndesk").authority("archive")
             .appendPath("v1").appendPath(archiveId).appendPath(chatId).appendPath(messageId==null?"":messageId).build();
         intent.setData(uri);intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_PART,hit.partOrdinal);
+        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_TERM,term);
+        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_GENERATION,hit.generationId);
         intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         try{startActivity(intent);}catch(Exception e){error("Cannot open archived passage",e);}
     }

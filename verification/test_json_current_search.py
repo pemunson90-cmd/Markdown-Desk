@@ -37,7 +37,7 @@ class CurrentJsonFind(unittest.TestCase):
         self.assertIn("Next 100",a)
         self.assertIn("result.limited",a)
         self.assertIn("LIMITED to 500; narrow query",a)
-        self.assertIn("Use indexed Archive Search for large Claude files",a)
+        self.assertIn("Use indexed Archive Search for large conversation files",a)
         self.assertIn('showIncomingRawHit(verify)',a)
         self.assertIn("UnifiedSearchJump.EXTRA_HASH,result.sha256",a)
         self.assertIn("UnifiedSearchJump.EXTRA_OFFSET,hit.offset",a)

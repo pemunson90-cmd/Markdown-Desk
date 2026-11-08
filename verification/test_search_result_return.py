@@ -17,10 +17,21 @@ class SearchResultReturn(unittest.TestCase):
     def test_result_marker_on_every_source_route(self):
         self.assertIn('public static final String EXTRA_RETURN_RESULTS',self.jump)
         self.assertEqual(self.search.count('putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true)'),4)
-        self.assertIn('openMarkdownHit(file,match,term)',self.search)
-        self.assertIn('openJsonHit(file,match,term)',self.search)
+        self.assertIn('openMarkdownHit(hit.file,hit.match,hit.term)',self.search)
+        self.assertIn('openJsonHit(hit.file,hit.match,hit.term)',self.search)
         self.assertIn('openAnnotationHit(ArchiveJournal.Annotation annotation)',self.search)
-        self.assertIn('openArchiveHit(String chatId,String messageId)',self.search)
+        self.assertIn('openArchiveHit(ArchiveDatabase.Hit hit,String term)',self.search)
+    def test_archive_exact_hit_keeps_segment_term_and_generation(self):
+        self.assertEqual(self.search.count('openArchiveHit(h,term)'),2)
+        for field in ('PART,hit.partOrdinal','TERM,term','GENERATION,hit.generationId'):
+            self.assertIn('putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_'+field+')',self.search)
+        self.assertIn('if(c.generationId.equals(searchGeneration))',self.archive)
+        self.assertIn('chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1)',self.archive)
+        self.assertIn('pendingFindTerm=searchTerm',self.archive)
+        self.assertIn('focusOrdinal<viewport.start()||focusOrdinal>=viewport.end()',self.archive)
+        self.assertIn('if(!restorePosition&&navigationOrdinal>=0)',self.archive)
+        self.assertIn('if(e)e.scrollIntoView()',self.archive)
+
     def test_markdown_return_does_not_discard_dirty_tabs(self):
         s=self.main
         self.assertIn('this.returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false)',s)

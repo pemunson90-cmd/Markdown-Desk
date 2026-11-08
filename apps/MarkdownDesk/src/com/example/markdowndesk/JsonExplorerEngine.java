@@ -151,6 +151,7 @@ final class JsonExplorerEngine {
                         page.conversation=true;
                         page.messagesKey=key;
                     }
+                    if ("mapping".equals(key) && valueType==JsonToken.BEGIN_OBJECT) page.conversation=true;
                     page.entries.add(new Entry(Step.field(key), key, summary(json)));
                     if (Thread.currentThread().isInterrupted()) throw new IOException("Navigation cancelled.");
                 }
@@ -216,7 +217,7 @@ final class JsonExplorerEngine {
 
     static String transcript(StreamSource source, List<Step> conversationPath, String messagesKey)
             throws IOException {
-        StringBuilder result = new StringBuilder("# Claude conversation\n\n");
+        StringBuilder result = new StringBuilder("# Conversation\n\n");
         int count=0;
         boolean more=false;
         try (JsonReader json=reader(source)) {
@@ -228,7 +229,7 @@ final class JsonExplorerEngine {
                 if (("name".equals(name)||"title".equals(name))
                         && json.peek()==JsonToken.STRING && count==0) {
                     String title=json.nextString();
-                    result.replace(0, "# Claude conversation".length(), "# " + shortText(title, 300));
+                    result.replace(0, "# Conversation".length(), "# " + shortText(title, 300));
                 } else if (messagesKey.equals(name) && json.peek()==JsonToken.BEGIN_ARRAY) {
                     json.beginArray();
                     while (json.hasNext() && count<MAX_TRANSCRIPT_MESSAGES

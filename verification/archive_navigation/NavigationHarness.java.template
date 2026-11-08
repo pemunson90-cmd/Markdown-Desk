@@ -1,0 +1,59 @@
+import java.util.*;
+public final class NavigationHarness {
+    static final String EXTRA_SEARCH_PART="part",EXTRA_SEARCH_TERM="term",EXTRA_SEARCH_GENERATION="generation";
+    static final int WINDOW_MESSAGES=12;
+    static final class UnifiedSearchJump {static final String EXTRA_RETURN_RESULTS="return";}
+    static final class Uri {
+        final String text;Uri(String text){this.text=text;}
+        List<String> getPathSegments(){return Arrays.asList(java.net.URI.create(text).getPath().substring(1).split("/"));}
+        public String toString(){return text;}
+    }
+    static final class Intent {
+        Uri uri;Map<String,Object> extras=new HashMap<>();
+        Intent(String uri){this.uri=new Uri(uri);}
+        Uri getData(){return uri;}void setData(Uri uri){this.uri=uri;}
+        String getStringExtra(String key){return (String)extras.get(key);}
+        int getIntExtra(String key,int fallback){return extras.containsKey(key)?(Integer)extras.get(key):fallback;}
+        boolean getBooleanExtra(String key,boolean fallback){return extras.containsKey(key)?(Boolean)extras.get(key):fallback;}
+        void removeExtra(String key){extras.remove(key);}
+    }
+    static final class ArchiveDatabase {
+        static final class Conversation {String id="chat",archiveId="source",generationId="generation-2";}
+        int ordinal=85;int findMessageOrdinal(String chat,String message){return ordinal;}
+    }
+    ArchiveDatabase database=new ArchiveDatabase();ArchiveDatabase.Conversation active;
+    int windowOffset,focusOrdinal,chunkOffset,savedScroll=999,renderCount,homeCount;
+    boolean returnUnifiedSearch;String pendingFindTerm,status;
+    ArchiveDatabase.Conversation candidate=new ArchiveDatabase.Conversation();
+    ArchiveDatabase.Conversation findConversation(String id){return candidate;}
+    void status(String text){status=text;}
+    void showHome(){homeCount++;}
+    void showReader(boolean keep){renderCount++;}
+    void rememberPriorArchiveVisit(String id){}
+    /* METHOD */
+    static Intent search(String generation,int part){
+        Intent intent=new Intent("markdowndesk://archive/v1/source/chat/message");
+        intent.extras.put(EXTRA_SEARCH_TERM,"needle");intent.extras.put(EXTRA_SEARCH_GENERATION,generation);
+        intent.extras.put(EXTRA_SEARCH_PART,part);intent.extras.put(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
+        return intent;
+    }
+    static void require(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    public static void main(String[] args){
+        NavigationHarness h=new NavigationHarness();Intent intent=search("generation-2",18);
+        require(h.handleDeepLink(intent),"valid source accepted");
+        require(h.focusOrdinal==85&&h.windowOffset==84&&h.chunkOffset==17,"exact message and overlap predecessor");
+        require("needle".equals(h.pendingFindTerm)&&h.returnUnifiedSearch&&h.savedScroll==0,"find/return state");
+        require(intent.getData()==null&&!intent.extras.containsKey(EXTRA_SEARCH_TERM),"one-shot navigation consumed");
+        require(!h.handleDeepLink(intent)&&h.renderCount==1,"rotation cannot replay incoming link");
+        h=new NavigationHarness();require(h.handleDeepLink(search("generation-1",18)),"stale link opens message safely");
+        require(h.chunkOffset==0&&h.pendingFindTerm==null&&h.status.contains("changed"),"stale result cannot claim exact jump");
+        h=new NavigationHarness();h.handleDeepLink(search("generation-2",0));require(h.chunkOffset==0,"first segment does not underflow");
+        h=new NavigationHarness();h.candidate.archiveId="other";h.handleDeepLink(search("generation-2",18));
+        require(h.renderCount==0&&h.homeCount==1,"wrong source blocked");
+        h=new NavigationHarness();h.database.ordinal=-1;h.handleDeepLink(search("generation-2",18));
+        require(h.renderCount==0&&h.homeCount==1,"missing message blocked");
+        h=new NavigationHarness();Intent external=new Intent("https://example.com/v1/source/chat/message");
+        require(!h.handleDeepLink(external)&&external.getData()!=null,"unrecognized URI not consumed");
+        System.out.println("PASS: extracted production archive navigation; exact segment, source generation, rotation and missing identity");
+    }
+}

@@ -36,7 +36,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         }
     }
     static final class Hit {
-        String chatId,chatTitle,messageId,role,created,excerpt;
+        String chatId,chatTitle,messageId,role,created,excerpt,generationId;
         int messageOrdinal,partOrdinal;
     }
     interface Progress {
@@ -323,7 +323,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                 Hit h=new Hit();h.chatId=stableChat(c.getString(0),c.getString(9),c.getString(8));
                 h.chatTitle=c.getString(1);h.messageId=c.getString(2);h.role=c.getString(3);
                 h.created=c.getString(4);h.messageOrdinal=c.getInt(5);h.partOrdinal=c.getInt(6);
-                h.excerpt=c.getString(7);out.add(h);
+                h.excerpt=c.getString(7);h.generationId=c.getString(9);out.add(h);
             }
         }catch(SQLiteException bad){throw new IllegalArgumentException("Search query could not be parsed",bad);}
         return out;
