@@ -16,7 +16,7 @@ public final class ArchiveSearchSpec {
         if(term.isEmpty())throw new IllegalArgumentException("Enter words or an exact phrase to search");
         if(!fromDate.isEmpty()&&!toDate.isEmpty()&&fromDate.compareTo(toDate)>0)
             throw new IllegalArgumentException("End date cannot precede start date");
-        if(term.length()>1024)throw new IllegalArgumentException("Search phrase is too long");
+        if(term.length()>ArchiveSearchMatch.OVERLAP_UNITS)throw new IllegalArgumentException("Search phrase is too long");
         if(this.speaker.length()>64)throw new IllegalArgumentException("Speaker name is too long");
     }
     public boolean filtersMessagesOnly(){return !speaker.isEmpty()||!fromDate.isEmpty()||!toDate.isEmpty();}

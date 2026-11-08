@@ -9,6 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
 import com.example.markdowndesk.workspace.archive.ArchiveTextCodec;
 import com.example.markdowndesk.workspace.archive.ArchiveOverlap;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchMatch;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +19,8 @@ import java.util.List;
  */
 final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamParser.Sink {
     static final String FILE="archive_catalog_v1.db";
-    static final int VERSION=2;
+    static final int VERSION=3;
+    static final int SEARCH_FORMAT=3;
     static final int PAGE=60;
     static final class Conversation {
         String id,archiveId,name,created,updated; int messages;
@@ -38,6 +40,16 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     static final class Hit {
         String chatId,chatTitle,messageId,role,created,excerpt,generationId;
         int messageOrdinal,partOrdinal;
+        String matchedText;
+        int matchStart=-1,matchEnd=-1;
+    }
+    static final class SourceUpgrade {
+        final String archiveId,uri,name,generationId;
+        final boolean genericJson;
+        SourceUpgrade(String id,String uri,String name,String generation){
+            archiveId=id;this.uri=uri;this.name=name;generationId=generation;
+            genericJson=id.equals(JsonDocumentIndexer.sourceIdentity(uri,true));
+        }
     }
     interface Progress {
         void onMessage(int count);
@@ -60,7 +72,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     void setProgress(Progress listener){progress=listener;}
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("PRAGMA auto_vacuum=INCREMENTAL");
-        db.execSQL("CREATE TABLE sources (id TEXT PRIMARY KEY,uri TEXT NOT NULL,name TEXT,indexed_at INTEGER,status TEXT)");
+        db.execSQL("CREATE TABLE sources (id TEXT PRIMARY KEY,uri TEXT NOT NULL,name TEXT,indexed_at INTEGER,status TEXT,search_format INTEGER NOT NULL DEFAULT 2)");
         db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
         db.execSQL("CREATE TABLE conversations (id TEXT PRIMARY KEY,archive_id TEXT NOT NULL,title TEXT,created TEXT,updated TEXT,message_count INTEGER NOT NULL DEFAULT 0)");
         db.execSQL("CREATE INDEX conversation_dates ON conversations(updated)");
@@ -74,14 +86,39 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         db.execSQL("CREATE VIRTUAL TABLE search_parts USING fts4(body,tokenize=unicode61)");
     }
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
-        if(oldVersion!=1 || newVersion!=2)throw new IllegalStateException("Unsupported archive index migration");
-        db.execSQL("ALTER TABLE parts ADD COLUMN overlap_len INTEGER NOT NULL DEFAULT 0");
-        db.execSQL("CREATE INDEX IF NOT EXISTS conversation_source ON conversations(archive_id)");
-        db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
-        // Only ready v1 generations become visible. Incomplete import rows never do.
-        db.execSQL("INSERT INTO active_versions(archive_id,generation_id) " +
-                "SELECT id,id FROM sources WHERE status='ready' AND instr(id,'#staging#')=0");
+        if(oldVersion<1 || oldVersion>2 || newVersion!=VERSION)
+            throw new IllegalStateException("Unsupported archive index migration");
+        if(oldVersion==1){
+            db.execSQL("ALTER TABLE parts ADD COLUMN overlap_len INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("CREATE INDEX IF NOT EXISTS conversation_source ON conversations(archive_id)");
+            db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
+            db.execSQL("INSERT INTO active_versions(archive_id,generation_id) " +
+                    "SELECT id,id FROM sources WHERE status='ready' AND instr(id,'#staging#')=0");
+        }
+        // Metadata only: existing ready rows and their active pointers stay untouched.
+        // Rebuilding requires explicit UI consent and uses ordinary atomic reimport.
+        db.execSQL("ALTER TABLE sources ADD COLUMN search_format INTEGER NOT NULL DEFAULT 2");
     }
+    synchronized List<SourceUpgrade> listSearchRebuilds(){
+        ArrayList<SourceUpgrade> result=new ArrayList<>();
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT av.archive_id,s.uri,s.name,s.id FROM sources s " +
+                "JOIN active_versions av ON av.generation_id=s.id " +
+                "WHERE s.status='ready' AND s.search_format<? ORDER BY s.name,s.id",
+                new String[]{Integer.toString(SEARCH_FORMAT)})){
+            while(c.moveToNext())result.add(new SourceUpgrade(c.getString(0),c.getString(1),
+                    c.getString(2),c.getString(3)));
+        }
+        return result;
+    }
+    synchronized boolean needsSearchRebuild(String archiveId){
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT s.search_format FROM sources s JOIN active_versions av ON av.generation_id=s.id " +
+                "WHERE av.archive_id=? AND s.status='ready'",new String[]{archiveId})){
+            return c.moveToFirst() && c.getInt(0)<SEARCH_FORMAT;
+        }
+    }
+
     synchronized void beginImport(String uri,String name){
         if(ingest!=null)throw new IllegalStateException("Import already active");
         ingest=getWritableDatabase();cancelled=false;batchMessages=0;totalMessages=0;totalConversations=0;
@@ -89,6 +126,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         ingest.beginTransaction();
         ContentValues source=new ContentValues();source.put("id",stagingArchive);
         source.put("uri",uri);source.put("name",name);source.put("status","importing");
+        source.put("search_format",SEARCH_FORMAT);
         ingest.insertOrThrow("sources",null,source);
     }
     synchronized void completeImport(){
@@ -137,7 +175,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         ContentValues fts=new ContentValues();fts.put("docid",docid);fts.put("body",overlap+segment);
         ingest.insertOrThrow("search_parts",null,fts);
         String combined=overlap+segment;
-        overlap=ArchiveOverlap.tail("",combined,128);
+        overlap=ArchiveOverlap.tail("",combined,ArchiveSearchMatch.OVERLAP_UNITS);
         segmentOffset+=segment.length();
     }
     @Override public void endMessage(ArchiveStreamParser.MessageInfo info)throws IOException{
@@ -289,6 +327,8 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     synchronized List<Hit> search(String query,String chat,String speaker,String fromDate,String toDate,int limit,int offset){
         ArrayList<Hit> out=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return out;
+        if(query.trim().length()>ArchiveSearchMatch.OVERLAP_UNITS)
+            throw new IllegalArgumentException("Search phrase is too long");
         String phrase="\""+query.trim().replace("\"","\"\"")+"\"";
         ArrayList<String> args=new ArrayList<>();args.add(phrase);args.add(phrase);
         StringBuilder cond=new StringBuilder(" WHERE search_parts MATCH ?");
@@ -308,7 +348,8 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                 "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
                 "WHERE search_parts MATCH ? GROUP BY p.message_row) " +
                 "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal,p.ordinal, " +
-                "snippet(search_parts,'[',']','…',0,16),av.archive_id,c.archive_id " +
+                "snippet(search_parts,'[',']','…',0,16),av.archive_id,c.archive_id, " +
+                "offsets(search_parts),search_parts.body,p.start_offset,p.overlap_len,p.content,m.row_id " +
                 "FROM search_parts JOIN matched h ON h.first_doc=search_parts.docid " +
                 "JOIN parts p ON p.row_id=search_parts.docid " +
                 "JOIN messages m ON m.row_id=h.message_row " +
@@ -323,7 +364,27 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                 Hit h=new Hit();h.chatId=stableChat(c.getString(0),c.getString(9),c.getString(8));
                 h.chatTitle=c.getString(1);h.messageId=c.getString(2);h.role=c.getString(3);
                 h.created=c.getString(4);h.messageOrdinal=c.getInt(5);h.partOrdinal=c.getInt(6);
-                h.excerpt=c.getString(7);h.generationId=c.getString(9);out.add(h);
+                h.excerpt=c.getString(7);h.generationId=c.getString(9);
+                String body=c.getString(11),legacy=c.getString(14);
+                int overlapUnits=c.getInt(13);
+                if(legacy!=null&&!legacy.isEmpty()&&body!=null&&body.endsWith(legacy))
+                    overlapUnits=body.length()-legacy.length();
+                ArchiveSearchMatch.Span span=ArchiveSearchMatch.first(body,c.getString(10));
+                if(span!=null){
+                    int start=c.getInt(12)-overlapUnits+span.start;
+                    if(start>=0){
+                        h.matchedText=span.text;h.matchStart=start;h.matchEnd=start+span.text.length();
+                        // Overlap may contain several small source parts. Navigate to
+                        // the actual span start rather than assuming one predecessor.
+                        try(Cursor first=getReadableDatabase().rawQuery(
+                                "SELECT ordinal FROM parts WHERE message_row=? AND start_offset<=? " +
+                                "ORDER BY start_offset DESC,ordinal DESC LIMIT 1",
+                                new String[]{Long.toString(c.getLong(15)),Integer.toString(start)})){
+                            if(first.moveToFirst())h.partOrdinal=first.getInt(0);
+                        }
+                    }
+                }
+                out.add(h);
             }
         }catch(SQLiteException bad){throw new IllegalArgumentException("Search query could not be parsed",bad);}
         return out;

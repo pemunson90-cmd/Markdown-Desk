@@ -22,6 +22,7 @@ import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
 import com.example.markdowndesk.workspace.WorkspaceDeepLinks;
 import com.example.markdowndesk.workspace.archive.ArchiveAnnotationSearch;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchHitScript;
 import com.example.markdowndesk.workspace.search.UnifiedSearchScope;
 import com.example.markdowndesk.workspace.search.UnifiedSearchJump;
 import java.io.File;
@@ -125,6 +126,17 @@ public final class UnifiedSearchActivity extends Activity {
         v.setTextColor(palette.text);v.setHintTextColor(palette.muted);v.setTextSize(15);return v;}
     private Spinner choose(String[] items){Spinner s=new Spinner(this);ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,items);
         a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(a);return s;}
+    private LinearLayout rebuildNotice;
+    @Override protected void onResume(){
+        super.onResume();
+        if(database==null||rebuildNotice==null)return;
+        io.execute(()->{
+            try{
+                final boolean needed=!database.listSearchRebuilds().isEmpty();
+                runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())rebuildNotice.setVisibility(needed?View.VISIBLE:View.GONE);});
+            }catch(Exception ignored){ /* Search itself reports database failures. */ }
+        });
+    }
     private void build(){
         root=stack();root.setFitsSystemWindows(true);root.setBackgroundColor(palette.canvas);
         LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.HORIZONTAL);
@@ -136,6 +148,11 @@ public final class UnifiedSearchActivity extends Activity {
         root.addView(header);
         ScrollView page=new ScrollView(this);LinearLayout body=stack();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));page.addView(body);
+        rebuildNotice=stack();rebuildNotice.setVisibility(View.GONE);
+        rebuildNotice.addView(text("Older indexes need rebuilding for improved search. You can keep reading and searching them until you choose to rebuild.",13));
+        rebuildNotice.addView(button("Review index rebuilds",v->startActivity(
+                new Intent(this,ArchiveWorkspaceActivity.class).putExtra(ArchiveSearchHitScript.EXTRA_REBUILD_INDEXES,true))));
+        body.addView(rebuildNotice);
         query=field("Find a phrase, title, note, or link");body.addView(query);
         scope=choose(UnifiedSearchScope.labels());scope.setContentDescription("Search sources");
         body.addView(scope,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -426,6 +443,9 @@ public final class UnifiedSearchActivity extends Activity {
         intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_PART,hit.partOrdinal);
         intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_TERM,term);
         intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_GENERATION,hit.generationId);
+        intent.putExtra(ArchiveSearchHitScript.EXTRA_MATCH_TEXT,hit.matchedText);
+        intent.putExtra(ArchiveSearchHitScript.EXTRA_MATCH_START,hit.matchStart);
+        intent.putExtra(ArchiveSearchHitScript.EXTRA_MATCH_END,hit.matchEnd);
         intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         try{startActivity(intent);}catch(Exception e){error("Cannot open archived passage",e);}
     }

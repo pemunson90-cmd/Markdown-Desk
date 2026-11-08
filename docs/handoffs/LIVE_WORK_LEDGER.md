@@ -3,11 +3,11 @@
 - **Baseline:** `80cbd77d795e07e4bbca18d387ca54fbea312b5c` on main; released V2.5.0/code39 unchanged.
 - **Branch:** `beta/search-index-v3`.
 - **Owner decision:** older derived indexes may be rebuilt after an explicit Yes/No warning. Seamless legacy-index compatibility is deferred separately. Original JSON, annotation journals, bookmarks and source identities must be preserved.
-- **Chunk B1 — ACTIVE:** implement per-source index-format metadata, consented reimport using existing atomic generations/progress/cancellation, bounded search overlap repair, actual matched-span navigation.
-- **Chunk B2 — QUEUED:** targeted SQL/offset/DOM/consent regressions and one SDK37 source-only compile. Reuse unaffected code39 test evidence; no broad legacy suite/stress reruns.
+- **Chunk B1 — COMPLETE:** implement per-source index-format metadata, consented reimport using existing atomic generations/progress/cancellation, bounded search overlap repair, actual matched-span navigation.
+- **Chunk B2 — ACTIVE:** targeted SQL/offset/DOM/consent regressions and one SDK37 source-only compile. Reuse unaffected code39 test evidence; no broad legacy suite/stress reruns.
 - **Chunk B3 — QUEUED:** increase upgrade code to40, original-sign beta only after B1/B2 pass, verify identity/alignment, deliver APK; no main promotion or GitHub Release.
 - **Stop condition:** beta delivered with device-only acceptance and explicit beta limits; no further audit campaign.
-- **Next operation:** complete B1 source and focused fixtures. No beta tests executed yet; previous maintenance evidence below is historical.
+- **Next operation:** complete B1 source and focused fixtures. Focused SQL/Unicode, emitted DOM, extracted navigation and five return-to-results wiring checks PASS. Initial source compile PASS; final compile pending after DB entry validation edit. Previous maintenance evidence below is historical.
 
 ---
 

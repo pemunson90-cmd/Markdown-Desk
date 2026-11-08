@@ -21,13 +21,19 @@ class SearchResultReturn(unittest.TestCase):
         self.assertIn('openJsonHit(hit.file,hit.match,hit.term)',self.search)
         self.assertIn('openAnnotationHit(ArchiveJournal.Annotation annotation)',self.search)
         self.assertIn('openArchiveHit(ArchiveDatabase.Hit hit,String term)',self.search)
-    def test_archive_exact_hit_keeps_segment_term_and_generation(self):
+    def test_archive_exact_hit_keeps_verified_span_and_generation(self):
         self.assertEqual(self.search.count('openArchiveHit(h,term)'),2)
         for field in ('PART,hit.partOrdinal','TERM,term','GENERATION,hit.generationId'):
             self.assertIn('putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_'+field+')',self.search)
         self.assertIn('if(c.generationId.equals(searchGeneration))',self.archive)
         self.assertIn('chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1)',self.archive)
-        self.assertIn('pendingFindTerm=searchTerm',self.archive)
+        for field in ('TEXT,hit.matchedText','START,hit.matchStart','END,hit.matchEnd'):
+            self.assertIn('putExtra(ArchiveSearchHitScript.EXTRA_MATCH_'+field+')',self.search)
+        self.assertIn('pendingSearchMatch=actual;pendingSearchMessage=message',self.archive)
+        self.assertIn('pendingSearchGeneration=searchGeneration',self.archive)
+        self.assertIn('active.generationId.equals(pendingSearchGeneration)',self.archive)
+        self.assertIn('ArchiveSearchHitScript.jump(pendingSearchMessage,pendingSearchPart,quote)',self.archive)
+        self.assertNotIn('pendingFindTerm=searchTerm',self.archive)
         self.assertIn('focusOrdinal<viewport.start()||focusOrdinal>=viewport.end()',self.archive)
         self.assertIn('if(!restorePosition&&navigationOrdinal>=0)',self.archive)
         self.assertIn('if(e)e.scrollIntoView()',self.archive)

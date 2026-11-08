@@ -1,4 +1,5 @@
 import java.util.*;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchHitScript;
 public final class NavigationHarness {
     static final String EXTRA_SEARCH_PART="part",EXTRA_SEARCH_TERM="term",EXTRA_SEARCH_GENERATION="generation";
     static final int WINDOW_MESSAGES=12;
@@ -24,7 +25,8 @@ public final class NavigationHarness {
     }
     ArchiveDatabase database=new ArchiveDatabase();ArchiveDatabase.Conversation active;
     int windowOffset,focusOrdinal,chunkOffset,savedScroll=999,renderCount,homeCount;
-    boolean returnUnifiedSearch,incomingNavigationConsumed,restoreLastPosition;String pendingFindTerm,status;
+    boolean returnUnifiedSearch,incomingNavigationConsumed,restoreLastPosition;String pendingFindTerm,status,pendingSearchMatch,pendingSearchMessage,pendingSearchGeneration;
+    int pendingSearchPart;
     ArchiveDatabase.Conversation candidate=new ArchiveDatabase.Conversation();
     ArchiveDatabase.Conversation findConversation(String id){return candidate;}
     void status(String text){status=text;}
@@ -36,6 +38,7 @@ public final class NavigationHarness {
     static Intent search(String generation,int part){
         Intent intent=new Intent("markdowndesk://archive/v1/source/chat/message");
         intent.extras.put(EXTRA_SEARCH_TERM,"needle");intent.extras.put(EXTRA_SEARCH_GENERATION,generation);
+        intent.extras.put(ArchiveSearchHitScript.EXTRA_MATCH_TEXT,"néedle");
         intent.extras.put(EXTRA_SEARCH_PART,part);intent.extras.put(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         return intent;
     }
@@ -45,11 +48,14 @@ public final class NavigationHarness {
         require(h.handleDeepLink(intent),"valid source accepted");
         require(h.incomingNavigationConsumed&&!h.restoreLastPosition,"explicit intent overrides old reading position");
         require(h.focusOrdinal==85&&h.windowOffset==84&&h.chunkOffset==17,"exact message and overlap predecessor");
-        require("needle".equals(h.pendingFindTerm)&&h.returnUnifiedSearch&&h.savedScroll==0,"find/return state");
-        require(intent.getData()==null&&!intent.extras.containsKey(EXTRA_SEARCH_TERM),"one-shot navigation consumed");
+        require(h.pendingFindTerm==null&&"néedle".equals(h.pendingSearchMatch)&&h.returnUnifiedSearch&&h.savedScroll==0,"actual source span and return state");
+        require("message".equals(h.pendingSearchMessage)&&h.pendingSearchPart==18&&"generation-2".equals(h.pendingSearchGeneration),"source span remains generation/message/part-bound");
+        require(intent.getData()==null&&!intent.extras.containsKey(EXTRA_SEARCH_TERM)&&!intent.extras.containsKey(ArchiveSearchHitScript.EXTRA_MATCH_TEXT),"one-shot navigation consumed");
         require(!h.handleDeepLink(intent)&&h.renderCount==1,"rotation cannot replay incoming link");
         h=new NavigationHarness();require(h.handleDeepLink(search("generation-1",18)),"stale link opens message safely");
-        require(h.chunkOffset==0&&h.pendingFindTerm==null&&h.status.contains("changed"),"stale result cannot claim exact jump");
+        require(h.chunkOffset==0&&h.pendingFindTerm==null&&h.pendingSearchMatch==null&&h.status.contains("changed"),"stale result cannot claim exact jump");
+        h=new NavigationHarness();Intent legacy=search("generation-2",18);legacy.extras.remove(ArchiveSearchHitScript.EXTRA_MATCH_TEXT);h.handleDeepLink(legacy);
+        require(h.pendingSearchMatch==null&&h.pendingFindTerm==null&&h.status.contains("Search again"),"old link never falls back to misleading normalized query");
         h=new NavigationHarness();h.handleDeepLink(search("generation-2",0));require(h.chunkOffset==0,"first segment does not underflow");
         h=new NavigationHarness();h.candidate.archiveId="other";h.handleDeepLink(search("generation-2",18));
         require(h.renderCount==0&&h.homeCount==1,"wrong source blocked");

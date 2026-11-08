@@ -228,12 +228,12 @@ The read-only guard reads this *single* fenced record. Update this entry only wh
 {
   "schema_version": 1,
   "development": {
-    "branch": "main",
-    "anchor_commit": "6f9f8b6cc3003305f7a9c1697291a4f49b84126e",
+    "branch": "beta/search-index-v3",
+    "anchor_commit": "80cbd77d795e07e4bbca18d387ca54fbea312b5c",
     "manifest": {
       "package": "com.example.markdowndesk",
-      "version_code": 39,
-      "version_name": "2.5.0-unified-workspaces",
+      "version_code": 40,
+      "version_name": "2.5.1-beta1-search",
       "min_sdk": 35,
       "target_sdk": 37
     }

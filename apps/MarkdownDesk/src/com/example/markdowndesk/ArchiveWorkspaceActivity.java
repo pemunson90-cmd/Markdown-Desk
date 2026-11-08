@@ -45,6 +45,7 @@ import com.example.markdowndesk.workspace.archive.ArchiveHighlightScript;
 import com.example.markdowndesk.workspace.annotations.AnnotationTone;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchDialog;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchHitScript;
 import com.example.markdowndesk.workspace.archive.ArchiveViewport;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
@@ -92,6 +93,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private ConversationTabs conversationTabs;
     private HorizontalScrollView readerNavigation;
     private String pendingFindTerm;
+    static final String EXTRA_REBUILD_INDEXES=ArchiveSearchHitScript.EXTRA_REBUILD_INDEXES;
+    private String pendingSearchMatch,pendingSearchMessage,pendingSearchGeneration;
+    private int pendingSearchPart;
+    private final java.util.HashSet<String> declinedRebuilds=new java.util.HashSet<>();
     private ArchiveSearchSpec currentSearch;
     // A reader reached through search retains its exact result page and filters.
     private String returnSearchTerm, returnSearchScope;
@@ -140,6 +145,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             anchorY=state.getInt("anchor_y",0);
             pendingExportChat=state.getString("pending_export_chat");
             pendingFindTerm=state.getString("pending_find_term");
+            pendingSearchMatch=state.getString("pending_search_match");
+            pendingSearchMessage=state.getString("pending_search_message");
+            pendingSearchGeneration=state.getString("pending_search_generation");
+            pendingSearchPart=state.getInt("pending_search_part",0);
             windowOffset=Math.max(0,state.getInt("offset",0));
             chunkOffset=Math.max(0,state.getInt("chunk",0));
             focusOrdinal=state.getInt("focused",-1);
@@ -179,6 +188,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
+        if(getIntent()!=null && getIntent().getBooleanExtra(EXTRA_REBUILD_INDEXES,false)){
+            getIntent().removeExtra(EXTRA_REBUILD_INDEXES);showHome();showSearchIndexUpgrades();return;
+        }
         if(incomingNavigationConsumed || (!handleIncomingInspectorImport(getIntent()) && !handleDeepLink(getIntent()) && !openUnifiedTab(getIntent()))){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
@@ -190,6 +202,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);setIntent(intent);
+        if(intent!=null && intent.getBooleanExtra(EXTRA_REBUILD_INDEXES,false)){
+            intent.removeExtra(EXTRA_REBUILD_INDEXES);showHome();showSearchIndexUpgrades();return;
+        }
         if(handleIncomingInspectorImport(intent))return;
         if(openUnifiedTab(intent))return;
         if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
@@ -218,6 +233,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putInt("anchor_part",anchorPart);state.putInt("anchor_y",anchorY);
         state.putString("pending_export_chat",pendingExportChat);
         state.putString("pending_find_term",pendingFindTerm);
+        state.putString("pending_search_match",pendingSearchMatch);
+        state.putString("pending_search_message",pendingSearchMessage);
+        state.putString("pending_search_generation",pendingSearchGeneration);
+        state.putInt("pending_search_part",pendingSearchPart);
         state.putString("chat",active==null?null:active.id);
         state.putInt("offset",windowOffset);state.putInt("chunk",chunkOffset);
         state.putInt("focused",focusOrdinal);
@@ -369,13 +388,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         rememberReadingPlace();
         priorArchiveChats.clear();
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
-        generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
+        generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;pendingSearchMatch=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
         commonActions();refreshConversationTabs();setTitle("Conversation Archive","All imported conversations");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
         add(body,"Import LLM JSON archive",v->chooseImport());
         add(body,"Continue reading",v->continueReading());
+        if(!database.listSearchRebuilds().isEmpty())
+            add(body,"Improve search in older indexes…",v->showSearchIndexUpgrades());
         TextView h=text("CONVERSATIONS",14);h.setTypeface(null,Typeface.BOLD);body.addView(h);
         List<ArchiveDatabase.Conversation> chats=database.conversations("",150,0);
         if(chats.isEmpty())body.addView(text("Import Claude, linear messages, or ChatGPT JSON. ChatGPT branches are kept as separate conversations, selected branch first. Other JSON opens in Inspector. The original file remains unchanged.",14));
@@ -415,7 +436,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void openChat(ArchiveDatabase.Conversation c){
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
         savedSelectionJson=null;
-        active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
+        active=c;viewMode="reader";pendingFindTerm=null;pendingSearchMatch=null;viewport=null;viewportChatId=null;
         windowOffset=prefs.getInt("archive_chat_position_"+c.id,0);
         focusOrdinal=-1;chunkOffset=0;
         anchorOrdinal=prefs.getInt("archive_chat_anchor_ordinal_"+c.id,-1);
@@ -556,11 +577,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         v.evaluateJavascript("(function(){var e=document.querySelector('[data-ordinal=\""+
                                 navigationOrdinal+"\"]');if(e)e.scrollIntoView();})()",null);
                     restoreReadingSelection(web,token);
-                    refreshHighlights(web,new ArrayList<>(visibleMessages),token);
-                    if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
-                        v.findAllAsync(pendingFindTerm);
-                        pendingFindTerm=null;
-                    }
+                    refreshHighlights(web,new ArrayList<>(visibleMessages),token,
+                            ()->applyPendingReaderFind(web,token));
                 }
             }
         });
@@ -823,27 +841,53 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     /** Reapply only records belonging to the messages loaded into the active
      * DOM. Selection failure remains explicit: ambiguous quotes are not marked.
      */
+    private void applyPendingReaderFind(PreviewWebView v,int token){
+        if(token!=generation||reader!=v)return;
+        if(pendingSearchMatch!=null){
+            String quote=pendingSearchMatch;pendingSearchMatch=null;
+            if(active!=null&&active.generationId.equals(pendingSearchGeneration)){
+                v.evaluateJavascript(ArchiveSearchHitScript.jump(pendingSearchMessage,pendingSearchPart,quote),found->{
+                    if(token==generation&&reader==v&&!"true".equals(found))
+                        status("Message opened, but this passage cannot be highlighted in the rendered view. Use Inspect to read the original text.");
+                });
+            }else status("The index changed. Search again for the current passage.");
+        }else if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
+            v.findAllAsync(pendingFindTerm);
+            pendingFindTerm=null;
+        }
+    }
     private void refreshHighlights(PreviewWebView web,List<ArchiveDatabase.Message> messages,int token){
-        if(messages==null||messages.isEmpty())return;
+        refreshHighlights(web,messages,token,null);
+    }
+    private void refreshHighlights(PreviewWebView web,List<ArchiveDatabase.Message> messages,int token,Runnable after){
         final String chat=active==null?null:active.id;
-        if(chat==null)return;
+        if(chat==null||messages==null||messages.isEmpty()){
+            if(after!=null)after.run();return;
+        }
         final java.util.HashSet<String> ids=new java.util.HashSet<>();
         for(ArchiveDatabase.Message m:messages)if(m.messageId!=null)ids.add(m.messageId);
         io.execute(()->{
+            String decoration=null;
             try{
                 ArchiveJournal.ReadResult rows=journal.load();
-                if(rows.truncatedTail)return;
-                ArrayList<ArchiveJournal.Annotation> matched=new ArrayList<>();
-                for(ArchiveJournal.Annotation a:rows.annotations)
-                    if(chat.equals(a.chatId)&&ids.contains(a.messageId)
-                            &&a.quote!=null&&!a.quote.isEmpty())matched.add(a);
-                if(matched.isEmpty())return;
-                String script=ArchiveHighlightScript.add(matched);
-                runOnUiThread(()->{
-                    if(token==generation&&reader==web&&active!=null&&chat.equals(active.id))
-                        web.evaluateJavascript(script,ignored->restoreReadingSelection(web,token));
-                });
+                if(!rows.truncatedTail){
+                    ArrayList<ArchiveJournal.Annotation> matched=new ArrayList<>();
+                    for(ArchiveJournal.Annotation a:rows.annotations)
+                        if(chat.equals(a.chatId)&&ids.contains(a.messageId)
+                                &&a.quote!=null&&!a.quote.isEmpty())matched.add(a);
+                    if(!matched.isEmpty())decoration=ArchiveHighlightScript.add(matched);
+                }
             }catch(Exception ignored){/* Journal remains untouched. */}
+            final String script=decoration;
+            runOnUiThread(()->{
+                if(token!=generation||reader!=web||active==null||!chat.equals(active.id))return;
+                Runnable finished=()->{
+                    restoreReadingSelection(web,token);
+                    if(after!=null)after.run();
+                };
+                if(script!=null)web.evaluateJavascript(script,ignored->finished.run());
+                else finished.run();
+            });
         });
     }
     private static String css(int color){return String.format(Locale.ROOT,"#%06x",color&0xffffff);}
@@ -975,6 +1019,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         });
     }
     private void showSearch(String term,String scope,int offset){
+        for(ArchiveDatabase.SourceUpgrade source:database.listSearchRebuilds()){
+            if((scope==null||scope.startsWith(source.archiveId+"/"))
+                    &&!declinedRebuilds.contains(source.generationId)){
+                confirmSearchRebuild(source,()->showSearchResults(term,scope,offset));return;
+            }
+        }
+        showSearchResults(term,scope,offset);
+    }
+    private void showSearchResults(String term,String scope,int offset){
         returnSearchTerm=term;returnSearchScope=scope;returnSearchOffset=Math.max(0,offset);
         query=term;viewMode="search";
         setTitle(scope==null?"Archive search":"Find in conversation",term);
@@ -1006,11 +1059,18 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),v->{
                             ArchiveDatabase.Conversation c=findConversation(hit.chatId);
                             if(c==null){status("Source chat unavailable");return;}
+                            if(!c.generationId.equals(hit.generationId)){
+                                status("The index changed. Search again for the current passage.");return;
+                            }
                             active=c;windowOffset=(hit.messageOrdinal/WINDOW_MESSAGES)*WINDOW_MESSAGES;
                             focusOrdinal=hit.messageOrdinal;
                             // A match may start inside the FTS segment overlap.
                             chunkOffset=Math.max(0,hit.partOrdinal-1);
-                            pendingFindTerm=term;savedScroll=0;showReader(false);
+                            pendingFindTerm=null;pendingSearchMatch=hit.matchedText;
+                            pendingSearchMessage=hit.messageId;pendingSearchPart=hit.partOrdinal;
+                            pendingSearchGeneration=hit.generationId;
+                            if(hit.matchedText==null)status("Message opened; no verified passage span is available. Try rebuilding the search index.");
+                            savedScroll=0;showReader(false);
                         });
                     }
                     if(warning!=null)rows.addView(text(warning,13));
@@ -1451,6 +1511,44 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void importArchive(Uri uri){importArchive(uri,false);}
     private void importArchive(Uri uri,boolean genericJson){
+        String identity=JsonDocumentIndexer.sourceIdentity(uri.toString(),genericJson);
+        for(ArchiveDatabase.SourceUpgrade source:database.listSearchRebuilds()){
+            if(identity.equals(source.archiveId)){
+                confirmSearchRebuild(source,()->status("Index left unchanged. Improved search requires rebuilding."));
+                return;
+            }
+        }
+        startArchiveImport(uri,genericJson);
+    }
+    private void showSearchIndexUpgrades(){
+        List<ArchiveDatabase.SourceUpgrade> sources=database.listSearchRebuilds();
+        if(sources.isEmpty()){status("Search indexes are up to date.");return;}
+        String[] labels=new String[sources.size()];
+        for(int i=0;i<labels.length;i++)labels[i]=safe(sources.get(i).name);
+        new AlertDialog.Builder(this).setTitle("Improve search indexes")
+            .setItems(labels,(dialog,index)->confirmSearchRebuild(sources.get(index),
+                ()->status("Index left unchanged. You can rebuild later from the library.")))
+            .setNegativeButton("Close",null).show();
+    }
+    private void confirmSearchRebuild(ArchiveDatabase.SourceUpgrade source,Runnable keepOld){
+        Runnable declined=()->{declinedRebuilds.add(source.generationId);keepOld.run();};
+        new AlertDialog.Builder(this).setTitle("Rebuild this search index?")
+            .setMessage(safe(source.name)+"\n\nThis older index needs rebuilding for improved search. "
+                +"The original JSON and saved notes, highlights, and bookmarks will be kept. "
+                +"The old index stays available until the new one is complete. "
+                +"Rebuilding requires access to the original file and temporary free storage. "
+                +"You can cancel safely. Choose No to keep the existing index with its older search limitations.")
+            .setPositiveButton("Yes, rebuild",(dialog,which)->{
+                Uri original=Uri.parse(source.uri);
+                if(!"content".equalsIgnoreCase(original.getScheme())){
+                    status("Original file access is unavailable. Index and notes were left unchanged.");return;
+                }
+                startArchiveImport(original,source.genericJson);
+            })
+            .setNegativeButton("No",(dialog,which)->declined.run())
+            .setOnCancelListener(dialog->declined.run()).show();
+    }
+    private void startArchiveImport(Uri uri,boolean genericJson){
         if(importController==null)importController=ArchiveImportCoordinator.get(getApplicationContext());
         if(!importController.start(uri,genericJson)){
             status("An import is already running, or the selected file cannot be opened");
@@ -1769,15 +1867,23 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
         rememberPriorArchiveVisit(c.id);
         active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
-        focusOrdinal=ordinal;chunkOffset=0;savedScroll=0;
+        focusOrdinal=ordinal;chunkOffset=0;savedScroll=0;pendingSearchMatch=null;pendingFindTerm=null;
         String searchTerm=intent.getStringExtra(EXTRA_SEARCH_TERM);
         String searchGeneration=intent.getStringExtra(EXTRA_SEARCH_GENERATION);
         if(searchTerm!=null&&!searchTerm.isEmpty()&&searchTerm.length()<=4096){
             if(c.generationId.equals(searchGeneration)){
                 chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1);
-                pendingFindTerm=searchTerm;
+                String actual=intent.getStringExtra(ArchiveSearchHitScript.EXTRA_MATCH_TEXT);
+                if(actual!=null&&!actual.isEmpty()&&actual.length()<=65536){
+                    pendingSearchMatch=actual;pendingSearchMessage=message;
+                    pendingSearchPart=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0));
+                    pendingSearchGeneration=searchGeneration;
+                }else status("Message opened. Search again to locate a verified matching passage.");
             }else status("The indexed source changed; search again for an exact passage match.");
         }
+        intent.removeExtra(ArchiveSearchHitScript.EXTRA_MATCH_TEXT);
+        intent.removeExtra(ArchiveSearchHitScript.EXTRA_MATCH_START);
+        intent.removeExtra(ArchiveSearchHitScript.EXTRA_MATCH_END);
         intent.removeExtra(EXTRA_SEARCH_TERM);
         intent.removeExtra(EXTRA_SEARCH_PART);
         intent.removeExtra(EXTRA_SEARCH_GENERATION);

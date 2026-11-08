@@ -7,7 +7,7 @@ trap 'rm -rf -- "$OUT"' EXIT
 APP=apps/MarkdownDesk/src/com/example/markdowndesk
 SOURCES=("$APP/archive/ArchiveStreamParser.java" "$APP/archive/ArchiveJournal.java"
  "$APP/archive/ArchiveMarkdownIndexes.java" "$APP/workspace/UnifiedTabIndex.java")
-for name in ArchiveViewport ArchiveOverlap ArchiveTextCodec ArchiveSearchSpec ArchiveScrollScript ArchiveAnnotationSearch ArchiveCitations; do
+for name in ArchiveViewport ArchiveOverlap ArchiveTextCodec ArchiveSearchMatch ArchiveSearchSpec ArchiveScrollScript ArchiveAnnotationSearch ArchiveCitations; do
  SOURCES+=("$APP/workspace/archive/$name.java")
 done
 TESTS=(ArchiveCoreTest ArchiveSegmentHintTest ArchiveViewportTest ArchiveOverlapTest ArchiveTextCodecTest

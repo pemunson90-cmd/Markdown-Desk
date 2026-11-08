@@ -1066,6 +1066,26 @@
       "family": "verification/test_check_selection.py",
       "kind": "tooling",
       "question": "Does change selection avoid silent skips, detect stale ownership and avoid app tests for documentation?"
+    },
+    {
+      "id": "archive_reader::run_search_v3.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_search_v3.sh"
+      ],
+      "question": "Does v3 preserve old indexes and source reconstruction while locating bounded phrases and actual FTS spans?",
+      "kind": "behavior",
+      "family": "verification/archive_reader/run_search_v3.sh"
+    },
+    {
+      "id": "archive_reader::run_search_hit_dom.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_search_hit_dom.sh"
+      ],
+      "question": "Does a verified indexed span highlight and scroll only in its own rendered message/part?",
+      "kind": "behavior",
+      "family": "verification/archive_reader/run_search_hit_dom.sh"
     }
   ],
   "families": {
@@ -2504,6 +2524,32 @@
         "verification/test_check_selection.py",
         "verification/select_checks.py",
         "verification/check_catalog.json"
+      ]
+    },
+    "verification/archive_reader/run_search_v3.sh": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchMatch.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchSpec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveOverlap.java"
+      ],
+      "test_paths": [
+        "verification/archive_reader/run_search_v3.sh",
+        "verification/archive_reader/ArchiveSearchMatchCheck.java",
+        "verification/archive_reader/test_search_v3.py"
+      ]
+    },
+    "verification/archive_reader/run_search_hit_dom.sh": {
+      "inputs": [
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchHitScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveScrollScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/UnifiedSearchActivity.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveWorkspaceActivity.java"
+      ],
+      "test_paths": [
+        "verification/archive_reader/run_search_hit_dom.sh",
+        "verification/archive_reader/ArchiveSearchHitDump.java",
+        "verification/archive_reader/archive_search_hit_dom.cjs"
       ]
     }
   }
