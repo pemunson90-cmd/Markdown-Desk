@@ -605,6 +605,28 @@ public final class JsonExplorerActivity extends Activity {
         }
     }
 
+    /** Resolve an AJN2 note only after its JSON value and quote/context were
+     * reverified on the current provider source. No guessed source jump.
+     */
+    private void navigateToSavedJsonNote(JsonInspectorNotes.Navigation destination){
+        if(destination==null||document==null)return;
+        saveInspectorPosition();
+        path.clear();path.addAll(destination.path);offset=0;pendingScrollY=0;
+        if(filter!=null)filter.setText("");
+        final int token=++revision;
+        displayPage(destination.page,new ArrayList<>(path),0,token);
+        entryScroll.post(()->{
+            if(token!=revision||valueReader==null||isFinishing()||isDestroyed())return;
+            android.text.Layout layout=valueReader.getLayout();
+            if(layout==null)return;
+            int at=Math.min(destination.anchor,Math.max(0,valueReader.length()-1));
+            int line=layout.getLineForOffset(at);
+            entryScroll.smoothScrollTo(0,Math.max(0,
+                    valueReader.getTop()+layout.getLineTop(line)-dp(32)));
+        });
+        saveInspectorPosition();
+    }
+
     private void loadPage() {
         if(document==null)return;
         final int token=++revision;
@@ -636,12 +658,28 @@ public final class JsonExplorerActivity extends Activity {
     private void renderEntries() {
         if(entries==null||page==null)return;
         entries.removeAllViews();
+        valueReader=null;
         String term=filter.getText().toString().toLowerCase(Locale.ROOT).trim();
         if("Value".equals(page.type)) {
             TextView value=text(page.value==null?"":page.value,15);
             value.setTextIsSelectable(true);
             value.setTypeface(Typeface.MONOSPACE);
             entries.addView(value);
+            valueReader=value;
+            entries.addView(button("Annotate selected JSON text",v->{
+                if(readingNotes!=null)readingNotes.annotateSelection(value,page.value);
+            }),new LinearLayout.LayoutParams(-1,dp(48)));
+            if(readingNotes!=null&&document!=null){
+                try{
+                    String canonical=JsonInspectorNotes.canonicalPath(new ArrayList<>(path));
+                    final Uri source=document;
+                    final int token=revision;
+                    readingNotes.decorateValue(source,canonical,page.value,token,
+                            styled->{if(valueReader==value)value.setText(styled);});
+                }catch(IllegalArgumentException invalid){
+                    status.setText("JSON location cannot be bookmarked: path is too long");
+                }
+            }
             return;
         }
         if(page.conversation && page.messagesKey!=null) {
