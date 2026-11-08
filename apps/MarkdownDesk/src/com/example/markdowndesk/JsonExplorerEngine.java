@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Read-only, forward-only JSON navigation. It never reads a whole export into memory.
@@ -126,12 +128,18 @@ final class JsonExplorerEngine {
                 page.type="Object";
                 json.beginObject();
                 int index=0;
+                Set<String> seenNames=new HashSet<>();
                 while (index<offset && json.hasNext()) {
-                    json.nextName(); json.skipValue(); index++;
+                    String skipped=json.nextName();
+                    if(!seenNames.add(skipped))
+                        throw new IOException("Ambiguous duplicate JSON key in this object; original preserved");
+                    json.skipValue(); index++;
                     if (Thread.currentThread().isInterrupted()) throw new IOException("Navigation cancelled.");
                 }
                 while (page.entries.size()<PAGE_SIZE && json.hasNext()) {
                     String key=json.nextName();
+                    if(!seenNames.add(key))
+                        throw new IOException("Ambiguous duplicate JSON key in this object; original preserved");
                     JsonToken valueType=json.peek();
                     if (("chat_messages".equals(key) || "messages".equals(key))
                             && valueType==JsonToken.BEGIN_ARRAY) {
