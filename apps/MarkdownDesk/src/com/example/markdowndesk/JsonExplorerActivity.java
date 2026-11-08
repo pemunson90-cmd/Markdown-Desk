@@ -202,7 +202,8 @@ public final class JsonExplorerActivity extends Activity {
         buildUi();
         readingNotes=new JsonInspectorNotes(this,worker,()->document,
                 ()->new ArrayList<>(path),()->revision,
-                message->status.setText(message),this::navigateToSavedJsonNote);
+                message->status.setText(message),this::navigateToSavedJsonNote,
+                ()->{if(page!=null&&"Value".equals(page.type))renderEntries();});
         if(state==null)restoreInspectorPosition(document);
         else{
             String rememberedFilter=state.getString("jsonFilter","");
