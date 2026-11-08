@@ -27,6 +27,7 @@ print('Complete-scope feature and pre-APK matrix accepted')
 PY
 : "${ANDROID_SDK_ROOT:=${ANDROID_HOME:-}}"
 : "${ANDROID_SDK_ROOT:?Authentic Android SDK 37 is required}"
+export ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-36.1.0}"
 for name in MARKDOWN_DESK_KEYSTORE MARKDOWN_DESK_STORE_PASSWORD \
             MARKDOWN_DESK_KEY_ALIAS MARKDOWN_DESK_KEY_PASSWORD; do
  [[ -n "${!name:-}" ]] || { echo "Missing local signing setting $name" >&2;exit 1; }
