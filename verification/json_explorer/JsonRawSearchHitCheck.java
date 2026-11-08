@@ -23,6 +23,18 @@ public final class JsonRawSearchHitCheck {
         byte[] payload=content.getBytes(StandardCharsets.UTF_8);
         byte[] bom=new byte[payload.length+3];bom[0]=(byte)0xef;bom[1]=(byte)0xbb;bom[2]=(byte)0xbf;
         System.arraycopy(payload,0,bom,3,payload.length);
+        JsonRawSearchHit.SearchResult current=JsonRawSearchHit.search(
+                new ByteArrayInputStream(bom),"needle");
+        ok(current.hits.size()==2,"current JSON literal search includes both matches");
+        ok(current.hits.get(0).offset==content.indexOf("needle"),"first offset exact");
+        ok(current.hits.get(1).offset==content.lastIndexOf("needle"),"second offset exact");
+        ok(current.hits.get(1).line==2,"current JSON second hit CRLF line");
+        ok(!current.limited,"small current JSON search is complete");
+        ok(current.sha256.equals(hash(bom)),"current source SHA256 matches raw provider bytes");
+        JsonRawSearchHit.SearchResult limited=JsonRawSearchHit.search(
+                new ByteArrayInputStream("a".repeat(600).getBytes(StandardCharsets.UTF_8)),"a");
+        ok(limited.hits.size()==500&&limited.limited,"excessive matches explicitly LIMITED");
+        reject(()->JsonRawSearchHit.search(new ByteArrayInputStream(bom),""),"empty query rejected");
         int second=content.lastIndexOf("needle");
         JsonRawSearchHit.Hit result=JsonRawSearchHit.verify(new ByteArrayInputStream(bom),uri,uri,
                 hash(bom),"needle",second);
