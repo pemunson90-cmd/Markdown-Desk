@@ -47,5 +47,8 @@ class SearchResultReturn(unittest.TestCase):
         self.assertIn('returnResults=button("Return to search results",v->finish())',s)
         self.assertIn('if(!openedFromSearch)closeInspectorTabForSwitch()',s)
         self.assertIn('jsonOpenedFromSearch',s)
+        self.assertGreaterEqual(s.count('getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false)'),2,
+                'Both new and reused Inspector activities must honor JSON annotation return marker')
+        self.assertIn('intent.hasExtra(UnifiedSearchJump.EXTRA_URI)||',s)
 
 if __name__=="__main__":unittest.main()
