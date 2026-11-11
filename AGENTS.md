@@ -1,5 +1,16 @@
 # Markdown Desk — standing Codex engineering contract
 
+## MANDATORY: update stale docs after every PR/push
+
+**Standing order from Pat: every PR and every push must leave current documentation accurate.** After opening, updating or merging a PR, and after every push, review the affected docs against the actual code and repository state. Update stale or outdated instructions, status, versions, paths, commands, links and handoffs before calling the work finished. Include known corrections with the change when possible; verify them again after publication. Do not make empty edits when the docs are already current.
+
+- **Agentic work:** use the smallest capable model available for the documentation pass. Escalate only when the task needs it.
+- **Regular chat or bots without model selection:** do the documentation work with the available model. Lack of model selection is not a reason to skip it.
+- Update the existing authoritative document and its affected pointers. Preserve historical evidence as history; avoid creating competing status documents.
+- End the PR/push closeout with the docs updated, or what was checked and why no update was needed. If blocked, name the stale file/claim, blocker and next action; do not claim the docs are current.
+- Respect existing file ownership, approval and publication rules. Pass changes through the current coordinator at a safe boundary; preserve active work. This order does not authorize an otherwise unapproved push, merge, deletion, deployment or spending.
+- Keep checks proportional to documentation changes. Do not start broad application suites or automatic push/CI loops just for this order. A docs-only follow-up still gets a freshness check; do not keep committing solely to update the follow-up's own commit identifier.
+
 ## Mandatory testing stop rule — all agents (owner directive, 2026-11-07)
 
 **Every agent working in this repository must read and follow this section before planning or running verification.** The lead agent must include this rule in delegated task instructions. It overrides broader or repetitive testing language elsewhere in repository guidance.
