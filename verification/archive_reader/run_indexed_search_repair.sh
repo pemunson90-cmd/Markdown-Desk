@@ -10,3 +10,8 @@ javac --release 11 -encoding UTF-8 -d "$tmp" \
   "$archive/ArchiveUnicode61Tables.java" "$archive/ArchiveUnicode61Phrase.java" \
   "$archive/ArchiveSearchOffsets.java" "$fixture/ArchiveUnicode61PhraseCheck.java"
 java -cp "$tmp" ArchiveUnicode61PhraseCheck
+app=apps/MarkdownDesk/src/com/example/markdowndesk
+javac --release 11 -encoding UTF-8 -d "$tmp" \
+  "$app/archive/ArchiveStreamParser.java" "$app/JsonUtf8Bom.java" "$app/JsonTokenReader.java" \
+  "$app/JsonDocumentIndexer.java" "$app/ArchiveSourceAliases.java" "$fixture/ArchiveSourceAliasesCheck.java"
+java -cp "$tmp" com.example.markdowndesk.ArchiveSourceAliasesCheck

@@ -279,7 +279,7 @@ public final class UnifiedSearchActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
-                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h));
+                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+(h.created==null||h.created.isEmpty()?"":" · "+h.created)+"\n"+h.excerpt,v->openArchiveHit(h));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
                     if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100,type,tag,origin);});
@@ -302,7 +302,7 @@ public final class UnifiedSearchActivity extends Activity {
                 List<ArchiveDatabase.Hit> page=database.search(term,null,speaker,from,to,100,offset,()->generation!=token);
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
-                    for(ArchiveDatabase.Hit h:page)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,
+                    for(ArchiveDatabase.Hit h:page)add("JSON · "+h.chatTitle+(h.created==null||h.created.isEmpty()?"":" · "+h.created)+"\n"+h.excerpt,
                         v->openArchiveHit(h));
                     if(page.size()==100)add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,speaker,from,to,offset+100);});
                     if(page.isEmpty())status("All indexed message matches shown");

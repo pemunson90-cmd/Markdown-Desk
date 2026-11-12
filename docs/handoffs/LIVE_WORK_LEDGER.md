@@ -1,3 +1,11 @@
+# Duplicate indexed JSON checkpoint
+
+- Direct and folder-based Android document references now reuse the newest ready index for the same provider document and indexing mode. The archive library and global indexed search hide older aliases before pagination. Older active IDs and their data remain addressable by saved links, bookmarks and conversation-scoped search. Existing databases require no schema change or reimport.
+- The JSON Inspector opens the resolved archive after indexing. Unified indexed result labels omit missing dates.
+- The Fold screenshots confirmed normalized and boundary-spanning highlighting on v42. This follow-up is source only. Local checks passed for alias identity, indexed-search compatibility, navigation and the full SDK37 source compile. The earlier phone search test does not need repeating.
+
+---
+
 # Indexed-search repair source checkpoint
 
 - **Scope:** read-time seam recovery from stored message parts and exact indexed passage highlighting from both search screens. No index rebuild, original-file grant, source identity change, or new APK. Existing code40 beta indexes remain readable via metadata-only schema compatibility.

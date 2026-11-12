@@ -317,7 +317,7 @@
         "bash",
         "verification/archive_reader/run_indexed_search_repair.sh"
       ],
-      "question": "Do old and new indexes keep their stored text and identities while source-spanning Unicode61 phrases and native offsets resolve?",
+      "question": "Do old and new indexes keep their stored text and identities while source-spanning Unicode61 phrases, native offsets, and document aliases resolve?",
       "kind": "behavior",
       "family": "verification/archive_reader"
     },
@@ -1348,6 +1348,7 @@
     "verification/archive_reader": {
       "inputs": [
         "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveDatabase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveSourceAliases.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveImportCoordinator.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/ArchiveTranscriptIntegrity.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/ExportReceipt.java",
@@ -1374,6 +1375,7 @@
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
       ],
       "test_paths": [
+        "verification/archive_reader/ArchiveSourceAliasesCheck.java",
         "verification/archive_reader/ArchiveUnicode61PhraseCheck.java",
         "verification/archive_reader/run_indexed_search_repair.sh",
         "verification/archive_reader/test_indexed_search_repair.py",

@@ -55,6 +55,7 @@ final class ArchiveImportCoordinator {
     private volatile boolean busy;
     private volatile String sourceUri;
     private volatile boolean genericJson;
+    private volatile String indexedSourceId;
     private volatile Snapshot snapshot;
     private volatile long lastPersist;
     private int conversations,messages;
@@ -64,6 +65,7 @@ final class ArchiveImportCoordinator {
         saved=app.getSharedPreferences("archive_import_v2",Context.MODE_PRIVATE);
         String state=saved.getString("state","idle");
         sourceUri=saved.getString("uri",null);
+        indexedSourceId=saved.getString("indexed_source_id",null);
         genericJson=saved.getBoolean("generic_json",false);
         snapshot=new Snapshot("running".equals(state)?"interrupted":state,
                 "running".equals(state)?"Previous import was interrupted. Safe restart available.":"",
@@ -77,9 +79,11 @@ final class ArchiveImportCoordinator {
         if(listener.get()==detached)listener=new WeakReference<>(null);
     }
     Snapshot snapshot(){return snapshot;}
+    String indexedSourceId(){return indexedSourceId;}
     synchronized boolean start(Uri uri){return start(uri,false);}
     synchronized boolean start(Uri uri,boolean generic){
         if(busy||uri==null||!"content".equalsIgnoreCase(uri.getScheme()))return false;
+        indexedSourceId=null;
         sourceUri=uri.toString();genericJson=generic;busy=true;cancellation.set(false);bytes.set(0);
         conversations=0;messages=0;
         update("checking","Inspecting archive size and available storage",null,-1,true);
@@ -121,12 +125,15 @@ final class ArchiveImportCoordinator {
             if (abandoned != null) for (File file : abandoned)
                 if (!file.delete()) throw new IOException("Unable to clean interrupted conversation import");
             Uri uri=Uri.parse(selected);
-            String id=JsonDocumentIndexer.sourceIdentity(selected,genericJson);
             long size=sourceLength(uri);
             // Cleanup must be available even if an old interrupted import
             // occupied most of the phone. Do not reject before safe cleanup.
             if(freeBytes()>=0 && freeBytes()<128L*1024*1024)
                 throw new IOException("Less than 128 MiB free; free some storage before repairing the index");
+            String id;
+            try(ArchiveDatabase catalog=new ArchiveDatabase(app,null)){
+                id=catalog.resolveImportIdentity(selected,genericJson);
+            }
             db=new ArchiveDatabase(app,id);
             update("cleaning","Removing incomplete or obsolete index generations",null,size,true);
             db.removeUnpublishedOrObsolete(null);
@@ -165,6 +172,7 @@ final class ArchiveImportCoordinator {
             if(cancellation.get())throw new IOException("Import cancelled");
             update("publishing","Switching to completed index without deleting the previous one",null,size,true);
             db.completeImport();
+            indexedSourceId=id;
             update("cleaning","Index ready; removing older generations in small batches",null,size,true);
             try{db.removeUnpublishedOrObsolete(null);}
             catch(Exception cleanup){
@@ -220,7 +228,7 @@ final class ArchiveImportCoordinator {
         if(persist){
             lastPersist=now;
             saved.edit().putString("state",snapshot.running()?"running":state)
-                    .putString("uri",sourceUri).putBoolean("generic_json",genericJson).putString("error",error)
+                    .putString("indexed_source_id",indexedSourceId).putString("uri",sourceUri).putBoolean("generic_json",genericJson).putString("error",error)
                     .putLong("bytes",snapshot.bytes).putLong("size",size)
                     .putLong("changed",now).putInt("conversations",conversations)
                     .putInt("messages",messages).apply();

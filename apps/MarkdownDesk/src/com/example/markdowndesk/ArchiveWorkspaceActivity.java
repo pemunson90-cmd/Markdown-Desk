@@ -428,16 +428,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         openChat(c);
     }
     private ArchiveDatabase.Conversation findConversation(String id){
-        if(id==null)return null;
-        // A bounded scan of indexed titles; for deep links prefer DB identity lookup.
-        int offset=0;
-        for(int round=0;round<200;round++){
-            List<ArchiveDatabase.Conversation> batch=database.conversations("",150,offset);
-            for(ArchiveDatabase.Conversation c:batch)if(c.id.equals(id))return c;
-            if(batch.size()<150)break;
-            offset+=150;
-        }
-        return null;
+        return database.conversation(id);
     }
     private void openChat(ArchiveDatabase.Conversation c){
         clearIndexedPassage();
@@ -1605,7 +1596,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if("complete".equals(state.state)){
                         status(state.detail);
                         if(inspectorImportSource==null)showHome();
-                        else showImportedSource(inspectorImportSource,0);
+                        else{
+                            String indexedSource=importController.indexedSourceId();
+                            if(indexedSource!=null)inspectorImportSource=indexedSource;
+                            showImportedSource(inspectorImportSource,0);
+                        }
                     }else if("failed".equals(state.state)||"cancelled".equals(state.state)){
                         new AlertDialog.Builder(this).setTitle("Archive import "+state.state)
                             .setMessage(state.detail+(state.error==null?"":"\n\n"+state.error))

@@ -16,6 +16,7 @@ import com.example.markdowndesk.workspace.archive.ArchiveUnicode61Phrase;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
@@ -202,14 +203,47 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         String gen=currentGeneration(db,original);
         return gen==null?"#unavailable#":gen+publicChat.substring(slash);
     }
+    private static final String GENERIC_SOURCE_NAME="JSON path index";
+
+    private static ArchiveSourceAliases activeSourceAliases(SQLiteDatabase db){
+        ArchiveSourceAliases aliases=new ArchiveSourceAliases();
+        try(Cursor c=db.rawQuery("SELECT av.archive_id,s.uri,s.name FROM active_versions av " +
+                "JOIN sources s ON s.id=av.generation_id WHERE s.status='ready' " +
+                "ORDER BY s.indexed_at DESC,av.archive_id",null)){
+            while(c.moveToNext())aliases.add(c.getString(0),c.getString(1),
+                    GENERIC_SOURCE_NAME.equals(c.getString(2)));
+        }
+        return aliases;
+    }
+
+    synchronized String resolveImportIdentity(String uri,boolean generic){
+        return activeSourceAliases(getReadableDatabase()).resolve(uri,generic);
+    }
+
     synchronized List<Conversation> conversations(String titleFilter,int limit,int offset){
-        return conversations(titleFilter,null,limit,offset);
+        SQLiteDatabase db=getReadableDatabase();
+        db.beginTransactionReadOnly();
+        try{
+            List<Conversation> rows=conversations(db,titleFilter,null,null,limit,offset,
+                    activeSourceAliases(db).hidden);
+            db.setTransactionSuccessful();
+            return rows;
+        }finally{db.endTransaction();}
     }
     synchronized List<Conversation> importedConversations(String sourceId,int limit,int offset){
         if(sourceId==null||sourceId.isEmpty())throw new IllegalArgumentException("Missing source identity");
-        return conversations(null,sourceId,limit,offset);
+        return conversations(getReadableDatabase(),null,sourceId,null,limit,offset,Set.of());
     }
-    private List<Conversation> conversations(String titleFilter,String sourceId,int limit,int offset){
+    synchronized Conversation conversation(String id){
+        if(id==null)return null;
+        int slash=id.indexOf('/');
+        if(slash<1)return null;
+        List<Conversation> rows=conversations(getReadableDatabase(),null,id.substring(0,slash),
+                id.substring(slash),1,0,Set.of());
+        return rows.isEmpty()?null:rows.get(0);
+    }
+    private List<Conversation> conversations(SQLiteDatabase db,String titleFilter,String sourceId,
+            String chatSuffix,int limit,int offset,Set<String> hidden){
         ArrayList<Conversation> result=new ArrayList<>();
         ArrayList<String> args=new ArrayList<>();
         String clause="";
@@ -221,16 +255,26 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
             args.add(sourceId);
             clause+=" AND av.archive_id=?";
         }
-        try(Cursor c=getReadableDatabase().rawQuery(
+        if(chatSuffix!=null){
+            args.add(chatSuffix);
+            clause+=" AND c.id=c.archive_id||?";
+        }
+        int skip=Math.max(0,offset),pageSize=Math.max(1,Math.min(limit,200));
+        String pagination=hidden.isEmpty()?" LIMIT "+pageSize+" OFFSET "+skip:"";
+        if(hidden.isEmpty())skip=0;
+        try(Cursor c=db.rawQuery(
                 "SELECT c.id,av.archive_id,c.archive_id,c.title,c.created,c.updated,c.message_count " +
                 "FROM conversations c JOIN active_versions av ON av.generation_id=c.archive_id " +
                 "JOIN sources s ON s.id=av.generation_id WHERE s.status='ready' " +
                 "AND substr(c.id,1,length(c.archive_id)+1)=c.archive_id||'/'"+clause+
-                " ORDER BY COALESCE(c.updated,c.created) DESC,c.id LIMIT " +
-                Math.max(1,Math.min(limit,200))+" OFFSET "+Math.max(0,offset),args.toArray(new String[0]))){
-            while(c.moveToNext())result.add(new Conversation(
+                " ORDER BY COALESCE(c.updated,c.created) DESC,c.id"+pagination,args.toArray(new String[0]))){
+            while(result.size()<pageSize&&c.moveToNext()){
+                if(hidden.contains(c.getString(1)))continue;
+                if(skip>0){skip--;continue;}
+                result.add(new Conversation(
                     stableChat(c.getString(0),c.getString(2),c.getString(1)),c.getString(1),
                     c.getString(3),c.getString(4),c.getString(5),c.getInt(6),c.getString(2)));
+            }
         }
         return result;
     }
@@ -329,6 +373,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         checkSearchCancelled(cancelled);
         db.beginTransactionReadOnly();
         try{
+            Set<String> hidden=chat==null||chat.isEmpty()?activeSourceAliases(db).hidden:Set.of();
             ArrayList<String> args=new ArrayList<>();args.add(phrase);
             StringBuilder filters=new StringBuilder();
             if(chat!=null&&!chat.isEmpty()){
@@ -361,6 +406,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
             try(Cursor c=db.rawQuery(candidates,args.toArray(new String[0]))){
                 while(out.size()<pageSize&&c.moveToNext()){
                     checkSearchCancelled(cancelled);
+                    if(hidden.contains(c.getString(7)))continue;
                     boolean nativeMatch=!c.isNull(10);
                     Hit h=new Hit();h.chatId=stableChat(c.getString(0),c.getString(8),c.getString(7));
                     h.chatTitle=c.getString(1);h.messageId=c.getString(2);h.role=c.getString(3);
