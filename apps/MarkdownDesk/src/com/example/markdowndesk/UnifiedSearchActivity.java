@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.CancellationSignal;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -42,9 +43,12 @@ public final class UnifiedSearchActivity extends Activity {
     private ArchiveDatabase database;
     private WorkspaceSearchLoader.Ticket folderJob;
     private UiTheme.Palette palette;
-    private LinearLayout root,results,filters;
-    private Button stopSearch;
-    private TextView searchStatus;
+    private LinearLayout root,results,filters,archiveFilters,noteFilters,folderFilters;
+    private Button stopSearch,filterToggle;
+    private TextView searchStatus,filterSummary;
+    private String runningScope;
+    private int indexedMatches;
+    private boolean moreIndexedMatches,searchIncomplete;
     private boolean indexPending,foldersPending;
     private EditText query,speaker,fromDate,toDate,noteTag;
     private Spinner scope,folder,noteKind,noteSource;
@@ -105,7 +109,7 @@ public final class UnifiedSearchActivity extends Activity {
             }
         searchExecuted=saved.getBoolean("search_executed",false);
         if(searchExecuted)
-            status("Search controls restored. Tap Search to refresh results after rotation.");
+            updateSearchStatus("Search settings restored. Tap Search to refresh results.");
     }
     @Override protected void onSaveInstanceState(Bundle out){
         super.onSaveInstanceState(out);
@@ -165,8 +169,15 @@ public final class UnifiedSearchActivity extends Activity {
         LinearLayout body=stack();
         body.setPadding(dp(12),dp(4),dp(12),dp(4));
         query=field("Find a phrase, title, note, or link");body.addView(query);
+        query.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        query.setOnEditorActionListener((field,action,event)->{
+            if(action!=android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH)return false;
+            search();
+            return true;
+        });
         scope=choose(UnifiedSearchScope.labels());scope.setContentDescription("Search sources");
-        body.addView(scope,new LinearLayout.LayoutParams(-1,dp(48)));
+        scope.setMinimumHeight(dp(48));
+        body.addView(scope,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout actions=new LinearLayout(this);
         actions.addView(button("Search",v->search()),new LinearLayout.LayoutParams(0,-2,1f));
         stopSearch=button("Stop",v->cancel());
@@ -183,28 +194,85 @@ public final class UnifiedSearchActivity extends Activity {
         page.addView(content);
         filters=stack();
         filters.setVisibility(View.GONE);
-        content.addView(button("Search filters",v->filters.setVisibility(
-                filters.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE)));
+        filterToggle=button("Search filters",v->showFilters(filters.getVisibility()!=View.VISIBLE));
+        content.addView(filterToggle);
+        filterSummary=text("",13);
+        filterSummary.setVisibility(View.GONE);
+        content.addView(filterSummary);
         content.addView(filters);
-        speaker=field("Speaker (optional)");filters.addView(speaker);
-        fromDate=field("From YYYY-MM-DD (optional)");filters.addView(fromDate);
-        toDate=field("Through YYYY-MM-DD (optional)");filters.addView(toDate);
-        filters.addView(text("Speaker and date filters apply to indexed conversation messages only.",12));
-        filters.addView(text("Saved-note filters (for Notes or All searches)",13));
+
+        archiveFilters=stack();
+        archiveFilters.addView(text("Indexed conversation filters",13));
+        speaker=field("Speaker");archiveFilters.addView(speaker);
+        fromDate=field("From YYYY-MM-DD");archiveFilters.addView(fromDate);
+        toDate=field("Through YYYY-MM-DD");archiveFilters.addView(toDate);
+        filters.addView(archiveFilters);
+
+        noteFilters=stack();
+        noteFilters.addView(text("Saved note filters",13));
         noteKind=choose(new String[]{"Any kind","Note","Highlight","Bookmark",
                 "Source link","Cross-link","External link"});
         noteKind.setContentDescription("Saved annotation kind");
-        filters.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
-        noteTag=field("Exact tag (optional)");filters.addView(noteTag);
+        noteFilters.addView(noteKind,new LinearLayout.LayoutParams(-1,-2));
+        noteTag=field("Exact tag");noteFilters.addView(noteTag);
         noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations","General JSON files"});
         noteSource.setContentDescription("Saved annotation origin");
-        filters.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
-        filters.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
+        noteFilters.addView(noteSource,new LinearLayout.LayoutParams(-1,-2));
+        filters.addView(noteFilters);
+
+        folderFilters=stack();
+        folderFilters.addView(text("Saved folder filter",13));
         folder=choose(new String[]{"All granted saved folders"});
         folder.setContentDescription("Authorized document folder scope");
-        filters.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
+        folderFilters.addView(folder,new LinearLayout.LayoutParams(-1,-2));
+        filters.addView(folderFilters);
+
+        AdapterView.OnItemSelectedListener filterSelection=new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                refreshFilterSummary();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+        };
+        for(Spinner choice:new Spinner[]{scope,noteKind,noteSource,folder})
+            choice.setOnItemSelectedListener(filterSelection);
+        android.text.TextWatcher filterText=new android.text.TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){refreshFilterSummary();}
+            @Override public void afterTextChanged(android.text.Editable value){}
+        };
+        for(EditText field:new EditText[]{speaker,fromDate,toDate,noteTag})
+            field.addTextChangedListener(filterText);
+        refreshFilterSummary();
         results=stack();content.addView(results);
         root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));setContentView(root);
+    }
+    private UnifiedSearchScope selectedScope(){
+        return UnifiedSearchScope.values()[Math.max(0,scope.getSelectedItemPosition())];
+    }
+    private void showFilters(boolean expanded){
+        filters.setVisibility(expanded?View.VISIBLE:View.GONE);
+        filterToggle.setText(expanded?"Hide search filters":"Search filters");
+    }
+    private void refreshFilterSummary(){
+        UnifiedSearchScope selected=selectedScope();
+        archiveFilters.setVisibility(selected.includesArchive()?View.VISIBLE:View.GONE);
+        noteFilters.setVisibility(selected.includesNotes()?View.VISIBLE:View.GONE);
+        folderFilters.setVisibility(selected.includesFolder()?View.VISIBLE:View.GONE);
+        List<String> active=new ArrayList<>();
+        if(selected.includesArchive()){
+            if(speaker.length()>0)active.add("Speaker "+speaker.getText().toString().trim());
+            if(fromDate.length()>0)active.add("From "+fromDate.getText().toString().trim());
+            if(toDate.length()>0)active.add("Through "+toDate.getText().toString().trim());
+        }
+        if(selected.includesNotes()){
+            if(noteKind.getSelectedItemPosition()>0)active.add(noteKind.getSelectedItem().toString());
+            if(noteTag.length()>0)active.add("Tag "+noteTag.getText().toString().trim());
+            if(noteSource.getSelectedItemPosition()>0)active.add(noteSource.getSelectedItem().toString());
+        }
+        if(selected.includesFolder()&&folder.getSelectedItemPosition()>0)
+            active.add(folder.getSelectedItem().toString());
+        filterSummary.setText(String.join(" · ",active));
+        filterSummary.setVisibility(active.isEmpty()?View.GONE:View.VISIBLE);
     }
     private void refreshFolders(){
         try{
@@ -227,7 +295,12 @@ public final class UnifiedSearchActivity extends Activity {
         stopSearch.setVisibility(indexPending||foldersPending?View.VISIBLE:View.GONE);
     }
     private void finishSearchIfReady(){
-        if(!indexPending&&!foldersPending)updateSearchStatus("Search finished");
+        if(indexPending||foldersPending)return;
+        int matches=indexedMatches+folderHits.size();
+        String outcome=matches==0?(searchIncomplete?"Search incomplete":"No matches"):
+                (moreIndexedMatches?"At least ":"")+matches+(matches==1?" match":" matches");
+        if(matches>0&&searchIncomplete)outcome+=" · Some sources could not be fully searched";
+        updateSearchStatus(outcome+" · "+runningScope);
     }
     private void cancel(){
         cancelActive();
@@ -236,26 +309,31 @@ public final class UnifiedSearchActivity extends Activity {
     private void search(){
         final String term=query.getText().toString().trim();
         if(term.isEmpty()){query.setError("Enter a phrase");return;}
+        final UnifiedSearchScope selected=selectedScope();
+        ArchiveSearchSpec archiveSpec=null;
         try {
-            // Validate actual calendar dates and ordering, not only their shape.
-            new ArchiveSearchSpec(term,speaker.getText().toString(),
-                    fromDate.getText().toString(),toDate.getText().toString());
+            if(selected.includesArchive())
+                archiveSpec=new ArchiveSearchSpec(term,speaker.getText().toString(),
+                        fromDate.getText().toString(),toDate.getText().toString());
         }catch(IllegalArgumentException invalid){
-            error("Invalid search filters",invalid);return;
+            showFilters(true);
+            error("Check indexed conversation search",invalid);return;
         }
         cancelActive();
         results.removeAllViews();
         searchExecuted=true;
         final int token=++generation;
-        UnifiedSearchScope selected=UnifiedSearchScope.values()[scope.getSelectedItemPosition()];
-        filters.setVisibility(View.GONE);
+        runningScope=selected.title;
+        indexedMatches=0;
+        moreIndexedMatches=searchIncomplete=false;
+        showFilters(false);
         android.view.inputmethod.InputMethodManager keyboard=getSystemService(android.view.inputmethod.InputMethodManager.class);
         if(keyboard!=null)keyboard.hideSoftInputFromWindow(query.getWindowToken(),0);
         query.clearFocus();
         indexPending=selected.includesArchive()||selected.includesNotes();
         foldersPending=selected.includesFolder();
-        updateSearchStatus("Searching…");
-        if(indexPending)searchIndex(token,term,selected);
+        updateSearchStatus("Searching "+runningScope.toLowerCase(java.util.Locale.ROOT)+"…");
+        if(indexPending)searchIndex(token,term,selected,archiveSpec);
         if(foldersPending)searchFolder(token,term);
     }
     private void cancelActive(){
@@ -265,9 +343,9 @@ public final class UnifiedSearchActivity extends Activity {
         searchedRoots=skippedRoots=limitedRoots=failedRoots=totalRoots=shownFolderHits=0;
         generation++;
     }
-    private void searchIndex(int token,String term,UnifiedSearchScope selected){
-        final String sender=speaker.getText().toString().trim();
-        final String from=fromDate.getText().toString().trim(),to=toDate.getText().toString().trim();
+    private void searchIndex(int token,String term,UnifiedSearchScope selected,ArchiveSearchSpec archiveSpec){
+        final String sender=archiveSpec==null?null:archiveSpec.speaker;
+        final String from=archiveSpec==null?null:archiveSpec.fromDate,to=archiveSpec==null?null:archiveSpec.toDate;
         final String type=NOTE_TYPES[noteKind.getSelectedItemPosition()];
         final String tag=noteTag.getText().toString().trim();
         final String origin=NOTE_SOURCES[noteSource.getSelectedItemPosition()];
@@ -278,7 +356,8 @@ public final class UnifiedSearchActivity extends Activity {
                     new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,0,type,tag,origin):new ArrayList<>();
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
-                    status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
+                    indexedMatches=hits.size()+notes.size();
+                    moreIndexedMatches=hits.size()==100||notes.size()==100;
                     for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+(h.created==null||h.created.isEmpty()?"":" · "+h.created)+"\n"+h.excerpt,v->openArchiveHit(h));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
@@ -289,6 +368,7 @@ public final class UnifiedSearchActivity extends Activity {
             }catch(Exception failure){runOnUiThread(()->{
                 if(token!=generation)return;
                 indexPending=false;
+                searchIncomplete=true;
                 status("Indexed search unavailable");
                 finishSearchIfReady();
                 error("Archive search unavailable",failure);
@@ -334,6 +414,7 @@ public final class UnifiedSearchActivity extends Activity {
     private void searchFolder(int token,String term){
         int selected=folder.getSelectedItemPosition()-1;
         if(selected>=roots.size()){
+            searchIncomplete=true;
             status("Selected folder is unavailable. Reopen Files.");
             foldersPending=false;
             finishSearchIfReady();
@@ -345,7 +426,8 @@ public final class UnifiedSearchActivity extends Activity {
         else pendingRoots.addAll(roots);
         totalRoots=pendingRoots.size();
         if(totalRoots==0){
-            status("No saved folders. Indexed Archive and notes may still have matches; add a folder in Files to include documents.");
+            searchIncomplete=true;
+            status("No saved folders to search. Add a folder in Files to search its documents.");
             foldersPending=false;
             finishSearchIfReady();
             return;
@@ -417,6 +499,7 @@ public final class UnifiedSearchActivity extends Activity {
                 "; "+skippedRoots+" missing grants, "+limitedRoots+" limited, "+
                 failedRoots+" failed/busy; "+folderHits.size()+" distinct passage matches"+
                 (skippedRoots+limitedRoots+failedRoots>0?" · INCOMPLETE":""));
+        searchIncomplete|=skippedRoots+limitedRoots+failedRoots>0;
         showMoreFolderMatches(token);
         foldersPending=false;
         finishSearchIfReady();

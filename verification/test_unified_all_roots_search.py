@@ -15,7 +15,7 @@ class UnifiedAllRootsSearch(unittest.TestCase):
         self.assertIn('"All granted saved folders"',s)
         self.assertIn('else pendingRoots.addAll(roots)',s)
         self.assertIn('totalRoots=pendingRoots.size()',s)
-        self.assertIn('No saved folders. Indexed Archive and notes may still have matches',s)
+        self.assertIn('No saved folders to search. Add a folder in Files',s)
 
     def test_one_physical_search_and_nonreentrant_delivery(self):
         s=self.source

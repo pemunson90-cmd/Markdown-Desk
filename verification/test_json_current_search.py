@@ -27,7 +27,7 @@ class CurrentJsonFind(unittest.TestCase):
 
     def test_live_current_file_controls_limits_and_page_order(self):
         a=self.activity
-        self.assertIn('button("Find JSON",v->findCurrentJson())',a)
+        self.assertIn('button("Find exact text",v->findCurrentJson())',a)
         self.assertIn('private void findCurrentJson()',a)
         self.assertIn('private void startCurrentJsonSearch(String literal)',a)
         self.assertIn("JsonRawSearchHit.search(input,literal)",a)

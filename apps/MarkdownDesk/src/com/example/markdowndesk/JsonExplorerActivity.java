@@ -422,11 +422,11 @@ public final class JsonExplorerActivity extends Activity {
         actionRow=row();
         LinearLayout actions=actionRow;
         actions.addView(button("Copy path",v->copy(JsonExplorerEngine.jsonPath(path))),
-                new LinearLayout.LayoutParams(0,dp(48),1));
+                new LinearLayout.LayoutParams(0,-2,1));
         actions.addView(button("Copy page",v->copyVisible()),
-                new LinearLayout.LayoutParams(0,dp(48),1));
+                new LinearLayout.LayoutParams(0,-2,1));
         actions.addView(button("Share page",v->shareVisible()),
-                new LinearLayout.LayoutParams(0,dp(48),1));
+                new LinearLayout.LayoutParams(0,-2,1));
         root.addView(actions);
         noteActionRow=row();
         noteActionRow.setGravity(Gravity.TOP);
@@ -434,9 +434,13 @@ public final class JsonExplorerActivity extends Activity {
                 new LinearLayout.LayoutParams(0,-2,1));
         noteActionRow.addView(button("Backlinks",v->{if(readingNotes!=null)readingNotes.showBacklinks();}),
                 new LinearLayout.LayoutParams(0,-2,1));
-        noteActionRow.addView(button("Find JSON",v->findCurrentJson()),new LinearLayout.LayoutParams(0,-2,1));
-        noteActionRow.addView(button("Index JSON",v->showGenericJsonImportChoice()),new LinearLayout.LayoutParams(0,-2,1));
         root.addView(noteActionRow);
+        LinearLayout searchActions=row();
+        searchActions.setGravity(Gravity.TOP);
+        searchActions.addView(button("Find exact text",v->findCurrentJson()),new LinearLayout.LayoutParams(0,-2,1));
+        searchActions.addView(button("Index JSON by path",v->showGenericJsonImportChoice()),
+                new LinearLayout.LayoutParams(0,-2,1));
+        root.addView(searchActions);
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
         returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
@@ -845,10 +849,10 @@ public final class JsonExplorerActivity extends Activity {
         }
         if(page.conversation) {
             final String messages=page.messagesKey;
-            if(messages!=null) entries.addView(button("Read this conversation preview",v->showTranscript(messages)),
-                    new LinearLayout.LayoutParams(-1,dp(54)));
-            entries.addView(button("Index conversation export for complete reading",
-                    v->showFullArchiveImportChoice()),new LinearLayout.LayoutParams(-1,dp(54)));
+            entries.addView(button("Open in Archive Reader",
+                    v->showFullArchiveImportChoice()),new LinearLayout.LayoutParams(-1,-2));
+            if(messages!=null) entries.addView(button("Preview conversation",v->showTranscript(messages)),
+                    new LinearLayout.LayoutParams(-1,-2));
             if(messages!=null) entries.addView(text("Preview is limited to 200 messages, 600,000 characters and "
                     +"24,000 characters per message. The complete on-device Archive Reader uses "
                     +"the existing streaming index instead; it does not convert original JSON to Markdown.",12));
@@ -919,10 +923,9 @@ public final class JsonExplorerActivity extends Activity {
         if(uri==null||!"content".equalsIgnoreCase(uri.getScheme())){
             showFailure("Choose a readable JSON file first.");return;
         }
-        new AlertDialog.Builder(this).setTitle("Index JSON for full search")
-            .setMessage("Read every JSON path, type and value into the local search index. "+
-                "Large values stream without a preview cap. You can read, annotate, search and export the indexed values. "+
-                "The original JSON stays unchanged. For a coherent LLM conversation, use the conversation import option instead.")
+        new AlertDialog.Builder(this).setTitle("Index JSON by path")
+            .setMessage("Make JSON fields and values searchable offline. You can read, annotate, search and export the indexed values. "+
+                "The original file stays unchanged. To read an export as a conversation, use Open in Archive Reader.")
             .setPositiveButton("Index JSON",(dialog,which)->{
                 Intent launch=new Intent(this,ArchiveWorkspaceActivity.class)
                     .setAction(Intent.ACTION_VIEW).setData(uri)
@@ -940,7 +943,7 @@ public final class JsonExplorerActivity extends Activity {
             showFailure("Choose a readable JSON file first.");return;
         }
         new AlertDialog.Builder(this)
-            .setTitle("Read the complete conversation archive")
+            .setTitle("Open in Archive Reader")
             .setMessage("The full reader streams and indexes a compatible LLM conversation export on this device. "+
                     "Claude and linear messages are supported. ChatGPT graphs keep each branch separately, with the selected branch first. "+
                     "The original JSON is never changed. Indexing may require substantial local storage; "+

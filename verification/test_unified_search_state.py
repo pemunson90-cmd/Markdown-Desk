@@ -36,7 +36,7 @@ class SearchLifecycleState(unittest.TestCase):
         self.assertIn('UnifiedSearchScope.values().length-1',restore)
         self.assertIn('NOTE_TYPES.length-1',restore)
         self.assertIn('NOTE_SOURCES.length-1',restore)
-        self.assertIn('Tap Search to refresh results after rotation.',restore)
+        self.assertIn('Tap Search to refresh results.',restore)
         self.assertNotIn('search();',restore)
         self.assertNotIn('WorkspaceSearchLoader.trySearch',restore)
 
