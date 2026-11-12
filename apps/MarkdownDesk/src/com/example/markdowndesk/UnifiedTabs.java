@@ -20,6 +20,8 @@ import java.util.List;
 public final class UnifiedTabs {
     public static final String EXTRA_TAB_ID="com.example.markdowndesk.OPEN_LOGICAL_TAB";
     private static final String PREFS="markdown_desk", MD="unified_markdown_tabs_v1", AR="unified_archive_tabs_v1", JS="unified_inspector_tabs_v1";
+    static final String LAST_INSPECTOR_URI="last_inspector_uri";
+    static final String LAST_INSPECTOR_POSITION="last_inspector_position";
     private UnifiedTabs() {}
 
     public static void updateMarkdown(Context context,List<DocumentTab> tabs,int activeIndex){
@@ -173,7 +175,31 @@ public final class UnifiedTabs {
             }).setNegativeButton("Cancel",null).show();
     }
 
-    private static void open(Activity current,UnifiedTabIndex.Entry entry){
+    static List<UnifiedTabIndex.Entry> readingPlaces(Context context){
+        SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
+        ArrayList<UnifiedTabIndex.Entry> places=new ArrayList<>();
+        Uri json=Uri.parse(prefs.getString(LAST_INSPECTOR_URI,""));
+        if(validInspectorSource(json)){
+            String name=json.getLastPathSegment();
+            if(name!=null&&name.contains("/"))name=name.substring(name.lastIndexOf('/')+1);
+            places.add(new UnifiedTabIndex.Entry(UnifiedTabIndex.Kind.INSPECT,json.toString(),
+                    name==null||name.isEmpty()?"Last JSON file":name,false,false));
+        }else for(UnifiedTabIndex.Entry entry:read(context,JS,UnifiedTabIndex.Kind.INSPECT)){
+            if(entry.active){places.add(entry);break;}
+        }
+        String archive=prefs.getString("archive_last_chat","");
+        if(!archive.isEmpty()){
+            String title=prefs.getString("archive_last_title",null);
+            if(title==null)for(UnifiedTabIndex.Entry entry:read(context,AR,UnifiedTabIndex.Kind.ARCHIVE)){
+                if(entry.id.equals(archive)){title=entry.title;break;}
+            }
+            places.add(new UnifiedTabIndex.Entry(UnifiedTabIndex.Kind.ARCHIVE,archive,
+                    title==null?"Last conversation":title,false,false));
+        }
+        return places;
+    }
+
+    static void open(Activity current,UnifiedTabIndex.Entry entry){
         Intent intent=new Intent();
         intent.setClassName(current.getPackageName(),entry.kind==UnifiedTabIndex.Kind.ARCHIVE?
                 "com.example.markdowndesk.ArchiveWorkspaceActivity":

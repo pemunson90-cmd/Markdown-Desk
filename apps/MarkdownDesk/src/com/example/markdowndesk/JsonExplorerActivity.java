@@ -145,7 +145,10 @@ public final class JsonExplorerActivity extends Activity {
             String f=filter==null?"":filter.getText().toString();
             if(f.length()>1024)return;
             saved.put("filter",f);
-            prefs.edit().putString(inspectorPositionKey(document),saved.toString()).apply();
+            String position=saved.toString();
+            prefs.edit().putString(inspectorPositionKey(document),position)
+                    .putString(UnifiedTabs.LAST_INSPECTOR_URI,document.toString())
+                    .putString(UnifiedTabs.LAST_INSPECTOR_POSITION,position).apply();
         }catch(Exception malformed){/* Never mutate the source or overwrite an older valid state. */}
     }
     private void restoreInspectorPosition(Uri uri){
@@ -153,6 +156,8 @@ public final class JsonExplorerActivity extends Activity {
         if(filter!=null)filter.setText("");
         if(uri==null||prefs==null)return;
         String raw=prefs.getString(inspectorPositionKey(uri),null);
+        if(raw==null&&uri.toString().equals(prefs.getString(UnifiedTabs.LAST_INSPECTOR_URI,null)))
+            raw=prefs.getString(UnifiedTabs.LAST_INSPECTOR_POSITION,null);
         if(raw==null||raw.length()>36000)return;
         try{
             JSONObject saved=new JSONObject(raw);
@@ -1089,7 +1094,10 @@ public final class JsonExplorerActivity extends Activity {
             path.remove(path.size()-1); offset=0;page=null;
             filter.setText("");loadPage();
         }else {
-            if(!openedFromSearch)closeInspectorTabForSwitch();
+            if(!openedFromSearch){
+                saveInspectorPosition();
+                closeInspectorTabForSwitch();
+            }
             finish();
         }
     }

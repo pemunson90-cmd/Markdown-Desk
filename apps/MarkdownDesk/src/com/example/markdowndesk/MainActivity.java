@@ -4598,6 +4598,7 @@ public class MainActivity extends Activity {
         description.setTextColor(this.palette.muted);
         description.setPadding(dp(4),dp(4),dp(4),dp(12));
         content.addView(description,matchWrap());
+        addContinueReading(content);
         LinearLayout quick=new LinearLayout(this);
         quick.setOrientation(LinearLayout.HORIZONTAL);
         String[] sections={"Recent","Favorites","Folders","Search"};
@@ -4712,6 +4713,33 @@ public class MainActivity extends Activity {
         }),matchWrap());
         scroll.addView(content,matchWrap());
         return scroll;
+    }
+
+    private void addContinueReading(LinearLayout content) {
+        List<com.example.markdowndesk.workspace.UnifiedTabIndex.Entry> places=UnifiedTabs.readingPlaces(this);
+        boolean hasMarkdown=this.activeTab>=0&&this.activeTab<this.tabs.size();
+        if(!hasMarkdown&&places.isEmpty())return;
+        TextView heading=workspaceTitle("Continue where you left off");
+        heading.setAccessibilityHeading(true);
+        content.addView(heading,matchWrap());
+        if(hasMarkdown){
+            String label="Markdown · "+this.displayName;
+            content.addView(filesAction(label,label,v->{
+                if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                else {
+                    this.filesRailRequested=false;
+                    refreshFilesRail();
+                }
+            }),matchWrap());
+        }
+        for(com.example.markdowndesk.workspace.UnifiedTabIndex.Entry place:places){
+            String label=(place.kind==com.example.markdowndesk.workspace.UnifiedTabIndex.Kind.INSPECT?
+                    "JSON · ":"Conversation · ")+place.title;
+            content.addView(filesAction(label,label,v->{
+                if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+                UnifiedTabs.open(this,place);
+            }),matchWrap());
+        }
     }
 
     private void openUnifiedSearchFromFiles() {

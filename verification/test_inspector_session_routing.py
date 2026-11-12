@@ -56,7 +56,7 @@ class InspectorSessionRouting(unittest.TestCase):
         self.assertIn("!UnifiedTabs.openInspector(this,chosen)", s)
         self.assertIn("showFailure(\"Twelve JSON Inspector tabs", s)
         self.assertIn("state.putString(\"jsonDocumentUri\",document.toString())", s)
-        self.assertIn("if(!openedFromSearch)closeInspectorTabForSwitch()", s)
+        self.assertIn("if(!openedFromSearch){\n                saveInspectorPosition();\n                closeInspectorTabForSwitch();", s)
         self.assertIn("finish();",s)
         self.assertNotIn("closeInspectorTabForSwitch();\n        worker.shutdownNow()", s)
 
