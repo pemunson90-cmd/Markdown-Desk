@@ -87,6 +87,7 @@ public final class SuiteEditorActivity extends Activity {
             });
         }catch(Exception e){fail(e);}
     }
+    private Button modeButton;
     private void buildUi(){
         boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
         int fg=dark?Color.rgb(230,235,244):Color.rgb(27,32,40),bg=dark?Color.rgb(24,30,41):Color.WHITE;
@@ -94,9 +95,13 @@ public final class SuiteEditorActivity extends Activity {
         chrome=new LinearLayout(this);chrome.setOrientation(LinearLayout.VERTICAL);
         HorizontalScrollView toolbar=new HorizontalScrollView(this);LinearLayout buttons=new LinearLayout(this);
         button(buttons,"Back",v->onBackPressed());
-        if(editable){button(buttons,"Save and return",v->saveReturn());button(buttons,"Read / Edit",v->{previewing=!previewing;showMode();});}
+        if(editable){
+            button(buttons,"Save and return",v->saveReturn());
+            modeButton=button(buttons,"Read preview",v->{previewing=!previewing;showMode();});
+        }
         fullButton=new Button(this);fullButton.setMinHeight((int)(48*getResources().getDisplayMetrics().density));fullButton.setOnClickListener(v->{full=!full;applyFull();});buttons.addView(fullButton);
-        button(buttons,"A−",v->{font=Math.max(12,font-2);showMode();});button(buttons,"A+",v->{font=Math.min(32,font+2);showMode();});
+        button(buttons,"A−",v->{font=Math.max(12,font-2);showMode();}).setContentDescription("Decrease text size");
+        button(buttons,"A+",v->{font=Math.min(32,font+2);showMode();}).setContentDescription("Increase text size");
         toolbar.addView(buttons);chrome.addView(toolbar);
         status=new TextView(this);status.setTextColor(fg);status.setPadding(16,8,16,8);status.setText("Opening working copy…");chrome.addView(status);root.addView(chrome);
         editor=new EditText(this);editor.setTextColor(fg);editor.setBackgroundColor(Color.TRANSPARENT);editor.setGravity(Gravity.TOP);editor.setPadding(16,12,16,24);editor.setSingleLine(false);editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);editor.setHorizontallyScrolling(false);editor.setSaveEnabled(false);editor.setFreezesText(false);
@@ -106,10 +111,16 @@ public final class SuiteEditorActivity extends Activity {
         preview.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest r){return true;}@Override public boolean shouldOverrideUrlLoading(WebView w,String u){return true;}@Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest r){return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));}});
         root.addView(editor,new LinearLayout.LayoutParams(-1,0,1));root.addView(preview,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);applyFull();showMode();
     }
-    private void button(LinearLayout parent,String label,View.OnClickListener click){Button b=new Button(this);b.setText(label);b.setMinHeight((int)(48*getResources().getDisplayMetrics().density));b.setOnClickListener(click);parent.addView(b);}
+    private Button button(LinearLayout parent,String label,View.OnClickListener click){
+        Button b=new Button(this);b.setText(label);b.setAllCaps(false);
+        b.setMinHeight((int)(48*getResources().getDisplayMetrics().density));
+        b.setOnClickListener(click);parent.addView(b);return b;
+    }
     private void applyFull(){if(fullButton!=null)fullButton.setText(full?"Exit full screen":"Full screen");getWindow().getDecorView().setSystemUiVisibility(full?View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY:View.SYSTEM_UI_FLAG_VISIBLE);}
     private void showMode(){
-        if(editor==null)return;editor.setTextSize(font);editor.setEnabled(editable&&!saving);editor.setVisibility(previewing?View.GONE:View.VISIBLE);preview.setVisibility(previewing?View.VISIBLE:View.GONE);
+        if(editor==null)return;
+        if(modeButton!=null)modeButton.setText(previewing?"Edit source":"Read preview");
+        editor.setTextSize(font);editor.setEnabled(editable&&!saving);editor.setVisibility(previewing?View.GONE:View.VISIBLE);preview.setVisibility(previewing?View.VISIBLE:View.GONE);
         if(previewing){
             ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(editor.getWindowToken(),0);
             final int generation=++renderGeneration;final String snapshot=text;final float size=font;final boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;

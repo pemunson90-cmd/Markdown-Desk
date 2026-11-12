@@ -4501,11 +4501,11 @@ public class MainActivity extends Activity {
         Button row=createPillButton(label,description,listener);
         this.buttons.remove(row);
         row.setTextSize(15.0f);
-        row.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
-        row.setSingleLine(true);
-        row.setMaxLines(1);
+        row.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);
+        row.setSingleLine(false);
+        row.setMaxLines(3);
         row.setEllipsize(TextUtils.TruncateAt.END);
-        row.setPadding(dp(14),0,dp(10),0);
+        row.setPadding(dp(14),dp(6),dp(10),dp(6));
         row.setMinHeight(dp(48));
         styleButton(row,false,false);
         return row;
@@ -4593,7 +4593,7 @@ public class MainActivity extends Activity {
         content.setOrientation(MODE_PREVIEW);
         content.setPadding(dp(18),dp(10),dp(18),dp(14));
         TextView description=new TextView(this);
-        description.setText("Open or switch documents. Editing tools are in the editor and More menu.");
+        description.setText("Open a file, return to recent work, or search across your workspace.");
         description.setTextSize(13.0f);
         description.setTextColor(this.palette.muted);
         description.setPadding(dp(4),dp(4),dp(4),dp(12));
@@ -4604,15 +4604,15 @@ public class MainActivity extends Activity {
         String[] anchors={"filesRecent","filesFavorites","filesFolders","filesSearch"};
         for(int i=0;i<sections.length;i++){
             final String tag=anchors[i];
-            Button shortcut=filesAction(sections[i],"Jump to "+sections[i],v->{
-                if("filesSearch".equals(tag)){showFilesSearchRootPicker();return;}
+            Button shortcut=filesAction(sections[i],"filesSearch".equals(tag)?"Search all workspaces":"Jump to "+sections[i],v->{
+                if("filesSearch".equals(tag)){openUnifiedSearchFromFiles();return;}
                 View target=content.findViewWithTag(tag);
                 if(target!=null)scroll.post(()->scroll.smoothScrollTo(0,target.getTop()));
             });
             shortcut.setTextSize(12.0f);
             shortcut.setPadding(dp(2),0,dp(2),0);
             shortcut.setGravity(Gravity.CENTER);
-            quick.addView(shortcut,new LinearLayout.LayoutParams(0,dp(48),1.0f));
+            quick.addView(shortcut,new LinearLayout.LayoutParams(0,-2,1.0f));
         }
         content.addView(quick,matchWrap());
 
@@ -4622,13 +4622,13 @@ public class MainActivity extends Activity {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchOpen();
         }), matchWrap());
-        content.addView(filesAction("Explore JSON",
-                "Browse any JSON and read LLM archives without editing the source", view -> {
+        content.addView(filesAction("JSON Inspector",
+                "Browse JSON fields and find exact text", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             launchJsonOpen();
         }), matchWrap());
-        content.addView(filesAction("JSON Archives & Research",
-                "Full conversations · search · annotations · saved links · Markdown indexes", view -> {
+        content.addView(filesAction("Archive Reader",
+                "Read and search indexed conversation exports", view -> {
             if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
             startActivity(new Intent(this, ArchiveWorkspaceActivity.class));
         }), matchWrap());
@@ -4640,15 +4640,13 @@ public class MainActivity extends Activity {
             UnifiedTabs.show(this);
         }),matchWrap());
         content.addView(filesAction("Search all workspaces",
-                "Search indexed conversations, notes, links and authorized Markdown folders",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
-            startActivity(new Intent(this,UnifiedSearchActivity.class));
-        }),matchWrap());
+                "Search conversations, notes, Markdown and JSON in saved folders",
+                view->openUnifiedSearchFromFiles()),matchWrap());
 
         final List<RecentStore.Item> recent=RecentStore.read(this);
         {
             TextView label=new TextView(this);
-            label.setText(recent.isEmpty()?"RECENT DOCUMENTS":"RECENT DOCUMENTS · tap to open");
+            label.setText("RECENT DOCUMENTS");
             label.setTag("filesRecent");
             label.setTextSize(12.0f);
             label.setLetterSpacing(0.12f);
@@ -4697,7 +4695,7 @@ public class MainActivity extends Activity {
         content.addView(filesAction("New document","Start writing a new document",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
         }),matchWrap());
-        content.addView(filesAction("Open tabs","Switch to a document already open",view->{
+        content.addView(filesAction("Markdown tabs","Switch to an open Markdown document",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
         }),matchWrap());
         content.addView(filesAction("Manage favorites","Browse or remove saved shortcuts",view->{
@@ -4706,7 +4704,7 @@ public class MainActivity extends Activity {
         content.addView(filesAction("Manage folders","Edit saved folder shortcuts",view->{
             if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
         }),matchWrap());
-        content.addView(filesAction("Search files","Choose a saved folder, then search its text",view->{
+        content.addView(filesAction("Search one saved folder","Choose a folder and find exact text",view->{
             showFilesSearchRootPicker();
         }),matchWrap());
         content.addView(filesAction("Add folder","Use Android's folder picker to remember a folder",view->{
@@ -4714,6 +4712,11 @@ public class MainActivity extends Activity {
         }),matchWrap());
         scroll.addView(content,matchWrap());
         return scroll;
+    }
+
+    private void openUnifiedSearchFromFiles() {
+        if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+        startActivity(new Intent(this,UnifiedSearchActivity.class));
     }
 
     private void refreshFilesRail() {
@@ -5196,6 +5199,9 @@ public class MainActivity extends Activity {
                 sb.append("\n\n");
             }
         }
+        sb.append("\n\nJSON and conversations\nUse JSON Inspector to browse fields or find exact text. ")
+          .append("Open a conversation export in Archive Reader to read and search it. ")
+          .append("Search all workspaces also includes saved notes and documents in saved folders.");
         TextView textView = new TextView(this);
         textView.setText(sb);
         textView.setTextSize(16.0f);
@@ -5492,7 +5498,7 @@ public class MainActivity extends Activity {
         linearLayout.setPadding(dp(20), dp(8), dp(20), MODE_EDIT);
         TextView textView = new TextView(this);
         ui.description = textView;
-        textView.setText("Choose a complete reading and writing atmosphere.");
+        textView.setText("Set the theme, text size and layout for reading and writing.");
         textView.setTextColor(this.palette.muted);
         textView.setTextSize(14.0f);
         textView.setPadding(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(MAX_TABS));

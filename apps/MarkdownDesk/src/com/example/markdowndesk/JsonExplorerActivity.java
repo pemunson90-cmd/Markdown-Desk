@@ -444,7 +444,7 @@ public final class JsonExplorerActivity extends Activity {
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
         returnResults.setVisibility(openedFromSearch?View.VISIBLE:View.GONE);
-        root.addView(returnResults,new LinearLayout.LayoutParams(-1,dp(48)));
+        root.addView(returnResults,new LinearLayout.LayoutParams(-1,-2));
 
         filter=new EditText(this);
         filter.setSingleLine(true);
@@ -572,11 +572,11 @@ public final class JsonExplorerActivity extends Activity {
     private void findCurrentJson(){
         if(document==null){showFailure("Choose a JSON file first.");return;}
         EditText term=new EditText(this);
-        term.setSingleLine(true);term.setHint("Literal text (case-sensitive)");
+        term.setSingleLine(true);term.setHint("Text to find");
         term.setMaxLines(1);
-        new AlertDialog.Builder(this).setTitle("Find in current JSON (8 MiB maximum)")
+        new AlertDialog.Builder(this).setTitle("Find exact text")
                 .setView(term)
-                .setMessage("Searches the authorized JSON file once, exactly. For large conversation exports, use indexed Archive Search.")
+                .setMessage("Case-sensitive. Searches the original JSON text in files up to 8 MiB.")
                 .setPositiveButton("Find",(d,w)->startCurrentJsonSearch(term.getText().toString()))
                 .setNegativeButton("Cancel",null).show();
     }
@@ -588,7 +588,7 @@ public final class JsonExplorerActivity extends Activity {
         final Uri current=document;
         final int token=revision;
         final long request=++currentFindRequest;
-        status.setText("Finding exact text in the current authorized JSON file...");
+        status.setText("Finding exact text…");
         worker.execute(()->{
             try(InputStream input=getContentResolver().openInputStream(current)){
                 JsonRawSearchHit.SearchResult found=JsonRawSearchHit.search(input,literal);
@@ -603,10 +603,10 @@ public final class JsonExplorerActivity extends Activity {
                 runOnUiThread(()->{
                     if(token!=revision||request!=currentFindRequest||document==null||!current.equals(document)||
                             isFinishing()||isDestroyed())return;
-                    new AlertDialog.Builder(this).setTitle("Full JSON search")
-                        .setMessage("Current raw search is unavailable or exceeds 8 MiB. "+
-                            "Index this JSON for complete on-device search across every value. "+safeError(unavailable))
-                        .setPositiveButton("Index JSON",(dialog,which)->showGenericJsonImportChoice())
+                    status.setText("Exact text search unavailable");
+                    new AlertDialog.Builder(this).setTitle("Could not find exact text")
+                        .setMessage(safeError(unavailable)+"\n\nYou can index JSON fields and values for offline search.")
+                        .setPositiveButton("Index JSON by path",(dialog,which)->showGenericJsonImportChoice())
                         .setNegativeButton("Cancel",null).show();
                 });
             }
@@ -814,10 +814,10 @@ public final class JsonExplorerActivity extends Activity {
             restoreValueSelection(value);
             entries.addView(button("Annotate selected JSON text",v->{
                 if(readingNotes!=null)readingNotes.annotateSelection(value,page.value,page.valueStart);
-            }),new LinearLayout.LayoutParams(-1,dp(48)));
+            }),new LinearLayout.LayoutParams(-1,-2));
             entries.addView(button("Bookmark this JSON value",v->{
                 if(readingNotes!=null)readingNotes.bookmarkValue(page.value,page.valueStart);
-            }),new LinearLayout.LayoutParams(-1,dp(48)));
+            }),new LinearLayout.LayoutParams(-1,-2));
             if(readingNotes!=null&&document!=null){
                 try{
                     String canonical=JsonInspectorNotes.canonicalPath(new ArrayList<>(path));
@@ -839,10 +839,10 @@ public final class JsonExplorerActivity extends Activity {
                 LinearLayout pager=row();
                 if(page.offset>0)pager.addView(button("Previous text",v->{
                     offset=Math.max(0,offset-JsonExplorerEngine.PAGE_SIZE);pendingScrollY=0;loadPage();
-                }),new LinearLayout.LayoutParams(0,dp(50),1));
+                }),new LinearLayout.LayoutParams(0,-2,1));
                 if(page.hasMore)pager.addView(button("Next text",v->{
                     offset+=JsonExplorerEngine.PAGE_SIZE;pendingScrollY=0;loadPage();
-                }),new LinearLayout.LayoutParams(0,dp(50),1));
+                }),new LinearLayout.LayoutParams(0,-2,1));
                 entries.addView(pager);
             }
             return;
@@ -880,11 +880,11 @@ public final class JsonExplorerActivity extends Activity {
             if(page.offset>0)pager.addView(button("Previous 100",v->{
                 offset=Math.max(0,offset-JsonExplorerEngine.PAGE_SIZE);
                 page=null;filter.setText("");loadPage();
-            }),new LinearLayout.LayoutParams(0,dp(50),1));
+            }),new LinearLayout.LayoutParams(0,-2,1));
             if(page.hasMore)pager.addView(button("Next 100",v->{
                 offset+=JsonExplorerEngine.PAGE_SIZE;
                 page=null;filter.setText("");loadPage();
-            }),new LinearLayout.LayoutParams(0,dp(50),1));
+            }),new LinearLayout.LayoutParams(0,-2,1));
             entries.addView(pager);
         }
     }

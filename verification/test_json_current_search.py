@@ -37,7 +37,7 @@ class CurrentJsonFind(unittest.TestCase):
         self.assertIn("Next 100",a)
         self.assertIn("result.limited",a)
         self.assertIn("LIMITED to 500; narrow query",a)
-        self.assertIn("Index this JSON for complete on-device search across every value",a)
+        self.assertIn("You can index JSON fields and values for offline search",a)
         self.assertIn('putExtra("com.example.markdowndesk.INDEX_GENERIC_JSON",true)',a)
         self.assertIn('showIncomingRawHit(verify)',a)
         self.assertIn("UnifiedSearchJump.EXTRA_HASH,result.sha256",a)

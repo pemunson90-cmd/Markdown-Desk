@@ -47,15 +47,18 @@ class DocumentRoutingTests(unittest.TestCase):
     def test_unified_search_reuses_strict_calendar_spec(self):
         source = (JAVA / "UnifiedSearchActivity.java").read_text()
         self.assertIn("new ArchiveSearchSpec(term,speaker.getText().toString()", source)
-        self.assertIn("error(\"Invalid search filters\",invalid)", source)
-        self.assertIn("Speaker and date filters apply to indexed conversation messages only.", source)
+        self.assertIn('error("Check indexed conversation search",invalid)', source)
+        search = source.split("private void search(){", 1)[1].split("private void cancelActive()", 1)[0]
+        self.assertLess(search.index("if(selected.includesArchive())"),
+                        search.index("new ArchiveSearchSpec(term"))
+        self.assertIn("archiveFilters.setVisibility(selected.includesArchive()", source)
         self.assertNotIn("private boolean goodDate(String date)", source)
 
     def test_unified_note_filters_preserve_kind_tag_source_across_pages(self):
         source = (JAVA / "UnifiedSearchActivity.java").read_text()
         engine = (JAVA / "workspace/archive/ArchiveAnnotationSearch.java").read_text()
         self.assertIn('noteKind=choose(', source)
-        self.assertIn('noteTag=field("Exact tag (optional)")', source)
+        self.assertIn('noteTag=field("Exact tag")', source)
         self.assertIn('noteSource=choose(', source)
         self.assertIn('ArchiveAnnotationSearch.pageFiltered(', source)
         self.assertIn('moreNotes(token,term,100,type,tag,origin)', source)
@@ -92,7 +95,8 @@ class DocumentRoutingTests(unittest.TestCase):
         activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
         pdf = (JAVA / "ArchiveTranscriptPdf.java").read_text()
         db = (JAVA / "ArchiveDatabase.java").read_text()
-        self.assertIn('action("Export PDF",v->exportTranscriptPdf())', activity)
+        self.assertIn('"Export Markdown","Export PDF"', activity)
+        self.assertIn('this::exportTranscript,this::exportTranscriptPdf', activity)
         self.assertIn('REQUEST_TRANSCRIPT_PDF=8204', activity)
         self.assertIn('setType("application/pdf")', activity)
         self.assertIn('ArchiveTranscriptPdf.export(database,conversation,out)', activity)
@@ -198,7 +202,7 @@ class DocumentRoutingTests(unittest.TestCase):
 
     def test_archive_backlinks_are_saved_link_only_and_source_verified(self):
         activity = (JAVA / "ArchiveWorkspaceActivity.java").read_text()
-        self.assertIn('action("Backlinks",v->showIncomingArchiveLinks())', activity)
+        self.assertIn('()->showNotebook(false),this::showIncomingArchiveLinks', activity)
         block = activity.split("private void showIncomingArchiveLinks(){", 1)[1].split(
             "private void showAnnotationActions(", 1)[0]
         self.assertIn('if(data.truncatedTail)throw', block)

@@ -59,7 +59,8 @@ class ArchiveOutputIntegration(unittest.TestCase):
 
     def test_full_transcript_print_reuses_complete_generation_verified_stream(self):
         s=self.activity
-        self.assertIn('action("Print transcript",v->printFullTranscript())',s)
+        self.assertIn('"Print selection","Print transcript"',s)
+        self.assertIn('this::printSelectedPassage,this::printFullTranscript',s)
         self.assertIn('private void streamTranscript(ArchiveDatabase.Conversation conversation,OutputStream out)',s)
         self.assertIn('private void printFullTranscript()',s)
         self.assertGreaterEqual(s.count('streamTranscript('),3)
@@ -76,7 +77,7 @@ class ArchiveOutputIntegration(unittest.TestCase):
 
     def test_quote_print_uses_existing_protected_engine(self):
         s=self.activity
-        self.assertIn('action("Print quote",v->printSelectedPassage())',s)
+        self.assertIn('this::printSelectedPassage,this::printFullTranscript',s)
         self.assertIn("private void printSelectedPassage(){selectedPassageAction(false,true);}",s)
         self.assertIn("t.length>65536",s)
         self.assertIn("DocumentPrint.start(this",s)
