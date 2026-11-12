@@ -47,6 +47,7 @@ public final class UnifiedSearchActivity extends Activity {
     private Button stopSearch,filterToggle;
     private TextView searchStatus,filterSummary;
     private String runningScope;
+    private List<String> appliedFilters;
     private int indexedMatches;
     private boolean moreIndexedMatches,searchIncomplete;
     private boolean indexPending,foldersPending;
@@ -197,6 +198,7 @@ public final class UnifiedSearchActivity extends Activity {
         filterToggle=button("Search filters",v->showFilters(filters.getVisibility()!=View.VISIBLE));
         content.addView(filterToggle);
         filterSummary=text("",13);
+        filterSummary.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         filterSummary.setVisibility(View.GONE);
         content.addView(filterSummary);
         content.addView(filters);
@@ -253,11 +255,7 @@ public final class UnifiedSearchActivity extends Activity {
         filters.setVisibility(expanded?View.VISIBLE:View.GONE);
         filterToggle.setText(expanded?"Hide search filters":"Search filters");
     }
-    private void refreshFilterSummary(){
-        UnifiedSearchScope selected=selectedScope();
-        archiveFilters.setVisibility(selected.includesArchive()?View.VISIBLE:View.GONE);
-        noteFilters.setVisibility(selected.includesNotes()?View.VISIBLE:View.GONE);
-        folderFilters.setVisibility(selected.includesFolder()?View.VISIBLE:View.GONE);
+    private List<String> filterLabels(UnifiedSearchScope selected){
         List<String> active=new ArrayList<>();
         if(selected.includesArchive()){
             if(speaker.length()>0)active.add("Speaker "+speaker.getText().toString().trim());
@@ -271,8 +269,26 @@ public final class UnifiedSearchActivity extends Activity {
         }
         if(selected.includesFolder()&&folder.getSelectedItemPosition()>0)
             active.add(folder.getSelectedItem().toString());
-        filterSummary.setText(String.join(" · ",active));
-        filterSummary.setVisibility(active.isEmpty()?View.GONE:View.VISIBLE);
+        return active;
+    }
+    private List<String> filterState(UnifiedSearchScope selected,List<String> labels){
+        List<String> state=new ArrayList<>(labels);
+        state.add(selected.name());
+        state.add(Integer.toString(selected.includesFolder()?folder.getSelectedItemPosition():0));
+        return state;
+    }
+    private void refreshFilterSummary(){
+        UnifiedSearchScope selected=selectedScope();
+        archiveFilters.setVisibility(selected.includesArchive()?View.VISIBLE:View.GONE);
+        noteFilters.setVisibility(selected.includesNotes()?View.VISIBLE:View.GONE);
+        folderFilters.setVisibility(selected.includesFolder()?View.VISIBLE:View.GONE);
+        List<String> active=filterLabels(selected);
+        boolean changed=appliedFilters!=null&&!appliedFilters.equals(filterState(selected,active));
+        String summary=String.join(" · ",active);
+        if(changed)summary="Filters changed. Tap Search to apply."+
+                (summary.isEmpty()?"":"\n"+summary);
+        filterSummary.setText(summary);
+        filterSummary.setVisibility(summary.isEmpty()?View.GONE:View.VISIBLE);
     }
     private void refreshFolders(){
         try{
@@ -322,6 +338,8 @@ public final class UnifiedSearchActivity extends Activity {
         cancelActive();
         results.removeAllViews();
         searchExecuted=true;
+        appliedFilters=filterState(selected,filterLabels(selected));
+        refreshFilterSummary();
         final int token=++generation;
         runningScope=selected.title;
         indexedMatches=0;
