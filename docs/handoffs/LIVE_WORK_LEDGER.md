@@ -5,6 +5,7 @@
 - The JSON Inspector opens the resolved archive after indexing. Unified indexed result labels omit missing dates.
 - The Fold screenshots confirmed normalized and boundary-spanning highlighting on v42. This follow-up is source only. Local checks passed for alias identity, indexed-search compatibility, navigation and the full SDK37 source compile. The earlier phone search test does not need repeating.
 - **Build state:** v42 is the last APK. The two follow-up fixes are source-only. When packaging is authorized, use a version code above 42 and the existing signing identity.
+- **Continue and indexed files:** Files offers the active Markdown tab and the latest saved JSON and conversation places. Archive Reader lists completed indexed files with counts and dates, opens each file’s conversations, and can search its indexed messages in isolation. Catalog and scoped search use the existing database without an index migration or reimport. Verify the new file picker and resume routes on the Fold when a build is authorized.
 - **UI and UX follow-up:** JSON actions and search scope, filters and feedback were clarified. The app-wide source audit also tightened Archive Reader tools, scoped Find, Files, the guide, and the working-copy editor. See [findings and remaining device checks](../maintenance/UI_UX_AUDIT_20261112.md).
 
 ---

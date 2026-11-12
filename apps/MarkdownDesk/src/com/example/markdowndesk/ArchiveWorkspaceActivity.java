@@ -104,6 +104,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private String inspectorImportSource;
     private int importedSourcePage;
     private boolean importedSourceList;
+    private String indexedFileId,indexedFileName;
+    private int indexedFilesPage,indexedConversationsPage;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
@@ -171,6 +173,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             inspectorImportSource=state.getString("inspector_import_source");
             importedSourcePage=state.getInt("imported_source_page");
             importedSourceList=state.getBoolean("imported_source_list");
+            indexedFileId=state.getString("indexed_file_id");
+            indexedFileName=state.getString("indexed_file_name");
+            indexedFilesPage=state.getInt("indexed_files_page");
+            indexedConversationsPage=state.getInt("indexed_conversations_page");
             String savedQuery=state.getString("search_spec_term");
             if(savedQuery!=null)try{
                 currentSearch=new ArchiveSearchSpec(savedQuery,state.getString("search_spec_speaker"),
@@ -201,6 +207,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             if(active!=null && "reader".equals(viewMode))showReader(false);
             else if("imported".equals(viewMode)&&inspectorImportSource!=null)
                 showImportedSource(inspectorImportSource,importedSourcePage);
+            else if("indexed-files".equals(viewMode))showIndexedFiles(indexedFilesPage);
+            else if("indexed-file".equals(viewMode)&&indexedFileId!=null)
+                showIndexedFile(indexedFileId,indexedFileName,indexedConversationsPage);
+            else if("search".equals(viewMode)&&returnSearchTerm!=null
+                    &&indexedFileId!=null&&indexedFileId.equals(returnSearchScope))
+                showSearch(returnSearchTerm,returnSearchScope,returnSearchOffset);
             else showHome();
         }
     }
@@ -221,7 +233,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         incomingNavigationConsumed=true;
         ArchiveDatabase.Conversation target=findConversation(id);
         if(target==null)status("This conversation is not indexed; reimport its source");
-        else openChat(target);
+        else {
+            indexedFileId=null;
+            openChat(target);
+        }
         return true;
     }
 
@@ -253,6 +268,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putString("inspector_import_source",inspectorImportSource);
         state.putInt("imported_source_page",importedSourcePage);
         state.putBoolean("imported_source_list",importedSourceList);
+        state.putString("indexed_file_id",indexedFileId);
+        state.putString("indexed_file_name",indexedFileName);
+        state.putInt("indexed_files_page",indexedFilesPage);
+        state.putInt("indexed_conversations_page",indexedConversationsPage);
         if(currentSearch!=null){
             state.putString("search_spec_term",currentSearch.term);
             state.putString("search_spec_speaker",currentSearch.speaker);
@@ -397,6 +416,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void showHome(){
         rememberReadingPlace();
         priorArchiveChats.clear();
+        indexedFileId=null;
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
         clearIndexedPassage();
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
@@ -406,6 +426,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
         add(body,"Import LLM JSON archive",v->chooseImport());
         add(body,"Continue reading",v->continueReading());
+        add(body,"Indexed files",v->showIndexedFiles(0));
         TextView h=text("CONVERSATIONS",14);h.setTypeface(null,Typeface.BOLD);body.addView(h);
         List<ArchiveDatabase.Conversation> chats=database.conversations("",150,0);
         if(chats.isEmpty())body.addView(text("Import Claude, linear messages, or ChatGPT JSON. ChatGPT branches are kept as separate conversations, selected branch first. Other JSON opens in Inspector. The original file remains unchanged.",14));
@@ -447,7 +468,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(!c.generationId.equals(prefs.getString("archive_chat_anchor_generation_"+c.id,null)))anchorOrdinal=-1;
         savedScroll=prefs.getInt("archive_chat_scroll_"+c.id,0);
         restoreLastPosition=true;
-        prefs.edit().putString("archive_last_chat",c.id).apply();
+        prefs.edit().putString("archive_last_chat",c.id).putString("archive_last_title",c.name).apply();
         showReader(false);
     }
     private void showReader(boolean keepScroll){
@@ -1069,7 +1090,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
 
     private void searchDialog(String scopedChat){
-        ArchiveSearchDialog.show(this,scopedChat,currentSearch,spec->{
+        boolean fileSearch=indexedFileId!=null&&indexedFileId.equals(scopedChat);
+        ArchiveSearchDialog.show(this,scopedChat,fileSearch?indexedFileName:null,currentSearch,spec->{
             currentSearch=spec;
             showSearch(spec.term,scopedChat,0);
         });
@@ -1079,24 +1101,29 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         clearIndexedPassage();
         returnSearchTerm=term;returnSearchScope=scope;returnSearchOffset=Math.max(0,offset);
         query=term;viewMode="search";
-        setTitle(scope==null?"Archive search":"Find in conversation",term);
+        applyFocusChrome();
+        final boolean fileSearch=indexedFileId!=null&&indexedFileId.equals(scope);
+        setTitle(fileSearch?"Search this file":scope==null?"Archive search":"Find in conversation",
+                fileSearch?indexedFileName+" · "+term:term);
         controls.removeAllViews();action("Search again",v->searchDialog(scope));
-        action("Library",v->showHome());
+        if(fileSearch)action("Indexed file",v->back());
+        else action("Library",v->showHome());
         ScrollView scroll=new ScrollView(this);LinearLayout rows=vertical();scroll.addView(rows);view(scroll);
-        TextView searchProgress=text("Searching indexed messages…",14);
+        TextView searchProgress=text(fileSearch?"Searching this file…":"Searching indexed messages…",14);
         searchProgress.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         rows.addView(searchProgress);
         final int token=++generation;
         final ArchiveSearchSpec options=currentSearch;
         io.execute(()->{
             try{
-                List<ArchiveDatabase.Hit> hits=database.search(term,scope,
-                        options==null?null:options.speaker,
-                        options==null?null:options.fromDate,
-                        options==null?null:options.toDate,60,offset,()->generation!=token);
+                String speaker=options==null?null:options.speaker;
+                String from=options==null?null:options.fromDate,to=options==null?null:options.toDate;
+                List<ArchiveDatabase.Hit> hits=fileSearch?
+                        database.searchFile(term,scope,speaker,from,to,60,offset,()->generation!=token):
+                        database.search(term,scope,speaker,from,to,60,offset,()->generation!=token);
                 List<ArchiveJournal.Annotation> notes=new ArrayList<>();
                 String noteWarning=null;
-                if(offset==0 && (options==null||!options.filtersMessagesOnly())){
+                if(!fileSearch&&offset==0 && (options==null||!options.filtersMessagesOnly())){
                     try{notes=ArchiveAnnotationSearch.find(new java.io.File(getFilesDir(),
                             "claude-archive/annotations-v2.journal"),term,scope,100);}
                     catch(IOException sourceUnavailable){noteWarning="Note search is unavailable until its journal is repaired.";}
@@ -1108,18 +1135,18 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(hits.isEmpty()&&matchedNotes.isEmpty())
                         searchProgress.setText(warning==null?"No matches on this page.":"No message matches. Saved notes could not be searched.");
                     else{
-                        String summary=hits.size()+" message "+(hits.size()==1?"match":"matches");
+                        String summary=hits.size()+(fileSearch?" ":" message ")+(hits.size()==1?"match":"matches");
                         if(!matchedNotes.isEmpty())summary+=" · "+matchedNotes.size()+
                                 (matchedNotes.size()==1?" saved note":" saved notes");
                         searchProgress.setText(summary+" on this page");
                     }
-                    if(!hits.isEmpty())rows.addView(text("MATCHING CONVERSATION MESSAGES",14));
+                    if(!hits.isEmpty())rows.addView(text(fileSearch?"MATCHING INDEXED TEXT":"MATCHING CONVERSATION MESSAGES",14));
                     for(ArchiveDatabase.Hit hit:hits){
                         add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),
                                 v->openIndexedPassage(hit,findConversation(hit.chatId),false));
                     }
                     if(warning!=null)rows.addView(text(warning,13));
-                    if(options!=null&&options.filtersMessagesOnly())
+                    if(!fileSearch&&options!=null&&options.filtersMessagesOnly())
                         rows.addView(text("Speaker/date filters apply to source messages. Clear filters to search saved notes too.",12));
                     if(!matchedNotes.isEmpty()){
                         rows.addView(text("MATCHING NOTES, HIGHLIGHTS & SAVED LINKS",14));
@@ -1652,6 +1679,78 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
         });
     }
+    private void showIndexedFiles(int offset){
+        rememberReadingPlace();
+        indexedFileId=null;
+        indexedFilesPage=offset;
+        LinearLayout rows=indexedFileScreen("indexed-files","Indexed files","Local search indexes");
+        action("Library",v->showHome());
+        final int token=generation;
+        io.execute(()->{
+            try{
+                List<ArchiveDatabase.IndexedFile> files=database.indexedFiles(51,offset);
+                runOnUiThread(()->{
+                    if(token!=generation||isFinishing()||isDestroyed())return;
+                    rows.removeAllViews();
+                    if(files.isEmpty())rows.addView(text("No indexed files yet. Import a conversation export to get started.",14));
+                    for(ArchiveDatabase.IndexedFile file:files.subList(0,Math.min(50,files.size()))){
+                        String kind=file.generic?"JSON paths":file.conversations+" "+
+                                (file.conversations==1?"conversation":"conversations");
+                        String date=file.indexedAt>0?" · Indexed "+
+                                java.text.DateFormat.getDateInstance().format(new java.util.Date(file.indexedAt)):"";
+                        add(rows,file.name+"\n"+kind+date,v->showIndexedFile(file.id,file.name,0));
+                    }
+                    if(offset>0)add(rows,"Previous files",v->showIndexedFiles(Math.max(0,offset-50)));
+                    if(files.size()>50)add(rows,"Next files",v->showIndexedFiles(offset+50));
+                });
+            }catch(Exception error){showIndexedFileError(token,rows);}
+        });
+    }
+    private void showIndexedFile(String id,String name,int offset){
+        rememberReadingPlace();
+        indexedFileId=id;
+        indexedFileName=name==null?"Indexed file":name;
+        indexedConversationsPage=offset;
+        LinearLayout rows=indexedFileScreen("indexed-file",indexedFileName,"Indexed content");
+        action("Indexed files",v->showIndexedFiles(indexedFilesPage));
+        action("Search this file",v->searchDialog(id));
+        final int token=generation;
+        io.execute(()->{
+            try{
+                List<ArchiveDatabase.Conversation> chats=database.importedConversations(id,51,offset);
+                runOnUiThread(()->{
+                    if(token!=generation||isFinishing()||isDestroyed())return;
+                    rows.removeAllViews();
+                    if(chats.isEmpty())rows.addView(text("No indexed content on this page.",14));
+                    for(ArchiveDatabase.Conversation chat:chats.subList(0,Math.min(50,chats.size())))
+                        add(rows,chat.name+"\n"+chat.messages+" "+(chat.messages==1?"message":"messages"),v->openChat(chat));
+                    if(offset>0)add(rows,"Previous conversations",v->showIndexedFile(id,name,Math.max(0,offset-50)));
+                    if(chats.size()>50)add(rows,"Next conversations",v->showIndexedFile(id,name,offset+50));
+                });
+            }catch(Exception error){showIndexedFileError(token,rows);}
+        });
+    }
+    private LinearLayout indexedFileScreen(String mode,String heading,String description){
+        clearIndexedPassage();
+        returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
+        generation++;viewMode=mode;reader=null;active=null;
+        applyFocusChrome();
+        controls.removeAllViews();
+        setTitle(heading,description);
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout rows=vertical();
+        rows.addView(text("Loading indexed content…",14));
+        scroll.addView(rows);
+        view(scroll);
+        return rows;
+    }
+    private void showIndexedFileError(int token,LinearLayout rows){
+        runOnUiThread(()->{
+            if(token!=generation||isFinishing()||isDestroyed())return;
+            rows.removeAllViews();
+            rows.addView(text("Could not load indexed content. Go back and try again.",14));
+        });
+    }
     private void showImportedSource(String sourceId,int offset){
         List<ArchiveDatabase.Conversation> chats=database.importedConversations(sourceId,151,offset);
         if(offset==0&&chats.size()==1){
@@ -2104,6 +2203,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             showReader(true);
             return;
         }
+        if(indexedFileId!=null&&(("search".equals(viewMode)&&indexedFileId.equals(returnSearchScope))
+                ||("reader".equals(viewMode)&&active!=null&&indexedFileId.equals(active.archiveId)))){
+            showIndexedFile(indexedFileId,indexedFileName,indexedConversationsPage);
+            return;
+        }
+        if("indexed-file".equals(viewMode)){showIndexedFiles(indexedFilesPage);return;}
         if(inspectorImportSource!=null&&("imported".equals(viewMode)
                 ||("reader".equals(viewMode)&&active!=null&&inspectorImportSource.equals(active.archiveId)))){
             rememberReadingPlace();

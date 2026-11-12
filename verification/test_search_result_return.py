@@ -52,7 +52,7 @@ class SearchResultReturn(unittest.TestCase):
     def test_inspector_return_is_not_a_tab_close(self):
         s=self.inspector
         self.assertIn('returnResults=button("Return to search results",v->finish())',s)
-        self.assertIn('if(!openedFromSearch)closeInspectorTabForSwitch()',s)
+        self.assertIn('if(!openedFromSearch){\n                saveInspectorPosition();\n                closeInspectorTabForSwitch();',s)
         self.assertIn('jsonOpenedFromSearch',s)
         self.assertGreaterEqual(s.count('getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false)'),2,
                 'Both new and reused Inspector activities must honor JSON annotation return marker')

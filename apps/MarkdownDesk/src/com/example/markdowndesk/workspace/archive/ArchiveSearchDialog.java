@@ -14,7 +14,7 @@ import java.util.function.Consumer;
  */
 public final class ArchiveSearchDialog {
     private ArchiveSearchDialog() {}
-    public static void show(Activity activity,String chatId,ArchiveSearchSpec previous,
+    public static void show(Activity activity,String chatId,String fileName,ArchiveSearchSpec previous,
                             Consumer<ArchiveSearchSpec> onSearch) {
         int margin=Math.round(18*activity.getResources().getDisplayMetrics().density);
         LinearLayout fields=new LinearLayout(activity);
@@ -24,10 +24,15 @@ public final class ArchiveSearchDialog {
         EditText speaker=field(activity,"Speaker (optional)",previous==null?"":previous.speaker);
         EditText from=field(activity,"From YYYY-MM-DD (optional)",previous==null?"":previous.fromDate);
         EditText to=field(activity,"Through YYYY-MM-DD (optional)",previous==null?"":previous.toDate);
+        if(fileName!=null){
+            android.widget.TextView file=new android.widget.TextView(activity);
+            file.setText(fileName);
+            fields.addView(file);
+        }
         fields.addView(phrase);fields.addView(speaker);fields.addView(from);fields.addView(to);
         ScrollView scroll=new ScrollView(activity);scroll.addView(fields);
         AlertDialog dialog=new AlertDialog.Builder(activity)
-            .setTitle(chatId==null?"Search all conversations":"Find in conversation")
+            .setTitle(fileName!=null?"Search this file":chatId==null?"Search all conversations":"Find in conversation")
             .setView(scroll).setPositiveButton("Search",null)
             .setNegativeButton("Cancel",null).create();
         dialog.setOnShowListener(event->dialog.getButton(DialogInterface.BUTTON_POSITIVE)

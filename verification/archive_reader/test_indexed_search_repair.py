@@ -88,7 +88,25 @@ def check(version, beta=False):
     assert db.execute("SELECT generation_id FROM active_versions WHERE archive_id='ready'").fetchone() == ('ready',)
     assert db.execute("SELECT search_format FROM sources WHERE id='ready'").fetchone() == (3 if beta else 2,)
 
+    # A second ready source contains the same phrase. A previous generation
+    # and an in-progress conversation must not appear in the file catalog.
+    db.execute("INSERT INTO sources(id,uri,status,indexed_at) VALUES('second-gen','content://second','ready',1000)")
+    db.execute("INSERT INTO sources(id,uri,status) VALUES('obsolete','content://second','ready')")
+    db.execute("INSERT INTO active_versions VALUES('second','second-gen')")
+    db.execute("INSERT INTO conversations VALUES('second-gen/chat','second-gen','Another file',NULL,NULL,1)")
+    db.execute("INSERT INTO conversations VALUES('second-gen#pending#0','second-gen','Incomplete',NULL,NULL,0)")
+    second_hit = add(6, [term], generation='second-gen')
+    catalog = sql_between('String catalog=', 'try(Cursor c=db.rawQuery(catalog')
+    sources = db.execute(catalog).fetchall()
+    assert [(r[0], r[4]) for r in sources] == [('second', 1), ('ready', 1)], sources
+    assert sources[0][5] == 'Another file'
+    file_filter = sql_between('if(source!=null){\n                filters.append(', ');args.add(source);')
+    file_query = query.replace(' ORDER BY', file_filter + ' ORDER BY')
+    assert [r[9] for r in db.execute(file_query, ('"' + term + '"', 'human', 'second'))] == [second_hit]
+    assert [r[9] for r in db.execute(file_query, ('"' + term + '"', 'human', 'ready'))] == [native, old]
+
+
 for schema in (1, 2, 3):
     check(schema)
 check(3, beta=True)
-print('PASS: actual FTS4 candidate SQL, legacy overlap, metadata upgrade, active generations and filters')
+print('PASS: actual FTS4 candidate SQL, legacy overlap, metadata upgrade, active generations, indexed file catalog and scoped filters')

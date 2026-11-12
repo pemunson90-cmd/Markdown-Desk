@@ -27,6 +27,16 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     static final String FILE="archive_catalog_v1.db";
     static final int VERSION=3;
     static final int PAGE=60;
+    static final class IndexedFile {
+        final String id,name;
+        final long indexedAt;
+        final int conversations;
+        final boolean generic;
+        IndexedFile(String id,String name,long indexedAt,int conversations,boolean generic){
+            this.id=id;this.name=name;this.indexedAt=indexedAt;
+            this.conversations=conversations;this.generic=generic;
+        }
+    }
     static final class Conversation {
         String id,archiveId,name,created,updated; int messages;
         final String generationId;
@@ -230,6 +240,46 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
             return rows;
         }finally{db.endTransaction();}
     }
+    synchronized List<IndexedFile> indexedFiles(int limit,int offset){
+        SQLiteDatabase db=getReadableDatabase();
+        ArrayList<IndexedFile> result=new ArrayList<>();
+        int skip=Math.max(0,offset),size=Math.max(1,Math.min(limit,100));
+        db.beginTransactionReadOnly();
+        try{
+            Set<String> hidden=activeSourceAliases(db).hidden;
+            String catalog="SELECT av.archive_id,s.uri,s.name,s.indexed_at,COUNT(c.id),MIN(c.title) " +
+                    "FROM active_versions av JOIN sources s ON s.id=av.generation_id " +
+                    "LEFT JOIN conversations c ON c.archive_id=av.generation_id " +
+                    "AND substr(c.id,1,length(c.archive_id)+1)=c.archive_id||'/' " +
+                    "WHERE s.status='ready' GROUP BY av.archive_id " +
+                    "ORDER BY s.indexed_at DESC,av.archive_id";
+            try(Cursor c=db.rawQuery(catalog,null)){
+                while(result.size()<size&&c.moveToNext()){
+                    String id=c.getString(0);
+                    if(hidden.contains(id))continue;
+                    if(skip>0){skip--;continue;}
+                    boolean generic=GENERIC_SOURCE_NAME.equals(c.getString(2));
+                    String title=indexedFileName(c.getString(1),c.getString(5),generic);
+                    result.add(new IndexedFile(id,title,c.getLong(3),c.getInt(4),generic));
+                }
+            }
+            db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
+        return result;
+    }
+    private static String indexedFileName(String uri,String conversation,boolean generic){
+        String tail=android.net.Uri.parse(uri).getLastPathSegment();
+        if(tail!=null){
+            tail=tail.substring(Math.max(tail.lastIndexOf('/'),tail.lastIndexOf(':'))+1);
+            if(tail.toLowerCase(java.util.Locale.ROOT).endsWith(".json"))return tail;
+        }
+        if(conversation!=null&&!conversation.trim().isEmpty()){
+            if(generic&&conversation.startsWith("JSON · "))return conversation.substring(7);
+            return conversation;
+        }
+        return generic?"Indexed JSON file":"Conversation export";
+    }
+
     synchronized List<Conversation> importedConversations(String sourceId,int limit,int offset){
         if(sourceId==null||sourceId.isEmpty())throw new IllegalArgumentException("Missing source identity");
         return conversations(getReadableDatabase(),null,sourceId,null,limit,offset,Set.of());
@@ -360,6 +410,15 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     }
     synchronized List<Hit> search(String query,String chat,String speaker,String fromDate,String toDate,
             int limit,int offset,BooleanSupplier cancelled){
+        return searchWithin(query,chat,null,speaker,fromDate,toDate,limit,offset,cancelled);
+    }
+    synchronized List<Hit> searchFile(String query,String source,String speaker,String fromDate,String toDate,
+            int limit,int offset,BooleanSupplier cancelled){
+        if(source==null||source.isEmpty())throw new IllegalArgumentException("Missing indexed file");
+        return searchWithin(query,null,source,speaker,fromDate,toDate,limit,offset,cancelled);
+    }
+    private List<Hit> searchWithin(String query,String chat,String source,String speaker,String fromDate,
+            String toDate,int limit,int offset,BooleanSupplier cancelled){
         ArrayList<Hit> out=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return out;
         String term=query.trim();
@@ -373,11 +432,14 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         checkSearchCancelled(cancelled);
         db.beginTransactionReadOnly();
         try{
-            Set<String> hidden=chat==null||chat.isEmpty()?activeSourceAliases(db).hidden:Set.of();
+            Set<String> hidden=source==null&&(chat==null||chat.isEmpty())?activeSourceAliases(db).hidden:Set.of();
             ArrayList<String> args=new ArrayList<>();args.add(phrase);
             StringBuilder filters=new StringBuilder();
             if(chat!=null&&!chat.isEmpty()){
                 filters.append(" AND m.conversation_id=?");args.add(internalChat(db,chat));
+            }
+            if(source!=null){
+                filters.append(" AND av.archive_id=?");args.add(source);
             }
             if(speaker!=null&&!speaker.trim().isEmpty()){
                 filters.append(" AND m.role=? COLLATE NOCASE");args.add(speaker.trim());
