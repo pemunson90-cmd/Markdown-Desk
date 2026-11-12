@@ -8,7 +8,7 @@ The repair retains native FTS4 hits and checks eligible multipart misses against
 
 Indexed results carry generation-bound UTF-16 source coordinates. The reader marks the exact original passage above its regular Markdown view and keeps the existing return route. An unusually long token-phrase span shows both ends with an omission marker. Native row matches keep existing behavior. Newly recovered results treat `^` as a message-start anchor and embedded-quote clauses as conjunctions within a message.
 
-Focused local checks are `verification/archive_reader/run_indexed_search_repair.sh`, `verification/archive_navigation/run.sh`, `verification/test_search_result_return.py` and the source-only SDK37 compile. Android WebView scrolling remains the device check. The findings below describe the released 2.5.0 implementation.
+Focused local checks are `verification/archive_reader/run_indexed_search_repair.sh`, `verification/archive_navigation/run.sh`, `verification/test_search_result_return.py` and the source-only SDK37 compile. Pat’s v42 Fold screenshots confirmed scrolling and highlighting for normalized and boundary-spanning matches. For subsequent source-only fixes and current build state, see the [live work ledger](../handoffs/LIVE_WORK_LEDGER.md). The findings below describe the released 2.5.0 implementation.
 
 ## 1. Accepted long phrases can disappear at segment boundaries
 
