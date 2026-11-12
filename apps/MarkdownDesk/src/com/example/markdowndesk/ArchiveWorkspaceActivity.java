@@ -101,6 +101,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private int returnSearchOffset;
     private final ArrayList<String> priorArchiveChats=new ArrayList<>();
     private boolean returnUnifiedSearch, openedFromJsonInspector;
+    private String inspectorImportSource;
+    private int importedSourcePage;
+    private boolean importedSourceList;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
@@ -165,6 +168,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 }
             returnUnifiedSearch=state.getBoolean("return_unified_search",false);
             openedFromJsonInspector=state.getBoolean("opened_from_json_inspector",false);
+            inspectorImportSource=state.getString("inspector_import_source");
+            importedSourcePage=state.getInt("imported_source_page");
+            importedSourceList=state.getBoolean("imported_source_list");
             String savedQuery=state.getString("search_spec_term");
             if(savedQuery!=null)try{
                 currentSearch=new ArchiveSearchSpec(savedQuery,state.getString("search_spec_speaker"),
@@ -193,6 +199,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 searchDialog(null);return;
             }
             if(active!=null && "reader".equals(viewMode))showReader(false);
+            else if("imported".equals(viewMode)&&inspectorImportSource!=null)
+                showImportedSource(inspectorImportSource,importedSourcePage);
             else showHome();
         }
     }
@@ -242,6 +250,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putStringArrayList("archive_prior_chat_ids",new ArrayList<>(priorArchiveChats));
         state.putBoolean("return_unified_search",returnUnifiedSearch);
         state.putBoolean("opened_from_json_inspector",openedFromJsonInspector);
+        state.putString("inspector_import_source",inspectorImportSource);
+        state.putInt("imported_source_page",importedSourcePage);
+        state.putBoolean("imported_source_list",importedSourceList);
         if(currentSearch!=null){
             state.putString("search_spec_term",currentSearch.term);
             state.putString("search_spec_speaker",currentSearch.speaker);
@@ -1518,13 +1529,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             if(chat!=null)writeTranscriptPdf(chat,uri);
         }
     }
-    private void importArchive(Uri uri){importArchive(uri,false);}
-    private void importArchive(Uri uri,boolean genericJson){
+    private void importArchive(Uri uri){importArchive(uri,false,false);}
+    private void importArchive(Uri uri,boolean genericJson,boolean fromInspector){
         if(importController==null)importController=ArchiveImportCoordinator.get(getApplicationContext());
         if(!importController.start(uri,genericJson)){
             status("An import is already running, or the selected file cannot be opened");
             showImportScreen();return;
         }
+        inspectorImportSource=fromInspector?JsonDocumentIndexer.sourceIdentity(uri.toString(),genericJson):null;
+        importedSourcePage=0;
+        importedSourceList=false;
         importDoneNotified=false;
         showImportScreen();
     }
@@ -1589,7 +1603,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 if(!state.running()&&!"interrupted".equals(state.state)&&!importDoneNotified){
                     importDoneNotified=true;
                     if("complete".equals(state.state)){
-                        status(state.detail);showHome();
+                        status(state.detail);
+                        if(inspectorImportSource==null)showHome();
+                        else showImportedSource(inspectorImportSource,0);
                     }else if("failed".equals(state.state)||"cancelled".equals(state.state)){
                         new AlertDialog.Builder(this).setTitle("Archive import "+state.state)
                             .setMessage(state.detail+(state.error==null?"":"\n\n"+state.error))
@@ -1601,6 +1617,28 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 }
             }
         });
+    }
+    private void showImportedSource(String sourceId,int offset){
+        List<ArchiveDatabase.Conversation> chats=database.importedConversations(sourceId,151,offset);
+        if(offset==0&&chats.size()==1){
+            openChat(chats.get(0));
+            return;
+        }
+        importedSourcePage=offset;
+        importedSourceList=true;
+        generation++;viewMode="imported";reader=null;active=null;
+        controls.removeAllViews();
+        action("All conversations",v->showHome());
+        setTitle("Indexed file","Conversations in the JSON file you opened");
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout body=vertical();
+        scroll.addView(body);
+        if(chats.isEmpty())body.addView(text("No conversations were indexed for this file.",14));
+        for(ArchiveDatabase.Conversation chat:chats.subList(0,Math.min(chats.size(),150)))
+            add(body,chat.name+" · "+chat.messages+" messages",v->openChat(chat));
+        if(chats.size()>150)add(body,"Next conversations",v->showImportedSource(sourceId,offset+150));
+        if(offset>0)add(body,"Previous conversations",v->showImportedSource(sourceId,Math.max(0,offset-150)));
+        view(scroll);
     }
     private void renderImportProgress(ArchiveImportCoordinator.Snapshot state){
         if(importSummary==null||!"import".equals(viewMode))return;
@@ -1815,7 +1853,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         boolean genericJson=intent.getBooleanExtra("com.example.markdowndesk.INDEX_GENERIC_JSON",false);
         intent.removeExtra("com.example.markdowndesk.INDEX_GENERIC_JSON");
         intent.setData(null);
-        importArchive(selected,genericJson);
+        importArchive(selected,genericJson,true);
         return true;
     }
 
@@ -2027,6 +2065,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             }
         }
         if("reader".equals(viewMode)&&returnSearchTerm!=null){returnToSearch();return;}
+        if(inspectorImportSource!=null&&("imported".equals(viewMode)
+                ||("reader".equals(viewMode)&&active!=null&&inspectorImportSource.equals(active.archiveId)))){
+            rememberReadingPlace();
+            if("reader".equals(viewMode)&&importedSourceList)
+                showImportedSource(inspectorImportSource,importedSourcePage);
+            else finish();
+            return;
+        }
         if("reader".equals(viewMode)){
             while(!priorArchiveChats.isEmpty()){
                 String prior=priorArchiveChats.remove(priorArchiveChats.size()-1);

@@ -203,18 +203,31 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         return gen==null?"#unavailable#":gen+publicChat.substring(slash);
     }
     synchronized List<Conversation> conversations(String titleFilter,int limit,int offset){
+        return conversations(titleFilter,null,limit,offset);
+    }
+    synchronized List<Conversation> importedConversations(String sourceId,int limit,int offset){
+        if(sourceId==null||sourceId.isEmpty())throw new IllegalArgumentException("Missing source identity");
+        return conversations(null,sourceId,limit,offset);
+    }
+    private List<Conversation> conversations(String titleFilter,String sourceId,int limit,int offset){
         ArrayList<Conversation> result=new ArrayList<>();
-        boolean filtered=titleFilter!=null&&!titleFilter.isEmpty();
-        String[] args=filtered?new String[]{"%"+titleFilter.replace("\\","\\\\").replace("%","\\%")
-                .replace("_","\\_")+"%"}:new String[0];
-        String clause=filtered?" AND c.title LIKE ? ESCAPE '\\'":"";
+        ArrayList<String> args=new ArrayList<>();
+        String clause="";
+        if(titleFilter!=null&&!titleFilter.isEmpty()){
+            args.add("%"+titleFilter.replace("\\","\\\\").replace("%","\\%").replace("_","\\_")+"%");
+            clause=" AND c.title LIKE ? ESCAPE '\\'";
+        }
+        if(sourceId!=null){
+            args.add(sourceId);
+            clause+=" AND av.archive_id=?";
+        }
         try(Cursor c=getReadableDatabase().rawQuery(
                 "SELECT c.id,av.archive_id,c.archive_id,c.title,c.created,c.updated,c.message_count " +
                 "FROM conversations c JOIN active_versions av ON av.generation_id=c.archive_id " +
                 "JOIN sources s ON s.id=av.generation_id WHERE s.status='ready' " +
                 "AND substr(c.id,1,length(c.archive_id)+1)=c.archive_id||'/'"+clause+
                 " ORDER BY COALESCE(c.updated,c.created) DESC,c.id LIMIT " +
-                Math.max(1,Math.min(limit,200))+" OFFSET "+Math.max(0,offset),args)){
+                Math.max(1,Math.min(limit,200))+" OFFSET "+Math.max(0,offset),args.toArray(new String[0]))){
             while(c.moveToNext())result.add(new Conversation(
                     stableChat(c.getString(0),c.getString(2),c.getString(1)),c.getString(1),
                     c.getString(3),c.getString(4),c.getString(5),c.getInt(6),c.getString(2)));
