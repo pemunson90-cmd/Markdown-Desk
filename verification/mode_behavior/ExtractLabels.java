@@ -30,7 +30,7 @@ public final class ExtractLabels {
                         methods.append(source.substring((int) positions.getStartPosition(unit, member), (int) positions.getEndPosition(unit, member))).append('\n');
                         counts.merge(name, 1, Integer::sum);
                     }
-                    if (!name.equals("showAppearance")) continue;
+                    if (!name.equals("showAppearanceSection")) continue;
                     new TreeScanner<Void,Void>() {
                         @Override public Void visitExpressionStatement(ExpressionStatementTree statement, Void ignored) {
                             if (statement.getExpression() instanceof MethodInvocationTree) {

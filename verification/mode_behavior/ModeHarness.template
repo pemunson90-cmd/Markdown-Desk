@@ -65,7 +65,7 @@ public final class ModeHarness {
     Object editorKeyListener;
     ModeHarness() { modeButtons.add(editModeButton); tabs.add(new Tab()); }
     int dp(int value) { return value * 2; }
-    void rebuildBody() { rebuilds++; }
+    void rebuildBody() { rebuilds++; formatScroll.visibility=8; readToolsScroll.visibility=8; }
     void updateStatus() { statuses++; }
     void scheduleSession() { sessions++; }
     void hideKeyboard() { hideKeyboardCalls++; }

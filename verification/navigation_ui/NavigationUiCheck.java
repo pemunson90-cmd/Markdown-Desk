@@ -9,6 +9,8 @@ public final class NavigationUiCheck {
   run("export docx","docx");run("undo","undo");run("redo","redo");run("reading bookmarks","bookmarks");run("workspace","files");run("split mode","mode:2:false");run("write mode","mode:0:true");run("read mode","mode:1:false");run("pdf","print");run("open file","open");run("decrease","font:-1");run("increase","font:1");
   a=new MainActivity();a.recents.add(new MainActivity.RecentStore.Item("Draft.md","content://a/first"));a.recents.add(new MainActivity.RecentStore.Item("Draft.md","content://a/second"));a.recent();NavigationPicker p=NavigationPicker.latest;
   eq(2,p.displayed.rows.size(),"duplicate names kept");p.filter("second");p.click(0);eq(List.of("uri:content://a/second:3:true"),a.calls,"filtered Recent uses captured URI + original grant route");
+  a=new MainActivity();a.recents.add(new MainActivity.RecentStore.Item("A","content://a"));
+  a.recentFromFiles();NavigationPicker.latest.back();eq(List.of("files-back"),a.calls,"recent Back reopens Files");
   a=new MainActivity();a.commands();NavigationPicker old=NavigationPicker.latest;a.recents.add(new MainActivity.RecentStore.Item("A","content://a"));old.filter("recent documents");old.click(0);eq("Recent documents",NavigationPicker.latest.title,"reentrant second picker survives old close");eq(true,old.closed,"old picker retired");
   a=new MainActivity();a.outline();p=NavigationPicker.latest;p.filter("two");p.click(0);eq(List.of("source:11"),a.calls,"filtered heading uses original source offset");
   a=new MainActivity();a.mode=1;a.outline();p=NavigationPicker.latest;p.filter("two");p.click(0);eq(List.of("preview:11"),a.calls,"Read uses preview route");

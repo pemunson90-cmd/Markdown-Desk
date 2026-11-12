@@ -98,6 +98,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private ArchiveSearchSpec currentSearch;
     // A reader reached through search retains its exact result page and filters.
     private String returnSearchTerm, returnSearchScope;
+    private ScrollView searchResultsScroll;
+    private int returnSearchY;
     private int returnSearchOffset;
     private final ArrayList<String> priorArchiveChats=new ArrayList<>();
     private boolean returnUnifiedSearch, openedFromJsonInspector;
@@ -161,6 +163,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             viewMode=state.getString("view","home");
             returnSearchTerm=state.getString("return_search_term");
             returnSearchScope=state.getString("return_search_scope");
+            returnSearchY=state.getInt("return_search_y");
             returnSearchOffset=Math.max(0,state.getInt("return_search_offset",0));
             ArrayList<String> previous=state.getStringArrayList("archive_prior_chat_ids");
             if(previous!=null)for(String id:previous)
@@ -261,6 +264,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putString("view",viewMode);
         state.putString("return_search_term",returnSearchTerm);
         state.putString("return_search_scope",returnSearchScope);
+        state.putInt("return_search_y",searchResultsScroll!=null&&"search".equals(viewMode)?searchResultsScroll.getScrollY():returnSearchY);
         state.putInt("return_search_offset",returnSearchOffset);
         state.putStringArrayList("archive_prior_chat_ids",new ArrayList<>(priorArchiveChats));
         state.putBoolean("return_unified_search",returnUnifiedSearch);
@@ -312,9 +316,21 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void add(LinearLayout target,String label,View.OnClickListener tap){
         target.addView(button(label,tap),new LinearLayout.LayoutParams(-1,-2));
     }
+    private void addConversationRow(LinearLayout rows,ArchiveDatabase.Conversation chat){
+        Button row=button("",v->openChat(chat));
+        String date=ArchiveResultRow.date(chat.updated==null?chat.created:chat.updated);
+        String count=chat.messages+" "+(chat.messages==1?"message":"messages");
+        ArchiveResultRow.bind(row,chat.name,date.isEmpty()?count:date+" · "+count,null,palette);
+        rows.addView(row,new LinearLayout.LayoutParams(-1,-2));
+    }
+
     private void buildChrome(){
         getWindow().setStatusBarColor(palette.surface);
         getWindow().setNavigationBarColor(palette.surface);
+        android.view.WindowInsetsController bars=getWindow().getInsetsController();
+        int lightBars=android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                |android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+        if(bars!=null)bars.setSystemBarsAppearance(palette.dark?0:lightBars,lightBars);
         screen=vertical();screen.setBackgroundColor(palette.canvas);
         // Let Android calculate display-cutout, status and navigation insets.
         // Do not use the old code32 custom decorFits/insets listener: it crashed
@@ -367,7 +383,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if(conversationTabsRow==null)return;
         conversationTabsRow.removeAllViews();
         List<ConversationTabs.Entry> items=conversationTabs.entries();
-        conversationTabsScroll.setVisibility(items.isEmpty()?View.GONE:View.VISIBLE);
+        updateConversationTabVisibility();
         for(ConversationTabs.Entry item:items){
             boolean selected=item.id.equals(conversationTabs.selected());
             String label=(selected?"● ":"○ ")+item.title;
@@ -397,14 +413,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void commonActions(){
         controls.removeAllViews();
-        action("Library",v->showHome());
-        action("Search indexed conversations",v->startActivity(new Intent(this,UnifiedSearchActivity.class)
+        action("Search",v->startActivity(new Intent(this,UnifiedSearchActivity.class)
                 .putExtra(UnifiedSearchActivity.EXTRA_ARCHIVE_SCOPE,true)
                 .putExtra(UnifiedSearchActivity.EXTRA_RETURN_TO_JSON,openedFromJsonInspector)));
-        action("All tabs",v->UnifiedTabs.show(this));
-        action("Saved links",v->showNotebook(true));action("Import",v->chooseImport());
-        action("Reading style",v->appearanceDialog());
-        action("Inspect JSON",v->startActivity(new Intent(this,JsonExplorerActivity.class)));
+        action("Indexed files",v->showIndexedFiles(0));
     }
     private void setTitle(String s,String sub){title.setText(s);subtitle.setText(sub);}
     private void view(View child){pane.removeAllViews();pane.addView(child,new LinearLayout.LayoutParams(-1,-1));}
@@ -421,6 +433,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         priorArchiveChats.clear();
         indexedFileId=null;
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
+        searchResultsScroll=null;returnSearchY=0;
         clearIndexedPassage();
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
@@ -429,13 +442,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         body.setPadding(dp(12),dp(8),dp(12),dp(20));scroll.addView(body);
         add(body,"Import LLM JSON archive",v->chooseImport());
         add(body,"Continue reading",v->continueReading());
-        add(body,"Indexed files",v->showIndexedFiles(0));
         TextView h=text("CONVERSATIONS",14);h.setTypeface(null,Typeface.BOLD);body.addView(h);
         List<ArchiveDatabase.Conversation> chats=database.conversations("",150,0);
         if(chats.isEmpty())body.addView(text("Import Claude, linear messages, or ChatGPT JSON. ChatGPT branches are kept as separate conversations, selected branch first. Other JSON opens in Inspector. The original file remains unchanged.",14));
-        for(ArchiveDatabase.Conversation chat:chats){
-            add(body,chat.name+"\n"+safe(chat.updated)+"  ·  "+chat.messages+" messages",v->openChat(chat));
-        }
+        for(ArchiveDatabase.Conversation chat:chats)addConversationRow(body,chat);
         add(body,"More conversations…",v->browsePage(150));
         add(body,"Annotations & bookmarks",v->showNotebook(false));
         view(scroll);
@@ -446,7 +456,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         setTitle("Conversation library","Results "+(offset+1)+" onward");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();scroll.addView(body);
         for(ArchiveDatabase.Conversation c:database.conversations("",150,offset))
-            add(body,c.name+" · "+c.messages+" messages",v->openChat(c));
+            addConversationRow(body,c);
         add(body,"Next conversations",v->browsePage(offset+150));view(scroll);
     }
     private void continueReading(){
@@ -1017,6 +1027,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         else getWindow().clearFlags(1024);
         if(readerHeader!=null)readerHeader.setVisibility(immersed?View.GONE:View.VISIBLE);
         if(readerNavigation!=null)readerNavigation.setVisibility(immersed?View.GONE:View.VISIBLE);
+        updateConversationTabVisibility();
+    }
+    private void updateConversationTabVisibility(){
+        if(conversationTabsScroll!=null)
+            conversationTabsScroll.setVisibility("reader".equals(viewMode)&&!fullscreen
+                    &&conversationTabs.entries().size()>1?View.VISIBLE:View.GONE);
     }
     private void appearanceDialog(){
         LinearLayout options=vertical();options.setPadding(dp(18),dp(8),dp(18),dp(8));
@@ -1107,6 +1123,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         boolean fileSearch=indexedFileId!=null&&indexedFileId.equals(scopedChat);
         ArchiveSearchDialog.show(this,scopedChat,fileSearch?indexedFileName:null,currentSearch,spec->{
             currentSearch=spec;
+            returnSearchY=0;
             showSearch(spec.term,scopedChat,0);
         });
     }
@@ -1117,12 +1134,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         query=term;viewMode="search";
         applyFocusChrome();
         final boolean fileSearch=indexedFileId!=null&&indexedFileId.equals(scope);
-        setTitle(fileSearch?"Search this file":scope==null?"Archive search":"Find in conversation",
-                fileSearch?indexedFileName+" · "+term:term);
+        setTitle(fileSearch?indexedFileName:scope==null?"Archive search":"Find in conversation",term);
         controls.removeAllViews();action("Search again",v->searchDialog(scope));
         if(fileSearch)action("Indexed file",v->back());
         else action("Library",v->showHome());
         ScrollView scroll=new ScrollView(this);LinearLayout rows=vertical();scroll.addView(rows);view(scroll);
+        searchResultsScroll=scroll;
+        final int restoreY=returnSearchY;
         TextView searchProgress=text(fileSearch?"Searching this file…":"Searching indexed messages…",14);
         searchProgress.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         rows.addView(searchProgress);
@@ -1154,10 +1172,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                                 (matchedNotes.size()==1?" saved note":" saved notes");
                         searchProgress.setText(summary+" on this page");
                     }
-                    if(!hits.isEmpty())rows.addView(text(fileSearch?"MATCHING INDEXED TEXT":"MATCHING CONVERSATION MESSAGES",14));
                     for(ArchiveDatabase.Hit hit:hits){
-                        add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),
-                                v->openIndexedPassage(hit,findConversation(hit.chatId),false));
+                        Button row=button("",v->{
+                            returnSearchY=scroll.getScrollY();
+                            openIndexedPassage(hit,findConversation(hit.chatId),false);
+                        });
+                        ArchiveResultRow.bind(row,hit.chatTitle,ArchiveResultRow.date(hit.created),hit,palette);
+                        rows.addView(row,new LinearLayout.LayoutParams(-1,-2));
                     }
                     if(warning!=null)rows.addView(text(warning,13));
                     if(!fileSearch&&options!=null&&options.filtersMessagesOnly())
@@ -1169,7 +1190,11 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                                 safe(note.label)+" · "+safe(note.note),v->showAnnotationActions(note));
                         }
                     }
-                    if(hits.size()==60)add(rows,"More search results",v->showSearch(term,scope,offset+60));
+                    if(hits.size()==60)add(rows,"More search results",v->{
+                        returnSearchY=0;
+                        showSearch(term,scope,offset+60);
+                    });
+                    if(restoreY>0)scroll.post(()->{if(token==generation)scroll.scrollTo(0,restoreY);});
                 });
             }catch(Exception e){runOnUiThread(()->{
                 if(generation!=token||isFinishing()||isDestroyed())return;
@@ -1742,7 +1767,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     rows.removeAllViews();
                     if(chats.isEmpty())rows.addView(text("No indexed content on this page.",14));
                     for(ArchiveDatabase.Conversation chat:chats.subList(0,Math.min(50,chats.size())))
-                        add(rows,chat.name+"\n"+chat.messages+" "+(chat.messages==1?"message":"messages"),v->openChat(chat));
+                        addConversationRow(rows,chat);
                     if(offset>0)add(rows,"Previous conversations",v->showIndexedFile(id,name,Math.max(0,offset-50)));
                     if(chats.size()>50)add(rows,"Next conversations",v->showIndexedFile(id,name,offset+50));
                 });
@@ -1787,7 +1812,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         scroll.addView(body);
         if(chats.isEmpty())body.addView(text("No conversations were indexed for this file.",14));
         for(ArchiveDatabase.Conversation chat:chats.subList(0,Math.min(chats.size(),150)))
-            add(body,chat.name+" · "+chat.messages+" messages",v->openChat(chat));
+            addConversationRow(body,chat);
         if(chats.size()>150)add(body,"Next conversations",v->showImportedSource(sourceId,offset+150));
         if(offset>0)add(body,"Previous conversations",v->showImportedSource(sourceId,Math.max(0,offset-150)));
         view(scroll);
@@ -1976,13 +2001,15 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void moreMenu(){
         new AlertDialog.Builder(this).setTitle("Archive reader")
             .setItems(new String[]{"Conversation library","Search indexed conversations","Saved links","Choose folder for Markdown note exports",
-                    "Reader appearance","Focus mode","Import conversation export","Open JSON Inspector"},(d,i)->{
+                    "Reader appearance","Focus mode","Import conversation export","Open JSON Inspector","Open tabs","Indexed files"},(d,i)->{
                 switch(i){
                     case 0:showHome();break;case 1:searchDialog(null);break;
                     case 2:showNotebook(true);break;case 3:chooseNotesFolder();break;
                     case 4:appearanceDialog();break;case 5:toggleFocus();break;
                     case 6:chooseImport();break;
                     case 7:startActivity(new Intent(this,JsonExplorerActivity.class));break;
+                    case 8:UnifiedTabs.show(this);break;
+                    case 9:showIndexedFiles(0);break;
                 }
             }).show();
     }

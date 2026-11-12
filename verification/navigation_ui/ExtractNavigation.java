@@ -6,7 +6,7 @@ import java.util.*;
 public final class ExtractNavigation {
  public static void main(String[] args)throws Exception{
   String source=Files.readString(Path.of(args[0]));
-  Set<String> wanted=new LinkedHashSet<>(List.of("navigationPicker","showNavigationPicker","dismissNavigationPicker","showRecents","lambda$showRecents$50","showCommandPalette","lambda$showCommandPalette$59","showOutline","onStop","onConfigurationChanged"));
+  Set<String> wanted=new LinkedHashSet<>(List.of("navigationPicker","showNavigationPicker","dismissNavigationPicker","showRecents","showRecentDocuments","lambda$showRecents$50","showCommandPalette","lambda$showCommandPalette$59","showOutline","onStop","onConfigurationChanged"));
   Map<String,String> found=new LinkedHashMap<>();JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
   try(StandardJavaFileManager fm=compiler.getStandardFileManager(null,null,null)){
    JavacTask task=(JavacTask)compiler.getTask(null,fm,null,List.of("-proc:none"),null,fm.getJavaFileObjects(args[0]));

@@ -41,6 +41,7 @@ final class AppearanceHarness {
     }
     static class SplashStore { static List<Integer> enabled(Object context) {return List.of(1,2,3);} }
     static class AppearanceUi {
+        String section="Appearance";
         AlertDialog dialog=new AlertDialog();
         TextView title=new TextView(), description=new TextView(), sourceLabel=new TextView(), readLabel=new TextView();
         TextView typographyHeading=new TextView();

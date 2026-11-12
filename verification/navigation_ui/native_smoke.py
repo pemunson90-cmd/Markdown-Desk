@@ -55,7 +55,7 @@ def launch():
     run('shell','am','start','-W','-n',PACKAGE+'/.MainActivity');time.sleep(3)
 
 def commands(query=''):
-    tap('More actions',exact=True);tap('Editing tools',exact=True);tap('Command palette',exact=True)
+    tap('More actions',exact=True);tap('Command palette',exact=True)
     present('Search commands')
     if query:search('Search commands',query)
 

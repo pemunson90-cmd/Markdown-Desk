@@ -793,6 +793,7 @@ public final class JsonExplorerActivity extends Activity {
             try {
                 JsonExplorerEngine.Page next=JsonExplorerEngine.scan(
                         ()->getContentResolver().openInputStream(current),target,start);
+                UnifiedTabs.rememberInspectorDisplayName(this,current);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||token!=revision)return;
                     displayPage(next,target,start,token);

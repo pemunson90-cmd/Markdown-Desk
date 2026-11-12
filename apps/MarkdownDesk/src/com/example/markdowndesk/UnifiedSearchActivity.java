@@ -165,7 +165,7 @@ public final class UnifiedSearchActivity extends Activity {
         Button back=button("‹",v->leaveSearch());
         back.setContentDescription("Back to previous workspace");
         header.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));
-        header.addView(text("Search all your workspaces",17),new LinearLayout.LayoutParams(0,-2,1f));
+        header.addView(text("Search",17),new LinearLayout.LayoutParams(0,-2,1f));
         root.addView(header);
         LinearLayout body=stack();
         body.setPadding(dp(12),dp(4),dp(12),dp(4));
@@ -301,6 +301,11 @@ public final class UnifiedSearchActivity extends Activity {
         }catch(Exception failure){roots.clear();error("Saved folder access",failure);}
     }
     private void add(String label,View.OnClickListener click){results.addView(button(label,click));}
+    private void addArchiveResult(ArchiveDatabase.Hit hit){
+        Button row=button("",v->openArchiveHit(hit));
+        ArchiveResultRow.bind(row,hit.chatTitle,ArchiveResultRow.date(hit.created),hit,palette);
+        results.addView(row,new LinearLayout.LayoutParams(-1,-2));
+    }
     private void status(String message){results.addView(text(message,13));}
     private void error(String title,Exception ex){new AlertDialog.Builder(this).setTitle(title)
         .setMessage(ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage())
@@ -376,7 +381,7 @@ public final class UnifiedSearchActivity extends Activity {
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     indexedMatches=hits.size()+notes.size();
                     moreIndexedMatches=hits.size()==100||notes.size()==100;
-                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+(h.created==null||h.created.isEmpty()?"":" · "+h.created)+"\n"+h.excerpt,v->openArchiveHit(h));
+                    for(ArchiveDatabase.Hit h:hits)addArchiveResult(h);
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
                     if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100,type,tag,origin);});
@@ -400,8 +405,7 @@ public final class UnifiedSearchActivity extends Activity {
                 List<ArchiveDatabase.Hit> page=database.search(term,null,speaker,from,to,100,offset,()->generation!=token);
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
-                    for(ArchiveDatabase.Hit h:page)add("JSON · "+h.chatTitle+(h.created==null||h.created.isEmpty()?"":" · "+h.created)+"\n"+h.excerpt,
-                        v->openArchiveHit(h));
+                    for(ArchiveDatabase.Hit h:page)addArchiveResult(h);
                     if(page.size()==100)add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,speaker,from,to,offset+100);});
                     if(page.isEmpty())status("All indexed message matches shown");
                 });

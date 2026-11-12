@@ -23,6 +23,7 @@ public final class ModeBehaviorTest {
             ModeHarness h = new ModeHarness();
             h.mode=mode;
             h.tabs.get(0).mode=mode;
+            if(mode!=0)h.tabs.add(new ModeHarness.Tab());
             h.editor.scrollY=456;
             h.readToolsScroll.scrollY=654;
             invoke(h, "toggleFocusMode");
@@ -30,7 +31,7 @@ public final class ModeBehaviorTest {
             check("focus exit action " + mode, "Exit focus mode".equals(h.focusButton.description));
             check("focus selected state " + mode, h.focusButton.selected);
             check("mode retained on " + mode, h.mode==mode && h.tabs.get(0).mode==mode);
-            check("chrome hidden on " + mode, h.tabsScroll.visibility==8 && h.modeBar.visibility==8 && h.eyebrowView.visibility==8 && h.statusView.visibility==8);
+            check("chrome hidden on " + mode, h.tabsScroll.visibility==8 && h.modeBar.visibility==8 && h.statusView.visibility==8);
             check("tools hidden on " + mode, h.formatScroll.visibility==8 && h.readToolsScroll.visibility==8);
             check("tight header on " + mode, h.header.left==28 && h.header.right==28 && h.header.top==8 && h.header.bottom==8);
             check("chrome refreshed on " + mode, h.chromeStyleCalls==5 && h.focusButton.styledActive);
@@ -40,9 +41,9 @@ public final class ModeBehaviorTest {
             check("focus off " + mode, !h.focusMode);
             check("focus enter action " + mode, "Enter focus mode".equals(h.focusButton.description));
             check("focus unselected state " + mode, !h.focusButton.selected);
-            check("chrome restored " + mode, h.tabsScroll.visibility==0 && h.modeBar.visibility==0 && h.eyebrowView.visibility==0 && h.statusView.visibility==0);
-            check("format visibility " + mode, h.formatScroll.visibility==(mode==1?8:0));
-            check("read tools visibility " + mode, h.readToolsScroll.visibility==(mode==1?0:8));
+            check("chrome restored " + mode, h.tabsScroll.visibility==(mode==0?8:0) && h.modeBar.visibility==0 && h.statusView.visibility==0);
+            check("format dock stays hidden " + mode, h.formatScroll.visibility==8);
+            check("read dock stays hidden " + mode, h.readToolsScroll.visibility==8);
             check("header restored " + mode, h.header.top==16 && h.header.bottom==16);
             check("chrome refreshed twice " + mode, h.chromeStyleCalls==10 && !h.focusButton.styledActive);
             check("focus exit re-evaluates responsive Files rail " + mode, h.filesRailRefreshes==2);

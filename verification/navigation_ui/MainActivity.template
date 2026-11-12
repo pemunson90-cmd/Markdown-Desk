@@ -30,16 +30,18 @@ final class MainActivity extends ActivityBase {
  void openDocument(Uri u,int flags,boolean recent){record("uri:"+u.value+":"+flags+":"+recent);}
  void jumpToSourceOffset(int offset){record("source:"+offset);}void scrollPreviewToSourceOffset(int offset){record("preview:"+offset);}
  void captureActiveTab(){record("capture");}void rebuildBody(){record("body");}void applyResponsiveChrome(){record("chrome");}void refreshFilesRail(){record("rail");}
- void commands(){showCommandPalette();}void recent(){showRecents();}void outline(){showOutline();}
+ void commands(){showCommandPalette();}void recent(){showRecents();}void recentFromFiles(){showRecentDocuments(()->record("files-back"));}void outline(){showOutline();}
  /* EXACT_MEMBERS */
 }
 /** Only Android picker boundary is modeled; choices and Activity methods are production. */
 final class NavigationPicker {
  static NavigationPicker latest;
  final NavigationChoices choices; NavigationChoices.Snapshot displayed;
- final String title; IntConsumer callback;boolean closed;
+ final String title; IntConsumer callback;boolean closed; Runnable backAction;
  NavigationPicker(String t,List<NavigationChoices.Row> rows,IntConsumer c){title=t;choices=new NavigationChoices(rows);displayed=choices.filter("");callback=c;}
  static NavigationPicker show(MainActivity a,UiTheme.Palette p,String t,String h,List<NavigationChoices.Row> rows,IntConsumer c){return latest=new NavigationPicker(t,rows,c);}
  void filter(String s){displayed=choices.filter(s);}void click(int index){NavigationChoices.Row r=choices.choose(displayed,index);if(r==null)return;IntConsumer c=callback;dismiss();if(c!=null)c.accept(r.id);}
+ void setBackAction(String label,Runnable action){backAction=action;}
+ void back(){dismiss();if(backAction!=null)backAction.run();}
  void dismiss(){closed=true;choices.cancel();callback=null;}
 }

@@ -18,7 +18,7 @@ increments a counter, so actual mode-switch scroll retention is **NOT tested**.
 
 `ExtractLabels.java` additionally copies the actual `createTopButton`,
 `createPillButton`, and `appearanceButton` helper bodies and the four AST-selected
-size-control construction statements from `showAppearance()`. The extraction
+size-control construction statements from `showAppearanceSection(...)`. The extraction
 copies the actual anonymous click callbacks as well. `LabelBehaviorTest` checks
 43 assertions: helper content descriptions, unchanged visible text/tooltips and
 listeners, four independently specified source/reading size action names,

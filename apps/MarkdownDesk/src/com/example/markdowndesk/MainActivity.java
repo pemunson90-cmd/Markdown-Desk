@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
     private boolean filesRailRequested;
     private String saveAsTabId;
     private Button filesButton;
-    private Button helpButton;
+    private Button findButton;
     private Button saveButton;
     private boolean saveInProgress;
     private String savingTabId;
@@ -181,6 +181,7 @@ public class MainActivity extends Activity {
     private float splitRatio;
     private Button splitModeButton;
     private TextView statusView;
+    private Button workspaceToolsButton;
     private boolean suppressChanges;
     private boolean syncingFromEditor;
     private boolean syncingFromPreview;
@@ -440,7 +441,7 @@ public class MainActivity extends Activity {
         linearLayout.setOrientation(MODE_PREVIEW);
         linearLayout.setPadding(dp(MAX_TABS), MODE_EDIT, dp(8), MODE_EDIT);
         this.eyebrowView = new TextView(this);
-        this.eyebrowView.setText("MARKDOWN DESK");
+        this.eyebrowView.setVisibility(View.GONE);
         this.eyebrowView.setTextSize(10.0f);
         this.eyebrowView.setLetterSpacing(0.16f);
         this.titleView = new TextView(this);
@@ -461,13 +462,14 @@ public class MainActivity extends Activity {
         this.saveButton.setMaxLines(1);
         this.saveButton.setPadding(dp(6), MODE_EDIT, dp(6), MODE_EDIT);
         this.topBar.addView(this.saveButton, new LinearLayout.LayoutParams(dp(68), dp(48)));
-        this.helpButton = createTopButton("?", "Guide and shortcuts", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda39
+        this.findButton = createTopButton("Find", "Find and replace", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$ExternalSyntheticLambda39
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
                 MainActivity.this.lambda$buildInterface$3(view);
             }
         });
-        this.topBar.addView(this.helpButton, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        this.topBar.addView(this.findButton,new LinearLayout.LayoutParams(dp(48),dp(48)));
         this.topBar.addView(createTopButton("•••", "More actions", new View.OnClickListener() { // from class: com.example.markdowndesk.MainActivity$$ExternalSyntheticLambda40
             @Override // android.view.View.OnClickListener
             public final void onClick(View view) {
@@ -497,7 +499,7 @@ public class MainActivity extends Activity {
             }
         });
         this.focusButton.setContentDescription("Enter focus mode");
-        this.modeBar.addView(this.focusButton, utilityModeParams());
+        addWorkspaceModeTools();
         this.lockButton = createPillButton("", "Lock editing", new View.OnClickListener() {
             @Override // android.view.View.OnClickListener
             public void onClick(View view) {
@@ -505,7 +507,7 @@ public class MainActivity extends Activity {
             }
         });
         this.lockButton.setContentDescription("Lock editing");
-        this.modeBar.addView(this.lockButton, utilityModeParams());
+
         this.header.addView(this.modeBar, matchWrap());
         this.root.addView(this.header, matchWrap());
         this.editor = new KineticEditText(this);
@@ -624,7 +626,7 @@ public class MainActivity extends Activity {
         addReadTool("A−", "Decrease reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(-1); } });
         addReadTool("A+", "Increase reading size", new View.OnClickListener() { @Override public void onClick(View v) { changePreviewFont(1); } });
         this.readOutlineButton = addReadTool("Outline", "Document outline", new View.OnClickListener() { @Override public void onClick(View v) { showOutline(); } });
-        this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearance(); } });
+        this.readAppearanceButton = addReadTool("Appearance", "Reading appearance", new View.OnClickListener() { @Override public void onClick(View v) { showAppearanceSection("Reading"); } });
         addReadTool("Note","Annotate a selected passage in Reading mode",
                 v->{if(this.readingNotes!=null)this.readingNotes.annotate();});
         addReadTool("Notes","Browse and edit source-linked reading notes",
@@ -717,8 +719,7 @@ public class MainActivity extends Activity {
         });
         this.statusView = new TextView(this);
         this.statusView.setTextSize(13.0f);
-        this.statusView.setSingleLine(true);
-        this.statusView.setEllipsize(TextUtils.TruncateAt.END);
+        this.statusView.setSingleLine(false);
         this.statusView.setPadding(dp(18), dp(8), dp(18), dp(10));
         this.statusView.setContentDescription("Document statistics. Tap for details.");
         this.statusView.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showDocumentInfo(); } });
@@ -743,7 +744,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public /* synthetic */ void lambda$buildInterface$3(View view) {
-        showTutorial();
+        showFindReplace();
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -1463,8 +1464,11 @@ public class MainActivity extends Activity {
                 this.body.addView(this.preview, paneParams());
             }
         }
-        this.formatScroll.setVisibility((this.mode == MODE_PREVIEW || this.focusMode) ? View.GONE : View.VISIBLE);
-        if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((this.mode == MODE_PREVIEW && !this.focusMode) ? View.VISIBLE : View.GONE);
+        this.formatScroll.setVisibility(View.GONE);
+        this.readToolsScroll.setVisibility(View.GONE);
+        this.tabsScroll.setVisibility(!this.focusMode&&this.tabs.size()>1?View.VISIBLE:View.GONE);
+        this.workspaceToolsButton.setText(this.mode==MODE_PREVIEW?"Tools":"Format");
+        this.workspaceToolsButton.setContentDescription(this.mode==MODE_PREVIEW?"Reading tools":"Formatting and editor tools");
         updateFormatAvailability();
         if (this.mode != 0) {
             renderPreview();
@@ -1599,15 +1603,14 @@ public class MainActivity extends Activity {
         }
         int widthDp = getResources().getConfiguration().screenWidthDp;
         boolean compact = widthDp > 0 && widthDp < 500;
-        // Reserve space for Save, More, filename and header margins. The guide is in More
-        // on compact widths so Files remains readable without growing the top bar.
-        if (this.helpButton != null) this.helpButton.setVisibility(compact ? View.GONE : View.VISIBLE);
+        // Keep Find visible while reserving room for the filename at cover-screen widths.
+        this.findButton.setTextSize(compact?11f:13f);
         if (this.filesButton != null) {
             this.filesButton.setSingleLine(true);
             this.filesButton.setMaxLines(1);
             this.filesButton.setEllipsize(TextUtils.TruncateAt.END);
             this.filesButton.setTextSize(compact ? 12.0f : 13.0f);
-            int reservedDp = compact ? 28 + 62 + 48 + 56 : 28 + 68 + 44 + 48 + 64;
+            int reservedDp = compact ? 28 + 62 + 48 + 48 + 56 : 28 + 68 + 48 + 48 + 64;
             int maximumDp = widthDp > 0 ? Math.max(72, widthDp - reservedDp) : 96;
             int labelWidth = (int) Math.ceil(this.filesButton.getPaint().measureText("Files"));
             int desiredWidth = labelWidth + this.filesButton.getPaddingLeft()
@@ -1709,6 +1712,7 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void updateTabsUi() {
+        this.tabsScroll.setVisibility(!this.focusMode&&this.tabs.size()>1?View.VISIBLE:View.GONE);
         if (this.tabsRow == null || this.palette == null) {
             return;
         }
@@ -3042,10 +3046,15 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Could not persist open tabs", MODE_PREVIEW).show();
     }
 
-    private void showRecents() {
+    private void showRecents(){
+        showRecentDocuments(null);
+    }
+
+    private void showRecentDocuments(Runnable returnTo){
         final List<RecentStore.Item> list = RecentStore.read(this);
         if (list.isEmpty()) {
             Toast.makeText(this, "No recent documents", MODE_EDIT).show();
+            if(returnTo!=null)returnTo.run();
             return;
         }
         List<NavigationChoices.Row> rows = new ArrayList<>();
@@ -3055,6 +3064,8 @@ public class MainActivity extends Activity {
         }
         showNavigationPicker("Recent documents", "Search names or locations", rows,
                 index -> lambda$showRecents$50(list, null, index));
+        if(returnTo!=null&&this.navigationPicker!=null)
+            this.navigationPicker.setBackAction("Back to Files",returnTo);
     }
 
     /* JADX INFO: Access modifiers changed from: private */
@@ -4596,127 +4607,51 @@ public class MainActivity extends Activity {
         LinearLayout content=new LinearLayout(this);
         content.setOrientation(MODE_PREVIEW);
         content.setPadding(dp(18),dp(10),dp(18),dp(14));
-        TextView description=new TextView(this);
-        description.setText("Open a file, return to recent work, or search across your workspace.");
-        description.setTextSize(13.0f);
-        description.setTextColor(this.palette.muted);
-        description.setPadding(dp(4),dp(4),dp(4),dp(12));
-        content.addView(description,matchWrap());
         addContinueReading(content);
-        LinearLayout quick=new LinearLayout(this);
-        quick.setOrientation(LinearLayout.HORIZONTAL);
-        String[] sections={"Recent","Favorites","Folders","Search"};
-        String[] anchors={"filesRecent","filesFavorites","filesFolders","filesSearch"};
-        for(int i=0;i<sections.length;i++){
-            final String tag=anchors[i];
-            Button shortcut=filesAction(sections[i],"filesSearch".equals(tag)?"Search all workspaces":"Jump to "+sections[i],v->{
-                if("filesSearch".equals(tag)){openUnifiedSearchFromFiles();return;}
-                View target=content.findViewWithTag(tag);
-                if(target!=null)scroll.post(()->scroll.smoothScrollTo(0,target.getTop()));
-            });
-            shortcut.setTextSize(12.0f);
-            shortcut.setPadding(dp(2),0,dp(2),0);
-            shortcut.setGravity(Gravity.CENTER);
-            quick.addView(shortcut,new LinearLayout.LayoutParams(0,-2,1.0f));
-        }
-        content.addView(quick,matchWrap());
-
-        // Primary file navigation uses the system DocumentsUI picker.
-        // The existing REQUEST_OPEN result path retains persistent URI grants and Recents.
-        content.addView(filesAction("Browse files", "Android Files · folders, Downloads, search and providers", view -> {
-            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
-            launchOpen();
-        }), matchWrap());
-        content.addView(filesAction("JSON Inspector",
-                "Browse JSON fields and find exact text", view -> {
-            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
-            launchJsonOpen();
-        }), matchWrap());
-        content.addView(filesAction("Archive Reader",
-                "Read and search indexed conversation exports", view -> {
-            if (this.workspaceDialog != null) this.workspaceDialog.dismiss();
-            startActivity(new Intent(this, ArchiveWorkspaceActivity.class));
-        }), matchWrap());
-        content.addView(filesAction("All workspace tabs",
-                "Switch between Markdown, JSON documents and indexed conversations", view -> {
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+        addFilesDestination(content,"Browse files",this::launchOpen);
+        addFilesDestination(content,"Search all workspaces",this::openUnifiedSearchFromFiles);
+        addFilesDestination(content,"JSON Inspector",this::launchJsonOpen);
+        addFilesDestination(content,"Archive Reader",()->startActivity(new Intent(this,ArchiveWorkspaceActivity.class)));
+        addFilesDestination(content,"Recent documents",()->showRecentDocuments(this::showFilesRoot));
+        addFilesDestination(content,"Favorites",()->showFilesCollection(true));
+        addFilesDestination(content,"Saved folders",()->showFilesCollection(false));
+        addFilesDestination(content,"Open tabs",()->{
             captureActiveTab();
             UnifiedTabs.updateMarkdown(this,this.tabs,this.activeTab);
             UnifiedTabs.show(this);
-        }),matchWrap());
-        content.addView(filesAction("Search all workspaces",
-                "Search conversations, notes, Markdown and JSON in saved folders",
-                view->openUnifiedSearchFromFiles()),matchWrap());
-
-        final List<RecentStore.Item> recent=RecentStore.read(this);
-        {
-            TextView label=new TextView(this);
-            label.setText("RECENT DOCUMENTS");
-            label.setTag("filesRecent");
-            label.setTextSize(12.0f);
-            label.setLetterSpacing(0.12f);
-            label.setTextColor(this.palette.muted);
-            label.setPadding(dp(4),dp(14),dp(4),dp(6));
-            content.addView(label,matchWrap());
-            if(recent.isEmpty())content.addView(filesAction("Open your first document","Use Android\u0027s document picker",view->launchOpen()),matchWrap());
-            final int shown=Math.min(8,recent.size());
-            for(int i=0;i<shown;i++){
-                final RecentStore.Item item=recent.get(i);
-                content.addView(filesAction(item.name,"Open recent document",view->{
-                    if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
-                    openDocument(Uri.parse(item.uri),3,true);
-                }),matchWrap());
-            }
-            if(recent.size()>shown)content.addView(filesAction("All recent documents","Browse every recent document",view->{
-                if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showRecents();
-            }),matchWrap());
-        }
-
-        TextView pinnedTitle=workspaceTitle("FAVORITES");
-        pinnedTitle.setTextSize(12.0f);
-        pinnedTitle.setTag("filesFavorites");
-        content.addView(pinnedTitle,matchWrap());
-        LinearLayout pinnedRows=new LinearLayout(this);
-        pinnedRows.setOrientation(MODE_PREVIEW);
-        content.addView(pinnedRows,matchWrap());
-        fillFilesFavorites(pinnedRows);
-        TextView folderTitle=workspaceTitle("SAVED FOLDERS");
-        folderTitle.setTextSize(12.0f);
-        folderTitle.setTag("filesFolders");
-        content.addView(folderTitle,matchWrap());
-        LinearLayout folderRows=new LinearLayout(this);
-        folderRows.setOrientation(MODE_PREVIEW);
-        content.addView(folderRows,matchWrap());
-        fillFilesFolders(folderRows);
-        TextView destinations=workspaceTitle("BROWSE & CREATE");
-        destinations.setTextSize(12.0f);
-        destinations.setPadding(dp(4),dp(8),dp(4),dp(6));
-        content.addView(destinations,matchWrap());
-        content.addView(filesAction("Quick Downloads (list)", "Optional built-in Downloads folder list", view -> {
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
-            showDownloadsFolder("");
-        }), matchWrap());
-
-        content.addView(filesAction("New document","Start writing a new document",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showNewDocumentMenu();
-        }),matchWrap());
-        content.addView(filesAction("Markdown tabs","Switch to an open Markdown document",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showTabs();
-        }),matchWrap());
-        content.addView(filesAction("Manage favorites","Browse or remove saved shortcuts",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFavorites();
-        }),matchWrap());
-        content.addView(filesAction("Manage folders","Edit saved folder shortcuts",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();showWorkspaceFolders();
-        }),matchWrap());
-        content.addView(filesAction("Search one saved folder","Choose a folder and find exact text",view->{
-            showFilesSearchRootPicker();
-        }),matchWrap());
-        content.addView(filesAction("Add folder","Use Android's folder picker to remember a folder",view->{
-            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();launchWorkspaceFolderPicker();
-        }),matchWrap());
+        });
+        addFilesDestination(content,"New document",this::showNewDocumentMenu);
+        addFilesDestination(content,"Quick Downloads (list)",()->showDownloadsFolder(""));
         scroll.addView(content,matchWrap());
         return scroll;
+    }
+
+    private void addFilesDestination(LinearLayout content,String label,Runnable open){
+        content.addView(filesAction(label,label,v->{
+            if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
+            open.run();
+        }),matchWrap());
+    }
+
+    private void showFilesCollection(boolean favorites){
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(16),dp(8),dp(16),dp(12));
+        LinearLayout rows=new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        content.addView(rows,matchWrap());
+        if(favorites){
+            fillFilesFavorites(rows);
+            addFilesDestination(content,"Manage favorites",this::showWorkspaceFavorites);
+        }else{
+            fillFilesFolders(rows);
+            addFilesDestination(content,"Manage folders",this::showWorkspaceFolders);
+            addFilesDestination(content,"Search one saved folder",this::showFilesSearchRootPicker);
+            addFilesDestination(content,"Add folder",this::launchWorkspaceFolderPicker);
+        }
+        ScrollView scroll=new ScrollView(this);
+        scroll.addView(content,matchWrap());
+        showFilesDialog(favorites?"Favorites":"Saved folders",scroll,"Back to Files",this::showFilesRoot);
     }
 
     private void addContinueReading(LinearLayout content) {
@@ -4783,20 +4718,23 @@ public class MainActivity extends Activity {
             rebuildBody();
             return;
         }
+        showFilesRoot();
+    }
+
+    private void showFilesRoot(){
+        showFilesDialog("Files",buildFilesNavigatorView(),"Back to editor",null);
+    }
+
+    private void showFilesDialog(String title,ScrollView scroll,String back,Runnable returnTo){
         if(this.workspaceDialog!=null)this.workspaceDialog.dismiss();
-        ScrollView scroll=buildFilesNavigatorView();
-        final AlertDialog dialog=historyDialogBuilder("Files")
-            .setView(scroll)
-            .setNegativeButton("Back to editor",null).create();
+        final AlertDialog dialog=historyDialogBuilder(title)
+            .setView(scroll).setNegativeButton(back,(ignored,which)->{
+                if(returnTo!=null)returnTo.run();
+            }).create();
         this.workspaceDialog=dialog;
         dialog.setOnDismissListener(ignored->{if(this.workspaceDialog==dialog)this.workspaceDialog=null;});
-        dialog.setOnShowListener(ignored->{
-            workspaceDialogShown(dialog);
-            if(dialog.getWindow()!=null){
-                int available=getResources().getDisplayMetrics().heightPixels-dp(36);
-                dialog.getWindow().setLayout(-1,Math.max(dp(180),available));
-            }
-        });
+        dialog.setOnShowListener(ignored->workspaceDialogShown(dialog));
+        if(returnTo!=null)dialog.setOnCancelListener(ignored->returnTo.run());
         dialog.show();
     }
 
@@ -5090,19 +5028,56 @@ public class MainActivity extends Activity {
     }
 
     /* JADX INFO: Access modifiers changed from: private */
+    private void addWorkspaceModeTools(){
+        workspaceToolsButton=createPillButton("Format","Formatting and editor tools",v->{
+            boolean reading=this.mode==MODE_PREVIEW;
+            showToolMenu(v,reading?this.readTools:this.formats,reading);
+        });
+        this.modeBar.addView(workspaceToolsButton,new LinearLayout.LayoutParams(0,dp(48),1.15f));
+    }
+
+    private void showToolMenu(View anchor,LinearLayout actions,boolean reading){
+        PopupMenu popup=new PopupMenu(this,anchor);
+        SubMenu secondary=popup.getMenu().addSubMenu(reading?"Notes and bookmarks":"Editing and bookmarks");
+        SubMenu inserts=reading?null:popup.getMenu().addSubMenu("Insert");
+        for(int i=0;i<actions.getChildCount();i++){
+            View child=actions.getChildAt(i);
+            CharSequence label=child.getContentDescription();
+            if(label==null||label.length()==0)continue;
+            String name=label.toString();
+            android.view.Menu destination=popup.getMenu();
+            if(reading){
+                if(i<2||i>=6)destination=secondary;
+            }else if(i<5){
+                destination=secondary;
+            }else if(!name.equals("Bold")&&!name.equals("Italic")&&!name.equals("Heading")
+                    &&!name.equals("Strikethrough")){
+                destination=inserts;
+            }
+            destination.add(label).setEnabled(child.isEnabled()).setOnMenuItemClickListener(item->{
+                child.performClick();
+                return true;
+            });
+        }
+        popup.show();
+    }
+
     public void showOverflow(View view) {
         PopupMenu popupMenu = new PopupMenu(this, view);
-        SubMenu editing=popupMenu.getMenu().addSubMenu("Editing tools");
+        SubMenu editing=popupMenu.getMenu().addSubMenu("Document");
         editing.add(MODE_EDIT,4,0,"Document outline");
-        editing.add(MODE_EDIT,5,1,"Find in document / Replace");
-        editing.add(MODE_EDIT,6,2,"Command palette");
+        editing.add(MODE_EDIT,5,1,"Find and replace");
+        editing.add("Document statistics").setOnMenuItemClickListener(item->{showDocumentInfo();return true;});
+        editing.add("Open Markdown tabs").setOnMenuItemClickListener(item->{showTabs();return true;});
+        editing.add("New document").setOnMenuItemClickListener(item->{showNewDocumentMenu();return true;});
+        editing.add(this.editorLocked?"Unlock editing":"Lock editing").setOnMenuItemClickListener(item->{toggleEditorLock();return true;});
+        popupMenu.getMenu().add(MODE_EDIT,6,2,"Command palette");
         popupMenu.getMenu().add(MODE_EDIT,8,0,"Save as new file");
 
         SubMenu viewMenu=popupMenu.getMenu().addSubMenu("View and appearance");
         viewMenu.add(MODE_EDIT,9,0,this.focusMode?"Exit focus mode":"Focus mode");
-        viewMenu.add(MODE_EDIT,10,1,"Appearance and themes");
-        viewMenu.add(MODE_EDIT,16,2,"Splash images");
-        viewMenu.add(MODE_EDIT,11,3,"Writing goal");
+        popupMenu.getMenu().add("Settings").setOnMenuItemClickListener(item->{showSettings();return true;});
+        editing.add(MODE_EDIT,11,3,"Writing goal");
 
         SubMenu exportMenu=popupMenu.getMenu().addSubMenu("Share and export");
         exportMenu.add(MODE_EDIT,MAX_TABS,0,"Share Markdown");
@@ -5221,7 +5196,7 @@ public class MainActivity extends Activity {
 
     private void showTutorialPanel() {
         String[] strArr = {"The writing desk", "Tabs and documents", "Formatting buttons", "Write, Read, and Split", "Outline and search", "Focus, typewriter, and text size", "Saving and recovery", "Sharing and PDF", "Keyboard shortcuts", "Splash images"};
-        String[] strArr2 = {"Tap Files to browse recent documents, Favorites and saved folders, open a file, or switch tabs. New document offers writing templates. SAVE changes its label to show whether the document is saved, dirty, read-only, or currently saving.", "Every open document appears in the tab strip. Tap a tab to switch to it. A dot marks unsaved changes. Long-press a tab to close it. The + tab creates a new document, and the app restores each tab's cursor, scroll position, mode, and dirty state after a restart.", "The bottom dock inserts Markdown without changing how your source is stored. H1 creates a heading; B, I, and S wrap selected text; •, ☐, and ❯ start lists, tasks, and quotes; ↗ inserts a link; </> inserts inline or fenced code; ▦ creates a table; — creates a divider; Today inserts the date.", "Write shows the source editor. Read shows the rendered page. Split shows both and keeps their positions synchronized. Tap a paragraph in Read or Split to jump to its source. Ordinary web links still open in your browser.", "Outline lists every real Markdown heading and jumps to the selected section. Find supports ordinary, case-sensitive, whole-word, and regular-expression searches. Matches highlight live in the document; Replace and Replace all support regex capture groups.", "Focus removes secondary chrome so the page can breathe. Typewriter mode keeps the active line near the center. Source and Read keep separate text sizes. Pinch in the editor to change source size, or pinch in Read to change reading size. Read also has A− and A+ controls, and Appearance exposes both sizes. Each choice is remembered.", "The app preserves UTF-8, Unicode, line endings, trailing whitespace, and an existing BOM. Saves are read back and verified. If another app changes the file, Markdown Desk stops before overwriting it. Dirty drafts and open tabs are recovered after interruption or restart.", "Share Markdown sends the original source. Share rendered HTML sends the styled document. Print / Save PDF opens Android's print service, where you can print or choose Save as PDF.", "Ctrl+S saves · Ctrl+O opens · Ctrl+N creates · Ctrl+F finds · Ctrl+P toggles Read · Ctrl+Shift+P opens the command palette · Ctrl+B bolds · Ctrl+I italicizes · Ctrl+K inserts a link.", "The app opens with a splash image drawn at random from the ones that are switched on, and it avoids repeating the last one you saw. Splash images under Appearance, or Splash images in the ••• menu, lists every image: tap one to switch it on or off, use ✕ to remove it, and Add image… to bring in your own from anywhere on your device. Imported images are copied into the app, so they keep working after the original moves. Images that came with the app can be brought back with Restore removed app images. Show launch splash under Appearance still turns the whole thing off."};
+        String[] strArr2 = {"Tap Files to browse recent documents, Favorites and saved folders, open a file, or switch tabs. New document offers writing templates. SAVE changes its label to show whether the document is saved, dirty, read-only, or currently saving.", "Every open document appears in the tab strip. Tap a tab to switch to it. A dot marks unsaved changes. Long-press a tab to close it. The + tab creates a new document, and the app restores each tab's cursor, scroll position, mode, and dirty state after a restart.", "Open Format in Write or Split to style selected text. Use Insert for lists, tasks, quotes, links, code, tables, dividers, and dates. Editing and bookmarks contains undo, redo, and saved places.", "Write shows the source editor. Read shows the rendered page. Split shows both and keeps their positions synchronized. Tap a paragraph in Read or Split to jump to its source. Ordinary web links still open in your browser.", "Outline lists every real Markdown heading and jumps to the selected section. Find supports ordinary, case-sensitive, whole-word, and regular-expression searches. Matches highlight live in the document; Replace and Replace all support regex capture groups.", "Focus removes secondary chrome so the page can breathe. Typewriter mode keeps the active line near the center. Source and Read keep separate text sizes. Pinch in the editor to change source size, or pinch in Read to change reading size. Read also has A− and A+ controls, and Appearance exposes both sizes. Each choice is remembered.", "The app preserves UTF-8, Unicode, line endings, trailing whitespace, and an existing BOM. Saves are read back and verified. If another app changes the file, Markdown Desk stops before overwriting it. Dirty drafts and open tabs are recovered after interruption or restart.", "Share Markdown sends the original source. Share rendered HTML sends the styled document. Print / Save PDF opens Android's print service, where you can print or choose Save as PDF.", "Ctrl+S saves · Ctrl+O opens · Ctrl+N creates · Ctrl+F finds · Ctrl+P toggles Read · Ctrl+Shift+P opens the command palette · Ctrl+B bolds · Ctrl+I italicizes · Ctrl+K inserts a link.", "The app opens with a splash image drawn at random from the ones that are switched on, and it avoids repeating the last one you saw. Splash images under Appearance, or Splash images in the ••• menu, lists every image: tap one to switch it on or off, use ✕ to remove it, and Add image… to bring in your own from anywhere on your device. Imported images are copied into the app, so they keep working after the original moves. Images that came with the app can be brought back with Restore removed app images. Show launch splash under Appearance still turns the whole thing off."};
         StringBuilder sb = new StringBuilder("Everything in one place. You can reopen this guide from More > Guide and shortcuts.\n\n");
         int i = MODE_EDIT;
         while (i < strArr.length) {
@@ -5366,6 +5341,7 @@ public class MainActivity extends Activity {
         AlertDialog dialog;
         TextView title;
         TextView description;
+        String section;
         TextView sourceLabel;
         TextView readLabel;
         Button linesButton;
@@ -5489,7 +5465,7 @@ public class MainActivity extends Activity {
     /** Refresh the *existing* window, not just the main activity behind it. */
     private void refreshAppearance(AppearanceUi ui) {
         final UiTheme.Palette colors = this.palette;
-        ui.title.setText("Appearance · " + colors.name);
+        ui.title.setText(ui.section.equals("Appearance")?"Appearance · "+colors.name:ui.section);
         ui.title.setTextColor(colors.text);
         ui.description.setTextColor(colors.muted);
         ui.sourceLabel.setTextColor(colors.muted);
@@ -5522,7 +5498,22 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void showAppearance() {
+    private static void showSettingsRows(LinearLayout rows,int start,boolean visible){
+        if(!visible)for(int i=start;i<rows.getChildCount();i++)rows.getChildAt(i).setVisibility(View.GONE);
+    }
+
+    private void showSettings(){
+        String[] sections={"Appearance","Editor","Reading","Workspace"};
+        new AlertDialog.Builder(this).setTitle("Settings")
+                .setItems(sections,(dialog,which)->showAppearanceSection(sections[which]))
+                .setNegativeButton("Close",null).show();
+    }
+
+    private void showAppearance(){
+        showAppearanceSection("Appearance");
+    }
+
+    private void showAppearanceSection(String section) {
         final AppearanceUi ui = new AppearanceUi();
         String[] strArr = ui.themeNames;
         LinearLayout linearLayout = new LinearLayout(this);
@@ -5534,7 +5525,9 @@ public class MainActivity extends Activity {
         textView.setTextColor(this.palette.muted);
         textView.setTextSize(14.0f);
         textView.setPadding(MODE_EDIT, MODE_EDIT, MODE_EDIT, dp(MAX_TABS));
+        textView.setVisibility(View.GONE);
         linearLayout.addView(textView, matchWrap());
+        int themeStart=linearLayout.getChildCount();
         int themeIndex = MODE_EDIT;
         while (true) {
             final int i = themeIndex;
@@ -5556,6 +5549,8 @@ public class MainActivity extends Activity {
             linearLayout.addView(buttonCreateButton, matchWrap());
             themeIndex = i + MODE_PREVIEW;
         }
+        showSettingsRows(linearLayout,themeStart,"Appearance".equals(section));
+        int editorStart=linearLayout.getChildCount();
         ui.linesButton = appearanceButton(ui, (this.lineNumbers ? "✓  " : "○  ") + "Line numbers", new View.OnClickListener() {
             @Override public void onClick(View view) {
                 MainActivity.this.lambda$showAppearance$61(view);
@@ -5570,6 +5565,8 @@ public class MainActivity extends Activity {
             }
         });
         linearLayout.addView(ui.typewriterButton, matchWrap());
+        showSettingsRows(linearLayout,editorStart,"Editor".equals(section));
+        int workspaceStart=linearLayout.getChildCount();
         final Button buttonCreateButton2 = appearanceButton(ui, (this.launchSplashEnabled ? "✓  " : "○  ") + "Show launch splash", null);
         ui.splashButton = buttonCreateButton2;
         buttonCreateButton2.setOnClickListener(new View.OnClickListener() {
@@ -5588,6 +5585,8 @@ public class MainActivity extends Activity {
         ui.galleryButton = splashGalleryButton;
         splashGalleryButton.setGravity(8388627);
         linearLayout.addView(splashGalleryButton, matchWrap());
+        showSettingsRows(linearLayout,workspaceStart,"Workspace".equals(section));
+        int sourceStart=linearLayout.getChildCount();
         TextView sourceLabel = new TextView(this);
         ui.sourceLabel = sourceLabel;
         sourceLabel.setText("Source text · " + Math.round(this.fontSp) + " sp");
@@ -5600,6 +5599,8 @@ public class MainActivity extends Activity {
         sourceRow.addView(appearanceButton(ui, "A+", "Increase source text size", new View.OnClickListener() { @Override public void onClick(View v) { changeFont(1); sourceLabel.setText("Source text · " + Math.round(fontSp) + " sp"); } }), new LinearLayout.LayoutParams(MODE_EDIT, dp(44), 1.0f));
         linearLayout.addView(sourceRow, matchWrap());
 
+        showSettingsRows(linearLayout,sourceStart,"Editor".equals(section));
+        int readingStart=linearLayout.getChildCount();
         TextView readLabel = new TextView(this);
         ui.readLabel = readLabel;
         readLabel.setText("Reading text · " + Math.round(this.previewFontSp) + " sp");
@@ -5617,6 +5618,7 @@ public class MainActivity extends Activity {
             sourceLabel.setText("Source text · 18 sp"); readLabel.setText("Reading text · 18 sp"); if (mode != MODE_EDIT) renderPreview();
         } }), matchWrap());
         addReaderTypographyControls(ui,linearLayout);
+        showSettingsRows(linearLayout,readingStart,"Reading".equals(section));
         // Keep every setting reachable on cover displays, in landscape, and
         // with larger system fonts. Done stays outside scrolling content.
         ScrollView appearanceScroll = new ScrollView(this);
@@ -5625,13 +5627,15 @@ public class MainActivity extends Activity {
 
         TextView appearanceTitle = new TextView(this);
         ui.title = appearanceTitle;
-        appearanceTitle.setText("Appearance · " + this.palette.name);
+        ui.section = section;
+        appearanceTitle.setText(section);
         appearanceTitle.setTextSize(20f);
         appearanceTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         appearanceTitle.setPadding(dp(24), dp(20), dp(24), dp(6));
         final AlertDialog appearanceDialog = new AlertDialog.Builder(this)
                 .setCustomTitle(appearanceTitle)
                 .setView(appearanceScroll)
+                .setNegativeButton("Settings",(dialog,which)->showSettings())
                 .setPositiveButton("Done", (DialogInterface.OnClickListener) null)
                 .create();
         ui.dialog = appearanceDialog;
@@ -5683,12 +5687,11 @@ public class MainActivity extends Activity {
 
     private void toggleFocusMode() {
         this.focusMode = !this.focusMode;
-        this.tabsScroll.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+        this.tabsScroll.setVisibility(!this.focusMode&&this.tabs.size()>1?View.VISIBLE:View.GONE);
         this.modeBar.setVisibility(this.focusMode ? 8 : MODE_EDIT);
-        this.eyebrowView.setVisibility(this.focusMode ? 8 : MODE_EDIT);
+
         this.statusView.setVisibility(this.focusMode ? 8 : MODE_EDIT);
-        this.formatScroll.setVisibility((this.focusMode || this.mode == MODE_PREVIEW) ? View.GONE : View.VISIBLE);
-        if (this.readToolsScroll != null) this.readToolsScroll.setVisibility((!this.focusMode && this.mode == MODE_PREVIEW) ? View.VISIBLE : View.GONE);
+
         this.header.setPadding(dp(14), this.focusMode ? dp(4) : dp(8), dp(14), this.focusMode ? dp(4) : dp(8));
         refreshFilesRail();
         rebuildBody();
@@ -6944,24 +6947,16 @@ public class MainActivity extends Activity {
 
     /* JADX INFO: Access modifiers changed from: private */
     public void updateStatus() {
-        String str;
         String str2;
         if (this.titleView == null || this.editor == null) {
             return;
         }
         String str3 = "";
         this.titleView.setText(this.displayName + (this.dirty ? "  •" : "") + (this.readOnly ? "  ·  Read-only" : ""));
-        if (this.mode == 0) {
-            str = "Write";
-        } else {
-            str = this.mode == MODE_PREVIEW ? "Read" : "Split";
-        }
         requestStatistics();
-        int length = this.editor.length();
-        String quantityString2 = getResources().getQuantityString(R.plurals.character_count, length, Integer.valueOf(length));
         LatestStatistics.Result counts = this.statisticsResult;
         if (counts == null) {
-            this.statusView.setText("Calculating statistics · " + quantityString2 + " · " + str);
+            this.statusView.setText("Calculating word count…");
         } else {
             int iWordCount = counts.words;
             String quantityString = getResources().getQuantityString(R.plurals.word_count, iWordCount, Integer.valueOf(iWordCount));
@@ -6969,7 +6964,7 @@ public class MainActivity extends Activity {
             if (this.wordGoal > 0) {
                 str3 = " · " + Math.min(100, Math.round((iWordCount * 100.0f) / this.wordGoal)) + "% of " + this.wordGoal;
             }
-            this.statusView.setText(quantityString + " · " + quantityString2 + " · " + counts.lines + " lines · " + iMax + " min read" + str3 + " · " + str);
+            this.statusView.setText(quantityString + " · " + iMax + " min read" + str3);
         }
         Button button = this.saveButton;
         if (this.saveInProgress) {

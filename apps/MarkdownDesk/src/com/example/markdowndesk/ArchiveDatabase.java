@@ -55,6 +55,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     static final class Hit {
         String chatId,chatTitle,messageId,role,created,excerpt,generationId;
         int messageOrdinal,partOrdinal,endPartOrdinal,matchStart=-1,matchEnd=-1;
+        int excerptStart=-1,excerptEnd=-1;
         long messageRow;
     }
     interface Progress {
@@ -483,8 +484,9 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
                         if(span==null)continue;
                         if(skip>0){skip--;continue;}
                         setSearchSpan(db,h,span.start,span.end);
-                        h.excerpt=readSearchSlice(db,h.messageRow,span.start,span.start+Math.min(160,span.end-span.start))
-                                +(span.end-span.start>160?"…":"");
+                        int excerptLength=Math.min(160,span.end-span.start);
+                        String excerpt=readSearchSlice(db,h.messageRow,span.start,span.start+excerptLength);
+                        setExcerpt(h,excerpt,0,excerpt.length(),false,excerptLength<span.end-span.start);
                     }
                     out.add(h);
                 }
@@ -525,7 +527,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     }
     private static void nativeSearchHit(SQLiteDatabase db,Hit hit,long doc,String phrase,int terms)throws IOException{
         try(Cursor c=db.rawQuery("SELECT p.ordinal,p.start_offset,p.content,p.overlap_len,search_parts.body," +
-                "offsets(search_parts),snippet(search_parts,'[',']','…',0,16) " +
+                "offsets(search_parts),snippet(search_parts,'','','…',0,16) " +
                 "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
                 "WHERE search_parts MATCH ? AND search_parts.docid=?",
                 new String[]{phrase,Long.toString(doc)})){
@@ -536,9 +538,23 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
             if(!body.endsWith(original))return;
             int origin=c.getInt(1)-(body.length()-original.length());
             ArchiveSearchOffsets.Span span=ArchiveSearchOffsets.first(body,c.getString(5),terms);
-            if(span!=null&&origin>=0)
+            if(span!=null&&origin>=0){
                 setSearchSpan(db,hit,Math.addExact(origin,span.start),Math.addExact(origin,span.end));
+                int start=Math.max(0,span.start-48);
+                int end=Math.min(body.length(),Math.min(span.end,span.start+160)+64);
+                if(start>0&&Character.isLowSurrogate(body.charAt(start)))start--;
+                if(end<body.length()&&Character.isLowSurrogate(body.charAt(end)))end++;
+                setExcerpt(hit,body.substring(start,end),span.start-start,Math.min(span.end,end)-start,
+                        start>0,end<body.length());
+            }
         }
+    }
+    private static void setExcerpt(Hit hit,String text,int start,int end,boolean before,boolean after){
+        if(!text.isEmpty()&&Character.isHighSurrogate(text.charAt(text.length()-1)))
+            text=text.substring(0,text.length()-1);
+        hit.excerpt=(before?"…":"")+text+(after?"…":"");
+        hit.excerptStart=start+(before?1:0);
+        hit.excerptEnd=Math.min(end,text.length())+(before?1:0);
     }
     private static void setSearchSpan(SQLiteDatabase db,Hit hit,int start,int end)throws IOException{
         hit.matchStart=start;hit.matchEnd=end;

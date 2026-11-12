@@ -22,6 +22,7 @@ public final class UnifiedTabs {
     private static final String PREFS="markdown_desk", MD="unified_markdown_tabs_v1", AR="unified_archive_tabs_v1", JS="unified_inspector_tabs_v1";
     static final String LAST_INSPECTOR_URI="last_inspector_uri";
     static final String LAST_INSPECTOR_POSITION="last_inspector_position";
+    private static final String INSPECTOR_NAME_PREFIX="inspector_display_name:";
     private UnifiedTabs() {}
 
     public static void updateMarkdown(Context context,List<DocumentTab> tabs,int activeIndex){
@@ -76,8 +77,7 @@ public final class UnifiedTabs {
         }
         if(!existing){
             if(next.size()>=12)return false;
-            String tail=uri.getLastPathSegment();
-            String title=tail==null||tail.trim().isEmpty()?"JSON document":tail;
+            String title=inspectorDisplayName(context,uri);
             if(title.length()>120)title=title.substring(0,120);
             next.add(new UnifiedTabIndex.Entry(UnifiedTabIndex.Kind.INSPECT,id,title,true,false));
         }
@@ -175,17 +175,45 @@ public final class UnifiedTabs {
             }).setNegativeButton("Cancel",null).show();
     }
 
+    static void rememberInspectorDisplayName(Context context,Uri uri){
+        SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
+        String key=INSPECTOR_NAME_PREFIX+uri;
+        if(prefs.contains(key))return;
+        try(android.database.Cursor cursor=context.getContentResolver().query(uri,
+                new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){
+            if(cursor!=null&&cursor.moveToFirst()){
+                String name=cursor.getString(0);
+                if(name!=null&&!name.trim().isEmpty())
+                    prefs.edit().putString(key,name.length()>120?name.substring(0,120):name).apply();
+            }
+        }catch(RuntimeException unavailable){/* The document can still be read without metadata. */}
+    }
+
+    private static String inspectorDisplayName(Context context,Uri uri){
+        String name=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+                .getString(INSPECTOR_NAME_PREFIX+uri,null);
+        if(name!=null)return name;
+        String tail=uri.getLastPathSegment();
+        if(tail!=null){
+            tail=tail.substring(tail.lastIndexOf('/')+1);
+            if(tail.toLowerCase(java.util.Locale.ROOT).endsWith(".json"))return tail;
+        }
+        return "Last JSON file";
+    }
+
     static List<UnifiedTabIndex.Entry> readingPlaces(Context context){
         SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
         ArrayList<UnifiedTabIndex.Entry> places=new ArrayList<>();
         Uri json=Uri.parse(prefs.getString(LAST_INSPECTOR_URI,""));
         if(validInspectorSource(json)){
-            String name=json.getLastPathSegment();
-            if(name!=null&&name.contains("/"))name=name.substring(name.lastIndexOf('/')+1);
             places.add(new UnifiedTabIndex.Entry(UnifiedTabIndex.Kind.INSPECT,json.toString(),
-                    name==null||name.isEmpty()?"Last JSON file":name,false,false));
+                    inspectorDisplayName(context,json),false,false));
         }else for(UnifiedTabIndex.Entry entry:read(context,JS,UnifiedTabIndex.Kind.INSPECT)){
-            if(entry.active){places.add(entry);break;}
+            if(entry.active){
+                places.add(new UnifiedTabIndex.Entry(entry.kind,entry.id,
+                        inspectorDisplayName(context,Uri.parse(entry.id)),true,false));
+                break;
+            }
         }
         String archive=prefs.getString("archive_last_chat","");
         if(!archive.isEmpty()){

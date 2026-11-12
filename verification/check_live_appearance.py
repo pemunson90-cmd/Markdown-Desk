@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 root=Path(__file__).resolve().parents[1]
 java=(root/'apps/MarkdownDesk/src/com/example/markdowndesk/MainActivity.java').read_text()
 palette=(root/'apps/MarkdownDesk/src/com/example/markdowndesk/UiTheme.java').read_text()
-view=java.split('private void showAppearance() {',1)[1].split('public /* synthetic */ void lambda$showAppearance$60',1)[0]
+view=java.split('private void showAppearanceSection(String section) {',1)[1].split('public /* synthetic */ void lambda$showAppearance$60',1)[0]
 assert '.setCustomTitle(appearanceTitle)' in view
 assert 'MainActivity.this.refreshAppearance(ui);' in view
 assert 'appearanceScroll.addView(linearLayout, matchWrap())' in view
@@ -13,8 +13,8 @@ assert 'appearanceButton(ui,' in view
 assert 'ui.themeButtons[i] = buttonCreateButton;' in view
 assert 'appearanceDialog.show();' in view
 assert 'this.buttons.remove(button)' in java
-refresh=java.split('private void refreshAppearance(AppearanceUi ui) {',1)[1].split('private void showAppearance() {',1)[0]
-for needle in ['ui.title.setText("Appearance · " + colors.name)', 'ui.title.setTextColor(colors.text)', 'ui.description.setTextColor(colors.muted)', 'ui.sourceLabel.setTextColor(colors.muted)', 'ui.readLabel.setTextColor(colors.muted)', 'button.setTextColor(colors.text)', 'selected ? colors.accentSoft : colors.surface', 'styleDialog(ui.dialog)', 'ui.linesButton.setText', 'ui.typewriterButton.setText', 'ui.splashButton.setText']:
+refresh=java.split('private void refreshAppearance(AppearanceUi ui) {',1)[1].split('private void showAppearanceSection(String section) {',1)[0]
+for needle in ['ui.title.setText(ui.section.equals("Appearance")?"Appearance · "+colors.name:ui.section)', 'ui.title.setTextColor(colors.text)', 'ui.description.setTextColor(colors.muted)', 'ui.sourceLabel.setTextColor(colors.muted)', 'ui.readLabel.setTextColor(colors.muted)', 'button.setTextColor(colors.text)', 'selected ? colors.accentSoft : colors.surface', 'styleDialog(ui.dialog)', 'ui.linesButton.setText', 'ui.typewriterButton.setText', 'ui.splashButton.setText']:
     assert needle in refresh, needle
 
 def luminance(h):
@@ -34,5 +34,5 @@ for name, dark, fields in records:
         score=contrast(fg,bg)
         assert score>=4.5, (name,label,score)
 manifest=ET.parse(root/'apps/MarkdownDesk/AndroidManifest.xml').getroot();ns='{http://schemas.android.com/apk/res/android}'
-assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3'),('22','2.2.7-ux'),('23','2.2.8-tabfix1'),('24','2.2.9-tabfix2'),('25','2.2.10-downloads1'),('26','2.2.11-downloads-contrast1'),('27','2.2.12-native-picker1'),('28','2.3.0-navigation1'),('29','2.3.1-readerlinks1'),('30','2.3.2-emaillinks1')}.union([current_release_pair(root)]), 'Unexpected manifest identity'
+assert (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) in {('18','2.2.5'),('19','2.2.6-rc1'),('20','2.2.6-rc2'),('21','2.2.6-rc3'),('22','2.2.7-ux'),('23','2.2.8-tabfix1'),('24','2.2.9-tabfix2'),('25','2.2.10-downloads1'),('26','2.2.11-downloads-contrast1'),('27','2.2.12-native-picker1'),('28','2.3.0-navigation1'),('29','2.3.1-readerlinks1'),('30','2.3.2-emaillinks1'),('43','2.5.1-beta4')} or (manifest.get(ns+'versionCode'),manifest.get(ns+'versionName')) == current_release_pair(root), 'Unexpected manifest identity'
 print('PASS live Appearance regression guards: all 9 theme/title/control redraw paths, retained scroll, 4.5:1+ text contrast, explicitly allowlisted baseline/rc1 identity')

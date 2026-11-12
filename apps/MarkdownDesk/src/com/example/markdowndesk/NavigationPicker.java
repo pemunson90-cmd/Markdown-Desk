@@ -150,6 +150,14 @@ final class NavigationPicker {
         });
         dialog.show();
     }
+    void setBackAction(String label,Runnable back){
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setText(label);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(view->{
+            dismiss();
+            back.run();
+        });
+        dialog.setOnCancelListener(ignored->back.run());
+    }
     private void focusResults() {
         ListView list = dialog.getListView();
         list.requestFocus(); list.setSelection(0);

@@ -22,7 +22,8 @@ class SearchResultReturn(unittest.TestCase):
         self.assertIn('openAnnotationHit(ArchiveJournal.Annotation annotation)',self.search)
         self.assertIn('openArchiveHit(ArchiveDatabase.Hit hit)',self.search)
     def test_archive_exact_hit_uses_verified_source_coordinates(self):
-        self.assertEqual(self.search.count('openArchiveHit(h)'),2)
+        self.assertEqual(self.search.count('addArchiveResult(h)'),2)
+        self.assertIn('openArchiveHit(hit)',self.search)
         self.assertIn('ArchiveWorkspaceActivity.indexedPassageBundle(hit)',self.search)
         self.assertIn('openIndexedPassage(hit,findConversation(hit.chatId),false)',self.archive)
         self.assertIn('database.searchPassage(hit,start,end)',self.archive)
