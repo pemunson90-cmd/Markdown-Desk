@@ -2073,8 +2073,12 @@ public class MainActivity extends Activity {
 
     /** JSON is explored outside the Markdown editor's 8 MiB edit boundary. */
     private void launchJsonOpen() {
-        // The explorer offers both persistent DocumentsUI and temporary
-        // ACTION_GET_CONTENT sources (e.g. Samsung My Files when available).
+        for(com.example.markdowndesk.workspace.UnifiedTabIndex.Entry place:UnifiedTabs.readingPlaces(this)){
+            if(place.kind==com.example.markdowndesk.workspace.UnifiedTabIndex.Kind.INSPECT){
+                UnifiedTabs.open(this,place);
+                return;
+            }
+        }
         startActivity(new Intent(this, JsonExplorerActivity.class));
     }
 

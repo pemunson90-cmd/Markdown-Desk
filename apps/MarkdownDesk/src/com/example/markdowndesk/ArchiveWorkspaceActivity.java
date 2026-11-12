@@ -328,7 +328,10 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         title=text("Conversation Archive",18);title.setTypeface(null,Typeface.BOLD);headings.addView(title);
         subtitle=text("Read · Search · Link",11);subtitle.setTextColor(palette.muted);headings.addView(subtitle);
         header.addView(headings,new LinearLayout.LayoutParams(0,-2,1));
-        header.addView(button("⋮",v->moreMenu()),new LinearLayout.LayoutParams(dp(55),dp(48)));
+        header.addView(button("⋮",v->{
+            if("reader".equals(viewMode))showReaderTools();
+            else moreMenu();
+        }),new LinearLayout.LayoutParams(dp(55),dp(48)));
         screen.addView(header,new LinearLayout.LayoutParams(-1,-2));
         conversationTabsScroll=new HorizontalScrollView(this);
         conversationTabsScroll.setHorizontalScrollBarEnabled(false);
@@ -525,13 +528,13 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         controls.removeAllViews();
         // Same semantic three-mode row as Markdown Desk's Write / Read / Split.
         // Inspect deliberately keeps source JSON immutable and opens the raw tree.
+        action("Tools",v->showReaderTools());
         readerModeAction("Read",0);
         readerModeAction("Inspect",1);
         readerModeAction("Split",2);
         if(returnSearchTerm!=null)action("Results",v->returnToSearch());
         else if(returnUnifiedSearch)action("Results",v->back());
         else action("Find",v->searchDialog(active.id));
-        action("Tools",v->showReaderTools());
         PreviewWebView web=new PreviewWebView(this);
         reader=web;web.setBackgroundColor(palette.canvas);
         web.addJavascriptInterface(new SelectionStateBridge(web,token),"ArchiveSelectionState");
@@ -1053,8 +1056,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
 
     private void showReaderTools(){
+        String selection=savedSelectionJson;
+        PreviewWebView selectionReader=reader;
+        int selectionGeneration=generation;
         String[] groups={"Navigate","Notes and bookmarks","Copy, share and export","Reading appearance"};
-        new AlertDialog.Builder(this).setTitle("Reading tools").setItems(groups,(dialog,group)->{
+        String[] items={"Copy quote",groups[0],groups[1],groups[2],groups[3],"Archive actions"};
+        new AlertDialog.Builder(this).setTitle("Reading tools").setItems(items,(dialog,item)->{
+            if(item==0){
+                if(selectionReader==reader&&selectionGeneration==generation)
+                    selectedPassageAction(false,false,selection);
+                return;
+            }
+            if(item==5){moreMenu();return;}
+            int group=item-1;
             switch(group){
                 case 0:
                     readerToolChoices(groups[group],new String[]{"Previous conversation messages","Next conversation messages",
@@ -1191,6 +1205,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void copySelectedPassage(boolean share){selectedPassageAction(share,false);}
     private void printSelectedPassage(){selectedPassageAction(false,true);}
     private void selectedPassageAction(boolean share,boolean print){
+        selectedPassageAction(share,print,null);
+    }
+    private void selectedPassageAction(boolean share,boolean print,String savedQuote){
         if(reader==null||active==null){status("Select text in a conversation first");return;}
         // Javascript returns a JSON-encoded string, not executable content.
         String js="(function(){var s=window.getSelection();if(!s||!s.rangeCount)return '';"+
@@ -1209,10 +1226,12 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     ||isFinishing()||isDestroyed())return;
             try{
                 Object decoded=new JSONTokener(result).nextValue();
-                if(!(decoded instanceof String)||((String)decoded).isEmpty()){
+                String captured=decoded instanceof String?(String)decoded:"";
+                if(captured.isEmpty()&&savedQuote!=null)captured=savedQuote;
+                if(captured.isEmpty()){
                     status("Select text within one message first");return;
                 }
-                JSONObject selection=new JSONObject((String)decoded);
+                JSONObject selection=new JSONObject(captured);
                 String message=selection.optString("id","");
                 if(message.isEmpty())throw new IOException("Missing message identity");
                 String date=dateOfVisibleMessage(message);

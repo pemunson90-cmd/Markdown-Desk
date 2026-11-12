@@ -116,6 +116,14 @@ public final class JsonExplorerActivity extends Activity {
     private String pendingJsonNoteId;
     private boolean openedFromSearch;
     private Button returnResults;
+    private AlertDialog inspectorMenu;
+
+    private void showInspectorMenu(AlertDialog.Builder builder){
+        AlertDialog menu=builder.create();
+        inspectorMenu=menu;
+        menu.setOnDismissListener(ignored->{if(inspectorMenu==menu)inspectorMenu=null;});
+        menu.show();
+    }
 
     /** Metadata-only session identity; the original JSON remains read-only. */
     public boolean showingDocument(Uri uri){return uri!=null&&uri.equals(document);}
@@ -385,13 +393,13 @@ public final class JsonExplorerActivity extends Activity {
 
     private void showReadingOptions(){
         captureValueSelection();
-        new AlertDialog.Builder(this).setTitle("JSON reading options")
+        showInspectorMenu(new AlertDialog.Builder(this).setTitle("JSON reading options")
             .setItems(new String[]{"A−  Smaller text","A+  Larger text",
                     focusReading?"Exit Focus mode":"Enter Focus mode"},(d,selected)->{
                 if(selected==0)changeReadingFont(-1);
                 else if(selected==1)changeReadingFont(1);
                 else {focusReading=!focusReading;updateReadingFocus();}
-            }).setNegativeButton("Close",null).show();
+            }).setNegativeButton("Close",null));
     }
 
     private LinearLayout row() {
@@ -483,7 +491,7 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void showOpenChoices() {
-        new AlertDialog.Builder(this).setTitle("Choose how to open JSON")
+        showInspectorMenu(new AlertDialog.Builder(this).setTitle("Choose how to open JSON")
                 .setItems(new String[]{
                         "Browse device files (keep access)",
                         "Browse with another app (My Files, if available)"
@@ -491,7 +499,7 @@ public final class JsonExplorerActivity extends Activity {
                     if(which==0)chooseDocument();
                     else chooseOtherApp();
                 })
-                .setNegativeButton("Cancel",null).show();
+                .setNegativeButton("Cancel",null));
     }
 
     /** Import-style picker can expose Samsung My Files and other apps that do not
@@ -1090,6 +1098,10 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void back() {
+        if(inspectorMenu!=null&&inspectorMenu.isShowing()){
+            inspectorMenu.dismiss();
+            return;
+        }
         if(!path.isEmpty()) {
             path.remove(path.size()-1); offset=0;page=null;
             filter.setText("");loadPage();
