@@ -2,6 +2,14 @@
 
 Bounded review of the released 2.5.0 implementation. These are confirmed index-level defects, not evidence of lost source data. No runtime changes or APK were produced during this review.
 
+## Source repair
+
+The repair retains native FTS4 hits and checks eligible multipart misses against the original parts under the same read snapshot. It never rewrites indexed text or reopens the source URI. Schema v3 retains the code40 beta's `search_format` metadata so stable and beta databases both open. The only v2 upgrade operation adds that defaulted metadata column. A future package intended to replace the separately built code40 beta needs a version code above 40.
+
+Indexed results carry generation-bound UTF-16 source coordinates. The reader marks the exact original passage above its regular Markdown view and keeps the existing return route. An unusually long token-phrase span shows both ends with an omission marker. Native row matches keep existing behavior. Newly recovered results treat `^` as a message-start anchor and embedded-quote clauses as conjunctions within a message.
+
+Focused local checks are `verification/archive_reader/run_indexed_search_repair.sh`, `verification/archive_navigation/run.sh`, `verification/test_search_result_return.py` and the source-only SDK37 compile. Android WebView scrolling remains the device check. The findings below describe the released 2.5.0 implementation.
+
 ## 1. Accepted long phrases can disappear at segment boundaries
 
 **Evidence:** `ArchiveDatabase.textSegment()` retains only 128 UTF-16 units of preceding text (`ArchiveDatabase.java`, currently line 140). `ArchiveSearchSpec` accepts phrases up to 1,024 units (currently line 19). FTS searches each persisted segment independently. A 216-character literal phrase crossing a boundary is therefore absent from both search rows, even though it exists in the reconstructed message. This applies to conversation imports and generic JSON indexing.

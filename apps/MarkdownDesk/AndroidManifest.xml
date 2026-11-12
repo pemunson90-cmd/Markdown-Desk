@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="39"
-    android:versionName="2.5.0-unified-workspaces"
+    android:versionCode="42"
+    android:versionName="2.5.1-beta3-search"
     package="com.example.markdowndesk">
     <uses-sdk
         android:minSdkVersion="35"

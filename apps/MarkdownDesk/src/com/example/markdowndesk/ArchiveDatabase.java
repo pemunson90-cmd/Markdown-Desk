@@ -6,19 +6,25 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.os.OperationCanceledException;
 import com.example.markdowndesk.archive.ArchiveStreamParser;
 import com.example.markdowndesk.workspace.archive.ArchiveTextCodec;
 import com.example.markdowndesk.workspace.archive.ArchiveOverlap;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchOffsets;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
+import com.example.markdowndesk.workspace.archive.ArchiveUnicode61Phrase;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /** Read-only originals. Versioned, atomically published index generations.
  * One completed generation is always available while a replacement imports.
  */
 final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamParser.Sink {
     static final String FILE="archive_catalog_v1.db";
-    static final int VERSION=2;
+    static final int VERSION=3;
     static final int PAGE=60;
     static final class Conversation {
         String id,archiveId,name,created,updated; int messages;
@@ -37,7 +43,8 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     }
     static final class Hit {
         String chatId,chatTitle,messageId,role,created,excerpt,generationId;
-        int messageOrdinal,partOrdinal;
+        int messageOrdinal,partOrdinal,endPartOrdinal,matchStart=-1,matchEnd=-1;
+        long messageRow;
     }
     interface Progress {
         void onMessage(int count);
@@ -60,7 +67,7 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
     void setProgress(Progress listener){progress=listener;}
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("PRAGMA auto_vacuum=INCREMENTAL");
-        db.execSQL("CREATE TABLE sources (id TEXT PRIMARY KEY,uri TEXT NOT NULL,name TEXT,indexed_at INTEGER,status TEXT)");
+        db.execSQL("CREATE TABLE sources (id TEXT PRIMARY KEY,uri TEXT NOT NULL,name TEXT,indexed_at INTEGER,status TEXT,search_format INTEGER NOT NULL DEFAULT 2)");
         db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
         db.execSQL("CREATE TABLE conversations (id TEXT PRIMARY KEY,archive_id TEXT NOT NULL,title TEXT,created TEXT,updated TEXT,message_count INTEGER NOT NULL DEFAULT 0)");
         db.execSQL("CREATE INDEX conversation_dates ON conversations(updated)");
@@ -74,13 +81,18 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         db.execSQL("CREATE VIRTUAL TABLE search_parts USING fts4(body,tokenize=unicode61)");
     }
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
-        if(oldVersion!=1 || newVersion!=2)throw new IllegalStateException("Unsupported archive index migration");
-        db.execSQL("ALTER TABLE parts ADD COLUMN overlap_len INTEGER NOT NULL DEFAULT 0");
-        db.execSQL("CREATE INDEX IF NOT EXISTS conversation_source ON conversations(archive_id)");
-        db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
-        // Only ready v1 generations become visible. Incomplete import rows never do.
-        db.execSQL("INSERT INTO active_versions(archive_id,generation_id) " +
-                "SELECT id,id FROM sources WHERE status='ready' AND instr(id,'#staging#')=0");
+        if(oldVersion<1||oldVersion>2||newVersion!=VERSION)
+            throw new IllegalStateException("Unsupported archive index migration");
+        if(oldVersion==1){
+            db.execSQL("ALTER TABLE parts ADD COLUMN overlap_len INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("CREATE INDEX IF NOT EXISTS conversation_source ON conversations(archive_id)");
+            db.execSQL("CREATE TABLE active_versions (archive_id TEXT PRIMARY KEY,generation_id TEXT NOT NULL)");
+            // Only ready v1 generations become visible. Incomplete import rows never do.
+            db.execSQL("INSERT INTO active_versions(archive_id,generation_id) " +
+                    "SELECT id,id FROM sources WHERE status='ready' AND instr(id,'#staging#')=0");
+        }
+        // Retain compatibility with the existing code40 beta. Search itself never rewrites index rows.
+        db.execSQL("ALTER TABLE sources ADD COLUMN search_format INTEGER NOT NULL DEFAULT 2");
     }
     synchronized void beginImport(String uri,String name){
         if(ingest!=null)throw new IllegalStateException("Import already active");
@@ -284,49 +296,188 @@ final class ArchiveDatabase extends SQLiteOpenHelper implements ArchiveStreamPar
         return out.toString();
     }
     synchronized List<Hit> search(String query,String chat,int limit,int offset){
-        return search(query,chat,null,null,null,limit,offset);
+        return search(query,chat,null,null,null,limit,offset,()->false);
     }
     synchronized List<Hit> search(String query,String chat,String speaker,String fromDate,String toDate,int limit,int offset){
+        return search(query,chat,speaker,fromDate,toDate,limit,offset,()->false);
+    }
+    synchronized List<Hit> search(String query,String chat,String speaker,String fromDate,String toDate,
+            int limit,int offset,BooleanSupplier cancelled){
         ArrayList<Hit> out=new ArrayList<>();
         if(query==null||query.trim().isEmpty())return out;
-        String phrase="\""+query.trim().replace("\"","\"\"")+"\"";
-        ArrayList<String> args=new ArrayList<>();args.add(phrase);args.add(phrase);
-        StringBuilder cond=new StringBuilder(" WHERE search_parts MATCH ?");
-        if(chat!=null&&!chat.isEmpty()){
-            cond.append(" AND m.conversation_id=?");args.add(internalChat(getReadableDatabase(),chat));
-        }
-        if(speaker!=null&&!speaker.trim().isEmpty()){
-            cond.append(" AND m.role=? COLLATE NOCASE");args.add(speaker.trim());
-        }
-        if(fromDate!=null&&!fromDate.trim().isEmpty()){
-            cond.append(" AND m.created>=?");args.add(fromDate.trim());
-        }
-        if(toDate!=null&&!toDate.trim().isEmpty()){
-            cond.append(" AND m.created<?");args.add(toDate.trim()+"~");
-        }
-        String sql="WITH matched AS (SELECT p.message_row,MIN(p.row_id) AS first_doc " +
-                "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
-                "WHERE search_parts MATCH ? GROUP BY p.message_row) " +
-                "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal,p.ordinal, " +
-                "snippet(search_parts,'[',']','…',0,16),av.archive_id,c.archive_id " +
-                "FROM search_parts JOIN matched h ON h.first_doc=search_parts.docid " +
-                "JOIN parts p ON p.row_id=search_parts.docid " +
-                "JOIN messages m ON m.row_id=h.message_row " +
-                "JOIN conversations c ON c.id=m.conversation_id " +
-                "JOIN active_versions av ON av.generation_id=c.archive_id " +
-                "JOIN sources s ON s.id=av.generation_id AND s.status='ready' " +
-                "AND substr(c.id,1,length(c.archive_id)+1)=c.archive_id||'/' " + cond +
-                " ORDER BY COALESCE(m.created,c.updated) DESC,m.row_id ASC LIMIT " +
-                Math.max(1,Math.min(limit,100))+" OFFSET "+Math.max(0,offset);
-        try(Cursor c=getReadableDatabase().rawQuery(sql,args.toArray(new String[0]))){
-            while(c.moveToNext()){
-                Hit h=new Hit();h.chatId=stableChat(c.getString(0),c.getString(9),c.getString(8));
-                h.chatTitle=c.getString(1);h.messageId=c.getString(2);h.role=c.getString(3);
-                h.created=c.getString(4);h.messageOrdinal=c.getInt(5);h.partOrdinal=c.getInt(6);
-                h.excerpt=c.getString(7);h.generationId=c.getString(9);out.add(h);
+        String term=query.trim();
+        if(term.length()>ArchiveSearchSpec.MAX_PHRASE_UNITS)
+            throw new IllegalArgumentException("Search phrase is too long");
+        if(term.indexOf('\0')>=0)throw new IllegalArgumentException("Search phrase contains a NUL");
+        String phrase="\""+term.replace("\"","\"\"")+"\"";
+        ArchiveUnicode61Phrase matcher=ArchiveUnicode61Phrase.compile(term);
+        if(matcher.isEmpty())return out;
+        SQLiteDatabase db=getReadableDatabase();
+        checkSearchCancelled(cancelled);
+        db.beginTransactionReadOnly();
+        try{
+            ArrayList<String> args=new ArrayList<>();args.add(phrase);
+            StringBuilder filters=new StringBuilder();
+            if(chat!=null&&!chat.isEmpty()){
+                filters.append(" AND m.conversation_id=?");args.add(internalChat(db,chat));
             }
-        }catch(SQLiteException bad){throw new IllegalArgumentException("Search query could not be parsed",bad);}
+            if(speaker!=null&&!speaker.trim().isEmpty()){
+                filters.append(" AND m.role=? COLLATE NOCASE");args.add(speaker.trim());
+            }
+            if(fromDate!=null&&!fromDate.trim().isEmpty()){
+                filters.append(" AND m.created>=?");args.add(fromDate.trim());
+            }
+            if(toDate!=null&&!toDate.trim().isEmpty()){
+                filters.append(" AND m.created<?");args.add(toDate.trim()+"~");
+            }
+            // Order metadata once, then skip non-matches before consuming the page offset.
+            // Neither large FTS bodies nor source text go into the sort.
+            String candidates="WITH matched AS (SELECT p.message_row,MIN(p.row_id) AS first_doc " +
+                    "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
+                    "WHERE search_parts MATCH ? GROUP BY p.message_row) " +
+                    "SELECT m.conversation_id,c.title,m.message_id,m.role,m.created,m.ordinal,m.segments, " +
+                    "av.archive_id,c.archive_id,m.row_id,h.first_doc " +
+                    "FROM messages m JOIN conversations c ON c.id=m.conversation_id " +
+                    "JOIN active_versions av ON av.generation_id=c.archive_id " +
+                    "JOIN sources s ON s.id=av.generation_id AND s.status='ready' " +
+                    "LEFT JOIN matched h ON h.message_row=m.row_id " +
+                    "WHERE substr(c.id,1,length(c.archive_id)+1)=c.archive_id||'/' " +
+                    "AND (h.first_doc IS NOT NULL OR m.segments>1)" + filters +
+                    " ORDER BY COALESCE(m.created,c.updated) DESC,m.row_id ASC";
+            int skip=Math.max(0,offset),pageSize=Math.max(1,Math.min(limit,100));
+            try(Cursor c=db.rawQuery(candidates,args.toArray(new String[0]))){
+                while(out.size()<pageSize&&c.moveToNext()){
+                    checkSearchCancelled(cancelled);
+                    boolean nativeMatch=!c.isNull(10);
+                    Hit h=new Hit();h.chatId=stableChat(c.getString(0),c.getString(8),c.getString(7));
+                    h.chatTitle=c.getString(1);h.messageId=c.getString(2);h.role=c.getString(3);
+                    h.created=c.getString(4);h.messageOrdinal=c.getInt(5);h.generationId=c.getString(8);
+                    h.messageRow=c.getLong(9);
+                    if(nativeMatch){
+                        if(skip>0){skip--;continue;}
+                        nativeSearchHit(db,h,c.getLong(10),phrase,matcher.firstClauseLength());
+                    }else{
+                        ArchiveUnicode61Phrase.Span span=boundaryMatch(db,h.messageRow,c.getInt(6),
+                                matcher.newMatcher(),cancelled);
+                        if(span==null)continue;
+                        if(skip>0){skip--;continue;}
+                        setSearchSpan(db,h,span.start,span.end);
+                        h.excerpt=readSearchSlice(db,h.messageRow,span.start,span.start+Math.min(160,span.end-span.start))
+                                +(span.end-span.start>160?"…":"");
+                    }
+                    out.add(h);
+                }
+            }
+            checkSearchCancelled(cancelled);
+            db.setTransactionSuccessful();
+        }catch(IOException bad){
+            throw new IllegalStateException("Indexed source could not be read",bad);
+        }catch(SQLiteException bad){
+            throw new IllegalArgumentException("Indexed search could not be completed",bad);
+        }finally{
+            db.endTransaction();
+        }
         return out;
+    }
+    private static void checkSearchCancelled(BooleanSupplier cancelled){
+        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())
+            throw new OperationCanceledException();
+    }
+    private static ArchiveUnicode61Phrase.Span boundaryMatch(SQLiteDatabase db,long row,int segments,
+            ArchiveUnicode61Phrase.Matcher matcher,BooleanSupplier cancelled)throws IOException{
+        try(Cursor c=db.rawQuery("SELECT p.ordinal,p.start_offset,p.content,p.overlap_len,f.body " +
+                "FROM parts p JOIN search_parts f ON f.docid=p.row_id WHERE p.message_row=? ORDER BY p.ordinal",
+                new String[]{Long.toString(row)})){
+            int ordinal=0,offset=0;
+            while(c.moveToNext()){
+                checkSearchCancelled(cancelled);
+                if(c.getInt(0)!=ordinal++||c.getInt(1)!=offset)
+                    throw new IOException("Indexed source parts are out of order");
+                String text=ArchiveTextCodec.reconstruct(c.getString(2),c.getInt(3),c.getString(4));
+                offset=Math.addExact(offset,text.length());
+                ArchiveUnicode61Phrase.Span found=matcher.accept(text);
+                if(found!=null)return found;
+            }
+            ArchiveTranscriptIntegrity.complete(segments,ordinal);
+        }
+        return matcher.finish();
+    }
+    private static void nativeSearchHit(SQLiteDatabase db,Hit hit,long doc,String phrase,int terms)throws IOException{
+        try(Cursor c=db.rawQuery("SELECT p.ordinal,p.start_offset,p.content,p.overlap_len,search_parts.body," +
+                "offsets(search_parts),snippet(search_parts,'[',']','…',0,16) " +
+                "FROM search_parts JOIN parts p ON p.row_id=search_parts.docid " +
+                "WHERE search_parts MATCH ? AND search_parts.docid=?",
+                new String[]{phrase,Long.toString(doc)})){
+            if(!c.moveToFirst())throw new IOException("Indexed hit changed during search");
+            hit.partOrdinal=c.getInt(0);hit.endPartOrdinal=hit.partOrdinal;hit.excerpt=c.getString(6);
+            String body=c.getString(4);
+            String original=ArchiveTextCodec.reconstruct(c.getString(2),c.getInt(3),body);
+            if(!body.endsWith(original))return;
+            int origin=c.getInt(1)-(body.length()-original.length());
+            ArchiveSearchOffsets.Span span=ArchiveSearchOffsets.first(body,c.getString(5),terms);
+            if(span!=null&&origin>=0)
+                setSearchSpan(db,hit,Math.addExact(origin,span.start),Math.addExact(origin,span.end));
+        }
+    }
+    private static void setSearchSpan(SQLiteDatabase db,Hit hit,int start,int end)throws IOException{
+        hit.matchStart=start;hit.matchEnd=end;
+        hit.partOrdinal=searchPartAt(db,hit.messageRow,start);
+        hit.endPartOrdinal=searchPartAt(db,hit.messageRow,end-1);
+    }
+    private static int searchPartAt(SQLiteDatabase db,long row,int position)throws IOException{
+        try(Cursor c=db.rawQuery("SELECT ordinal FROM parts WHERE message_row=? AND start_offset<=? " +
+                "ORDER BY ordinal DESC LIMIT 1",
+                new String[]{Long.toString(row),Integer.toString(position)})){
+            if(c.moveToFirst())return c.getInt(0);
+        }
+        throw new IOException("Indexed passage part is missing");
+    }
+    private static String readSearchSlice(SQLiteDatabase db,long row,int start,int end)throws IOException{
+        int ordinal=searchPartAt(db,row,start),position=start;
+        StringBuilder text=new StringBuilder(end-start);
+        try(Cursor c=db.rawQuery("SELECT p.ordinal,p.start_offset,p.content,p.overlap_len,f.body " +
+                "FROM parts p JOIN search_parts f ON f.docid=p.row_id WHERE p.message_row=? AND p.ordinal>=? " +
+                "ORDER BY p.ordinal",new String[]{Long.toString(row),Integer.toString(ordinal)})){
+            while(position<end&&c.moveToNext()){
+                int base=c.getInt(1);
+                String part=ArchiveTextCodec.reconstruct(c.getString(2),c.getInt(3),c.getString(4));
+                if(c.getInt(0)!=ordinal++||position<base||position-base>=part.length()
+                        ||(position!=start&&position!=base))
+                    throw new IOException("Indexed passage has a missing source part");
+                int take=Math.min(end-position,part.length()-(position-base));
+                text.append(part,position-base,position-base+take);
+                position+=take;
+            }
+        }
+        if(position!=end)throw new IOException("Indexed passage is truncated");
+        return text.toString();
+    }
+    synchronized String searchPassage(Hit hit,int start,int end)throws IOException{
+        if(hit==null||hit.chatId==null||hit.generationId==null||hit.messageRow<=0
+                ||start<hit.matchStart||start<0||end>hit.matchEnd||end<=start||end-start>ArchiveSearchSpec.MAX_PHRASE_UNITS)
+            throw new IOException("Invalid indexed passage");
+        SQLiteDatabase db=getReadableDatabase();
+        db.beginTransactionReadOnly();
+        try{
+            String chat=internalChat(db,hit.chatId);
+            try(Cursor c=db.rawQuery("SELECT c.archive_id,m.message_id,m.ordinal FROM messages m " +
+                    "JOIN conversations c ON c.id=m.conversation_id " +
+                    "JOIN active_versions av ON av.generation_id=c.archive_id " +
+                    "JOIN sources s ON s.id=av.generation_id AND s.status='ready' " +
+                    "WHERE m.row_id=? AND c.id=?",new String[]{Long.toString(hit.messageRow),chat})){
+                if(!c.moveToFirst()||!hit.generationId.equals(c.getString(0))
+                        ||!Objects.equals(hit.messageId,c.getString(1))||hit.messageOrdinal!=c.getInt(2))
+                    throw new IOException("Indexed result changed. Run the search again.");
+            }
+            if(hit.partOrdinal!=searchPartAt(db,hit.messageRow,hit.matchStart)
+                    ||hit.endPartOrdinal!=searchPartAt(db,hit.messageRow,hit.matchEnd-1))
+                throw new IOException("Indexed passage parts changed. Run the search again.");
+            String passage=readSearchSlice(db,hit.messageRow,start,end);
+            db.setTransactionSuccessful();
+            return passage;
+        }finally{
+            db.endTransaction();
+        }
     }
     synchronized int findMessageOrdinal(String chat,String messageId){
         if(messageId==null||messageId.isEmpty())return -1;

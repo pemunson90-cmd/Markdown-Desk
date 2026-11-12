@@ -7,6 +7,7 @@ import java.time.format.DateTimeParseException;
  * parameterized in ArchiveDatabase; UI cannot interpolate filter expressions.
  */
 public final class ArchiveSearchSpec {
+    public static final int MAX_PHRASE_UNITS=1024;
     public final String term,speaker,fromDate,toDate;
     public ArchiveSearchSpec(String phrase,String speaker,String from,String to) {
         term=phrase==null?"":phrase.trim();
@@ -16,7 +17,7 @@ public final class ArchiveSearchSpec {
         if(term.isEmpty())throw new IllegalArgumentException("Enter words or an exact phrase to search");
         if(!fromDate.isEmpty()&&!toDate.isEmpty()&&fromDate.compareTo(toDate)>0)
             throw new IllegalArgumentException("End date cannot precede start date");
-        if(term.length()>1024)throw new IllegalArgumentException("Search phrase is too long");
+        if(term.length()>MAX_PHRASE_UNITS)throw new IllegalArgumentException("Search phrase is too long");
         if(this.speaker.length()>64)throw new IllegalArgumentException("Speaker name is too long");
     }
     public boolean filtersMessagesOnly(){return !speaker.isEmpty()||!fromDate.isEmpty()||!toDate.isEmpty();}

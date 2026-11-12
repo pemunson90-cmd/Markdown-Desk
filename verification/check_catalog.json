@@ -312,6 +312,16 @@
       "family": "verification/archive_reader"
     },
     {
+      "id": "archive_reader::run_indexed_search_repair.sh",
+      "command": [
+        "bash",
+        "verification/archive_reader/run_indexed_search_repair.sh"
+      ],
+      "question": "Do old and new indexes keep their stored text and identities while source-spanning Unicode61 phrases and native offsets resolve?",
+      "kind": "behavior",
+      "family": "verification/archive_reader"
+    },
+    {
       "id": "archive_navigation::run.sh",
       "command": [
         "bash",
@@ -1353,13 +1363,20 @@
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveHighlightScript.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveOverlap.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveScrollScript.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchOffsets.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchPassage.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSearchSpec.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveUnicode61Phrase.java",
+        "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveUnicode61Tables.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveSelectionScript.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveTextCodec.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/archive/ArchiveViewport.java",
         "apps/MarkdownDesk/src/com/example/markdowndesk/workspace/search/UnifiedSearchJump.java"
       ],
       "test_paths": [
+        "verification/archive_reader/ArchiveUnicode61PhraseCheck.java",
+        "verification/archive_reader/run_indexed_search_repair.sh",
+        "verification/archive_reader/test_indexed_search_repair.py",
         "verification/archive_reader/ArchiveTranscriptIntegrityCheck.java",
         "verification/archive_reader/run_journal_history_memory.sh",
         "verification/archive_reader/ArchiveAnnotationSearchPagingTest.java",

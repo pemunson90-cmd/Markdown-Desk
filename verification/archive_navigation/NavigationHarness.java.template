@@ -1,6 +1,9 @@
+import java.io.IOException;
 import java.util.*;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchPassage;
+
 public final class NavigationHarness {
-    static final String EXTRA_SEARCH_PART="part",EXTRA_SEARCH_TERM="term",EXTRA_SEARCH_GENERATION="generation";
+    static final String EXTRA_INDEXED_PASSAGE="indexed";
     static final int WINDOW_MESSAGES=12;
     static final class UnifiedSearchJump {static final String EXTRA_RETURN_RESULTS="return";}
     static final class Uri {
@@ -9,54 +12,108 @@ public final class NavigationHarness {
         String getQueryParameter(String key){return null;}
         public String toString(){return text;}
     }
+    static final class Bundle {
+        final Map<String,Object> data=new HashMap<>();
+        void putString(String key,String value){data.put(key,value);}
+        void putLong(String key,long value){data.put(key,value);}
+        void putInt(String key,int value){data.put(key,value);}
+        String getString(String key){return (String)data.get(key);}
+        long getLong(String key,long fallback){return (Long)data.getOrDefault(key,fallback);}
+        int getInt(String key,int fallback){return (Integer)data.getOrDefault(key,fallback);}
+    }
     static final class Intent {
         Uri uri;Map<String,Object> extras=new HashMap<>();
-        Intent(String uri){this.uri=new Uri(uri);}
+        Intent(String uri){if(uri!=null)this.uri=new Uri(uri);}
         Uri getData(){return uri;}void setData(Uri uri){this.uri=uri;}
-        String getStringExtra(String key){return (String)extras.get(key);}
-        int getIntExtra(String key,int fallback){return extras.containsKey(key)?(Integer)extras.get(key):fallback;}
-        boolean getBooleanExtra(String key,boolean fallback){return extras.containsKey(key)?(Boolean)extras.get(key):fallback;}
+        Bundle getBundleExtra(String key){return (Bundle)extras.get(key);}
+        boolean getBooleanExtra(String key,boolean fallback){return (Boolean)extras.getOrDefault(key,fallback);}
+        boolean hasExtra(String key){return extras.containsKey(key);}
         void removeExtra(String key){extras.remove(key);}
     }
     static final class ArchiveDatabase {
-        static final class Conversation {String id="chat",archiveId="source",generationId="generation-2";}
-        int ordinal=85;int findMessageOrdinal(String chat,String message){return ordinal;}
+        static final class Conversation {
+            String id="chat",archiveId="source",generationId="generation-2";
+            int messages=90;
+        }
+        static final class Hit {
+            String chatId,messageId,generationId;
+            long messageRow;
+            int messageOrdinal,partOrdinal,endPartOrdinal,matchStart,matchEnd;
+        }
+        int ordinal=85,reads;
+        String source="😀 foo-bar café\r\n<foo-bar café>";
+        int findMessageOrdinal(String chat,String message){return ordinal;}
+        String searchPassage(Hit hit,int start,int end)throws IOException {
+            require(end-start<=ArchiveSearchPassage.MAX_DISPLAY_UNITS,"reader bound");
+            reads++;
+            return source.substring(start,end);
+        }
     }
     ArchiveDatabase database=new ArchiveDatabase();ArchiveDatabase.Conversation active;
-    int windowOffset,focusOrdinal,chunkOffset,savedScroll=999,renderCount,homeCount;
-    boolean returnUnifiedSearch,incomingNavigationConsumed,restoreLastPosition;String pendingFindTerm,status;
+    ArchiveDatabase.Hit indexedPassage;
+    Object reader;
+    int windowOffset,focusOrdinal,chunkOffset,savedScroll=999,renderCount,homeCount,returnSearchOffset;
+    boolean returnUnifiedSearch,incomingNavigationConsumed,restoreLastPosition,jumpToIndexedPassage,indexedReaderVisit;
+    String pendingFindTerm,status,returnSearchTerm,returnSearchScope,savedSelectionJson;
     ArchiveDatabase.Conversation candidate=new ArchiveDatabase.Conversation();
     ArchiveDatabase.Conversation findConversation(String id){return candidate;}
     void status(String text){status=text;}
     void showHome(){homeCount++;}
     void showReader(boolean keep){renderCount++;}
     void rememberPriorArchiveVisit(String id){}
+    void rememberReadingPlace(){}
     void restoreAnnotationPassage(String id,ArchiveDatabase.Conversation source,int ordinal){}
-    /* METHOD */
+    /* METHODS */
     static Intent search(String generation,int part){
-        Intent intent=new Intent("markdowndesk://archive/v1/source/chat/message");
-        intent.extras.put(EXTRA_SEARCH_TERM,"needle");intent.extras.put(EXTRA_SEARCH_GENERATION,generation);
-        intent.extras.put(EXTRA_SEARCH_PART,part);intent.extras.put(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
+        ArchiveDatabase.Hit hit=new ArchiveDatabase.Hit();
+        hit.chatId="chat";hit.messageId="";hit.generationId=generation;hit.messageRow=123;
+        hit.messageOrdinal=85;hit.partOrdinal=part;hit.endPartOrdinal=part+1;
+        hit.matchStart=20;hit.matchEnd=32;
+        Intent intent=new Intent(null);
+        intent.extras.put(EXTRA_INDEXED_PASSAGE,indexedPassageBundle(hit));
+        intent.extras.put(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         return intent;
     }
+    static Intent deepLink(){return new Intent("markdowndesk://archive/v1/source/chat/message");}
     static void require(boolean ok,String message){if(!ok)throw new AssertionError(message);}
-    public static void main(String[] args){
-        NavigationHarness h=new NavigationHarness();h.restoreLastPosition=true;Intent intent=search("generation-2",18);
-        require(h.handleDeepLink(intent),"valid source accepted");
-        require(h.incomingNavigationConsumed&&!h.restoreLastPosition,"explicit intent overrides old reading position");
-        require(h.focusOrdinal==85&&h.windowOffset==84&&h.chunkOffset==17,"exact message and overlap predecessor");
-        require("needle".equals(h.pendingFindTerm)&&h.returnUnifiedSearch&&h.savedScroll==0,"find/return state");
-        require(intent.getData()==null&&!intent.extras.containsKey(EXTRA_SEARCH_TERM),"one-shot navigation consumed");
-        require(!h.handleDeepLink(intent)&&h.renderCount==1,"rotation cannot replay incoming link");
-        h=new NavigationHarness();require(h.handleDeepLink(search("generation-1",18)),"stale link opens message safely");
-        require(h.chunkOffset==0&&h.pendingFindTerm==null&&h.status.contains("changed"),"stale result cannot claim exact jump");
-        h=new NavigationHarness();h.handleDeepLink(search("generation-2",0));require(h.chunkOffset==0,"first segment does not underflow");
-        h=new NavigationHarness();h.candidate.archiveId="other";h.handleDeepLink(search("generation-2",18));
-        require(h.renderCount==0&&h.homeCount==1,"wrong source blocked");
-        h=new NavigationHarness();h.database.ordinal=-1;h.handleDeepLink(search("generation-2",18));
-        require(h.renderCount==0&&h.homeCount==1,"missing message blocked");
+    public static void main(String[] args)throws Exception {
+        NavigationHarness h=new NavigationHarness();h.restoreLastPosition=true;
+        Intent intent=search("generation-2",18);
+        require(h.handleIncomingIndexedPassage(intent),"valid indexed route accepted");
+        require(h.incomingNavigationConsumed&&!h.restoreLastPosition,"explicit hit overrides prior position");
+        require(h.focusOrdinal==85&&h.windowOffset==84&&h.chunkOffset==18,"actual source part");
+        require(h.jumpToIndexedPassage&&h.indexedReaderVisit&&h.returnUnifiedSearch&&h.savedScroll==0,
+                "highlight and return state");
+        require(h.indexedPassage.matchStart==20&&h.indexedPassage.matchEnd==32
+                &&h.indexedPassage.endPartOrdinal==19&&h.indexedPassage.messageRow==123,
+                "position and identity survive serialization");
+        require(!intent.hasExtra(EXTRA_INDEXED_PASSAGE)&&!h.handleIncomingIndexedPassage(intent)&&h.renderCount==1,
+                "consumed intent cannot replay after recreation");
+        ArchiveDatabase.Hit hit=h.indexedPassage;
+        hit.matchStart=h.database.source.indexOf('<');
+        hit.matchEnd=h.database.source.length();
+        require(h.renderIndexedPassage(hit).contains("<mark>&lt;foo-bar café&gt;</mark>"),
+                "duplicate normalized words highlight the chosen source coordinates");
+        hit.matchStart=h.database.source.indexOf('\r');
+        hit.matchEnd=hit.matchStart+2;
+        require(h.renderIndexedPassage(hit).contains("<mark>&#13;\n</mark>"),"leading line break survives HTML");
+        h.database.source="foo-"+"-".repeat(507)+"😀"+"-".repeat(508)+"-bar";
+        hit.matchStart=0;hit.matchEnd=h.database.source.length();
+        String clipped=h.renderIndexedPassage(hit);
+        require(clipped.contains("<mark>foo-")&&clipped.contains("source text omitted")
+                &&clipped.contains("-bar</mark>")&&!clipped.contains("\ud83d")&&!clipped.contains("\ude00"),
+                "long spans show both endpoints and omit a split surrogate");
+        h=new NavigationHarness();
+        require(h.handleIncomingIndexedPassage(search("generation-1",18)),"stale result consumed safely");
+        require(h.indexedPassage==null&&h.renderCount==0&&h.status.contains("changed"),"stale result never highlighted");
+        h=new NavigationHarness();h.handleIncomingIndexedPassage(search("generation-2",0));
+        require(h.chunkOffset==0,"first segment does not underflow");
+        h=new NavigationHarness();h.candidate.archiveId="other";h.handleDeepLink(deepLink());
+        require(h.renderCount==0&&h.homeCount==1,"wrong saved-link source blocked");
+        h=new NavigationHarness();h.database.ordinal=-1;h.handleDeepLink(deepLink());
+        require(h.renderCount==0&&h.homeCount==1,"missing saved-link message blocked");
         h=new NavigationHarness();Intent external=new Intent("https://example.com/v1/source/chat/message");
         require(!h.handleDeepLink(external)&&external.getData()!=null,"unrecognized URI not consumed");
-        System.out.println("PASS: extracted production archive navigation; exact segment, source generation, rotation and missing identity");
+        System.out.println("PASS: production indexed navigation, exact source HTML, generation and saved-link safety");
     }
 }

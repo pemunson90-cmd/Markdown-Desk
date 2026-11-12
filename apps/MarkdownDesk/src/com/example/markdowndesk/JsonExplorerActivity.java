@@ -429,12 +429,13 @@ public final class JsonExplorerActivity extends Activity {
                 new LinearLayout.LayoutParams(0,dp(48),1));
         root.addView(actions);
         noteActionRow=row();
+        noteActionRow.setGravity(Gravity.TOP);
         noteActionRow.addView(button("Saved notes",v->{if(readingNotes!=null)readingNotes.showNotes();}),
-                new LinearLayout.LayoutParams(0,dp(48),1));
+                new LinearLayout.LayoutParams(0,-2,1));
         noteActionRow.addView(button("Backlinks",v->{if(readingNotes!=null)readingNotes.showBacklinks();}),
-                new LinearLayout.LayoutParams(0,dp(48),1));
-        noteActionRow.addView(button("Find JSON",v->findCurrentJson()),new LinearLayout.LayoutParams(0,dp(48),1));
-        noteActionRow.addView(button("Index JSON",v->showGenericJsonImportChoice()),new LinearLayout.LayoutParams(0,dp(48),1));
+                new LinearLayout.LayoutParams(0,-2,1));
+        noteActionRow.addView(button("Find JSON",v->findCurrentJson()),new LinearLayout.LayoutParams(0,-2,1));
+        noteActionRow.addView(button("Index JSON",v->showGenericJsonImportChoice()),new LinearLayout.LayoutParams(0,-2,1));
         root.addView(noteActionRow);
         returnResults=button("Return to search results",v->finish());
         returnResults.setContentDescription("Return to the previous Unified Search results");
@@ -980,6 +981,9 @@ public final class JsonExplorerActivity extends Activity {
     }
 
     private void showTranscriptDialog(String md) {
+        android.view.inputmethod.InputMethodManager keyboard=getSystemService(android.view.inputmethod.InputMethodManager.class);
+        View focused=getCurrentFocus();
+        if(keyboard!=null&&focused!=null)keyboard.hideSoftInputFromWindow(focused.getWindowToken(),0);
         // This is a preview, not a full-transcript promise. Reuse the exact
         // editor renderer, shared typography, palette and existing link rules.
         final String visible=md.length()>110000

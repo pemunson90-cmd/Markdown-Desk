@@ -42,13 +42,18 @@ public final class UnifiedSearchActivity extends Activity {
     private ArchiveDatabase database;
     private WorkspaceSearchLoader.Ticket folderJob;
     private UiTheme.Palette palette;
-    private LinearLayout root,results;
+    private LinearLayout root,results,filters;
+    private Button stopSearch;
+    private TextView searchStatus;
+    private boolean indexPending,foldersPending;
     private EditText query,speaker,fromDate,toDate,noteTag;
     private Spinner scope,folder,noteKind,noteSource;
     private static final String[] NOTE_TYPES={"","note","highlight","bookmark","source_link","cross_link","external_link"};
     private static final String[] NOTE_SOURCES={"","markdown","archive","json"};
     private List<WorkspaceRootStore.RootState> roots=new ArrayList<>();
-    private int generation;
+    private volatile int generation;
+    static final String EXTRA_ARCHIVE_SCOPE="search_archive_scope";
+    static final String EXTRA_RETURN_TO_JSON="search_return_to_json";
     private boolean searchExecuted;
     private final Handler rootSearchHandler=new Handler(Looper.getMainLooper());
     private final ArrayDeque<WorkspaceRootStore.RootState> pendingRoots=new ArrayDeque<>();
@@ -73,6 +78,8 @@ public final class UnifiedSearchActivity extends Activity {
         setTitle("Search · Markdown Desk");
         build();
         refreshFolders();
+        if(saved==null&&getIntent().getBooleanExtra(EXTRA_ARCHIVE_SCOPE,false))
+            scope.setSelection(UnifiedSearchScope.ARCHIVE.ordinal());
         restoreSearchState(saved);
     }
     /** Restore search controls by URI identity, not folder list position. Never
@@ -123,42 +130,80 @@ public final class UnifiedSearchActivity extends Activity {
         b.setMinHeight(dp(48));b.setOnClickListener(action);return b;}
     private EditText field(String hint){EditText v=new EditText(this);v.setSingleLine(true);v.setHint(hint);
         v.setTextColor(palette.text);v.setHintTextColor(palette.muted);v.setTextSize(15);return v;}
-    private Spinner choose(String[] items){Spinner s=new Spinner(this);ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,items);
-        a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(a);return s;}
+    private ArrayAdapter<String> choiceAdapter(List<String> items){
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,items){
+            @Override public View getView(int position,View recycled,android.view.ViewGroup parent){
+                TextView choice=(TextView)super.getView(position,recycled,parent);
+                choice.setTextColor(palette.text);
+                return choice;
+            }
+            @Override public View getDropDownView(int position,View recycled,android.view.ViewGroup parent){
+                TextView choice=(TextView)super.getDropDownView(position,recycled,parent);
+                choice.setTextColor(palette.text);
+                choice.setBackgroundColor(palette.surface);
+                return choice;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        return adapter;
+    }
+    private Spinner choose(String[] items){
+        Spinner spinner=new Spinner(this);
+        spinner.setPopupBackgroundDrawable(new android.graphics.drawable.ColorDrawable(palette.surface));
+        spinner.setAdapter(choiceAdapter(java.util.Arrays.asList(items)));
+        return spinner;
+    }
     private void build(){
         root=stack();root.setFitsSystemWindows(true);root.setBackgroundColor(palette.canvas);
         LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.HORIZONTAL);
         header.setBackgroundColor(palette.surface);
-        Button back=button("‹",v->finish());
+        Button back=button("‹",v->leaveSearch());
         back.setContentDescription("Back to previous workspace");
         header.addView(back,new LinearLayout.LayoutParams(dp(52),dp(48)));
         header.addView(text("Search all your workspaces",17),new LinearLayout.LayoutParams(0,-2,1f));
         root.addView(header);
-        ScrollView page=new ScrollView(this);LinearLayout body=stack();
-        body.setPadding(dp(12),dp(8),dp(12),dp(20));page.addView(body);
+        LinearLayout body=stack();
+        body.setPadding(dp(12),dp(4),dp(12),dp(4));
         query=field("Find a phrase, title, note, or link");body.addView(query);
         scope=choose(UnifiedSearchScope.labels());scope.setContentDescription("Search sources");
         body.addView(scope,new LinearLayout.LayoutParams(-1,dp(48)));
-        speaker=field("Speaker (optional)");body.addView(speaker);
-        fromDate=field("From YYYY-MM-DD (optional)");body.addView(fromDate);
-        toDate=field("Through YYYY-MM-DD (optional)");body.addView(toDate);
-        body.addView(text("Speaker and date filters apply to indexed conversation messages only.",12));
-        body.addView(text("Saved-note filters (for Notes or All searches)",13));
+        LinearLayout actions=new LinearLayout(this);
+        actions.addView(button("Search",v->search()),new LinearLayout.LayoutParams(0,-2,1f));
+        stopSearch=button("Stop",v->cancel());
+        stopSearch.setVisibility(View.GONE);
+        actions.addView(stopSearch,new LinearLayout.LayoutParams(0,-2,1f));
+        body.addView(actions);
+        searchStatus=text("",13);
+        searchStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        searchStatus.setVisibility(View.GONE);
+        body.addView(searchStatus);
+        root.addView(body);
+        ScrollView page=new ScrollView(this);
+        LinearLayout content=stack();
+        page.addView(content);
+        filters=stack();
+        filters.setVisibility(View.GONE);
+        content.addView(button("Search filters",v->filters.setVisibility(
+                filters.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE)));
+        content.addView(filters);
+        speaker=field("Speaker (optional)");filters.addView(speaker);
+        fromDate=field("From YYYY-MM-DD (optional)");filters.addView(fromDate);
+        toDate=field("Through YYYY-MM-DD (optional)");filters.addView(toDate);
+        filters.addView(text("Speaker and date filters apply to indexed conversation messages only.",12));
+        filters.addView(text("Saved-note filters (for Notes or All searches)",13));
         noteKind=choose(new String[]{"Any kind","Note","Highlight","Bookmark",
                 "Source link","Cross-link","External link"});
         noteKind.setContentDescription("Saved annotation kind");
-        body.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
-        noteTag=field("Exact tag (optional)");body.addView(noteTag);
+        filters.addView(noteKind,new LinearLayout.LayoutParams(-1,dp(48)));
+        noteTag=field("Exact tag (optional)");filters.addView(noteTag);
         noteSource=choose(new String[]{"Any note source","Markdown documents","Archive conversations","General JSON files"});
         noteSource.setContentDescription("Saved annotation origin");
-        body.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
-        body.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
+        filters.addView(noteSource,new LinearLayout.LayoutParams(-1,dp(48)));
+        filters.addView(text("Authorized Markdown / JSON folders: all granted roots by default, or select one to narrow.",13));
         folder=choose(new String[]{"All granted saved folders"});
         folder.setContentDescription("Authorized document folder scope");
-        body.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
-        body.addView(button("Search",v->search()));
-        body.addView(button("Stop search",v->cancel()));
-        results=stack();body.addView(results);
+        filters.addView(folder,new LinearLayout.LayoutParams(-1,dp(48)));
+        results=stack();content.addView(results);
         root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));setContentView(root);
     }
     private void refreshFolders(){
@@ -168,8 +213,7 @@ public final class UnifiedSearchActivity extends Activity {
             for(WorkspaceRootStore.RootState root:roots){
                 labels.add(root.root.label+(root.access==WorkspaceRootStore.Access.CURRENT?"":" · access required"));
             }
-            ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,labels);
-            a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);folder.setAdapter(a);
+            folder.setAdapter(choiceAdapter(labels));
         }catch(Exception failure){roots.clear();error("Saved folder access",failure);}
     }
     private void add(String label,View.OnClickListener click){results.addView(button(label,click));}
@@ -177,7 +221,18 @@ public final class UnifiedSearchActivity extends Activity {
     private void error(String title,Exception ex){new AlertDialog.Builder(this).setTitle(title)
         .setMessage(ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage())
         .setPositiveButton("OK",null).show();}
-    private void cancel(){cancelActive();status("Search cancelled; no documents changed.");}
+    private void updateSearchStatus(String message){
+        searchStatus.setText(message);
+        searchStatus.setVisibility(View.VISIBLE);
+        stopSearch.setVisibility(indexPending||foldersPending?View.VISIBLE:View.GONE);
+    }
+    private void finishSearchIfReady(){
+        if(!indexPending&&!foldersPending)updateSearchStatus("Search finished");
+    }
+    private void cancel(){
+        cancelActive();
+        updateSearchStatus("Search stopped");
+    }
     private void search(){
         final String term=query.getText().toString().trim();
         if(term.isEmpty()){query.setError("Enter a phrase");return;}
@@ -193,10 +248,18 @@ public final class UnifiedSearchActivity extends Activity {
         searchExecuted=true;
         final int token=++generation;
         UnifiedSearchScope selected=UnifiedSearchScope.values()[scope.getSelectedItemPosition()];
-        if(selected.includesArchive()||selected.includesNotes())searchIndex(token,term,selected);
-        if(selected.includesFolder())searchFolder(token,term);
+        filters.setVisibility(View.GONE);
+        android.view.inputmethod.InputMethodManager keyboard=getSystemService(android.view.inputmethod.InputMethodManager.class);
+        if(keyboard!=null)keyboard.hideSoftInputFromWindow(query.getWindowToken(),0);
+        query.clearFocus();
+        indexPending=selected.includesArchive()||selected.includesNotes();
+        foldersPending=selected.includesFolder();
+        updateSearchStatus("Searching…");
+        if(indexPending)searchIndex(token,term,selected);
+        if(foldersPending)searchFolder(token,term);
     }
     private void cancelActive(){
+        indexPending=false;foldersPending=false;
         if(folderJob!=null){folderJob.cancel();folderJob=null;}
         pendingRoots.clear();folderHits.clear();seenFolderHits.clear();
         searchedRoots=skippedRoots=limitedRoots=failedRoots=totalRoots=shownFolderHits=0;
@@ -210,29 +273,37 @@ public final class UnifiedSearchActivity extends Activity {
         final String origin=NOTE_SOURCES[noteSource.getSelectedItemPosition()];
         io.execute(()->{
             try{
-                List<ArchiveDatabase.Hit> hits=selected.includesArchive()?database.search(term,null,sender,from,to,100,0):new ArrayList<>();
+                List<ArchiveDatabase.Hit> hits=selected.includesArchive()?database.search(term,null,sender,from,to,100,0,()->generation!=token):new ArrayList<>();
                 List<ArchiveJournal.Annotation> notes=selected.includesNotes()?ArchiveAnnotationSearch.pageFiltered(
                     new File(getFilesDir(),"claude-archive/annotations-v2.journal"),term,null,100,0,type,tag,origin):new ArrayList<>();
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     status("Indexed messages: "+hits.size()+" on this page; saved notes: "+notes.size()+" on this page");
-                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h,term));
+                    for(ArchiveDatabase.Hit h:hits)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,v->openArchiveHit(h));
                     if(hits.size()==100) add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,sender,from,to,100);});
                     for(ArchiveJournal.Annotation a:notes)add("Note · "+a.chatTitle+" · "+a.messageDate+"\n"+a.label,v->openAnnotationHit(a));
                     if(notes.size()==100) add("More saved-note matches",v->{v.setEnabled(false);moreNotes(token,term,100,type,tag,origin);});
+                    indexPending=false;
+                    finishSearchIfReady();
                 });
-            }catch(Exception failure){runOnUiThread(()->{if(token==generation)error("Archive search unavailable",failure);});}
+            }catch(Exception failure){runOnUiThread(()->{
+                if(token!=generation)return;
+                indexPending=false;
+                status("Indexed search unavailable");
+                finishSearchIfReady();
+                error("Archive search unavailable",failure);
+            });}
         });
     }
     private void moreMessages(int token,String term,String speaker,String from,String to,int offset){
         if(token!=generation)return;
         io.execute(()->{
             try{
-                List<ArchiveDatabase.Hit> page=database.search(term,null,speaker,from,to,100,offset);
+                List<ArchiveDatabase.Hit> page=database.search(term,null,speaker,from,to,100,offset,()->generation!=token);
                 runOnUiThread(()->{
                     if(token!=generation||isFinishing()||isDestroyed())return;
                     for(ArchiveDatabase.Hit h:page)add("JSON · "+h.chatTitle+" · "+h.created+"\n"+h.excerpt,
-                        v->openArchiveHit(h,term));
+                        v->openArchiveHit(h));
                     if(page.size()==100)add("More message matches",v->{v.setEnabled(false);moreMessages(token,term,speaker,from,to,offset+100);});
                     if(page.isEmpty())status("All indexed message matches shown");
                 });
@@ -262,7 +333,12 @@ public final class UnifiedSearchActivity extends Activity {
      */
     private void searchFolder(int token,String term){
         int selected=folder.getSelectedItemPosition()-1;
-        if(selected>=roots.size()){status("Selected folder is unavailable. Reopen Files.");return;}
+        if(selected>=roots.size()){
+            status("Selected folder is unavailable. Reopen Files.");
+            foldersPending=false;
+            finishSearchIfReady();
+            return;
+        }
         pendingRoots.clear();folderHits.clear();seenFolderHits.clear();
         searchedRoots=skippedRoots=limitedRoots=failedRoots=shownFolderHits=0;
         if(selected>=0)pendingRoots.addLast(roots.get(selected));
@@ -270,6 +346,8 @@ public final class UnifiedSearchActivity extends Activity {
         totalRoots=pendingRoots.size();
         if(totalRoots==0){
             status("No saved folders. Indexed Archive and notes may still have matches; add a folder in Files to include documents.");
+            foldersPending=false;
+            finishSearchIfReady();
             return;
         }
         scanNextRoot(token,term);
@@ -340,6 +418,8 @@ public final class UnifiedSearchActivity extends Activity {
                 failedRoots+" failed/busy; "+folderHits.size()+" distinct passage matches"+
                 (skippedRoots+limitedRoots+failedRoots>0?" · INCOMPLETE":""));
         showMoreFolderMatches(token);
+        foldersPending=false;
+        finishSearchIfReady();
     }
     private void showMoreFolderMatches(int token){
         if(token!=generation||isFinishing()||isDestroyed())return;
@@ -414,20 +494,22 @@ public final class UnifiedSearchActivity extends Activity {
         try{startActivity(intent);}
         catch(Exception e){error("Cannot open saved note",e);}
     }
-    private void openArchiveHit(ArchiveDatabase.Hit hit,String term){
+    private void openArchiveHit(ArchiveDatabase.Hit hit){
         if(hit==null||hit.chatId==null)return;
-        String chatId=hit.chatId,messageId=hit.messageId;
-        String archiveId=chatId.contains("/")?chatId.substring(0,chatId.indexOf('/')):"session";
-        Intent intent=new Intent();intent.setClassName(getPackageName(),"com.example.markdowndesk.ArchiveWorkspaceActivity");
-        intent.setAction(Intent.ACTION_VIEW);
-        Uri uri=new Uri.Builder().scheme("markdowndesk").authority("archive")
-            .appendPath("v1").appendPath(archiveId).appendPath(chatId).appendPath(messageId==null?"":messageId).build();
-        intent.setData(uri);intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_PART,hit.partOrdinal);
-        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_TERM,term);
-        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_GENERATION,hit.generationId);
+        Intent intent=new Intent(this,ArchiveWorkspaceActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        intent.putExtra(ArchiveWorkspaceActivity.EXTRA_INDEXED_PASSAGE,
+                ArchiveWorkspaceActivity.indexedPassageBundle(hit));
         intent.putExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,true);
         try{startActivity(intent);}catch(Exception e){error("Cannot open archived passage",e);}
     }
+    private void leaveSearch(){
+        if(getIntent().getBooleanExtra(EXTRA_RETURN_TO_JSON,false)){
+            startActivity(new Intent(this,JsonExplorerActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+        }
+        finish();
+    }
+    @Override public void onBackPressed(){leaveSearch();}
     @Override protected void onDestroy(){cancelActive();io.shutdownNow();if(database!=null)database.close();super.onDestroy();}
 }

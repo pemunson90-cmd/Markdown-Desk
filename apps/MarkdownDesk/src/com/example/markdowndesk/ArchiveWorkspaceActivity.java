@@ -45,6 +45,7 @@ import com.example.markdowndesk.workspace.archive.ArchiveHighlightScript;
 import com.example.markdowndesk.workspace.annotations.AnnotationTone;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchDialog;
 import com.example.markdowndesk.workspace.archive.ArchiveSearchSpec;
+import com.example.markdowndesk.workspace.archive.ArchiveSearchPassage;
 import com.example.markdowndesk.workspace.archive.ArchiveViewport;
 import com.example.markdowndesk.workspace.WorkspaceRouter;
 import com.example.markdowndesk.archive.ArchiveMarkdownIndexes;
@@ -91,18 +92,21 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private HorizontalScrollView conversationTabsScroll;
     private ConversationTabs conversationTabs;
     private HorizontalScrollView readerNavigation;
-    private String pendingFindTerm;
+    private String pendingFindTerm; // Saved annotation links retain literal Find.
+    private ArchiveDatabase.Hit indexedPassage;
+    private boolean jumpToIndexedPassage, indexedReaderVisit;
     private ArchiveSearchSpec currentSearch;
     // A reader reached through search retains its exact result page and filters.
     private String returnSearchTerm, returnSearchScope;
     private int returnSearchOffset;
     private final ArrayList<String> priorArchiveChats=new ArrayList<>();
-    private boolean returnUnifiedSearch;
+    private boolean returnUnifiedSearch, openedFromJsonInspector;
     private TextView title, subtitle;
     private PreviewWebView reader;
     private ScrollView listing;
     private ArchiveDatabase.Conversation active;
-    private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll, generation;
+    private int windowOffset, chunkOffset, focusOrdinal=-1, savedScroll;
+    private volatile int generation;
     private int anchorOrdinal=-1,anchorPart,anchorY;
     private long lastAnchorCapture;
     private volatile String savedSelectionJson;
@@ -110,9 +114,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private boolean fullscreen, chatLayout, restoreLastPosition;
     /** Shared workspace mode contract: Read(0), Inspect(1), Split(2). */
     private int archiveDisplayMode;
-    static final String EXTRA_SEARCH_PART="archive_search_part";
-    static final String EXTRA_SEARCH_TERM="archive_search_term";
-    static final String EXTRA_SEARCH_GENERATION="archive_search_generation";
+    static final String EXTRA_INDEXED_PASSAGE="archive_indexed_passage";
     private String pendingExportChat, query="";
     private Uri notesTree;
     private String viewMode="home";
@@ -140,6 +142,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             anchorY=state.getInt("anchor_y",0);
             pendingExportChat=state.getString("pending_export_chat");
             pendingFindTerm=state.getString("pending_find_term");
+            indexedPassage=readIndexedPassage(state.getBundle(EXTRA_INDEXED_PASSAGE));
+            jumpToIndexedPassage=state.getBoolean("jump_to_indexed_passage");
+            indexedReaderVisit=state.getBoolean("indexed_reader_visit");
             windowOffset=Math.max(0,state.getInt("offset",0));
             chunkOffset=Math.max(0,state.getInt("chunk",0));
             focusOrdinal=state.getInt("focused",-1);
@@ -159,6 +164,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     priorArchiveChats.add(id);
                 }
             returnUnifiedSearch=state.getBoolean("return_unified_search",false);
+            openedFromJsonInspector=state.getBoolean("opened_from_json_inspector",false);
             String savedQuery=state.getString("search_spec_term");
             if(savedQuery!=null)try{
                 currentSearch=new ArchiveSearchSpec(savedQuery,state.getString("search_spec_speaker"),
@@ -179,7 +185,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         if("interrupted".equals(importController.snapshot().state)){
             showInterruptedImport();return;
         }
-        if(incomingNavigationConsumed || (!handleIncomingInspectorImport(getIntent()) && !handleDeepLink(getIntent()) && !openUnifiedTab(getIntent()))){
+        if(incomingNavigationConsumed || (!handleIncomingInspectorImport(getIntent())
+                && !handleIncomingIndexedPassage(getIntent()) && !handleDeepLink(getIntent())
+                && !openUnifiedTab(getIntent()))){
             if(getIntent()!=null && getIntent().getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
                 getIntent().removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
                 searchDialog(null);return;
@@ -190,7 +198,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);setIntent(intent);
-        if(handleIncomingInspectorImport(intent))return;
+        if(handleIncomingInspectorImport(intent)||handleIncomingIndexedPassage(intent))return;
         if(openUnifiedTab(intent))return;
         if(intent!=null && intent.getBooleanExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE,false)){
             intent.removeExtra(WorkspaceRouter.EXTRA_SEARCH_ARCHIVE);
@@ -218,6 +226,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putInt("anchor_part",anchorPart);state.putInt("anchor_y",anchorY);
         state.putString("pending_export_chat",pendingExportChat);
         state.putString("pending_find_term",pendingFindTerm);
+        if(indexedPassage!=null)state.putBundle(EXTRA_INDEXED_PASSAGE,indexedPassageBundle(indexedPassage));
+        state.putBoolean("jump_to_indexed_passage",jumpToIndexedPassage);
+        state.putBoolean("indexed_reader_visit",indexedReaderVisit);
         state.putString("chat",active==null?null:active.id);
         state.putInt("offset",windowOffset);state.putInt("chunk",chunkOffset);
         state.putInt("focused",focusOrdinal);
@@ -230,6 +241,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         state.putInt("return_search_offset",returnSearchOffset);
         state.putStringArrayList("archive_prior_chat_ids",new ArrayList<>(priorArchiveChats));
         state.putBoolean("return_unified_search",returnUnifiedSearch);
+        state.putBoolean("opened_from_json_inspector",openedFromJsonInspector);
         if(currentSearch!=null){
             state.putString("search_spec_term",currentSearch.term);
             state.putString("search_spec_speaker",currentSearch.speaker);
@@ -349,7 +361,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     private void commonActions(){
         controls.removeAllViews();
         action("Library",v->showHome());
-        action("Search",v->startActivity(new Intent(this,UnifiedSearchActivity.class)));
+        action("Search indexed conversations",v->startActivity(new Intent(this,UnifiedSearchActivity.class)
+                .putExtra(UnifiedSearchActivity.EXTRA_ARCHIVE_SCOPE,true)
+                .putExtra(UnifiedSearchActivity.EXTRA_RETURN_TO_JSON,openedFromJsonInspector)));
         action("All tabs",v->UnifiedTabs.show(this));
         action("Saved links",v->showNotebook(true));action("Import",v->chooseImport());
         action("Reading style",v->appearanceDialog());
@@ -369,6 +383,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         rememberReadingPlace();
         priorArchiveChats.clear();
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
+        clearIndexedPassage();
         generation++;viewMode="home";active=null;reader=null;pendingFindTerm=null;focusOrdinal=-1;chunkOffset=0;
         applyFocusChrome();
         commonActions();refreshConversationTabs();setTitle("Conversation Archive","All imported conversations");
@@ -387,6 +402,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         view(scroll);
     }
     private void browsePage(int offset){
+        clearIndexedPassage();
         generation++;viewMode="home";active=null;commonActions();
         setTitle("Conversation library","Results "+(offset+1)+" onward");
         ScrollView scroll=new ScrollView(this);LinearLayout body=vertical();scroll.addView(body);
@@ -413,6 +429,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return null;
     }
     private void openChat(ArchiveDatabase.Conversation c){
+        clearIndexedPassage();
         returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;returnUnifiedSearch=false;
         savedSelectionJson=null;
         active=c;viewMode="reader";pendingFindTerm=null;viewport=null;viewportChatId=null;
@@ -429,6 +446,19 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void showReader(boolean keepScroll){
         if(active==null){showHome();return;}
+        if(indexedPassage!=null){
+            if(!active.id.equals(indexedPassage.chatId)
+                    ||!active.generationId.equals(indexedPassage.generationId)){
+                indexedPassage=null;jumpToIndexedPassage=false;
+                status("The indexed source changed. Search again to open the passage.");
+            }else if(jumpToIndexedPassage||((keepScroll||restoreLastPosition)&&anchorOrdinal<0)){
+                focusOrdinal=indexedPassage.messageOrdinal;
+                chunkOffset=Math.max(0,indexedPassage.partOrdinal);
+                if(jumpToIndexedPassage)restoreLastPosition=false;
+            }
+        }
+        final ArchiveDatabase.Hit passage=indexedPassage;
+        final boolean jumpToPassage=jumpToIndexedPassage;
         if(!conversationTabs.open(active.id,active.name)){
             status("Archive has 12 open tabs. Close one to open another.");
             showHome();return;
@@ -557,6 +587,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                                 navigationOrdinal+"\"]');if(e)e.scrollIntoView();})()",null);
                     restoreReadingSelection(web,token);
                     refreshHighlights(web,new ArrayList<>(visibleMessages),token);
+                    if(jumpToPassage&&passage==indexedPassage){
+                        v.evaluateJavascript("(function(){var e=document.getElementById('"
+                                +ArchiveSearchPassage.ANCHOR_ID+"');if(!e)return false;"
+                                +"e.scrollIntoView({block:'start'});return true;})()",result->{
+                            if(token==generation&&v==reader&&passage==indexedPassage){
+                                jumpToIndexedPassage=false;
+                                if(!"true".equals(result))status("Exact passage unavailable. Search again.");
+                            }
+                        });
+                    }
                     if(pendingFindTerm!=null&&!pendingFindTerm.isEmpty()){
                         v.findAllAsync(pendingFindTerm);
                         pendingFindTerm=null;
@@ -596,17 +636,34 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 for(int row=0;row<messages.size();row++)
                     ArchiveTranscriptIntegrity.message(initial.start()+row,
                             messages.get(row).ordinal,messages.get(row).segments);
-                String html=renderMessages(messages,targetOrdinal,targetChunk);
+                String passageHtml="";
+                if(passage!=null&&passage.matchStart>=0&&passage.matchEnd>passage.matchStart){
+                    try{passageHtml=renderIndexedPassage(passage);}
+                    catch(IOException stale){ /* The message can still open without an exact mark. */ }
+                }
+                final boolean hasPassage=!passageHtml.isEmpty();
+                String html=renderMessages(messages,targetOrdinal,targetChunk,passageHtml,
+                        hasPassage?passage.messageOrdinal:-1);
                 database.requireExportGeneration(renderedArchive,renderedGeneration);
                 runOnUiThread(()->{
                     if(isFinishing()||isDestroyed()||generation!=token||active==null
                             ||!renderedChat.equals(active.id)
                             ||!renderedGeneration.equals(active.generationId))return;
+                    if(passage!=null&&!hasPassage){
+                        indexedPassage=null;jumpToIndexedPassage=false;
+                        status("Exact passage unavailable. Search again.");
+                    }
                     visibleMessages=new ArrayList<>(messages);
                     focusOrdinal=-1;chunkOffset=0;
                     web.loadDataWithBaseURL("https://markdown.local/",html,"text/html","UTF-8",null);
                 });
-            }catch(Exception e){runOnUiThread(()->{if(generation==token)fail("Unable to render conversation",e);});}
+            }catch(Exception e){runOnUiThread(()->{
+                if(generation!=token)return;
+                if(passage!=null){
+                    indexedPassage=null;jumpToIndexedPassage=false;
+                    status("Unable to open the indexed passage. Search again.");
+                }else fail("Unable to render conversation",e);
+            });}
         });
     }
     private void setArchiveDisplayMode(int mode){
@@ -631,7 +688,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         savedScroll=0;
         showReader(false);
     }
-    private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset)throws IOException{
+    private String renderIndexedPassage(ArchiveDatabase.Hit hit)throws IOException{
+        int start=hit.matchStart,end=hit.matchEnd;
+        if(end-start<=ArchiveSearchPassage.MAX_DISPLAY_UNITS)
+            return ArchiveSearchPassage.render(database.searchPassage(hit,start,end),null);
+        int half=ArchiveSearchPassage.MAX_DISPLAY_UNITS/2;
+        return ArchiveSearchPassage.render(database.searchPassage(hit,start,start+half),
+                database.searchPassage(hit,end-half,end));
+    }
+    private String renderMessages(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset,
+            String passageHtml,int passageOrdinal)throws IOException{
         // The shared renderer provides exactly the same CSS/Markdown as normal Read.
         String shell=MarkdownRenderer.render("",palette,fontSp,typography);
         int body=shell.indexOf("<body");
@@ -654,13 +720,16 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append("mark.md-archive-tone-amber{background:rgba(242,180,70,.34)}")
                 .append("mark.md-archive-tone-blue{background:rgba(90,150,245,.33)}")
                 .append("mark.md-archive-tone-slate{background:rgba(132,152,171,.34)}</style>");
+        if(!passageHtml.isEmpty())html.append("<style>#archive-search-passage{scroll-margin-top:18px;margin:0 0 1.1em}"
+                +"#archive-search-passage pre{white-space:pre-wrap;overflow-wrap:anywhere}"
+                +"#archive-search-passage mark{background:#ffd76a;color:#171717}</style>");
         if(continuous){
             html.append("<a id=\"archive-before\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=-1\" data-more=\"")
                 .append(viewport.hasBefore()?"1":"0").append("\"")
                 .append(viewport.hasBefore()?"":" hidden").append(">Earlier messages</a>")
                 .append("<div id=\"archive-stream\">");
         }
-        html.append(renderMessageSections(messages,onlyOrdinal,partOffset));
+        html.append(renderMessageSections(messages,onlyOrdinal,partOffset,passageHtml,passageOrdinal));
         if(continuous){
             html.append("</div><a id=\"archive-after\" class=\"archive-sentinel\" href=\"mdarchive://adjacent?direction=1\" data-more=\"")
                 .append(viewport.hasAfter()?"1":"0").append("\"")
@@ -674,7 +743,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         return html.toString();
     }
     /** Standalone HTML sections used for both the initial page and in-place DOM insertion. */
-    private String renderMessageSections(List<ArchiveDatabase.Message> messages,int onlyOrdinal,int partOffset)throws IOException{
+    private String renderMessageSections(List<ArchiveDatabase.Message> messages,int onlyOrdinal,
+            int partOffset,String passageHtml,int passageOrdinal)throws IOException{
         StringBuilder html=new StringBuilder();
         if(messages.isEmpty())html.append("<p>No messages in this conversation.</p>");
         for(ArchiveDatabase.Message m:messages){
@@ -691,8 +761,9 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 .append("\" data-ordinal=\"").append(m.ordinal).append("\">")
                 .append("<div class=\"archive-meta\">").append(escape(m.role))
                 .append(" · ").append(escape(m.created))
-                .append(" · #").append(m.ordinal+1).append("</div>")
-                .append("<div class=\"archive-content\"><div class=\"archive-part\" data-start-part=\"")
+                .append(" · #").append(m.ordinal+1).append("</div>");
+            if(m.ordinal==passageOrdinal)html.append(passageHtml);
+            html.append("<div class=\"archive-content\"><div class=\"archive-part\" data-start-part=\"")
                 .append(part).append("\" data-part-end=\"")
                 .append(Math.min(part+CHUNK_PARTS,m.segments)).append("\">")
                 .append(rendered,opening+1,closing).append("</div></div>");
@@ -728,7 +799,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 for(int row=0;row<batch.size();row++)
                     ArchiveTranscriptIntegrity.message(load.offset+row,
                             batch.get(row).ordinal,batch.get(row).segments);
-                String fragments=renderMessageSections(batch,-1,0);
+                String fragments=renderMessageSections(batch,-1,0,"",-1);
                 database.requireExportGeneration(archiveId,sourceGeneration);
                 runOnUiThread(()->{
                     if(token!=generation||web!=reader||active==null||!chatId.equals(active.id)
@@ -749,7 +820,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                         windowOffset=window.start();
                         // Updating tab state only after confirmed DOM insertion avoids
                         // a mismatch when a newer mode/document invalidates the result.
-                        prefs.edit().putInt("archive_chat_position_"+chatId,windowOffset).apply();
+                        if(!indexedReaderVisit)prefs.edit().putInt("archive_chat_position_"+chatId,windowOffset).apply();
                         refreshHighlights(web,batch,token);
                         if(direction>0){
                             visibleMessages.addAll(batch);
@@ -891,6 +962,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
     }
     private void navigateWindow(int step){
         if(active==null)return;
+        clearIndexedPassage();
         windowOffset=Math.max(0,Math.min(Math.max(0,active.messages-1),windowOffset+step));
         windowOffset=(windowOffset/WINDOW_MESSAGES)*WINDOW_MESSAGES;
         viewport=null;viewportChatId=null;
@@ -908,6 +980,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 try{
                     int n=Integer.parseInt(input.getText().toString().trim());
                     if(n<1||n>active.messages){status("Number outside conversation");return;}
+                    clearIndexedPassage();
                     windowOffset=((n-1)/WINDOW_MESSAGES)*WINDOW_MESSAGES;
                     viewport=null;viewportChatId=null;
                     focusOrdinal=-1;chunkOffset=0;savedScroll=0;showReader(false);
@@ -975,6 +1048,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         });
     }
     private void showSearch(String term,String scope,int offset){
+        rememberReadingPlace();
+        clearIndexedPassage();
         returnSearchTerm=term;returnSearchScope=scope;returnSearchOffset=Math.max(0,offset);
         query=term;viewMode="search";
         setTitle(scope==null?"Archive search":"Find in conversation",term);
@@ -988,7 +1063,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 List<ArchiveDatabase.Hit> hits=database.search(term,scope,
                         options==null?null:options.speaker,
                         options==null?null:options.fromDate,
-                        options==null?null:options.toDate,60,offset);
+                        options==null?null:options.toDate,60,offset,()->generation!=token);
                 List<ArchiveJournal.Annotation> notes=new ArrayList<>();
                 String noteWarning=null;
                 if(offset==0 && (currentSearch==null||!currentSearch.filtersMessagesOnly())){
@@ -1003,15 +1078,8 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(hits.isEmpty()&&matchedNotes.isEmpty())rows.addView(text("No matching indexed messages or saved annotations.",14));
                     if(!hits.isEmpty())rows.addView(text("MATCHING CONVERSATION MESSAGES",14));
                     for(ArchiveDatabase.Hit hit:hits){
-                        add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),v->{
-                            ArchiveDatabase.Conversation c=findConversation(hit.chatId);
-                            if(c==null){status("Source chat unavailable");return;}
-                            active=c;windowOffset=(hit.messageOrdinal/WINDOW_MESSAGES)*WINDOW_MESSAGES;
-                            focusOrdinal=hit.messageOrdinal;
-                            // A match may start inside the FTS segment overlap.
-                            chunkOffset=Math.max(0,hit.partOrdinal-1);
-                            pendingFindTerm=term;savedScroll=0;showReader(false);
-                        });
+                        add(rows,hit.chatTitle+" · "+safe(hit.created)+"\n"+safe(hit.excerpt),
+                                v->openIndexedPassage(hit,findConversation(hit.chatId),false));
                     }
                     if(warning!=null)rows.addView(text(warning,13));
                     if(currentSearch!=null&&currentSearch.filtersMessagesOnly())
@@ -1351,6 +1419,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                 active=c;windowOffset=Math.max(0,position/WINDOW_MESSAGES*WINDOW_MESSAGES);
                 restoreLastPosition=false;
                 focusOrdinal=position;chunkOffset=Math.max(0,a.sourcePart-1);savedScroll=0;
+                clearIndexedPassage();
                 pendingFindTerm=a.quote;showReader(false);
             }else if(index==1){
                 ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
@@ -1742,10 +1811,80 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             status("Unable to import: original Android document URI is invalid");
             showHome();return true;
         }
+        openedFromJsonInspector=true;
         boolean genericJson=intent.getBooleanExtra("com.example.markdowndesk.INDEX_GENERIC_JSON",false);
         intent.removeExtra("com.example.markdowndesk.INDEX_GENERIC_JSON");
         intent.setData(null);
         importArchive(selected,genericJson);
+        return true;
+    }
+
+    static Bundle indexedPassageBundle(ArchiveDatabase.Hit hit){
+        Bundle data=new Bundle();
+        data.putString("chat",hit.chatId);
+        data.putString("message",hit.messageId);
+        data.putString("generation",hit.generationId);
+        data.putLong("row",hit.messageRow);
+        data.putInt("ordinal",hit.messageOrdinal);
+        data.putInt("part",hit.partOrdinal);
+        data.putInt("last_part",hit.endPartOrdinal);
+        data.putInt("start",hit.matchStart);
+        data.putInt("end",hit.matchEnd);
+        return data;
+    }
+
+    private static ArchiveDatabase.Hit readIndexedPassage(Bundle data){
+        if(data==null)return null;
+        ArchiveDatabase.Hit hit=new ArchiveDatabase.Hit();
+        hit.chatId=data.getString("chat");
+        hit.messageId=data.getString("message");
+        hit.generationId=data.getString("generation");
+        hit.messageRow=data.getLong("row",-1);
+        hit.messageOrdinal=data.getInt("ordinal",-1);
+        hit.partOrdinal=data.getInt("part",-1);
+        hit.endPartOrdinal=data.getInt("last_part",-1);
+        hit.matchStart=data.getInt("start",-1);
+        hit.matchEnd=data.getInt("end",-1);
+        return hit.chatId!=null&&hit.generationId!=null&&hit.messageRow>0&&hit.messageOrdinal>=0?hit:null;
+    }
+
+    private void clearIndexedPassage(){
+        indexedPassage=null;
+        jumpToIndexedPassage=false;
+        indexedReaderVisit=false;
+    }
+
+    private void openIndexedPassage(ArchiveDatabase.Hit hit,ArchiveDatabase.Conversation source,
+            boolean returnToUnifiedSearch){
+        if(source==null||!source.id.equals(hit.chatId)||!source.generationId.equals(hit.generationId)
+                ||hit.messageOrdinal<0||hit.messageOrdinal>=source.messages){
+            status("The indexed source changed. Search again to open the passage.");
+            if(returnToUnifiedSearch&&reader==null)showHome();
+            return;
+        }
+        rememberReadingPlace();
+        if(returnToUnifiedSearch){
+            returnSearchTerm=null;returnSearchScope=null;returnSearchOffset=0;
+            rememberPriorArchiveVisit(source.id);
+        }
+        returnUnifiedSearch=returnToUnifiedSearch;
+        active=source;windowOffset=hit.messageOrdinal/WINDOW_MESSAGES*WINDOW_MESSAGES;
+        focusOrdinal=hit.messageOrdinal;chunkOffset=Math.max(0,hit.partOrdinal);
+        pendingFindTerm=null;savedSelectionJson=null;savedScroll=0;restoreLastPosition=false;
+        indexedPassage=hit;jumpToIndexedPassage=true;indexedReaderVisit=true;
+        showReader(false);
+    }
+
+    private boolean handleIncomingIndexedPassage(Intent intent){
+        if(intent==null||!intent.hasExtra(EXTRA_INDEXED_PASSAGE))return false;
+        ArchiveDatabase.Hit hit=readIndexedPassage(intent.getBundleExtra(EXTRA_INDEXED_PASSAGE));
+        intent.removeExtra(EXTRA_INDEXED_PASSAGE);
+        incomingNavigationConsumed=true;
+        if(hit==null){
+            status("Invalid indexed passage. Search again.");
+            if(reader==null)showHome();
+        }else openIndexedPassage(hit,findConversation(hit.chatId),
+                intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false));
         return true;
     }
 
@@ -1764,23 +1903,14 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
             status("Archived conversation source identity differs from saved link; reimport its source.");
             showHome();return true;
         }
+        clearIndexedPassage();
+        pendingFindTerm=null;
         int ordinal=database.findMessageOrdinal(chat,message);
         if(ordinal<0){status("Saved link no longer resolves to a message");showHome();return true;}
         returnUnifiedSearch=intent.getBooleanExtra(UnifiedSearchJump.EXTRA_RETURN_RESULTS,false);
         rememberPriorArchiveVisit(c.id);
         active=c;windowOffset=Math.max(0,ordinal/WINDOW_MESSAGES*WINDOW_MESSAGES);
         focusOrdinal=ordinal;chunkOffset=0;savedScroll=0;
-        String searchTerm=intent.getStringExtra(EXTRA_SEARCH_TERM);
-        String searchGeneration=intent.getStringExtra(EXTRA_SEARCH_GENERATION);
-        if(searchTerm!=null&&!searchTerm.isEmpty()&&searchTerm.length()<=4096){
-            if(c.generationId.equals(searchGeneration)){
-                chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1);
-                pendingFindTerm=searchTerm;
-            }else status("The indexed source changed; search again for an exact passage match.");
-        }
-        intent.removeExtra(EXTRA_SEARCH_TERM);
-        intent.removeExtra(EXTRA_SEARCH_PART);
-        intent.removeExtra(EXTRA_SEARCH_GENERATION);
         showReader(false);
         final String annotationId=uri.getQueryParameter("link");
         if(annotationId!=null&&!annotationId.isEmpty())restoreAnnotationPassage(annotationId,c,ordinal);
@@ -1801,6 +1931,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
                     if(token!=generation||active==null||!source.id.equals(active.id)||isFinishing()||isDestroyed())return;
                     if(found==null){status("Saved annotation no longer resolves; original message opened.");return;}
                     focusOrdinal=ordinal;chunkOffset=Math.max(0,found.sourcePart-1);
+                    clearIndexedPassage();
                     pendingFindTerm=found.quote;savedScroll=0;showReader(false);
                 });
             }catch(Exception failed){runOnUiThread(()->{
@@ -1859,7 +1990,7 @@ public final class ArchiveWorkspaceActivity extends Activity implements ArchiveI
         });
     }
     private void rememberReadingPlace(){
-        if(active==null||!"reader".equals(viewMode))return;
+        if(active==null||indexedReaderVisit||!"reader".equals(viewMode))return;
         int y=reader==null?savedScroll:reader.getScrollY();
         prefs.edit().putInt("archive_chat_position_"+active.id,windowOffset)
                 .putInt("archive_chat_scroll_"+active.id,Math.max(0,y))

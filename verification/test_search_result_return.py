@@ -20,17 +20,13 @@ class SearchResultReturn(unittest.TestCase):
         self.assertIn('openMarkdownHit(hit.file,hit.match,hit.term)',self.search)
         self.assertIn('openJsonHit(hit.file,hit.match,hit.term)',self.search)
         self.assertIn('openAnnotationHit(ArchiveJournal.Annotation annotation)',self.search)
-        self.assertIn('openArchiveHit(ArchiveDatabase.Hit hit,String term)',self.search)
-    def test_archive_exact_hit_keeps_segment_term_and_generation(self):
-        self.assertEqual(self.search.count('openArchiveHit(h,term)'),2)
-        for field in ('PART,hit.partOrdinal','TERM,term','GENERATION,hit.generationId'):
-            self.assertIn('putExtra(ArchiveWorkspaceActivity.EXTRA_SEARCH_'+field+')',self.search)
-        self.assertIn('if(c.generationId.equals(searchGeneration))',self.archive)
-        self.assertIn('chunkOffset=Math.max(0,intent.getIntExtra(EXTRA_SEARCH_PART,0)-1)',self.archive)
-        self.assertIn('pendingFindTerm=searchTerm',self.archive)
-        self.assertIn('focusOrdinal<viewport.start()||focusOrdinal>=viewport.end()',self.archive)
-        self.assertIn('if(!restorePosition&&navigationOrdinal>=0)',self.archive)
-        self.assertIn('if(e)e.scrollIntoView()',self.archive)
+        self.assertIn('openArchiveHit(ArchiveDatabase.Hit hit)',self.search)
+    def test_archive_exact_hit_uses_verified_source_coordinates(self):
+        self.assertEqual(self.search.count('openArchiveHit(h)'),2)
+        self.assertIn('ArchiveWorkspaceActivity.indexedPassageBundle(hit)',self.search)
+        self.assertIn('openIndexedPassage(hit,findConversation(hit.chatId),false)',self.archive)
+        self.assertIn('database.searchPassage(hit,start,end)',self.archive)
+        self.assertIn('e.scrollIntoView({block:',self.archive)
 
     def test_markdown_return_does_not_discard_dirty_tabs(self):
         s=self.main

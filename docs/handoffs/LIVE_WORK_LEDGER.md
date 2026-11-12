@@ -1,3 +1,11 @@
+# Indexed-search repair source checkpoint
+
+- **Scope:** read-time seam recovery from stored message parts and exact indexed passage highlighting from both search screens. No index rebuild, original-file grant, source identity change, or new APK. Existing code40 beta indexes remain readable via metadata-only schema compatibility.
+- **Verification:** focused SQLite and Java matcher/offset fixtures, archive navigation and return-to-results checks, and full SDK37 source-only compile. Android WebView scroll/highlight still requires the focused device check after an authorized build.
+- **Reference:** [indexed-search findings and repair](../maintenance/SEARCH_FINDINGS.md). The release-maintenance checkpoint below records the pre-repair state.
+
+---
+
 # FAST RESUME — POST-RELEASE MAINTENANCE COMPLETE
 
 - **Shipping baseline:** `V2.5.0` / code39, accepted and published by Pat (owner report). Original APK unchanged. Latest pre-maintenance guidance commit: `3775af3323ae97c133ef1969ca7e504356f9f833`.
