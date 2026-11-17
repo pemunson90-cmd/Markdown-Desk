@@ -1,9 +1,9 @@
-> **Current:** owner reports V2.5.0 published. Post-release maintenance and the two confirmed search findings are recorded in [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md). Older publication-pending statements below are historical.
+> **Current local state - 2026-11-17:** the separate local completed, unreleased `codex/editor-search-repair` lane is at application checkpoint `3af8de45`. Editor/Read navigation and partial-source Unified Search repairs have focused host evidence and a final API37 source-only compile; no new APK or device acceptance. Owner-accepted V2.5.0/code39 remains distinct from unaccepted candidate44 and this later repair branch. See [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md) for exact identities, preserved evidence, blockers and next steps.
 
-> **Current 2.5.0 status:** owner accepted the signed code39 APK and authorized release. See [LIVE_WORK_LEDGER.md](handoffs/LIVE_WORK_LEDGER.md) for publication status and [release notes](releases/2.5.0.md). Earlier status entries are historical.
+> **Historical status archive, not the active queue.** All entries below retain their original historical wording. The older [Unified Workspaces queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md) is also superseded, not the current integration authority or a request to restart completed work. Use the current local handoff above before resuming development; publication, merging and fresh device work require their applicable authorization.
 
-<!-- historical-status-redirect: 2026-11-06 -->
-> **Historical status archive, not the active work queue.** For current Unified Workspaces branch ownership, batch progress, blockers, and PR #37 reconciliation, use [the authoritative integration queue](handoffs/ACTIVE_UNIFIED_WORKSPACES_QUEUE.md). The original status entries below are preserved verbatim for provenance; their "current", "this branch", and "next" claims refer to the historical snapshots that produced them. Do not execute a stale handoff as a task order.
+
+> **Publication scope:** this branch is documentation only, based on GitHub main `cefb21b5515b852bcde7178bd51d21aa4e62cf56`. The referenced November 17 implementation remains local and unmerged; no new application source or APK is included.
 
 ---
 

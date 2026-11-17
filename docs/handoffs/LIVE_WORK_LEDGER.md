@@ -1,3 +1,17 @@
+# Current local handoff - verified 2026-11-17
+
+- **Owner and state:** existing editor/search lane is completed and idle on `codex/editor-search-repair`, application checkpoint `3af8de45177e3c28bff55cfb94285a69a7c52d53`. The separate local repair clone was clean at that checkpoint; it is not this documentation publication branch. No new development is started by this status refresh.
+- **Delivered locally, not released:** editor-search correctness and guarded async callbacks; coherent Unified Search counts/paging/retries; Read-mode Find/bookmark continuity; partial-source search failures no longer discard healthy results. Detailed November 17 evidence remains in the local repair branch ledger; this documentation-only branch does not contain those application changes.
+- **Identity boundary:** owner-accepted shipping source remains `7b8a88cb80f293bf5b78e65174fc98b555bed537`, V2.5.0/code39. This lane derives from unaccepted candidate44 `59801c23cb2f7fc2120dd6819d4c3a73c8a0505e`; the historical signed code44 APK does NOT contain the November 17 repairs. No new APK, signing, installation, application publication, merge or release occurred; only this documentation branch is being published. Publication base: GitHub main `cefb21b5515b852bcde7178bd51d21aa4e62cf56`, fetched on 2026-11-17. This docs-only branch does not publish the 19 local-only commits or private-email history from the repair clone. Local documentation checkpoint: `bd66cc11c13aaeeb298d39b96a17cde4849dc656`. No application commit is represented as merged or published here.
+- **Verification boundary:** final retained `source-compile-partial-search-final.log` in sibling `sdk37-validation-20261117-040633` records API37 AAPT2/143-source Java/D8 source-only PASS and coordinator cancellation PASS. Focused production-method callback evidence supports the changed behavior; unchanged reader evidence is reused. Host checks do not establish actual WebView navigation, Fold keyboard/focus continuity, provider failures or native ICU interruption behavior.
+- **Precise next step:** before further development, agree the next product scope with Pat. If moving to device acceptance, use the authorized complete-build/release gates for a candidate containing this exact repair lineage, preserve the signer and in-place upgrade data, then check Read Find/bookmark landing, cover/unfolded keyboard and focus, and partial provider failure/retry. Do not hand over the older code44 APK as if it contains these repairs. No additional Activity extraction or broad host rerun is justified without a new concrete defect.
+- **Unmerged work:** the repair branch remains local and separate from `main`; no promotion or device acceptance is implied. The older FAST RESUME blocks below are historical snapshots, not executable task queues.
+
+
+---
+
+## Historical main checkpoint (not the current local repair queue)
+
 # FAST RESUME — POST-RELEASE MAINTENANCE COMPLETE
 
 - **Shipping baseline:** `V2.5.0` / code39, accepted and published by Pat (owner report). Original APK unchanged. Latest pre-maintenance guidance commit: `3775af3323ae97c133ef1969ca7e504356f9f833`.
