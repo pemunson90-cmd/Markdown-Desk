@@ -1,5 +1,7 @@
 # Markdown Desk
 
+**Shipping build:** [V2.5.0 / code39](https://github.com/pemunson90-cmd/Markdown-Desk/releases/tag/V2.5.0). The [November 17 search and editor handoff](https://github.com/pemunson90-cmd/Markdown-Desk/blob/docs/current-state-20261117/docs/handoffs/LIVE_WORK_LEDGER.md) records later local repairs and their exact source. Those repairs have yet to be packaged into a new APK. For the shipping code39 work record, see the [release and maintenance ledger](docs/handoffs/LIVE_WORK_LEDGER.md).
+
 A local-first Markdown editor, reader, and JSON workspace for Android phones and foldables.
 
 **2.5.0 — Unified Workspaces** brings Markdown documents, LLM conversations, and general JSON into one tabbed workspace. Android 15 or newer is required.
