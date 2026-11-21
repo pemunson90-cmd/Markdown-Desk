@@ -1,3 +1,7 @@
+## November 20 owner operating directive — connected product delivery
+
+**Before new project work, read [AGENTS.md](AGENTS.md) and [Discovery → Delivery](docs/AGENT_DISCOVERY_TO_DELIVERY_PROTOCOL.md).** Their connected-feature contract covers the real user experience, interface, implementation, model/AI where applicable, and outcome. Prioritize useful integrated product and evidence-grounded use over repetitive component tests; preserve observations and handoffs before context resets. These rules extend rather than discard existing project-specific release, safety and continuity requirements. Apply at the next safe boundary; never interrupt another agent's active worktree.
+
 # Required agent guidance
 
 Read [AGENTS.md](AGENTS.md) before starting work. It is the shared contract for Claude and all other agents; delegated agents must receive its testing stop rule.
